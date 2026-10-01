@@ -13591,7 +13591,9 @@ const RIDER_HISTORY_COLUMNS =
   "estimated_fare, final_fare, tip_amount, " +
   "scheduled_time, created_at, updated_at, completed_at, cancelled_at, " +
   "delivery_stage, delivery_pin, merchant_name, item_count, " +
-  "pickup_instructions, delivery_instructions, delivered_at, delivery_proof_url";
+  "pickup_instructions, delivery_instructions, delivered_at, delivery_proof_url, " +
+  // Lets the rider's own history label App Review rides as simulated.
+  "is_review_ride";
 
 // "Active" vs "completed" here means "still open" vs "finished" — a
 // cancelled or failed ride counts as finished/historical, same as a

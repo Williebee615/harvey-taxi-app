@@ -393,6 +393,10 @@
 
   <a href="#mainContent" class="skip-link">Skip to content</a>
 
+  <div id="settingsReviewBanner" role="status" hidden style="position:sticky; top:0; z-index:50; margin:8px; padding:10px 14px; border-radius:12px; border:1px solid rgba(255,196,0,0.55); background:rgba(255,196,0,0.14); color:#ffe59a; font-weight:700; text-align:center;">
+    App Review mode — rides, payments, earnings and account deletion are simulated for this review account.
+  </div>
+
   <main id="mainContent" class="shell">
 
     <!-- LANGUAGE + ACCESSIBILITY -->
@@ -1207,7 +1211,10 @@
     // The server resolves the account from that proof, never from an id
     // sent by this page.
     const DRIVER_TOKEN_KEY = "harvey_driver_token";
-    const deletionIdentity = { rider: false, driverToken: "" };
+    const DRIVER_ID_KEY = "harvey_driver_id";
+    // riderReview/driverReview come from the server's view of the signed-in
+    // account (review_mode), never from anything stored in this browser.
+    const deletionIdentity = { rider: false, riderReview: false, driverToken: "", driverReview: false };
 
     function readDriverToken() {
       try { return localStorage.getItem(DRIVER_TOKEN_KEY) || ""; } catch { return ""; }
@@ -1225,8 +1232,26 @@
           cache: "no-store"
         });
         deletionIdentity.rider = res.ok;
+        const data = res.ok ? await res.json().catch(() => ({})) : {};
+        deletionIdentity.riderReview = data.review_mode === true;
       } catch {
         deletionIdentity.rider = false;
+        deletionIdentity.riderReview = false;
+      }
+      deletionIdentity.driverReview = false;
+      if (deletionIdentity.driverToken) {
+        // The earnings route resolves the driver from the token itself;
+        // its review_mode flag marks App Review driver accounts.
+        let driverId = "";
+        try { driverId = localStorage.getItem(DRIVER_ID_KEY) || ""; } catch {}
+        try {
+          const res = await fetch(`${HARVEY_API_BASE}/api/driver/${encodeURIComponent(driverId || "self")}/earnings`, {
+            headers: { "x-driver-token": deletionIdentity.driverToken },
+            cache: "no-store"
+          });
+          const data = res.ok ? await res.json().catch(() => ({})) : {};
+          deletionIdentity.driverReview = data.review_mode === true;
+        } catch {}
       }
       renderDeletionIdentity();
     }
@@ -1246,8 +1271,14 @@
         text = "You're not signed in. We'll text a code to the phone number on your rider account to confirm it's you.";
         smsVisible = true;
       }
+      const reviewAccount = type === "driver" ? deletionIdentity.driverReview : deletionIdentity.riderReview;
+      if (reviewAccount) {
+        text += " This is an App Review account: deletion is simulated. The request is recorded and confirmed, but the account and its data are kept so review can continue.";
+      }
       els.deletionIdentity.textContent = text;
       if (els.deletionSmsFields) els.deletionSmsFields.hidden = !smsVisible;
+      const banner = document.getElementById("settingsReviewBanner");
+      if (banner) banner.hidden = !(deletionIdentity.riderReview || deletionIdentity.driverReview);
     }
 
     async function sendAccountDeletionCode() {

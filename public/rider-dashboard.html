@@ -2717,15 +2717,136 @@
       text-align: center;
     }
 
+    /* "App Review Access": its own card, visibly apart from the rider
+       booking flow, shown only while signed out. */
+    .app-review-access {
+      margin: 0 0 18px;
+      padding: 16px 18px;
+      border-radius: 18px;
+      border: 1px dashed rgba(255, 196, 0, 0.6);
+      background: rgba(255, 196, 0, 0.06);
+    }
+
+    .app-review-access h2 {
+      margin: 0 0 6px;
+      font-size: 1rem;
+      color: #ffe59a;
+      letter-spacing: 0.02em;
+    }
+
+    .app-review-access p {
+      margin: 0 0 12px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
     .app-review-entry {
-      margin-top: 14px;
       padding: 10px 16px;
       border-radius: 999px;
-      border: 1px solid rgba(99, 245, 255, 0.45);
-      background: rgba(99, 245, 255, 0.08);
-      color: var(--cyan);
-      font-weight: 700;
+      border: 1px solid rgba(255, 196, 0, 0.6);
+      background: rgba(255, 196, 0, 0.12);
+      color: #ffe59a;
+      font-weight: 800;
       cursor: pointer;
+    }
+
+    /* Dedicated reviewer sign-in panel: separate from the rider
+       sign-in overlay and the booking wizard. */
+    #appReviewPanel {
+      position: fixed;
+      inset: 0;
+      z-index: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(2, 5, 12, 0.94);
+      overflow-y: auto;
+    }
+
+    #appReviewPanel[hidden] {
+      display: none;
+    }
+
+    .app-review-panel-card {
+      width: 100%;
+      max-width: 420px;
+      padding: 22px;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 196, 0, 0.55);
+      background: #0b1427;
+      color: var(--text);
+    }
+
+    .app-review-panel-card h2 {
+      margin: 0 0 6px;
+      color: #ffe59a;
+    }
+
+    .app-review-panel-card p {
+      margin: 0 0 14px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .app-review-panel-card label {
+      display: block;
+      margin: 10px 0 6px;
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+
+    .app-review-panel-card input {
+      width: 100%;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      font-size: 16px;
+    }
+
+    .app-review-panel-actions {
+      display: grid;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .app-review-panel-actions button {
+      padding: 12px;
+      border-radius: 12px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    #appReviewSubmitBtn {
+      border: 0;
+      background: #ffc400;
+      color: #1a1300;
+    }
+
+    #appReviewBackBtn {
+      border: 1px solid var(--line);
+      background: transparent;
+      color: var(--text);
+    }
+
+    .app-review-panel-error {
+      margin: 10px 0 0;
+      color: #ff9db0;
+    }
+
+    .sim-tag {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 196, 0, 0.6);
+      background: rgba(255, 196, 0, 0.14);
+      color: #ffe59a;
+      font-size: 0.72rem;
+      font-weight: 800;
+      vertical-align: middle;
     }
 
     .review-sim-note {
@@ -2795,6 +2916,16 @@
       </div>
     </header>
 
+    <!-- APP REVIEW ACCESS: shown only while signed out. Opens the
+         dedicated reviewer panel below, which signs in through
+         POST /api/review/rider/login -- the server accepts only accounts
+         flagged is_review_account in the database. -->
+    <section class="app-review-access" id="appReviewAccess" aria-labelledby="appReviewAccessTitle" hidden>
+      <h2 id="appReviewAccessTitle">App Review Access</h2>
+      <p>For authorized Apple App Store and Google Play reviewers only. Review rides, payments, and earnings are simulated.</p>
+      <button type="button" class="app-review-entry" id="appReviewSignInBtn">App Review Sign-In</button>
+    </section>
+
     <!-- HERO -->
     <section class="hero">
       <div class="hero-inner">
@@ -2811,13 +2942,6 @@
           payment readiness, active orders, trip history, tipping, and support
           from one futuristic dashboard.
         </p>
-
-        <!-- Shown only while signed out. Opens the existing reviewer
-             email+password form, which the server accepts only for the
-             flagged App Review accounts (POST /api/review/rider/login). -->
-        <button type="button" class="app-review-entry" id="heroReviewSignInBtn" hidden>
-          App Review Sign-In
-        </button>
 
         <div class="hero-stats">
           <div class="hero-stat">
@@ -3591,7 +3715,7 @@
         <button type="submit" class="auth-btn" id="authStartBtn">Send code</button>
         <p class="auth-error" id="authStartError" hidden></p>
         <p class="auth-footnote">New to Harvey Taxi? <a href="rider-signup.html">Create an account</a></p>
-        <p class="auth-footnote"><button type="button" class="auth-link" id="authReviewToggleBtn">App Review Sign-In</button></p>
+        <p class="auth-footnote"><button type="button" class="auth-link" id="authAppReviewLink">App Review Access</button></p>
       </form>
 
       <form id="authVerifyForm" class="auth-step" hidden>
@@ -3606,28 +3730,38 @@
         </div>
       </form>
 
-      <!-- App Review sign-in: a separate email+password form,
-           independent of the OTP flow above. Only ever functional for
-           the two dedicated review accounts (server-side rejects any
-           other email) -- see POST /api/review/rider/login. -->
-      <form id="authReviewForm" class="auth-step" hidden>
-        <label class="auth-label" for="authReviewEmail">Reviewer email</label>
-        <input id="authReviewEmail" type="email" inputmode="email" autocomplete="username" class="auth-input" />
-        <label class="auth-label" for="authReviewPassword">Reviewer password</label>
-        <input id="authReviewPassword" type="password" autocomplete="current-password" class="auth-input" />
-        <button type="submit" class="auth-btn" id="authReviewBtn">Sign in as reviewer</button>
-        <p class="auth-error" id="authReviewError" hidden></p>
-        <p class="auth-footnote"><button type="button" class="auth-link" id="authReviewBackBtn">Back to rider sign-in</button></p>
-      </form>
-
       <p class="auth-status" id="authStatusMsg" hidden></p>
     </div>
   </div>
 
   <!-- ===== Merged from request-ride.html: full booking/payment/tracking wizard, hidden by default, opened via window.HarveyRideWizard.open({mode, ride_id}) ===== -->
+  <!-- Dedicated App Review sign-in panel. Deliberately outside both the
+       rider sign-in overlay (phone/email codes) and the booking wizard. -->
+  <div id="appReviewPanel" role="dialog" aria-modal="true" aria-labelledby="appReviewPanelTitle" hidden>
+    <div class="app-review-panel-card">
+      <h2 id="appReviewPanelTitle">App Review Sign-In</h2>
+      <p>For authorized Apple App Store and Google Play reviewers only. Review rides, payments, and earnings are simulated.</p>
+      <form id="appReviewForm" novalidate>
+        <label for="appReviewEmail">Reviewer email</label>
+        <input id="appReviewEmail" type="email" inputmode="email" autocomplete="username" />
+        <label for="appReviewPassword">Reviewer password</label>
+        <input id="appReviewPassword" type="password" autocomplete="current-password" />
+        <p class="app-review-panel-error" id="appReviewError" role="alert" hidden></p>
+        <div class="app-review-panel-actions">
+          <button type="submit" id="appReviewSubmitBtn">Sign in as reviewer</button>
+          <button type="button" id="appReviewBackBtn">Back to regular booking</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div id="rideWizardOverlay" hidden>
   <div class="page">
     <div class="shell">
+
+      <div class="app-review-banner" role="status" hidden>
+        App Review mode — this ride and its payment are simulated. No card is charged and no real driver is dispatched.
+      </div>
 
       <!-- TOPBAR -->
       <header class="topbar">
@@ -3650,10 +3784,6 @@
 
           <a class="pill-link wizard-close-link" href="#" data-action="close-wizard">
             Close
-          </a>
-
-          <a class="pill-link" href="#" id="wizardReviewSignInLink" hidden>
-            App Review Sign-In
           </a>
 
           <a class="pill-link" href="/support.html">
@@ -9749,13 +9879,16 @@
       resendBtn: document.getElementById("authResendBtn"),
       backBtn: document.getElementById("authBackBtn"),
       logoutBtn: document.getElementById("riderLogoutBtn"),
-      reviewToggleBtn: document.getElementById("authReviewToggleBtn"),
-      reviewForm: document.getElementById("authReviewForm"),
-      reviewEmail: document.getElementById("authReviewEmail"),
-      reviewPassword: document.getElementById("authReviewPassword"),
-      reviewBtn: document.getElementById("authReviewBtn"),
-      reviewError: document.getElementById("authReviewError"),
-      reviewBackBtn: document.getElementById("authReviewBackBtn")
+      appReviewLink: document.getElementById("authAppReviewLink"),
+      reviewAccess: document.getElementById("appReviewAccess"),
+      reviewEntryBtn: document.getElementById("appReviewSignInBtn"),
+      reviewPanel: document.getElementById("appReviewPanel"),
+      reviewForm: document.getElementById("appReviewForm"),
+      reviewEmail: document.getElementById("appReviewEmail"),
+      reviewPassword: document.getElementById("appReviewPassword"),
+      reviewBtn: document.getElementById("appReviewSubmitBtn"),
+      reviewError: document.getElementById("appReviewError"),
+      reviewBackBtn: document.getElementById("appReviewBackBtn")
     };
 
     function showAuthOverlay() {
@@ -10032,7 +10165,7 @@
 
       hideAuthOverlay();
       resetAuthStep();
-      reviewEntryOpened = false;
+      closeAppReviewPanel({ returnToSignIn: false });
       setSignedOutReviewEntry(false);
       await runAuthenticatedBoot();
     }
@@ -10115,9 +10248,8 @@
       await requestLoginCode();
     }
 
-    // App Review sign-in: a separate email+password form (see
-    // authReviewForm in the HTML above), independent of the OTP flow
-    // above it. POST /api/review/rider/login mints the exact same
+    // App Review sign-in: the dedicated #appReviewPanel email+password
+    // form, independent of the rider code sign-in above. POST /api/review/rider/login mints the exact same
     // session cookie a real OTP login does, so completeSignIn() below
     // works unchanged for a reviewer session.
     // App Review mode (server-verified via GET /api/rider/session's
@@ -10128,30 +10260,35 @@
       window.HarveyReviewMode = on === true;
       document.body.classList.toggle("app-review-mode", window.HarveyReviewMode);
 
-      const banner = document.getElementById("appReviewBanner");
-
-      if (banner) {
+      // Every banner on the page: the dashboard's and the booking
+      // wizard's (the wizard overlay covers the dashboard).
+      document.querySelectorAll(".app-review-banner").forEach((banner) => {
         banner.hidden = !window.HarveyReviewMode;
-      }
-    }
-
-    // Signed-out entry points to the existing reviewer form. Shown
-    // regardless of rider_auth_ui_enabled (which stays off): they open
-    // only the email+password form, which the server accepts solely for
-    // the flagged App Review accounts.
-    let reviewEntryOpened = false;
-
-    function setSignedOutReviewEntry(visible) {
-      ["heroReviewSignInBtn", "wizardReviewSignInLink"].forEach((id) => {
-        const el = document.getElementById(id);
-
-        if (el) {
-          el.hidden = !visible;
-        }
       });
     }
 
-    function openAppReviewSignIn(event) {
+    // The "App Review Access" card is shown only while signed out,
+    // regardless of rider_auth_ui_enabled (which stays off). It opens the
+    // dedicated reviewer panel -- never the rider sign-in overlay or the
+    // booking wizard -- and the server accepts that panel's credentials
+    // only for accounts flagged is_review_account.
+    let reviewPanelReturnsToSignIn = false;
+
+    function setSignedOutReviewEntry(visible) {
+      if (authEls.reviewAccess) {
+        authEls.reviewAccess.hidden = !visible;
+      }
+    }
+
+    // The Phone/Email tabs belong to the rider code sign-in only.
+    function setAuthTabsVisible(visible) {
+      const tabs = document.querySelector("#riderAuthOverlay .auth-tabs");
+      if (tabs) {
+        tabs.hidden = !visible;
+      }
+    }
+
+    function openAppReviewPanel(event) {
       if (event) {
         event.preventDefault();
       }
@@ -10160,52 +10297,29 @@
         window.HarveyRideWizard.close();
       }
 
-      reviewEntryOpened = true;
-      resetAuthStep();
-      showAuthOverlay();
-      showReviewForm();
-    }
-
-    // The Phone/Email tabs belong to the OTP form only; hiding them while
-    // the reviewer form is open avoids implying it is a phone sign-in.
-    function setAuthTabsVisible(visible) {
-      const tabs = document.querySelector("#riderAuthOverlay .auth-tabs");
-      if (tabs) {
-        tabs.hidden = !visible;
-      }
-    }
-
-    function showReviewForm() {
+      // Opened from inside the rider sign-in overlay (only shown when
+      // rider_auth_ui_enabled is on): remember to return there on Back.
+      reviewPanelReturnsToSignIn = !authEls.overlay.hidden;
+      hideAuthOverlay();
       setAuthTabsVisible(false);
-      authEls.startForm.hidden = true;
-      authEls.reviewForm.hidden = false;
+
       clearAuthError(authEls.reviewError);
+      authEls.reviewPanel.hidden = false;
       authEls.reviewEmail.focus();
     }
 
-    function hideReviewForm() {
-      // Opened from a signed-out App Review entry point: "Back" closes
-      // the overlay instead of dropping an ordinary visitor into the
-      // phone/email sign-in form, which isn't enabled for them yet.
-      if (reviewEntryOpened) {
-        reviewEntryOpened = false;
-        authEls.reviewEmail.value = "";
-        authEls.reviewPassword.value = "";
-        clearAuthError(authEls.reviewError);
-        authEls.reviewForm.hidden = true;
-        authEls.startForm.hidden = false;
-        setAuthTabsVisible(true);
-        hideAuthOverlay();
-        return;
-      }
-
-      setAuthTabsVisible(true);
-
-      authEls.reviewForm.hidden = true;
-      authEls.startForm.hidden = false;
-      clearAuthError(authEls.reviewError);
+    function closeAppReviewPanel({ returnToSignIn = reviewPanelReturnsToSignIn } = {}) {
+      authEls.reviewPanel.hidden = true;
       authEls.reviewEmail.value = "";
       authEls.reviewPassword.value = "";
+      clearAuthError(authEls.reviewError);
+      setAuthTabsVisible(true);
+      reviewPanelReturnsToSignIn = false;
+
+      if (returnToSignIn) {
+        resetAuthStep();
+        showAuthOverlay();
+      }
     }
 
     // Mirrors lib/reviewAccounts.js's resolveReviewLoginClientMessage
@@ -10287,25 +10401,19 @@
 
       authEls.backBtn.addEventListener("click", resetAuthStep);
 
-      if (authEls.reviewToggleBtn) {
-        authEls.reviewToggleBtn.addEventListener("click", showReviewForm);
-      }
+      [authEls.reviewEntryBtn, authEls.appReviewLink].forEach((el) => {
+        if (el) {
+          el.addEventListener("click", openAppReviewPanel);
+        }
+      });
 
       if (authEls.reviewBackBtn) {
-        authEls.reviewBackBtn.addEventListener("click", hideReviewForm);
+        authEls.reviewBackBtn.addEventListener("click", () => closeAppReviewPanel());
       }
 
       if (authEls.reviewForm) {
         authEls.reviewForm.addEventListener("submit", handleReviewSignIn);
       }
-
-      ["heroReviewSignInBtn", "wizardReviewSignInLink"].forEach((id) => {
-        const el = document.getElementById(id);
-
-        if (el) {
-          el.addEventListener("click", openAppReviewSignIn);
-        }
-      });
 
       if (authEls.logoutBtn) {
         authEls.logoutBtn.addEventListener("click", handleLogout);
@@ -10762,6 +10870,7 @@
             <div class="trip-status ${statusClass(status)}">
               ${escapeHtml(human(status))}
             </div>
+            ${item.is_review_ride === true ? '<span class="sim-tag">Simulated</span>' : ""}
           </div>
 
           <div class="trip-meta">

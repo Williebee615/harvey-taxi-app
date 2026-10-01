@@ -306,10 +306,31 @@ describe("Reviewer rider: request, schedule, authorize, cancel -- never Stripe",
 
     expect(res.status).toBe(200);
     expect(JSON.stringify(res.body)).toContain(created.body.ride.id);
+    // Lets the dashboard label it "Simulated".
+    expect(findById(res.body, created.body.ride.id).is_review_ride).toBe(true);
   });
 });
 
+// First object anywhere in a response body with this id.
+function findById(node, id) {
+  if (!node || typeof node !== "object") return null;
+  if (node.id === id) return node;
+  for (const value of Object.values(node)) {
+    const hit = findById(value, id);
+    if (hit) return hit;
+  }
+  return null;
+}
+
 describe("Ordinary riders are unchanged", () => {
+  test("an ordinary rider's history marks rides as not simulated", async () => {
+    const headers = riderAuthHeaders(signTestRiderToken(ORDINARY_RIDER.id));
+    const created = await request(app).post("/api/rides/request").set(headers).send(quoteBody({ riderId: ORDINARY_RIDER.id }));
+    const res = await request(app).get(`/api/rider/rides?riderId=${ORDINARY_RIDER.id}&limit=25`).set(headers);
+    expect(res.status).toBe(200);
+    expect(findById(res.body, created.body.ride.id).is_review_ride).toBe(false);
+  });
+
   test("an ordinary rider's ride still starts payment_required with no review fields", async () => {
     const res = await request(app)
       .post("/api/rides/request")
