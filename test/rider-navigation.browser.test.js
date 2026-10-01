@@ -84,7 +84,10 @@ describeWithBrowser("Rider dashboard is home; booking is a separate screen", () 
       ADMIN_API_TOKEN: "test-admin-token",
       ENABLE_PAYMENT_GATE: "true",
       ENABLE_RIDER_APPROVAL_GATE: "false",
-      MAPBOX_ACCESS_TOKEN: TEST_TOKEN
+      MAPBOX_ACCESS_TOKEN: TEST_TOKEN,
+      // Every page load here comes from 127.0.0.1; the production
+      // per-IP API limit would otherwise start answering 429 mid-suite.
+      API_RATE_LIMIT_PER_MINUTE: "100000"
     };
     for (const name of ["CANONICAL_HOST", "FOUNDATION_HOST", "STRIPE_SECRET_KEY", "STRIPE_PUBLISHABLE_KEY"]) {
       delete process.env[name];
@@ -124,9 +127,11 @@ describeWithBrowser("Rider dashboard is home; booking is a separate screen", () 
   async function newPage(riderId, viewport = { width: 390, height: 844 }) {
     const context = await browser.newContext({ viewport, isMobile: viewport.width < 600, hasTouch: viewport.width < 600 });
     await context.route(/^https?:\/\/(?!harveytaxiservice\.test)/, (route) => route.abort());
-    await context.addCookies([
-      { name: "harvey_rider_session", value: encodeURIComponent(signTestRiderToken(riderId)), url: base }
-    ]);
+    if (riderId) {
+      await context.addCookies([
+        { name: "harvey_rider_session", value: encodeURIComponent(signTestRiderToken(riderId)), url: base }
+      ]);
+    }
     const page = await context.newPage();
     page.errors = [];
     page.on("pageerror", (err) => page.errors.push(err.message));
@@ -306,6 +311,139 @@ describeWithBrowser("Rider dashboard is home; booking is a separate screen", () 
     expect(await page.isVisible("#requestRideBtn")).toBe(false);
     expect(state.rides).toHaveLength(1);
     expect(page.errors).toEqual([]);
+  });
+
+
+  test("Back then Forward reopens the booking screen without creating anything", async () => {
+    const page = await newPage("RIDER_REAL");
+    await goto(page, "/rider-dashboard.html");
+    await page.click("#heroRequestRideBtn");
+    await page.waitForTimeout(400);
+    expect(await wizardOpen(page)).toBe(true);
+    await page.goBack();
+    await page.waitForTimeout(400);
+    expect(await wizardOpen(page)).toBe(false);
+    expect(await path(page)).toBe("/rider-dashboard.html");
+    await page.goForward();
+    await page.waitForTimeout(400);
+    expect(await wizardOpen(page)).toBe(true);
+    expect(await path(page)).toMatch(/^\/rider-dashboard\.html\?screen=book/);
+    await page.goBack();
+    await page.waitForTimeout(400);
+    expect(await wizardOpen(page)).toBe(false);
+    expect(state.rides).toHaveLength(0);
+    expect(state.payments).toHaveLength(0);
+    expect(page.errors).toEqual([]);
+  });
+
+  test("tracking survives refresh and can never submit a booking or a payment authorization", async () => {
+    state.rides.push({
+      id: "RIDE_TRACK_1",
+      rider_id: "RIDER_REAL",
+      status: "driver_enroute",
+      driver_id: "DRIVER_REVIEW",
+      driver_name: "Dana D.",
+      pickup_address: "501 Broadway, Nashville",
+      dropoff_address: "1 Terminal Dr",
+      pickup_lat: 36.16,
+      pickup_lng: -86.78,
+      ride_type: "standard",
+      payment_id: "pi_existing",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    });
+    const page = await newPage("RIDER_REAL");
+    const writes = [];
+    page.on("request", (req) => {
+      if (req.method() !== "GET" && /\/api\/(rides\/request|rides\/[^/]+\/authorize|payments)/.test(req.url())) {
+        writes.push(`${req.method()} ${new URL(req.url()).pathname}`);
+      }
+    });
+    await goto(page, "/rider-dashboard.html?screen=track&ride_id=RIDE_TRACK_1");
+    expect(await wizardOpen(page)).toBe(true);
+    expect(await visibleStage(page)).toBe("dispatch");
+
+    await page.reload({ waitUntil: "load" });
+    await page.waitForTimeout(900);
+    expect(await wizardOpen(page)).toBe(true);
+    expect(await visibleStage(page)).toBe("dispatch");
+    expect(await path(page)).toBe("/rider-dashboard.html?screen=track&ride_id=RIDE_TRACK_1");
+
+    // Every way the booking form could still be submitted from tracking:
+    // the form's own submit (Enter in a field) and the hidden buttons.
+    await page.evaluate(() => {
+      document.getElementById("rideForm").requestSubmit();
+      document.getElementById("requestRideBtn")?.click();
+      document.getElementById("authorizePaymentBtn")?.click();
+    });
+    await page.waitForTimeout(600);
+    expect(writes).toEqual([]);
+    expect(state.rides).toHaveLength(1);
+    expect(state.payments).toHaveLength(0);
+    expect(await page.evaluate(() => document.body.innerText)).toMatch(/RIDE_TRACK_1 has already been requested/);
+
+    await page.goBack();
+    await page.waitForTimeout(400);
+    expect(await wizardOpen(page)).toBe(false);
+    expect(page.errors).toEqual([]);
+  });
+
+  test("signed-out deep link: sign-in first, then the requested booking screen (auth UI on)", async () => {
+    state.system_flags.push({ key: "rider_auth_ui_enabled", value: "true" });
+    const page = await newPage(null);
+    const token = signTestRiderToken("RIDER_REAL");
+    // OTP delivery is out of scope here: the two session routes are
+    // answered by the test, and the verify response sets a real signed
+    // session cookie the server then validates normally.
+    await page.route(/\/api\/rider\/session\/start$/, (route) =>
+      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) })
+    );
+    await page.route(/\/api\/rider\/session\/verify$/, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        headers: { "Set-Cookie": `harvey_rider_session=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax` },
+        body: JSON.stringify({ ok: true })
+      })
+    );
+    await goto(page, "/rider-dashboard.html?screen=book&mode=driver");
+    await page.waitForSelector("#riderAuthOverlay", { state: "visible" });
+    // Nothing behind the sign-in screen may be used yet.
+    expect(state.rides).toHaveLength(0);
+
+    await page.fill("#authPhoneInput", "6155550101");
+    await page.click("#authStartBtn");
+    await page.waitForSelector("#authCodeInput", { state: "visible" });
+    await page.fill("#authCodeInput", "123456");
+    await page.click("#authVerifyBtn");
+    await page.waitForSelector("#riderAuthOverlay", { state: "hidden" });
+    await page.waitForTimeout(600);
+    expect(await path(page)).toMatch(/^\/rider-dashboard\.html\?screen=book/);
+    expect(await wizardOpen(page)).toBe(true);
+
+    // Back from the booking screen lands on the dashboard, not sign-in.
+    await page.goBack();
+    await page.waitForTimeout(400);
+    expect(await wizardOpen(page)).toBe(false);
+    expect(await page.isVisible("#riderAuthOverlay")).toBe(false);
+    expect(page.errors).toEqual([]);
+  });
+
+  test("returning with a saved session restores the deep-linked screen directly", async () => {
+    state.system_flags.push({ key: "rider_auth_ui_enabled", value: "true" });
+    const page = await newPage("RIDER_REAL");
+    await goto(page, "/rider-dashboard.html?screen=book&mode=driver");
+    expect(await page.isVisible("#riderAuthOverlay")).toBe(false);
+    expect(await wizardOpen(page)).toBe(true);
+  });
+
+  test("an expired or revoked session shows sign-in and keeps the requested screen for after sign-in", async () => {
+    state.system_flags.push({ key: "rider_auth_ui_enabled", value: "true" });
+    state.riders.find((r) => r.id === "RIDER_REAL").session_version = 5; // the cookie's version 0 is revoked
+    const page = await newPage("RIDER_REAL");
+    await goto(page, "/rider-dashboard.html?screen=track&ride_id=RIDE_X");
+    await page.waitForSelector("#riderAuthOverlay", { state: "visible" });
+    expect(await path(page)).toBe("/rider-dashboard.html?screen=track&ride_id=RIDE_X");
   });
 
   async function bookThroughPayment(page) {

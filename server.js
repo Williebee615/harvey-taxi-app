@@ -12557,6 +12557,30 @@ app.post(
       });
     }
 
+    // A ride is authorized exactly once. Without this check a repeated call
+    // (a retry, a second tab, a replayed request) for a ride that had
+    // already moved on -- payment_authorized, dispatched, even in progress
+    // -- re-ran verification, rewrote the ride back to payment_authorized
+    // and dispatched it again. A repeat carrying the PaymentIntent already
+    // on the ride is answered idempotently with nothing changed; anything
+    // else is refused.
+    if (ride.status !== RIDE_STATUS.PAYMENT_REQUIRED) {
+      const requestedIntentId = cleanString(req.body.payment_intent_id, 200);
+      const sameIntent =
+        Boolean(ride.payment_id) &&
+        (!requestedIntentId || requestedIntentId === String(ride.payment_id));
+      const live = ![RIDE_STATUS.CANCELLED, RIDE_STATUS.FAILED].includes(ride.status);
+      if (sameIntent && live) {
+        return ok(res, {
+          ride_id: ride.id,
+          status: ride.status,
+          already_authorized: true,
+          dispatch: null
+        });
+      }
+      return fail(res, "This ride is not awaiting payment authorization.", 409);
+    }
+
     const paymentIntentId =
       cleanString(
         req.body.payment_intent_id ||
@@ -12682,31 +12706,27 @@ app.post(
 
     }
 
-    await supabase
-
+    // Conditional on the ride still awaiting payment, so two concurrent
+    // calls can't both authorize (and dispatch) the same ride.
+    const { data: authorizedRows, error: authorizeWriteError } = await supabase
       .from("rides")
-
       .update({
-
-        payment_id:
-
-          paymentIntentId,
-
-        status:
-
-          RIDE_STATUS.PAYMENT_AUTHORIZED,
-
-        dispatch_status:
-
-          "ready_to_dispatch",
-
-        updated_at:
-
-          nowIso()
-
+        payment_id: paymentIntentId,
+        status: RIDE_STATUS.PAYMENT_AUTHORIZED,
+        dispatch_status: "ready_to_dispatch",
+        updated_at: nowIso()
       })
+      .eq("id", rideId)
+      .eq("status", RIDE_STATUS.PAYMENT_REQUIRED)
+      .select("id");
 
-      .eq("id", rideId);
+    if (authorizeWriteError) {
+      return fail(res, "This ride could not be authorized.", 500);
+    }
+
+    if (!Array.isArray(authorizedRows) || !authorizedRows.length) {
+      return fail(res, "This ride is not awaiting payment authorization.", 409);
+    }
 
     const updatedRide = {
 

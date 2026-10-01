@@ -8198,7 +8198,22 @@
       return state.payment.idempotencyKey;
     }
 
+    // Tracking an existing ride (or a ride already created in this visit)
+    // must never start a second booking or a second card authorization.
+    function refuseIfRideExists() {
+      if (!state.ride?.rideId) return false;
+      showNotice(
+        `Ride ${state.ride.rideId} has already been requested, so nothing new was booked or authorized. Contact Support if something looks wrong.`,
+        "warning"
+      );
+      return true;
+    }
+
     async function authorizePayment() {
+      if (refuseIfRideExists()) {
+        return false;
+      }
+
       const tripError =
         validateTripFields();
 
@@ -8462,6 +8477,10 @@
     }    async function requestDispatch(event) {
       if (event) {
         event.preventDefault();
+      }
+
+      if (refuseIfRideExists()) {
+        return false;
       }
 
       const riderError = validateRiderFields();
@@ -11706,7 +11725,7 @@
     window.addEventListener("harvey-booking-abandoned", (event) => {
       showSystemNotice(
         event.detail?.heldPayment
-          ? "Booking not completed: no ride was requested and your card was not charged. The unused card authorization will be released by your card issuer."
+          ? "Booking not completed: no ride was requested and your card was not charged. A temporary authorization hold was placed on your card for this booking and has not been used or cancelled, so it may appear as pending. Your bank decides when a pending hold disappears. Contact Support if you need help with it."
           : "Booking not completed: no ride was requested.",
         "warning"
       );

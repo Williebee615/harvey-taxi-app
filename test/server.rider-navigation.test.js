@@ -56,3 +56,15 @@ test("home page booking buttons open the booking screen explicitly", () => {
   expect(html).not.toMatch(/rider-dashboard\.html\?mode=/);
   expect(html).toMatch(/rider-dashboard\.html\?screen=book&mode=driver/);
 });
+
+test("the unused-card-hold notice states the real payment state and promises no release time", () => {
+  const html = fs.readFileSync(path.join(__dirname, "..", "public", "rider-dashboard.html"), "utf8");
+  const match = html.match(/event\.detail\?\.heldPayment\s*\?\s*"([^"]+)"/);
+  expect(match).not.toBeNull();
+  const message = match[1];
+  // Nothing in the app cancels an abandoned hold today, so the notice
+  // must not say it will be released, or when.
+  expect(message).toMatch(/no ride was requested and your card was not charged/);
+  expect(message).toMatch(/has not been used or cancelled/);
+  expect(message).not.toMatch(/will be released|within \d|days?\b|hours?\b|automatically/i);
+});
