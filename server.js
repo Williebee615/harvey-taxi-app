@@ -486,6 +486,19 @@ const CHECKR_WEBHOOK_SECRET = env("CHECKR_WEBHOOK_SECRET");
 // served from this env var through GET /api/maps-key instead.
 const GOOGLE_MAPS_BROWSER_KEY = env("GOOGLE_MAPS_BROWSER_KEY");
 
+// Startup diagnostic for the Maps browser key: names and booleans only,
+// never the value (see lib/mapsConfig.js).
+const {
+  describeMapsConfig,
+  mapsConfigLogLines,
+  mapsKeyResponse
+} = require("./lib/mapsConfig");
+const MAPS_CONFIG = describeMapsConfig(process.env);
+{
+  const { level, lines } = mapsConfigLogLines(MAPS_CONFIG);
+  lines.forEach((line) => console[level](line));
+}
+
 /* =========================================================
 
    WEB PUSH (VAPID)
@@ -13759,16 +13772,38 @@ app.get(
    var instead of it being hardcoded into a static HTML file
    committed to git. request-ride.html falls back to this when
    its <meta name="google-maps-browser-key"> tag is empty.
-   Returns an empty key (never an error) when unconfigured, so
-   the page's own graceful-degradation logic takes over.
+   When unconfigured it returns a 503 "maps_not_configured" error
+   (not { ok: true, key: "" }), and logs a rate-limited warning.
 
 ========================================================= */
+
+// Runtime diagnostic: a request for the Maps key while none is set logs a
+// warning at most once every 10 minutes (no key value, no request data).
+const MAPS_KEY_WARNING_INTERVAL_MS = 10 * 60_000;
+let lastMapsKeyWarningAt = 0;
+
+function warnMapsKeyMissing(now = Date.now()) {
+  if (now - lastMapsKeyWarningAt < MAPS_KEY_WARNING_INTERVAL_MS) {
+    return false;
+  }
+  lastMapsKeyWarningAt = now;
+  console.warn(
+    "⚠️ /api/maps-key requested but GOOGLE_MAPS_BROWSER_KEY is not set; " +
+      "address lookup and route-based fare estimates are unavailable."
+  );
+  return true;
+}
 
 app.get(
   "/api/maps-key",
   rateLimit({ windowMs: 60_000, max: 60, keyPrefix: "maps_key" }),
   asyncRoute(async (req, res) => {
-    return ok(res, { key: GOOGLE_MAPS_BROWSER_KEY || "" });
+    const outcome = mapsKeyResponse(GOOGLE_MAPS_BROWSER_KEY);
+    if (outcome.status !== 200) {
+      warnMapsKeyMissing();
+      return fail(res, outcome.body.message, outcome.status, { code: outcome.body.code });
+    }
+    return ok(res, outcome.body);
   })
 );
 
@@ -21842,7 +21877,11 @@ app.get(
 
         web_push:
 
-          pushEnabled
+          pushEnabled,
+
+        google_maps_browser_key:
+
+          MAPS_CONFIG.configured && MAPS_CONFIG.problems.length === 0
 
       },
 

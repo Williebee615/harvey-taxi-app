@@ -6462,6 +6462,24 @@
     // Pickup / Edit Destination / Retry Route recovery actions — replacing
     // the old pattern of one large "we couldn't calculate a route..."
     // paragraph repeated across every later wizard stage.
+    function mapsAvailable() {
+      return Boolean(window.__HARVEY_MAPS_ENABLED__ && window.google && window.google.maps);
+    }
+
+    // Shown when Google Maps itself is unavailable, so the rider isn't told
+    // their (perfectly good) address couldn't be found.
+    function mapsUnavailableMessage() {
+      return window.__HARVEY_MAPS_CONFIG_ERROR__ === true
+        ? "Address lookup and fare estimates are temporarily unavailable. Please try again later or contact support."
+        : "Maps couldn't load. Check your connection, then retry.";
+    }
+
+    function showMapsUnavailable() {
+      setBadge("Maps Unavailable");
+      showNotice(mapsUnavailableMessage(), "error");
+      reportRouteFailure("maps_unavailable");
+    }
+
     function showRouteFailure(result) {
       setBadge("Distance Unavailable");
       setDispatchState("Distance Unavailable");
@@ -6495,6 +6513,8 @@
         message = "Check your destination address below, then retry.";
       } else if (result.field === "route") {
         message = "We couldn't find a driving route between these two addresses. Please double-check both, then retry.";
+      } else if (result.reason === "maps_unavailable") {
+        message = mapsUnavailableMessage();
       }
 
       showNotice(message, "error");
@@ -8932,6 +8952,11 @@
 
         setBusy(els.stagePickupContinueBtn, false);
 
+        if (!resolved && !mapsAvailable()) {
+          showMapsUnavailable();
+          return;
+        }
+
         if (!resolved) {
           setFieldError(
             els.pickupAddressError,
@@ -8963,6 +8988,11 @@
         const resolved = await ensureEndpointCoordinates(state.destination, els.destinationAddress);
 
         setBusy(els.stageDestinationContinueBtn, false);
+
+        if (!resolved && !mapsAvailable()) {
+          showMapsUnavailable();
+          return;
+        }
 
         if (!resolved) {
           setFieldError(
@@ -11005,9 +11035,15 @@
 
       try {
         const res = await fetch(`${apiBase()}/api/maps-key`);
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
 
-        if (!data?.key) return;
+        if (!res.ok || !data?.key) {
+          // 503 maps_not_configured: the server has no Maps key. The ride
+          // wizard then shows a clear "temporarily unavailable" message
+          // instead of a misleading "couldn't calculate a route".
+          window.__HARVEY_MAPS_CONFIG_ERROR__ = data?.code === "maps_not_configured";
+          return;
+        }
 
         const script = document.createElement("script");
         // libraries=places is required by the merged ride wizard's
