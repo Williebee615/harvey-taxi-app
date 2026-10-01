@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Harvey Taxi | Operations Command Center</title>
+  <style>
+    :root{
+      --bg:#050915; --bg2:#0a1430; --panel:rgba(14,24,52,.78); --panel-solid:#0e1834; --line:rgba(120,170,255,.16); --line2:rgba(120,170,255,.32);
+      --text:#eef3ff; --muted:#9fb0d8; --dim:#7385b3;
+      --cyan:#5ee7ff; --blue:#6aa8ff; --green:#5ff0b0; --amber:#ffcf66; --red:#ff7f98; --violet:#b9a2ff;
+      --radius:18px; --mono:"SFMono-Regular",ui-monospace,Menlo,Consolas,monospace;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    html{-webkit-text-size-adjust:100%}
+    body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;color:var(--text);line-height:1.5;min-height:100vh;
+      background:radial-gradient(1200px 600px at 10% -10%,rgba(94,231,255,.10),transparent 60%),radial-gradient(900px 500px at 110% 10%,rgba(185,162,255,.10),transparent 60%),linear-gradient(180deg,var(--bg),var(--bg2));
+      padding:16px 16px calc(24px + env(safe-area-inset-bottom))}
+    a{color:var(--cyan)}
+    button,input,select,textarea{font:inherit;color:inherit}
+    :focus-visible{outline:2px solid var(--cyan);outline-offset:2px;border-radius:8px}
+    .wrap{max-width:1360px;margin:0 auto;display:grid;gap:16px}
+    header{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between}
+    h1{font-size:clamp(1.3rem,2.6vw,1.8rem);letter-spacing:.01em}
+    h1 span{background:linear-gradient(90deg,var(--cyan),var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent}
+    h2{font-size:.82rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin-bottom:12px;font-weight:700}
+    h3{font-size:1rem;margin:4px 0 8px}
+    .muted{color:var(--muted);font-size:.86rem}
+    .panel{background:var(--panel);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:var(--radius);padding:16px;min-width:0;position:relative;overflow:hidden}
+    .panel::before{content:"";position:absolute;inset:0 0 auto 0;height:1px;background:linear-gradient(90deg,transparent,rgba(94,231,255,.5),transparent)}
+    .chips{display:flex;flex-wrap:wrap;gap:8px}
+    .chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 10px;font-size:.78rem;font-weight:700;border:1px solid var(--line2);background:rgba(255,255,255,.03);white-space:nowrap}
+    .dot{width:8px;height:8px;border-radius:50%;background:currentColor;flex:0 0 auto}
+    .s-investigating{color:var(--cyan)} .s-awaiting_confirmation{color:var(--amber)} .s-resolved{color:var(--green)} .s-needs_human_review{color:var(--red)}
+    .s-investigating .dot{animation:pulse 1.8s ease-in-out infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+    @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+    @media (prefers-reduced-motion:reduce){*,*::before{animation:none!important;transition:none!important}}
+    .stats{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}
+    .stat{border:1px solid var(--line);border-radius:14px;padding:12px;background:rgba(255,255,255,.02)}
+    .stat b{display:block;font:700 1.6rem/1.1 var(--mono);margin-top:4px}
+    .alert{border-left:3px solid var(--blue);padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.03);margin-top:8px;font-size:.9rem}
+    .alert.warning{border-left-color:var(--amber)} .alert.critical{border-left-color:var(--red)}
+    .layout{display:grid;gap:16px;grid-template-columns:minmax(0,380px) minmax(0,1fr)}
+    @media (max-width:980px){.layout{grid-template-columns:1fr}}
+    .tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:10px;scrollbar-width:none}
+    .tab{border:1px solid var(--line);background:transparent;border-radius:999px;padding:6px 12px;font-size:.82rem;cursor:pointer;white-space:nowrap;min-height:36px}
+    .tab[aria-pressed="true"]{border-color:var(--cyan);background:rgba(94,231,255,.10)}
+    .cases{display:grid;gap:8px;max-height:640px;overflow-y:auto}
+    .case{display:grid;gap:6px;text-align:left;width:100%;border:1px solid var(--line);border-radius:14px;padding:12px;background:rgba(255,255,255,.02);cursor:pointer;animation:rise .25s ease both}
+    .case:hover,.case[aria-current="true"]{border-color:var(--line2);background:rgba(94,231,255,.06)}
+    .case .meta{display:flex;justify-content:space-between;gap:8px;font-size:.78rem;color:var(--dim);font-family:var(--mono)}
+    .case p{font-size:.86rem;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    .empty{color:var(--dim);font-size:.9rem;padding:8px 0}
+    .detail-empty{display:grid;place-items:center;min-height:240px;text-align:center}
+    .back{display:none;border:1px solid var(--line2);background:transparent;border-radius:10px;padding:6px 10px;cursor:pointer;margin-bottom:10px}
+    @media (max-width:980px){.back{display:inline-block}.detail-open #listPanel{display:none}.layout:not(.detail-open) #detailPanel{display:none}}
+    .summary{font-size:1rem;line-height:1.55;border:1px solid var(--line);border-radius:14px;padding:12px;background:rgba(94,231,255,.05)}
+    .steps{list-style:none;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin:14px 0}
+    @media (max-width:640px){.steps{grid-template-columns:repeat(3,minmax(0,1fr))}}
+    .step{border:1px solid var(--line);border-radius:12px;padding:8px;font-size:.74rem;text-align:center;background:rgba(255,255,255,.02)}
+    .step b{display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:2px}
+    .step.done{border-color:rgba(95,240,176,.45);color:var(--green)} .step.awaiting,.step.pending,.step.running,.step.waiting{border-color:rgba(255,207,102,.45);color:var(--amber)}
+    .step.failed{border-color:rgba(255,127,152,.5);color:var(--red)} .step.not_required,.step.not_applicable{color:var(--dim)}
+    .cols{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));margin-top:12px}
+    .box{border:1px solid var(--line);border-radius:14px;padding:12px;background:rgba(255,255,255,.02);min-width:0}
+    .box h3{display:flex;align-items:center;gap:8px;font-size:.86rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)}
+    .box ul{list-style:none;display:grid;gap:8px}
+    .box li{font-size:.9rem}
+    .src{display:inline-block;margin-top:2px;font:600 .7rem/1.3 var(--mono);color:var(--dim);word-break:break-word}
+    .tag{font:700 .68rem/1 Inter,Arial,sans-serif;letter-spacing:.06em;text-transform:uppercase;border-radius:6px;padding:3px 6px}
+    .t-fact{background:rgba(95,240,176,.14);color:var(--green)} .t-missing{background:rgba(159,176,216,.16);color:var(--muted)}
+    .t-hyp{background:rgba(185,162,255,.16);color:var(--violet)} .t-conf{background:rgba(255,127,152,.16);color:var(--red)}
+    .conflict{border-left:3px solid var(--red);padding-left:10px}
+    .timeline{list-style:none;position:relative;margin-left:6px;display:grid;gap:10px}
+    .timeline::before{content:"";position:absolute;left:4px;top:4px;bottom:4px;width:1px;background:var(--line2)}
+    .timeline li{position:relative;padding-left:20px;font-size:.88rem}
+    .timeline li::before{content:"";position:absolute;left:0;top:6px;width:9px;height:9px;border-radius:50%;background:var(--cyan);box-shadow:0 0 0 3px rgba(94,231,255,.15)}
+    .timeline time{display:block;font:600 .72rem/1.3 var(--mono);color:var(--dim)}
+    .queue-item{display:grid;gap:8px;border:1px solid var(--line);border-radius:14px;padding:12px;background:rgba(255,207,102,.04)}
+    .queue-item .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+    .btn{border:1px solid var(--line2);background:rgba(255,255,255,.04);border-radius:12px;padding:8px 14px;cursor:pointer;font-weight:600;min-height:40px}
+    .btn:hover{border-color:var(--cyan)} .btn:disabled{opacity:.5;cursor:not-allowed}
+    .btn.primary{background:linear-gradient(90deg,rgba(94,231,255,.22),rgba(106,168,255,.22));border-color:rgba(94,231,255,.6)}
+    .btn.danger{border-color:rgba(255,127,152,.6);background:rgba(255,127,152,.12)}
+    .feed{list-style:none;display:grid;gap:8px;max-height:360px;overflow-y:auto}
+    .feed li{font-size:.86rem;display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:baseline}
+    .feed time{font:600 .72rem var(--mono);color:var(--dim);white-space:nowrap}
+    form.inline{display:flex;flex-wrap:wrap;gap:8px}
+    input,select,textarea{background:rgba(5,9,21,.7);border:1px solid var(--line2);border-radius:12px;padding:9px 12px;min-height:40px;min-width:0}
+    input{flex:1 1 180px}
+    .notice{border:1px solid var(--line2);border-radius:14px;padding:12px;background:rgba(255,207,102,.08)}
+    .notice.bad{background:rgba(255,127,152,.10);border-color:rgba(255,127,152,.5)}
+    #toast{position:fixed;left:16px;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));max-width:520px;margin:0 auto;padding:12px 14px;border-radius:14px;background:var(--panel-solid);border:1px solid var(--line2);display:none;z-index:20}
+    .grid2{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))}
+    .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+    [hidden]{display:none!important}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1><span>Operations</span> Command Center</h1>
+      <p class="muted">Harvey Taxi operations assistant: investigations, decisions, approvals and verified outcomes. <a href="/admin-agent.html">Agent controls</a></p>
+    </div>
+    <div class="chips" id="statusChips" aria-live="polite"></div>
+  </header>
+
+  <div id="authNotice" class="notice bad" hidden>Admin sign-in required. <a href="/admin-login.html">Sign in</a>, then return here.</div>
+  <div id="memoryNotice" class="notice" hidden>Case memory is not installed yet (the <code>agent_ops_cases</code> migration is pending). Investigations still run, but cases are not saved.</div>
+
+  <section class="panel" aria-labelledby="liveH">
+    <h2 id="liveH">Live operations</h2>
+    <div class="stats" id="stats"></div>
+    <div id="alerts"></div>
+  </section>
+
+  <div class="layout" id="layout">
+    <section class="panel" id="listPanel" aria-labelledby="casesH">
+      <h2 id="casesH">Cases</h2>
+      <div class="tabs" role="toolbar" aria-label="Filter cases" id="tabs"></div>
+      <div class="cases" id="cases" role="list"></div>
+      <form class="inline" id="openForm" style="margin-top:12px" aria-label="Open an investigation">
+        <label class="sr" for="openRide">Ride ID</label>
+        <input id="openRide" placeholder="Ride ID to investigate" autocomplete="off" required />
+        <label class="sr" for="openNote">What was reported</label>
+        <input id="openNote" placeholder="What was reported (optional)" autocomplete="off" />
+        <button class="btn primary" type="submit">Investigate</button>
+      </form>
+    </section>
+
+    <section class="panel" id="detailPanel" aria-live="polite" aria-labelledby="detailH">
+      <button class="back" type="button" id="backBtn">← Cases</button>
+      <h2 id="detailH">Case</h2>
+      <div id="detail"><div class="detail-empty muted">Select a case to see its investigation.</div></div>
+    </section>
+  </div>
+
+  <div class="grid2">
+    <section class="panel" aria-labelledby="queueH">
+      <h2 id="queueH">Action queue</h2>
+      <div id="queue" style="display:grid;gap:10px"></div>
+    </section>
+    <section class="panel" aria-labelledby="feedH">
+      <h2 id="feedH">Agent activity</h2>
+      <ul class="feed" id="feed"></ul>
+    </section>
+  </div>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const STATE = {
+    investigating: "Investigating",
+    awaiting_confirmation: "Awaiting confirmation",
+    resolved: "Resolved",
+    needs_human_review: "Needs human review"
+  };
+  const ISSUE = { missed_pickup: "Missed pickup", wrong_location: "Incorrect location", stalled_dispatch: "Stalled dispatch", scheduling_conflict: "Scheduling conflict", payment_discrepancy: "Payment discrepancy", delivery_problem: "Delivery problem" };
+  const STEP = { investigate: "Investigate", plan: "Plan", policy_check: "Policy", confirmation: "Confirm", execute: "Execute", verify: "Verify" };
+  const STEP_STATUS = { done: "Done", awaiting: "Waiting", pending: "Pending", running: "Running", failed: "Failed", not_required: "Not needed", not_applicable: "—", waiting: "Waiting" };
+  const ACTIVITY = {
+    "ops.case_investigated": "Investigated a ride",
+    "ops.case_opened": "Opened a case",
+    "ops.case_updated": "Updated a case",
+    "ops.action_approved": "Staff approved an action",
+    "ops.action_blocked": "Action blocked at policy re-check",
+    "ops.action_verified": "Action verified in the records",
+    "ops.action_failed": "Action not verified; sent to staff",
+    "ops.action_rejected": "Staff rejected an action",
+    "ops.case_resolved_by_staff": "Staff resolved a case",
+    "agent.action_executed": "Automated redispatch executed",
+    "agent.shadow_decision": "Shadow decision recorded (not executed)",
+    "agent.case_opened": "Human-review case opened"
+  };
+  let overview = null;
+  let filter = "all";
+  let selected = null;
+
+  const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const when = (iso) => {
+    const d = new Date(iso);
+    return isNaN(d) ? "—" : d.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  };
+  function toast(msg) {
+    const t = $("toast");
+    t.textContent = msg;
+    t.style.display = "block";
+    clearTimeout(toast.t);
+    toast.t = setTimeout(() => (t.style.display = "none"), 4500);
+  }
+  async function api(path, opts = {}) {
+    const res = await fetch(path, { method: opts.method || "GET", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: opts.body ? JSON.stringify(opts.body) : undefined });
+    const body = await res.json().catch(() => ({}));
+    if (res.status === 401) $("authNotice").hidden = false;
+    if (!res.ok) throw Object.assign(new Error(body.error || `Request failed (${res.status})`), { status: res.status });
+    return body;
+  }
+  const chip = (state) => `<span class="chip s-${esc(state)}"><span class="dot" aria-hidden="true"></span>${esc(STATE[state] || state)}</span>`;
+
+  function renderHeader() {
+    const o = overview;
+    const health = { disabled: "Rules-only", not_checked: "Model not checked", healthy: "Model healthy", unreachable: "Model unreachable" };
+    $("statusChips").innerHTML = [
+      `<span class="chip">Agent: ${esc(o.agent_mode)}</span>`,
+      `<span class="chip ${o.actions_enabled ? "s-awaiting_confirmation" : ""}">Actions ${o.actions_enabled ? "enabled (staff approval)" : "off"}</span>`,
+      o.kill_switch ? `<span class="chip s-needs_human_review">Kill switch engaged</span>` : "",
+      `<span class="chip">${esc(health[o.model.health] || "Rules-only")}</span>`
+    ].join("");
+    $("memoryNotice").hidden = o.memory_available;
+  }
+
+  function renderLive() {
+    const c = (overview.live && overview.live.counts) || {};
+    const k = overview.case_counts;
+    const tiles = [
+      ["Open rides", c.open_rides], ["Free drivers", c.free_drivers], ["Stalled rides", c.stalled_rides],
+      ["Investigating", k.investigating], ["Awaiting confirmation", k.awaiting_confirmation], ["Needs human review", k.needs_human_review]
+    ];
+    $("stats").innerHTML = tiles.map(([l, v]) => `<div class="stat"><span class="muted">${esc(l)}</span><b>${v ?? "—"}</b></div>`).join("");
+    const alerts = (overview.live && overview.live.alerts) || [];
+    $("alerts").innerHTML = alerts.map((a) => `<div class="alert ${esc(a.level)}">${esc(a.message)}</div>`).join("");
+  }
+
+  function renderTabs() {
+    const tabs = [["all", "All"], ...Object.entries(STATE)];
+    $("tabs").innerHTML = tabs
+      .map(([key, label]) => {
+        const n = key === "all" ? overview.cases.length : overview.case_counts[key] || 0;
+        return `<button class="tab" type="button" data-filter="${key}" aria-pressed="${filter === key}">${esc(label)} · ${n}</button>`;
+      })
+      .join("");
+  }
+
+  function renderCases() {
+    const list = overview.cases.filter((c) => filter === "all" || c.state === filter);
+    $("cases").innerHTML = list.length
+      ? list
+          .map(
+            (c) => `<button class="case" type="button" role="listitem" data-case="${esc(c.id)}" aria-current="${selected === c.id}">
+              <div class="meta"><span>${esc(c.id)}</span><span>${when(c.updated_at)}</span></div>
+              <div class="chips">${chip(c.state)}${(c.categories || []).map((x) => `<span class="chip">${esc(ISSUE[x] || x)}</span>`).join("")}</div>
+              <p>${esc(c.decision_summary || "")}</p>
+              <div class="meta"><span>${esc(c.subject_role)}</span><span>${esc(c.ride_id || "ride not identified")}</span></div>
+            </button>`
+          )
+          .join("")
+      : `<p class="empty">No cases${filter === "all" ? " yet" : " in this state"}.</p>`;
+  }
+
+  function renderQueue() {
+    $("queue").innerHTML = overview.queue.length
+      ? overview.queue.map((q) => queueItem(q, q.case_id)).join("")
+      : `<p class="empty">Nothing waiting for confirmation.</p>`;
+  }
+
+  function queueItem(q, caseId) {
+    const staff = q.confirm_by === "admin";
+    const statusText = { awaiting_confirmation: staff ? "Awaiting staff approval" : `Waiting for the ${q.confirm_by} to confirm in the app`, executing: "Executing…", verified: "Done and verified", unverified: "Executed but not verified", failed: "Failed", blocked: "Blocked at re-check", rejected: "Rejected" }[q.status] || q.status;
+    return `<div class="queue-item">
+      <div class="row"><strong>${esc(q.label)}</strong><span class="chip ${q.status === "verified" ? "s-resolved" : q.status === "awaiting_confirmation" || q.status === "executing" ? "s-awaiting_confirmation" : "s-needs_human_review"}">${esc(statusText)}</span></div>
+      <span class="muted">${esc(q.why || "")}</span>
+      <span class="src">Case ${esc(caseId)} · via ${esc(q.via)} · ${esc(q.policy ? q.policy.id : "")}</span>
+      ${q.blocked_reason ? `<span class="muted">${esc(q.blocked_reason)}</span>` : ""}
+      ${q.result && q.result.observed ? `<span class="src">Verified from records: ${esc(JSON.stringify(q.result.observed))}</span>` : ""}
+      ${staff && q.status === "awaiting_confirmation" ? `<div class="row" style="justify-content:flex-start">
+        <button class="btn primary" type="button" data-approve="${esc(caseId)}|${esc(q.id)}">Approve and run</button>
+        <button class="btn" type="button" data-reject="${esc(caseId)}|${esc(q.id)}">Reject</button></div>` : ""}
+    </div>`;
+  }
+
+  function list(items, tag, cls, render) {
+    return items.length ? `<ul>${items.map((i) => `<li><span class="tag ${cls}">${tag}</span> ${render(i)}</li>`).join("")}</ul>` : `<p class="empty">None.</p>`;
+  }
+
+  function renderDetail(c) {
+    const s = c.summary || {};
+    const findings = s.findings || [];
+    const facts = findings.flatMap((f) => f.facts);
+    const missing = findings.flatMap((f) => f.missing);
+    const hyps = findings.flatMap((f) => f.hypotheses);
+    const conflicts = findings.flatMap((f) => f.conflicts);
+    const steps = c.steps || [];
+    $("detail").innerHTML = `
+      <div class="chips" style="margin-bottom:10px">${chip(c.state)}${(c.categories || []).map((x) => `<span class="chip">${esc(ISSUE[x] || x)}</span>`).join("")}
+        <span class="chip">${esc(c.id || "unsaved")}</span><span class="chip">Ride ${esc(c.ride_id || "?")}</span><span class="chip">Reported by ${esc(c.subject_role)}</span></div>
+      <div class="summary"><strong>Decision summary.</strong> ${esc(s.decision_summary || "")}</div>
+      ${s.understanding && s.understanding.boundary ? `<div class="notice bad" style="margin-top:10px">Decision boundary: <strong>${esc(s.understanding.boundary.category.replace(/_/g, " "))}</strong>. Only staff decide this.${s.understanding.boundary.category === "emergency" ? " The reporter was told to call 911 first." : ""}</div>` : ""}
+      <ol class="steps" aria-label="Workflow">${steps.map((st) => `<li class="step ${esc(st.status)}" title="${esc(st.detail || "")}"><b>${esc(STEP[st.step] || st.step)}</b>${esc(STEP_STATUS[st.status] || st.status)}</li>`).join("")}</ol>
+      <div class="cols">
+        <div class="box"><h3><span class="tag t-fact">Verified</span> Facts</h3>${list(facts, "Fact", "t-fact", (f) => `${esc(f.text)}<br><span class="src">${esc(f.source)}</span>`)}</div>
+        <div class="box"><h3><span class="tag t-conf">Conflict</span> Evidence disagrees</h3>${conflicts.length ? `<ul>${conflicts.map((x) => `<li class="conflict"><strong>Report:</strong> ${esc(x.claim)}<br><strong>Records:</strong> ${esc(x.evidence)}<br><span class="muted">${esc(x.reading)}</span><br><span class="src">${esc(x.source)}</span></li>`).join("")}</ul>` : `<p class="empty">None found.</p>`}</div>
+        <div class="box"><h3><span class="tag t-missing">Unknown</span> Missing information</h3>${list(missing, "Missing", "t-missing", (m) => `${esc(m.text)}<br><span class="muted">${esc(m.why)}</span>`)}</div>
+        <div class="box"><h3><span class="tag t-hyp">Unverified</span> Hypotheses</h3>${list(hyps, "Hypothesis", "t-hyp", (h) => `${esc(h.text)}<br><span class="muted">Basis: ${esc(h.basis)}</span>`)}</div>
+      </div>
+      <div class="cols">
+        <div class="box"><h3>Trip timeline</h3>${(s.timeline || []).length ? `<ol class="timeline">${s.timeline.map((e) => `<li><time datetime="${esc(e.at)}">${when(e.at)}</time>${esc(e.label)}<br><span class="src">${esc(e.source)}</span></li>`).join("")}</ol>` : `<p class="empty">No ride events.</p>`}</div>
+        <div class="box"><h3>Plan and actions</h3>${(c.queue || []).length ? c.queue.map((q) => queueItem(q, c.id)).join("") : `<p class="empty">No platform action proposed.</p>`}
+          <h3 style="margin-top:12px">Policy checks</h3>${(s.checks || []).length ? `<ul>${s.checks.map((k) => `<li>${esc(k.action.replace(/_/g, " "))}: <strong>${k.allowed ? "allowed" : "blocked"}</strong> <span class="muted">${esc(k.reason)}</span></li>`).join("")}</ul>` : `<p class="empty">None.</p>`}
+        </div>
+        <div class="box"><h3>Policy references</h3>${(s.policy_refs || []).length ? `<ul>${s.policy_refs.map((p) => `<li><strong>${esc(p.id)}</strong> ${esc(p.title)}<br><span class="src">${esc(p.source)}</span></li>`).join("")}</ul>` : `<p class="empty">None.</p>`}
+          <h3 style="margin-top:12px">Investigation tools used</h3><p class="src">${esc((s.tool_calls || []).map((t) => t.tool + (t.rows !== undefined ? `(${t.rows})` : "")).join(" · ") || "none")}</p>
+        </div>
+      </div>
+      ${c.state !== "resolved" ? `<form class="inline" id="resolveForm" style="margin-top:14px" aria-label="Resolve case">
+        <label class="sr" for="resolution">Resolution</label>
+        <select id="resolution"><option value="resolved">Resolved</option><option value="refund_reviewed">Refund reviewed</option><option value="driver_coached">Driver coached</option><option value="no_action_needed">No action needed</option><option value="referred_externally">Referred externally</option></select>
+        <label class="sr" for="resolutionNote">Note</label><input id="resolutionNote" placeholder="Staff note (optional)" />
+        <button class="btn" type="submit">Resolve as staff</button></form>` : s.staff_resolution ? `<p class="muted" style="margin-top:12px">Resolved by staff (${esc(s.staff_resolution.resolution)}) ${when(s.staff_resolution.at)}.</p>` : ""}`;
+    $("detailH").textContent = `Case ${c.id || ""}`;
+  }
+
+  function renderFeed() {
+    $("feed").innerHTML = overview.activity.length
+      ? overview.activity.map((a) => `<li><time datetime="${esc(a.created_at)}">${when(a.created_at)}</time><span>${esc(ACTIVITY[a.action] || a.action)} <span class="src">${esc(a.entity_id || "")}</span></span></li>`).join("")
+      : `<li class="empty">No activity yet.</li>`;
+  }
+
+  async function load() {
+    try {
+      overview = await api("/api/admin/ops/overview");
+      $("authNotice").hidden = true;
+      renderHeader(); renderLive(); renderTabs(); renderCases(); renderQueue(); renderFeed();
+      if (selected) await openCase(selected, { quiet: true });
+    } catch (err) {
+      if (err.status !== 401) toast(err.message);
+    }
+  }
+
+  async function openCase(id, { quiet } = {}) {
+    selected = id;
+    try {
+      const { case: c } = await api(`/api/admin/ops/cases/${encodeURIComponent(id)}`);
+      renderDetail(c);
+      $("layout").classList.add("detail-open");
+      if (!quiet) renderCases();
+    } catch (err) {
+      toast(err.message);
+    }
+  }
+
+  document.addEventListener("click", async (e) => {
+    const t = e.target.closest("button");
+    if (!t) return;
+    if (t.dataset.filter) { filter = t.dataset.filter; renderTabs(); renderCases(); return; }
+    if (t.dataset.case) return openCase(t.dataset.case);
+    if (t.dataset.approve) {
+      const [cid, aid] = t.dataset.approve.split("|");
+      if (!confirm("Approve and run this action? It runs through the platform's normal rules and is verified from the records afterwards.")) return;
+      t.disabled = true; t.textContent = "Executing…";
+      try {
+        const r = await api(`/api/admin/ops/cases/${encodeURIComponent(cid)}/actions/${encodeURIComponent(aid)}/approve`, { method: "POST", body: {} });
+        toast(r.outcome.verified ? "Done and verified in the records." : `Not verified: ${r.outcome.reason || "see case"}. Sent to staff.`);
+      } catch (err) { toast(err.message); }
+      selected = cid;
+      return load();
+    }
+    if (t.dataset.reject) {
+      const [cid, aid] = t.dataset.reject.split("|");
+      const note = prompt("Why are you rejecting this action? (optional)") || "";
+      try { await api(`/api/admin/ops/cases/${encodeURIComponent(cid)}/actions/${encodeURIComponent(aid)}/reject`, { method: "POST", body: { note } }); toast("Rejected."); }
+      catch (err) { toast(err.message); }
+      return load();
+    }
+    if (t.id === "backBtn") { $("layout").classList.remove("detail-open"); selected = null; renderCases(); }
+  });
+
+  document.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (e.target.id === "openForm") {
+      const btn = e.target.querySelector("button");
+      btn.disabled = true; btn.textContent = "Investigating…";
+      try {
+        const r = await api("/api/admin/ops/cases", { method: "POST", body: { ride_id: $("openRide").value.trim(), message: $("openNote").value.trim() } });
+        if (r.case.id) selected = r.case.id; else renderDetail(r.case);
+        e.target.reset();
+      } catch (err) { toast(err.message); }
+      btn.disabled = false; btn.textContent = "Investigate";
+      return load();
+    }
+    if (e.target.id === "resolveForm" && selected) {
+      try { await api(`/api/admin/ops/cases/${encodeURIComponent(selected)}/resolve`, { method: "POST", body: { resolution: $("resolution").value, note: $("resolutionNote").value } }); toast("Case resolved."); }
+      catch (err) { toast(err.message); }
+      return load();
+    }
+  });
+
+  load();
+  setInterval(() => { if (!document.hidden) load(); }, 20000);
+})();
+</script>
+</body>
+</html>
