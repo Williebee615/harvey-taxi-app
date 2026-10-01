@@ -88,7 +88,7 @@ beforeEach(() => {
     currency: "usd",
     client_secret: SECRET,
     created: hoursAgo(3),
-    metadata: { app: "harvey_taxi", rider_id: "RIDER_1", ride_type: "standard" }
+    metadata: { app: "harvey_taxi", account: "harvey_taxi_service", rider_id: "RIDER_1", rider_verified: "true", ride_type: "standard" }
   };
   mockRetrieve.mockReset().mockImplementation(async () => ({ ...stripeIntent, metadata: { ...stripeIntent.metadata } }));
   mockUpdate.mockReset().mockImplementation(async (_id, { metadata }) => {

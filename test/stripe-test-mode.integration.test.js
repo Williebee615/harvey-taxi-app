@@ -94,7 +94,7 @@ describeStripe("#155 against Stripe test mode", () => {
       currency: "usd",
       capture_method: "manual",
       payment_method_types: ["card"],
-      metadata: { app: "harvey_taxi", ride_type: "standard", rider_id: "RIDER_1" }
+      metadata: { app: "harvey_taxi", account: "harvey_taxi_service", metadata_version: "2", ride_type: "standard", rider_id: "RIDER_1", rider_verified: "false" }
     });
     created.push(pi.id);
     if (!confirm) return pi;
