@@ -1,7 +1,8 @@
 # Harvey Taxi iOS app: build and release verification
 
-App Store app: **Harvey Taxi**, bundle ID `com.harveytaxi.app`, built from
-this `mobile/` directory. The root `app.json` (`com.harveytaxi.mobile`) is not
+App Store app: **Harvey Taxi**, iOS bundle ID `com.harveytaxiservice.app`
+(set in `mobile/app.json` by "Fix App Store Connect identifiers"); Android
+package `com.harveytaxi.app`. Both are built from this `mobile/` directory. The root `app.json` (`com.harveytaxi.mobile`) is not
 a buildable Expo project and is not used for App Store builds.
 
 ## Build
@@ -57,6 +58,30 @@ Delete the app before each run, so there are no cookies or stored session.
 Record the device, OS version, build number and a screen recording of #1, #3
 and #4 in the pull request before submitting.
 
+## Android: verify before any Play build
+
+The repository cannot show whether an Android app already exists on Google
+Play. It contains Google Play reviewer-account support (server and
+`scripts/seed-review-accounts.js`), which suggests an earlier Play listing
+or review, but no Android signing setup, Play track, `versionCode` history
+or submit config. Before building for Play, the owner checks:
+
+1. **Play Console:** is there an existing app, and what is its package name?
+   If it is not `com.harveytaxi.app`, do **not** create another Play Console
+   app. Bring `android.package` in line with the existing app instead.
+   A package name can never be changed after the first upload.
+2. **Signing:** Play App Signing status and the upload key. If an upload
+   key already exists, EAS must use it (`npx eas-cli credentials`, Android,
+   upload the existing keystore). Letting EAS generate a new key would make
+   the upload fail.
+3. **Release history:** the highest `versionCode` already uploaded. EAS
+   manages version codes remotely (`appVersionSource: remote`), so set it
+   above that number first (`npx eas-cli build:version:set --platform android`).
+4. Only then build `android-play-internal` and upload to internal testing.
+
+None of this changes iOS. The iOS profile, its build number and the
+1.0.1 (10) review are not touched.
+
 ## Rider navigation release (1.0.2)
 
 This release changes the app shell only. It needs a **new native build on
@@ -66,7 +91,8 @@ It does not change, rebuild or replace iOS 1.0.1 (10).
 | Platform | Build | Notes |
 |---|---|---|
 | iOS | 1.0.2, next EAS build number (11 or higher, assigned by EAS) | `npx eas-cli build --platform ios --profile production`, then TestFlight. Do not attach it to the 1.0.1 (10) review. |
-| Android | 1.0.2, first EAS production build (`versionCode` assigned by EAS) | `npx eas-cli build --platform android --profile production` (an `.aab` for Google Play internal testing). Needs the Play Console app and an upload key or EAS-managed credentials. |
+| Android (device testing) | 1.0.2 test APK | `npx eas-cli build --platform android --profile android-test`. Installs directly on test devices; nothing goes to Google Play. Verify the items below first only if the APK will later be replaced by a Play build on the same devices. |
+| Android (Play internal testing) | 1.0.2 `.aab` | `npx eas-cli build --platform android --profile android-play-internal`. **Only after the Android verification below.** Upload manually to the **internal testing** track; there is no automatic submit config for Android. |
 
 Behaviour:
 - **Launch:** a signed-in rider lands on the rider dashboard. The site's own
