@@ -1713,6 +1713,12 @@
       gap: 7px;
     }
 
+    /* .field sets display:grid, which otherwise overrides the hidden
+       attribute (e.g. the card field hidden for App Review riders). */
+    #rideWizardOverlay .field[hidden] {
+      display: none;
+    }
+
     #rideWizardOverlay .field label {
       color: #dfeaff;
       font-size: 0.82rem;

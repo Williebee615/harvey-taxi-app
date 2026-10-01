@@ -186,6 +186,7 @@ describeWithBrowser("Rider booking wizard and the Google Maps key (mobile)", () 
       const payment = await stageText(page, "wizardStagePayment");
       expect(payment).toMatch(/Card Details/);
       expect(payment).not.toMatch(/Simulated payment/);
+      expect(await page.isVisible("#newCardField")).toBe(true);
       expect(await page.isVisible("#rideWizardOverlay .app-review-banner")).toBe(false);
 
       // Without a card authorization the rider cannot move on or request.
@@ -207,6 +208,8 @@ describeWithBrowser("Rider booking wizard and the Google Maps key (mobile)", () 
       await page.click("#authorizePaymentBtn");
       await page.waitForTimeout(500);
       expect(await stageText(page, "wizardStagePayment")).toMatch(/Simulated payment — App Review mode\. No card is charged\./);
+      // No card form is shown to App Review riders.
+      expect(await page.isVisible("#newCardField")).toBe(false);
 
       await page.click("#stagePaymentContinueBtn");
       await page.waitForSelector("#requestRideBtn", { state: "visible" });
