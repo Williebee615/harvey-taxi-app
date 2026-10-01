@@ -85,3 +85,43 @@ STRIPE_TEST_SECRET_KEY=sk_test_... npx jest test/stripe-test-mode --runInBand
 | Simultaneous release and attachment (5 runs) | **Exactly one wins.** Either the ride is authorized with a live hold and the release is refused, or the hold is cancelled and the ride is neither authorized nor dispatched. Never both. |
 
 **Status: written, not yet run.** This build environment cannot reach `api.stripe.com` and has no Stripe test key. Run it on a machine with network access and a test key, supplied as an environment secret, never in chat or the repository. Paste the result into this PR before enabling `unused_hold_release_enabled`. Keep `unused_hold_sweep_enabled` off.
+
+## 6. Isolated end-to-end environment (test keys, test database, test drivers)
+`test/stripe-isolated.e2e.test.js` runs the unmodified server through the complete card flow. It never touches production and never dispatches to a real driver.
+
+| Component | What it is |
+|---|---|
+| **Database** | A throwaway local Postgres (`harvey_isolated_*`, dropped afterwards) built from `test/isolated/production-schema.sql`. That file is a **schema-only** snapshot of production's tables, constraints (including `rides.payment_id → payments.id`), dispatch functions and triggers, taken from read-only catalog queries. No production rows are copied. |
+| **REST layer** | PostgREST, the layer Supabase runs, behind `/rest/v1`, so `supabase-js` and the server are used exactly as in production. |
+| **People** | Synthetic only: one rider and two test drivers with `@example.test` emails and fictional 555-01xx numbers. |
+| **Stripe** | **Test mode** when `STRIPE_TEST_SECRET_KEY` is a `sk_test_`/`rk_test_` key; any other key is refused. Without a key, a stateful simulator runs (`test/isolated/stripeSimulator.js`). |
+
+**Safety rails, enforced in code:**
+- The database host must be `localhost`, `127.0.0.1` or `::1`. Supabase or any other remote host is refused.
+- SMS, email, web push, identity, background-check, AI, routing and Redis credentials are removed before the server loads. The suite asserts that the integrations report them as off.
+
+**Scenarios:**
+- isolation;
+- the database enforces the foreign key;
+- successful authorization, with the payment record created and bound and **exactly one** offer to a test driver;
+- declined card;
+- concurrent and repeated authorization (one offer, one payment record);
+- the same hold on a second ride;
+- abandoned-hold release, once;
+- a ride's payment is never released;
+- simultaneous release and attachment ×5 (exactly one wins).
+
+**Run with Stripe test mode** on a machine with network access to `api.stripe.com`. Supply the key from a secret store; never type it into chat or commit it.
+```
+HARVEY_ISOLATED_E2E=1 \
+HARVEY_TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/postgres \
+POSTGREST_BIN=/path/to/postgrest \
+STRIPE_TEST_SECRET_KEY=<test key> \
+npx jest test/stripe-isolated --runInBand
+```
+- Requirements: Postgres with PostGIS, and PostgREST v12 (a single static binary from its GitHub releases).
+- Report back only the `Tests:` summary line and the names of any failing tests.
+
+**Status:**
+- **Simulated Stripe:** 14/14 passed locally against the real database, on three consecutive runs. CI's `db-functions` job now runs this mode on every push.
+- **Stripe test mode:** not yet run. This build environment's network policy blocks `api.stripe.com`.

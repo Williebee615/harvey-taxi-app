@@ -103,3 +103,20 @@ jobs:
           HARVEY_TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
           HARVEY_REQUIRE_DB_TESTS: "1"
         run: npm run test:db -- --ci
+
+      # Card-payment flow end to end against a real Postgres built from
+      # production's schema (no production data), served by PostgREST like
+      # Supabase, with synthetic riders/test drivers and Stripe SIMULATED
+      # (no Stripe key in CI). See docs/unused-card-holds.md section 6.
+      - name: Install PostgREST (pinned, checksum-verified)
+        run: |
+          curl -fsSL -o /tmp/postgrest.tar.xz https://github.com/PostgREST/postgrest/releases/download/v12.2.3/postgrest-v12.2.3-linux-static-x64.tar.xz
+          echo "9f71269e61ac3a940281e93ff415760f5957e430e475ba4c3889f3ede7d5527c  /tmp/postgrest.tar.xz" | sha256sum -c -
+          tar -xJf /tmp/postgrest.tar.xz -C /tmp
+
+      - name: Run isolated card-flow suite (simulated Stripe)
+        env:
+          HARVEY_ISOLATED_E2E: "1"
+          HARVEY_TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+          POSTGREST_BIN: /tmp/postgrest
+        run: npx jest test/stripe-isolated --runInBand --ci
