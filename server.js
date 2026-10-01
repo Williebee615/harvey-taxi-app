@@ -3497,6 +3497,9 @@ const {
   isValidatedReviewerSession,
   planReviewAwareDispatch,
   buildSimulatedPaymentIntentResponse,
+  decideReviewRideInitialState,
+  SIMULATED_PAYMENT_LABEL,
+  REVIEW_MODE_LABEL,
   resolveSystemFlagDiagnostics,
   extractSupabaseProjectRef,
   buildFlagDiagnosticLogEvent
@@ -11956,15 +11959,19 @@ app.post(
     // payment here — see lib/riderPayments.js. Only POST
     // /api/rides/:id/authorize, after retrieving and verifying the intent
     // with Stripe, may move a paid ride to PAYMENT_AUTHORIZED.
-    const status =
-
-      decideInitialRideStatus({
-
+    // An App Review ride (authenticated reviewer session only, see
+    // isReviewRide above) is created already authorized with payment
+    // not_required: it never touches Stripe at any later step.
+    const reviewRideState = decideReviewRideInitialState({
+      isReviewRide,
+      defaultStatus: decideInitialRideStatus({
         enablePaymentGate: ENABLE_PAYMENT_GATE,
-
         paymentIntentId: req.body.payment_intent_id
+      }),
+      authorizedStatus: RIDE_STATUS.PAYMENT_AUTHORIZED
+    });
 
-      });
+    const status = reviewRideState.status;
 
     const now =
 
@@ -11985,8 +11992,11 @@ app.post(
         riderId || null,
 
       is_review_ride:
-
         isReviewRide,
+
+      ...(reviewRideState.simulated
+        ? { payment_status: reviewRideState.payment_status }
+        : {}),
 
       rider_name:
 
@@ -12397,23 +12407,21 @@ app.post(
     }).catch(() => {});
 
     return ok(
-
       res,
-
       {
-
         ride:
-
           data,
-
         estimate,
-
-        dispatch
-
+        dispatch,
+        ...(reviewRideState.simulated
+          ? {
+              review_mode: true,
+              simulated_payment: true,
+              simulated_label: SIMULATED_PAYMENT_LABEL
+            }
+          : {})
       },
-
       201
-
     );
 
   })
@@ -12468,16 +12476,73 @@ app.post(
 
     }
 
+    // App Review rides are created already authorized with payment
+    // not_required (see POST /api/rides/request) and must never reach
+    // Stripe -- a reviewer client never has a real PaymentIntent, and
+    // rides.payment_id is a foreign key to payments, so a fake id can't
+    // be stored either. A review ride still awaiting authorization (only
+    // possible for one created before this change) is authorized here
+    // without Stripe, and only for the reviewer session that owns it.
+    if (ride.is_review_ride === true) {
+      if (ride.status !== RIDE_STATUS.PAYMENT_REQUIRED) {
+        return ok(res, {
+          ride,
+          dispatch: null,
+          review_mode: true,
+          simulated_payment: true,
+          simulated_label: SIMULATED_PAYMENT_LABEL
+        });
+      }
+
+      const reviewerRider = await resolveAuthenticatedReviewRider(req);
+
+      if (!reviewerRider || String(reviewerRider.id) !== String(ride.rider_id || "")) {
+        return fail(res, "This ride could not be authorized.", 403);
+      }
+
+      const { data: authorizedReviewRide, error: reviewAuthError } = await supabase
+        .from("rides")
+        .update({
+          status: RIDE_STATUS.PAYMENT_AUTHORIZED,
+          dispatch_status: "ready_to_dispatch",
+          payment_status: "not_required",
+          updated_at: nowIso()
+        })
+        .eq("id", rideId)
+        .select()
+        .maybeSingle();
+
+      if (reviewAuthError || !authorizedReviewRide) {
+        return fail(res, "This ride could not be authorized.", 500);
+      }
+
+      const reviewDispatch = shouldDispatchRideNow(authorizedReviewRide)
+        ? await dispatchRide(authorizedReviewRide)
+        : null;
+
+      auditLog({
+        actor_type: "rider",
+        actor_id: reviewerRider.id,
+        action: "review_ride_authorized_simulated",
+        entity_type: "ride",
+        entity_id: rideId,
+        req
+      }).catch(() => {});
+
+      return ok(res, {
+        ride: authorizedReviewRide,
+        dispatch: reviewDispatch,
+        review_mode: true,
+        simulated_payment: true,
+        simulated_label: SIMULATED_PAYMENT_LABEL
+      });
+    }
+
     const paymentIntentId =
-
       cleanString(
-
         req.body.payment_intent_id ||
-
         ride.payment_id,
-
         200
-
       );
 
     if (!paymentIntentId) {
@@ -16613,15 +16678,16 @@ app.get(
       );
 
     return ok(res, {
-
       total_earnings:
-
         Number(total.toFixed(2)),
-
       records:
-
-        data || []
-
+        data || [],
+      // App Review driver accounts only: their rides and earnings are
+      // simulated, and the dashboard labels them as such. Derived from
+      // the authenticated driver row, never from client input.
+      ...(req.driver?.is_review_account === true
+        ? { review_mode: true, review_label: REVIEW_MODE_LABEL }
+        : {})
     });
 
   })

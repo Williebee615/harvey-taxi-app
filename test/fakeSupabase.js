@@ -211,6 +211,46 @@ function createFakeSupabase(seed = {}, options = {}) {
         filters.push((row) => arr.includes(row[col]));
         return builder;
       },
+      // PostgREST-style OR filter, e.g. "ride_type.is.null,ride_type.not.in.(food,grocery)".
+      // Supports the operators the server actually uses inside or():
+      // is.null, eq.<v>, in.(<a>,<b>), not.in.(<a>,<b>).
+      or(expression) {
+        const parts = [];
+        let depth = 0;
+        let current = "";
+        for (const ch of String(expression)) {
+          if (ch === "(") depth += 1;
+          if (ch === ")") depth -= 1;
+          if (ch === "," && depth === 0) {
+            parts.push(current);
+            current = "";
+          } else {
+            current += ch;
+          }
+        }
+        if (current) parts.push(current);
+
+        const listOf = (raw) => raw.replace(/^\(|\)$/g, "").split(",").map((v) => v.trim());
+        const conditions = parts.map((part) => {
+          const [col, ...rest] = part.split(".");
+          const op = rest.join(".");
+          const value = (row) => (row[col] === undefined ? null : row[col]);
+          if (op === "is.null") return (row) => value(row) === null;
+          if (op.startsWith("eq.")) return (row) => String(value(row)) === op.slice(3);
+          if (op.startsWith("not.in.")) {
+            const list = listOf(op.slice(7));
+            return (row) => value(row) !== null && !list.includes(String(value(row)));
+          }
+          if (op.startsWith("in.")) {
+            const list = listOf(op.slice(3));
+            return (row) => value(row) !== null && list.includes(String(value(row)));
+          }
+          throw new Error(`fakeSupabase.or: unsupported condition "${part}"`);
+        });
+
+        filters.push((row) => conditions.some((condition) => condition(row)));
+        return builder;
+      },
       gte(col, val) {
         filters.push((row) => row[col] >= val);
         return builder;
