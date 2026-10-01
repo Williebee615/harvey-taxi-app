@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Harvey Taxi | Agent Command Center</title>
+  <style>
+    :root{
+      --bg:#060b1a; --panel:#0d1630; --panel2:#111d3d; --line:rgba(122,162,255,.18);
+      --text:#f4f7ff; --muted:#aab8de; --blue:#5ea0ff; --green:#6dffb3; --gold:#ffd76a;
+      --danger:#ff7e97; --orange:#ffb86b; --radius:16px;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Inter,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.45;padding:16px}
+    main{max-width:1280px;margin:0 auto;display:grid;gap:16px}
+    header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+    h1{font-size:1.5rem} h2{font-size:1.05rem;margin-bottom:10px} h3{font-size:.95rem;margin:8px 0}
+    a{color:var(--blue)}
+    .muted{color:var(--muted);font-size:.88rem}
+    .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;min-width:0}
+    .grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr))}
+    .stats{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}
+    .stat{background:var(--panel2);border-radius:12px;padding:12px}
+    .stat b{display:block;font-size:1.5rem}
+    .badge{display:inline-block;border-radius:999px;padding:2px 10px;font-size:.78rem;font-weight:700;border:1px solid var(--line);white-space:nowrap}
+    .b-off{background:#1b2440;color:var(--muted)} .b-assist{background:#123a2c;color:var(--green)}
+    .b-shadow{background:#3a3212;color:var(--gold)} .b-automation{background:#40210f;color:var(--orange)}
+    .b-killed{background:#4a1220;color:var(--danger)}
+    .b-rec{background:#13284d;color:var(--blue)} .b-exec{background:#40210f;color:var(--orange)}
+    .b-case{background:#4a1220;color:var(--danger)} .b-admin{background:#2a1f4a;color:#c9b6ff}
+    .notice{border-radius:12px;padding:12px 14px;border:1px solid var(--line);background:#101a36}
+    .notice.warn{border-color:rgba(255,215,106,.35);background:#2b2410}
+    .notice.bad{border-color:rgba(255,126,151,.4);background:#2e1019}
+    button,select,input{font:inherit;color:inherit}
+    button{cursor:pointer;border-radius:10px;border:1px solid var(--line);background:#16244a;padding:8px 12px}
+    button:hover{border-color:var(--blue)}
+    button:disabled{opacity:.5;cursor:not-allowed}
+    button.danger{background:#5a1426;border-color:rgba(255,126,151,.5)}
+    button.primary{background:#1d4ed8;border-color:#1d4ed8}
+    input,select{background:#0a1228;border:1px solid var(--line);border-radius:10px;padding:7px 10px;min-width:0}
+    .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+    .flag{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+    .flag:first-of-type{border-top:0}
+    .table-wrap{overflow-x:auto}
+    table{width:100%;border-collapse:collapse;font-size:.86rem}
+    th,td{text-align:left;padding:8px 6px;border-top:1px solid var(--line);vertical-align:top}
+    th{color:var(--muted);font-weight:600;border-top:0}
+    .alert{padding:8px 10px;border-radius:10px;margin-bottom:6px;background:#101a36;border-left:4px solid var(--blue)}
+    .alert.warning{border-left-color:var(--gold)} .alert.critical{border-left-color:var(--danger)}
+    .rules{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+    .rules label{display:grid;gap:4px;font-size:.84rem;color:var(--muted)}
+    .empty{color:var(--muted);font-size:.88rem;padding:6px 0}
+    #recPanel{display:none}
+    #toast{position:fixed;bottom:16px;left:16px;right:16px;max-width:520px;margin:0 auto;padding:12px 14px;border-radius:12px;background:#1d2b55;border:1px solid var(--line);display:none;z-index:10}
+    [hidden]{display:none !important}
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>Agent Command Center</h1>
+      <p class="muted">Harvey Taxi AI Agent Manager: recommendations, shadow evaluation and human review. <a href="/admin-home.html">Admin home</a></p>
+    </div>
+    <div class="row">
+      <span id="modeBadge" class="badge b-off">Loading…</span>
+      <button id="killBtn" class="danger" type="button">Disable automation now</button>
+      <button id="refreshBtn" type="button">Refresh</button>
+    </div>
+  </header>
+
+  <div id="authNotice" class="notice bad" hidden>
+    Admin sign-in required. <a href="/admin-login.html">Sign in</a>, then return to this page.
+  </div>
+
+  <div id="safetyNotice" class="notice">
+    The agent never books, cancels, charges, refunds, suspends or screens anyone. Riders and drivers confirm every change in the existing app screens. Emergencies are directed to 911.
+  </div>
+
+  <section class="panel" id="statsPanel">
+    <h2>Live operations</h2>
+    <div class="stats" id="stats"></div>
+    <p class="muted" id="snapshotError" hidden></p>
+  </section>
+
+  <div class="grid">
+    <section class="panel">
+      <h2>Alerts</h2>
+      <div id="alerts"></div>
+    </section>
+    <section class="panel">
+      <h2>Human review cases</h2>
+      <div class="table-wrap"><table><thead><tr><th>Case</th><th>Category</th><th>Opened</th><th>Status</th><th></th></tr></thead><tbody id="cases"></tbody></table></div>
+    </section>
+  </div>
+
+  <section class="panel">
+    <div class="row" style="justify-content:space-between">
+      <h2>Active rides</h2>
+      <span class="muted">Recommendations are advice only. Assigning a driver uses the existing manual-assignment route.</span>
+    </div>
+    <div class="table-wrap"><table><thead><tr><th>Ride</th><th>Status</th><th>Type</th><th>Pickup</th><th>Driver</th><th>Attempts</th><th></th></tr></thead><tbody id="rides"></tbody></table></div>
+    <div id="recPanel" class="notice" style="margin-top:12px">
+      <h3 id="recTitle">Recommendations</h3>
+      <p class="muted" id="recBasis"></p>
+      <div class="table-wrap"><table><thead><tr><th>Driver</th><th>Distance (mi)</th><th>Rating</th><th>Flags</th><th></th></tr></thead><tbody id="recRows"></tbody></table></div>
+      <details style="margin-top:8px"><summary class="muted">Excluded drivers</summary><div id="recExcluded" class="muted"></div></details>
+      <div class="row" style="margin-top:10px">
+        <button type="button" id="rejectRecBtn">Reject recommendation</button>
+        <button type="button" id="closeRecBtn">Close</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="grid">
+    <section class="panel">
+      <div class="row" style="justify-content:space-between">
+        <h2>Pending coordination decisions</h2>
+        <button type="button" id="evaluateBtn">Evaluate now (shadow only)</button>
+      </div>
+      <p class="muted">Stalled paid rides the agent would redispatch. Nothing runs from here.</p>
+      <div class="table-wrap"><table><thead><tr><th>Ride</th><th>Decision</th><th>Reason</th></tr></thead><tbody id="plan"></tbody></table></div>
+    </section>
+    <section class="panel">
+      <h2>Driver availability</h2>
+      <div class="table-wrap"><table><thead><tr><th>Driver</th><th>Online</th><th>Busy</th><th>Compliance</th><th>Location age</th></tr></thead><tbody id="drivers"></tbody></table></div>
+    </section>
+  </div>
+
+  <div class="grid">
+    <section class="panel">
+      <h2>Automation controls</h2>
+      <div id="flags"></div>
+      <div class="row" style="margin-top:12px">
+        <label class="muted" for="elevatedToken">Elevated admin token (needed only to enable automation)</label>
+        <input id="elevatedToken" type="password" autocomplete="off" placeholder="x-admin-token" />
+      </div>
+      <p class="muted" style="margin-top:6px">Kept in this browser tab only. Turning anything off never needs it.</p>
+    </section>
+    <section class="panel">
+      <h2>Rules</h2>
+      <form id="rulesForm">
+        <div class="rules" id="rules"></div>
+        <div class="row" style="margin-top:10px"><button class="primary" type="submit">Save rules</button></div>
+      </form>
+      <h3>Conversational model</h3>
+      <p class="muted" id="modelStatus"></p>
+    </section>
+  </div>
+
+  <section class="panel">
+    <h2>Decision log</h2>
+    <p class="muted">Every recommendation, shadow decision, executed action and admin override. Raw messages and contact details are not stored.</p>
+    <div class="table-wrap"><table><thead><tr><th>Time</th><th>Type</th><th>Action</th><th>Entity</th><th>Policy / detail</th><th>Executed</th></tr></thead><tbody id="decisions"></tbody></table></div>
+  </section>
+</main>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const TOKEN_KEY = "harvey_agent_elevated_token";
+  const FLAG_INFO = {
+    agent_assist_enabled: ["Rider & driver assistance", "Answers questions from live, authorized data. Proposes actions for the user to confirm."],
+    agent_shadow_mode_enabled: ["Shadow mode", "Records what the agent would do. Changes nothing."],
+    agent_automation_enabled: ["Automation (master)", "Required for any automatic action. Elevated admin only."],
+    agent_auto_redispatch_enabled: ["Automatic redispatch", "Redispatch stalled paid rides through existing dispatch. Elevated admin only."],
+    agent_kill_switch: ["Kill switch", "Stops every agent capability immediately."]
+  };
+  const ELEVATED = ["agent_automation_enabled", "agent_auto_redispatch_enabled"];
+  const RULE_LABELS = {
+    recommendation_radius_miles: "Recommendation radius (miles)",
+    max_candidates: "Candidates per ride",
+    min_driver_rating: "Flag drivers rated below",
+    stalled_ride_minutes: "Stalled after (minutes)",
+    max_auto_redispatch_attempts: "Max automatic redispatch attempts",
+    redispatch_cooldown_seconds: "Redispatch cooldown (seconds)",
+    max_location_age_minutes: "Driver location max age (minutes)"
+  };
+  const RECORD_BADGE = {
+    recommendation: ["Recommendation", "b-rec"],
+    shadow_only_not_executed: ["Shadow (not executed)", "b-shadow"],
+    executed_action: ["Executed", "b-exec"],
+    assistance_answer: ["Assistance", "b-assist"],
+    human_review_case: ["Case", "b-case"],
+    admin_change: ["Admin override", "b-admin"]
+  };
+  let state = null;
+  let currentRec = null;
+
+  function esc(v) {
+    return String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+  function token() { try { return sessionStorage.getItem(TOKEN_KEY) || ""; } catch { return ""; } }
+  function toast(msg) {
+    const t = $("toast"); t.textContent = msg; t.style.display = "block";
+    clearTimeout(toast._t); toast._t = setTimeout(() => { t.style.display = "none"; }, 4000);
+  }
+  async function api(path, options = {}) {
+    const headers = { "Content-Type": "application/json", Accept: "application/json" };
+    const tk = token();
+    if (tk && options.elevated) headers["x-admin-token"] = tk;
+    const res = await fetch(path, { method: options.method || "GET", headers, credentials: "same-origin", body: options.body ? JSON.stringify(options.body) : undefined });
+    const body = await res.json().catch(() => ({}));
+    if (res.status === 401) { $("authNotice").hidden = false; }
+    if (!res.ok) throw Object.assign(new Error(body.error || body.message || `Request failed (${res.status})`), { status: res.status, body });
+    return body;
+  }
+  function when(iso) {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    return isNaN(d) ? "—" : d.toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  }
+
+  function renderMode() {
+    const m = state.mode;
+    const labels = { off: "Agent off", assist: "Assist only", shadow: "Shadow mode", automation: "Automation ON", killed: "Kill switch engaged" };
+    const badge = $("modeBadge");
+    badge.textContent = labels[m.mode] || m.mode;
+    badge.className = `badge b-${m.mode}`;
+    const notice = $("safetyNotice");
+    if (m.mode === "automation") {
+      notice.className = "notice warn";
+      notice.textContent = "Automatic redispatch is ON. It runs only through existing dispatch rules. Use \"Disable automation now\" to stop it immediately.";
+    } else {
+      notice.className = "notice";
+      notice.textContent = "Live automation is off. The agent never books, cancels, charges, refunds, suspends or screens anyone. Riders and drivers confirm every change in the existing app screens. Emergencies are directed to 911.";
+    }
+    $("killBtn").disabled = m.kill_switch;
+    $("killBtn").textContent = m.kill_switch ? "Kill switch engaged" : "Disable automation now";
+  }
+
+  function renderStats() {
+    const c = state.counts || {};
+    const items = [["Open rides", c.open_rides], ["Online drivers", c.online_drivers], ["Free drivers", c.free_drivers], ["On a ride", c.busy_drivers], ["Stalled rides", c.stalled_rides], ["Open cases", state.cases.filter((x) => x.status === "open").length]];
+    $("stats").innerHTML = items.map(([k, v]) => `<div class="stat"><span class="muted">${esc(k)}</span><b>${v ?? "—"}</b></div>`).join("");
+    $("snapshotError").hidden = !state.snapshot_error;
+    $("snapshotError").textContent = state.snapshot_error || "";
+  }
+
+  function renderAlerts() {
+    $("alerts").innerHTML = state.alerts.length
+      ? state.alerts.map((a) => `<div class="alert ${esc(a.level)}">${esc(a.message)}</div>`).join("")
+      : `<p class="empty">No alerts.</p>`;
+  }
+
+  function renderCases() {
+    $("cases").innerHTML = state.cases.length
+      ? state.cases.slice(0, 50).map((c) => `<tr>
+          <td>${esc(c.case_id)}<div class="muted">${esc(c.excerpt)}</div></td>
+          <td><span class="badge ${c.category === "emergency" ? "b-killed" : "b-case"}">${esc(c.category)}</span> <span class="muted">${esc(c.severity)}</span></td>
+          <td>${when(c.opened_at)}</td>
+          <td>${c.status === "open" ? "<b>Open</b>" : `Resolved: ${esc(c.resolution)}<div class="muted">${esc(c.resolved_by)}</div>`}</td>
+          <td>${c.status === "open" ? `<div class="row"><select data-case-res="${esc(c.case_id)}"><option value="resolved">Resolved</option><option value="referred_to_support">Referred to support</option><option value="escalated_externally">Escalated externally</option><option value="no_action_needed">No action needed</option></select><button type="button" data-case="${esc(c.case_id)}">Close case</button></div>` : ""}</td>
+        </tr>`).join("")
+      : `<tr><td colspan="5" class="empty">No cases.</td></tr>`;
+  }
+
+  function renderRides() {
+    $("rides").innerHTML = state.active_rides.length
+      ? state.active_rides.map((r) => `<tr>
+          <td>${esc(r.id)}${r.is_review_ride ? ' <span class="badge">review</span>' : ""}</td>
+          <td>${esc(r.status)}<div class="muted">${esc(r.dispatch_status || "")}</div></td>
+          <td>${esc(r.ride_type || "—")}</td>
+          <td>${esc(r.pickup_address || "—")}</td>
+          <td>${esc(r.driver_name || "—")}</td>
+          <td>${esc(r.dispatch_attempts)}</td>
+          <td>${r.driver_name ? "" : `<button type="button" data-rec="${esc(r.id)}">Recommend drivers</button>`}</td>
+        </tr>`).join("")
+      : `<tr><td colspan="7" class="empty">No open rides.</td></tr>`;
+  }
+
+  function renderPlan() {
+    $("plan").innerHTML = state.recommendations.length
+      ? state.recommendations.map((p) => `<tr><td>${esc(p.ride_id)}</td><td>${esc(p.decision)}</td><td>${esc(p.reason)}</td></tr>`).join("")
+      : `<tr><td colspan="3" class="empty">No stalled rides.</td></tr>`;
+  }
+
+  function renderDrivers() {
+    $("drivers").innerHTML = state.drivers.length
+      ? state.drivers.slice(0, 100).map((d) => `<tr>
+          <td>${esc(d.label)}</td><td>${d.online ? "Yes" : "No"}</td><td>${d.busy ? "Yes" : "No"}</td>
+          <td>${d.compliance_ready ? "Ready" : "Not ready"}</td>
+          <td>${d.location_age_minutes == null ? "Unknown" : `${esc(d.location_age_minutes)} min`}</td></tr>`).join("")
+      : `<tr><td colspan="5" class="empty">No approved drivers.</td></tr>`;
+  }
+
+  function renderFlags() {
+    const canElevate = state.admin_can_enable_automation || Boolean(token());
+    $("flags").innerHTML = Object.entries(FLAG_INFO).map(([key, [label, help]]) => {
+      const on = Boolean(state.flags[key]);
+      const needsElevation = ELEVATED.includes(key) && !on && !canElevate;
+      return `<div class="flag"><div><b>${esc(label)}</b> <span class="badge ${on ? (key === "agent_kill_switch" ? "b-killed" : "b-assist") : "b-off"}">${on ? "On" : "Off"}</span><div class="muted">${esc(help)}</div></div>
+        <button type="button" data-flag="${esc(key)}" data-enable="${on ? "false" : "true"}" ${needsElevation ? "disabled title=\"Elevated admin token required\"" : ""}>${on ? "Turn off" : "Turn on"}</button></div>`;
+    }).join("");
+  }
+
+  function renderRules() {
+    $("rules").innerHTML = Object.entries(RULE_LABELS).map(([key, label]) => {
+      const [min, max] = (state.rule_bounds || {})[key] || [0, 999];
+      return `<label>${esc(label)}<input type="number" step="any" name="${esc(key)}" min="${min}" max="${max}" value="${esc(state.rules[key])}" /></label>`;
+    }).join("");
+    const m = state.model || {};
+    $("modelStatus").textContent = m.configured
+      ? `Self-hosted model "${m.model}" at ${m.host}. ${m.circuit_open ? "Unreachable: rule-based answers in use." : m.last_error ? `Last error: ${m.last_error}; rule-based answers used for that request.` : m.last_success_at ? `Last answered ${when(m.last_success_at)}.` : "Not used since the server started."}`
+      : `Not configured: rule-based answers only. ${m.problem || ""}`;
+  }
+
+  function renderDecisions() {
+    $("decisions").innerHTML = state.decisions.length
+      ? state.decisions.map((d) => {
+          const md = d.metadata || {};
+          const [label, cls] = RECORD_BADGE[md.record_type] || [md.record_type || "—", "b-off"];
+          const detail = md.policy || md.decision || md.would_do || md.value || md.intent || "";
+          return `<tr><td>${when(d.created_at)}</td><td><span class="badge ${cls}">${esc(label)}</span></td><td>${esc(d.action)}</td>
+            <td>${esc(d.entity_type || "")} ${esc(d.entity_id || "")}</td><td>${esc(detail)}${md.outcome ? `<div class="muted">${esc(md.outcome)}</div>` : ""}</td>
+            <td>${md.executed ? "<b>Yes</b>" : "No"}</td></tr>`;
+        }).join("")
+      : `<tr><td colspan="6" class="empty">No agent activity recorded yet.</td></tr>`;
+  }
+
+  async function load() {
+    try {
+      state = await api("/api/admin/agent/overview");
+      $("authNotice").hidden = true;
+      renderMode(); renderStats(); renderAlerts(); renderCases(); renderRides(); renderPlan(); renderDrivers(); renderFlags(); renderRules(); renderDecisions();
+    } catch (err) {
+      if (err.status !== 401) toast(err.message);
+    }
+  }
+
+  async function setFlag(key, enable) {
+    if (enable && ELEVATED.includes(key) && !confirm("Enable live automation? Stalled paid rides will be redispatched automatically through existing dispatch rules.")) return;
+    try {
+      await api("/api/admin/agent/flags", { method: "POST", elevated: enable && ELEVATED.includes(key), body: { key, enabled: enable, reason: "admin command center" } });
+      toast("Saved.");
+    } catch (err) { toast(err.message); }
+    load();
+  }
+
+  async function showRecommendations(rideId) {
+    try {
+      const data = await api(`/api/admin/agent/rides/${encodeURIComponent(rideId)}/recommendations`);
+      currentRec = { rideId, data };
+      const rec = data.recommendation;
+      $("recTitle").textContent = `Recommendations for ${rideId}`;
+      $("recBasis").textContent = `Basis: ${rec.basis.join("; ")}.`;
+      $("recRows").innerHTML = rec.eligible.length
+        ? rec.eligible.map((c) => `<tr><td>${esc(c.label)}</td><td>${c.distance_miles ?? "—"}</td><td>${c.rating ?? "—"}</td><td>${esc(c.flags.join(", ") || "—")}</td>
+            <td><button type="button" data-assign="${esc(c.driver_id)}">Assign (manual)</button></td></tr>`).join("")
+        : `<tr><td colspan="5" class="empty">No eligible drivers right now.</td></tr>`;
+      $("recExcluded").innerHTML = rec.excluded.map((e) => `${esc(e.label)}: ${esc(e.reasons.join(", "))}`).join("<br>") || "None";
+      $("recPanel").style.display = "block";
+      $("recPanel").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    } catch (err) { toast(err.message); }
+  }
+
+  async function assign(driverId) {
+    if (!currentRec) return;
+    if (!confirm("Assign this driver to the ride? This uses the existing manual-assignment action.")) return;
+    try {
+      await api(`/api/admin/rides/${encodeURIComponent(currentRec.rideId)}/assign-driver`, { method: "POST", body: { driver_id: driverId } });
+      await api("/api/admin/agent/overrides", { method: "POST", body: { ride_id: currentRec.rideId, decision: "accepted_recommendation", driver_id: driverId } });
+      toast("Driver assigned.");
+      $("recPanel").style.display = "none";
+    } catch (err) { toast(err.message); }
+    load();
+  }
+
+  document.addEventListener("click", async (e) => {
+    const t = e.target.closest("button");
+    if (!t) return;
+    if (t.dataset.flag) return setFlag(t.dataset.flag, t.dataset.enable === "true");
+    if (t.dataset.rec) return showRecommendations(t.dataset.rec);
+    if (t.dataset.assign) return assign(t.dataset.assign);
+    if (t.dataset.case) {
+      const sel = document.querySelector(`select[data-case-res="${CSS.escape(t.dataset.case)}"]`);
+      try { await api(`/api/admin/agent/cases/${encodeURIComponent(t.dataset.case)}/resolve`, { method: "POST", body: { resolution: sel ? sel.value : "resolved" } }); toast("Case closed."); }
+      catch (err) { toast(err.message); }
+      return load();
+    }
+  });
+  $("killBtn").addEventListener("click", () => setFlag("agent_kill_switch", true));
+  $("refreshBtn").addEventListener("click", load);
+  $("closeRecBtn").addEventListener("click", () => { $("recPanel").style.display = "none"; });
+  $("rejectRecBtn").addEventListener("click", async () => {
+    if (!currentRec) return;
+    const note = prompt("Why are you rejecting this recommendation? (optional)") || "";
+    try { await api("/api/admin/agent/overrides", { method: "POST", body: { ride_id: currentRec.rideId, decision: "rejected_recommendation", note } }); toast("Override recorded."); }
+    catch (err) { toast(err.message); }
+    $("recPanel").style.display = "none";
+    load();
+  });
+  $("evaluateBtn").addEventListener("click", async () => {
+    try { const r = await api("/api/admin/agent/evaluate", { method: "POST", body: {} }); toast(`Evaluated ${r.outcomes.length} ride(s). Nothing was executed.`); }
+    catch (err) { toast(err.message); }
+    load();
+  });
+  $("rulesForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const rules = {};
+    for (const input of e.target.querySelectorAll("input[name]")) rules[input.name] = Number(input.value);
+    try { await api("/api/admin/agent/rules", { method: "POST", body: { rules } }); toast("Rules saved."); }
+    catch (err) { toast(err.body && err.body.errors ? err.body.errors.join(" ") : err.message); }
+    load();
+  });
+  $("elevatedToken").addEventListener("change", (e) => {
+    try { if (e.target.value) sessionStorage.setItem(TOKEN_KEY, e.target.value); else sessionStorage.removeItem(TOKEN_KEY); } catch {}
+    e.target.value = "";
+    if (state) renderFlags();
+    toast(token() ? "Elevated token held for this tab." : "Elevated token cleared.");
+  });
+
+  load();
+  setInterval(load, 30000);
+})();
+</script>
+</body>
+</html>
