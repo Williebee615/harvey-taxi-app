@@ -141,3 +141,17 @@ describe("admin-dashboard.html session handling", () => {
     expect(script).not.toMatch(/x-admin-token|ADMIN_API_TOKEN|localStorage\.setItem\(\s*["'][^"']*(token|stripe|payment)/i);
   });
 });
+
+describe("admin-login.html", () => {
+  const login = fs.readFileSync(path.join(__dirname, "..", "public", "admin-login.html"), "utf8");
+
+  // It used to post to /api/admin-login, which does not exist, so it never
+  // set a session. Browser behaviour: admin-login-page.browser.test.js.
+  test("signs in through the real session endpoint and redirects only to admin pages", () => {
+    expect(login).toContain('fetch("/api/admin/login", {');
+    expect(login).toContain('credentials: "include"');
+    expect(login).not.toContain("/api/admin-login");
+    expect(login).toContain('return /^\\/admin[\\w-]*\\.html$/.test(next) ? next : "/admin-dashboard.html";');
+    expect(login).not.toMatch(/localStorage\.setItem/);
+  });
+});
