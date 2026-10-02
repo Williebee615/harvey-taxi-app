@@ -113,6 +113,10 @@ describeIsolated(`card flow in an isolated environment (Stripe: ${STRIPE_MODE})`
     }
   }
 
+  // Intents the server creates use automatic_payment_methods. Confirming one
+  // server-side needs a return_url when the test account has redirect-based
+  // methods enabled; a test card never redirects, so the URL is never used.
+  const CARD_CONFIRM = { payment_method: "pm_card_visa", return_url: "https://example.test/stripe-return" };
   const authorize = (rideId, piId) => request(app).post(`/api/rides/${rideId}/authorize`).send({ payment_intent_id: piId });
   const release = (pi) => request(app).post(`/api/payments/holds/${pi.id}/release`).send({ client_secret: pi.client_secret });
   const q = async (sql, params = []) => (await env.db.query(sql, params)).rows;
@@ -249,7 +253,7 @@ describeIsolated(`card flow in an isolated environment (Stripe: ${STRIPE_MODE})`
     expect(estimate.status).toBe(200);
     const body = { ...trip, miles: 5, minutes: 12, estimate_token: estimate.body.estimate_token };
 
-    const intentRes = await request(app).post("/api/rides/payment-intent").set(rider).send({ ...body, idempotency_key: "isolated-flow-1" });
+    const intentRes = await request(app).post("/api/rides/payment-intent").set(rider).send({ ...body, idempotency_key: `isolated-flow-${Date.now()}` });
     expect(intentRes.status).toBe(200);
     const piId = intentRes.body.payment_intent_id || intentRes.body.paymentIntentId || intentRes.body.id || String(intentRes.body.client_secret).split("_secret_")[0];
     created.push(piId);
@@ -260,7 +264,7 @@ describeIsolated(`card flow in an isolated environment (Stripe: ${STRIPE_MODE})`
       if (!createdRecord) await new Promise((r) => setTimeout(r, 100));
     }
     expect(createdRecord).toMatchObject({ status: "created", rider_id: "RIDER_1", ride_id: null, client_secret: null });
-    await stripe.paymentIntents.confirm(piId, { payment_method: "pm_card_visa" });
+    await stripe.paymentIntents.confirm(piId, CARD_CONFIRM);
 
     const rideRes = await request(app).post("/api/rides/request").set(rider).send(body);
     expect([200, 201]).toContain(rideRes.status);
@@ -410,7 +414,7 @@ describeIsolated(`card flow in an isolated environment (Stripe: ${STRIPE_MODE})`
     const piId = res.body.payment_intent_id;
     // Persisted before the response -- no waiting.
     expect(await paymentRow(piId)).toMatchObject({ status: "created", rider_id: "RIDER_1", client_secret: null });
-    await stripe.paymentIntents.confirm(piId, { payment_method: "pm_card_visa" });
+    await stripe.paymentIntents.confirm(piId, CARD_CONFIRM);
     // ...and the app is killed: no release call, no booking.
 
     const dry = await reconcile({ intentFilter: ownOnly([piId]) });
@@ -478,7 +482,7 @@ describeIsolated(`card flow in an isolated environment (Stripe: ${STRIPE_MODE})`
     try {
       // Stripe names a ride the database never bound.
       const named = await createIntent({ headers: riderAuthHeaders(signTestRiderToken("RIDER_1")), riderId: "RIDER_1" });
-      await stripe.paymentIntents.confirm(named.body.payment_intent_id, { payment_method: "pm_card_visa" });
+      await stripe.paymentIntents.confirm(named.body.payment_intent_id, CARD_CONFIRM);
       await stripe.paymentIntents.update(named.body.payment_intent_id, { metadata: { ride_id: "RIDE_UNKNOWN" } });
       // A Harvey Taxi hold without the account tag (pre-fix metadata).
       const legacy = await hold();
@@ -522,10 +526,10 @@ describeIsolated(`card flow in an isolated environment (Stripe: ${STRIPE_MODE})`
     await setFlag("stripe_reconciliation_enabled", "true");
     // An unused tracked hold, an untracked hold, and a legacy (no account tag) hold.
     const tracked = await createIntent({ headers: riderAuthHeaders(signTestRiderToken("RIDER_1")), riderId: "RIDER_1" });
-    await stripe.paymentIntents.confirm(tracked.body.payment_intent_id, { payment_method: "pm_card_visa" });
+    await stripe.paymentIntents.confirm(tracked.body.payment_intent_id, CARD_CONFIRM);
     const untracked = await stripe.paymentIntents.create({ amount: 2000, currency: "usd", capture_method: "manual", metadata: { app: "harvey_taxi", account: "harvey_taxi_service", rider_id: "", rider_verified: "false" } }, {});
     created.push(untracked.id);
-    await stripe.paymentIntents.confirm(untracked.id, { payment_method: "pm_card_visa" });
+    await stripe.paymentIntents.confirm(untracked.id, CARD_CONFIRM);
     const legacy = await hold();
     const ids = [tracked.body.payment_intent_id, untracked.id, legacy.id];
     for (const id of ids) if (stripe._age) stripe._age(id, 3 * 3600);
@@ -608,7 +612,7 @@ describeIsolated(`card flow in an isolated environment (Stripe: ${STRIPE_MODE})`
     await setFlag("unused_hold_sweep_enabled", "true");
     const res = await createIntent({ headers: riderAuthHeaders(signTestRiderToken("RIDER_1")), riderId: "RIDER_1" });
     const piId = res.body.payment_intent_id;
-    const confirmed = await stripe.paymentIntents.confirm(piId, { payment_method: "pm_card_visa" });
+    const confirmed = await stripe.paymentIntents.confirm(piId, CARD_CONFIRM);
     // The ride's fare must match the route-priced hold, or authorization
     // would fail for that reason instead of racing.
     await env.db.query("update public.rides set estimated_fare = $1 where id = 'RIDE_1'", [confirmed.amount / 100]);
