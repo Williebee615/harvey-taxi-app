@@ -59,6 +59,19 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
+// The home page reports its launch check; "stay" means a signed-out
+// visitor (or a page other than home), so the page is shown.
+function postMessage(message) {
+  act(() => {
+    latest().onMessage({ nativeEvent: { data: JSON.stringify({ source: 'harvey-shell', ...message }) } });
+  });
+}
+
+function loadHome() {
+  fire('onLoad', { url: START_URL });
+  postMessage({ type: 'launch', result: 'stay' });
+}
+
 function render() {
   let tree;
   act(() => {
@@ -77,7 +90,7 @@ test('cold launch shows the branded loading screen over the WebView, loading the
 
 test('successful load removes the loading screen', () => {
   const tree = render();
-  fire('onLoad', { url: START_URL });
+  loadHome();
   expect(has(tree, 'startup-loading')).toBe(false);
   expect(has(tree, 'startup-error')).toBe(false);
 });
@@ -104,7 +117,7 @@ test('offline: readable message, the library default error view is suppressed, a
   expect(has(tree, 'startup-loading')).toBe(true);
   expect(mockWebViews.length).toBeGreaterThan(before);
 
-  fire('onLoad', { url: START_URL });
+  loadHome();
   expect(has(tree, 'startup-error')).toBe(false);
   expect(has(tree, 'startup-loading')).toBe(false);
 });
@@ -154,7 +167,7 @@ test('returning to the foreground after an offline error retries on its own', ()
 
 test('backgrounding and reopening a loaded app keeps the site showing', () => {
   const tree = render();
-  fire('onLoad', { url: START_URL });
+  loadHome();
   act(() => appStateListener('background'));
   act(() => jest.advanceTimersByTime(LOAD_TIMEOUT_MS * 2));
   act(() => appStateListener('active'));

@@ -1,7 +1,8 @@
 # Harvey Taxi iOS app: build and release verification
 
-App Store app: **Harvey Taxi**, bundle ID `com.harveytaxi.app`, built from
-this `mobile/` directory. The root `app.json` (`com.harveytaxi.mobile`) is not
+App Store app: **Harvey Taxi**, iOS bundle ID `com.harveytaxiservice.app`
+(set in `mobile/app.json` by "Fix App Store Connect identifiers"); Android
+package `com.harveytaxi.app`. Both are built from this `mobile/` directory. The root `app.json` (`com.harveytaxi.mobile`) is not
 a buildable Expo project and is not used for App Store builds.
 
 ## Build
@@ -13,7 +14,8 @@ npm test
 npx eas-cli build --platform ios --profile production
 ```
 
-- Marketing version: `expo.version` in `app.json` (currently `1.0.1`).
+- Marketing version: `expo.version` in `app.json` (currently `1.0.2`, for the
+  rider-navigation release below; 1.0.1 build 10 stays as submitted).
 - Build number: managed by EAS (`cli.appVersionSource: "remote"` in
   `eas.json`); the `production` profile auto-increments it. Build 10
   (`bf85889d-7f63-4063-bace-685e2b8e9492`, commit `3e57b81`) is the first
@@ -55,3 +57,79 @@ Delete the app before each run, so there are no cookies or stored session.
 
 Record the device, OS version, build number and a screen recording of #1, #3
 and #4 in the pull request before submitting.
+
+## Android: verify before any Play build
+
+The repository cannot show whether an Android app already exists on Google
+Play. It contains Google Play reviewer-account support (server and
+`scripts/seed-review-accounts.js`), which suggests an earlier Play listing
+or review, but no Android signing setup, Play track, `versionCode` history
+or submit config. Before building for Play, the owner checks:
+
+1. **Play Console:** is there an existing app, and what is its package name?
+   If it is not `com.harveytaxi.app`, do **not** create another Play Console
+   app. Bring `android.package` in line with the existing app instead.
+   A package name can never be changed after the first upload.
+2. **Signing:** Play App Signing status and the upload key. If an upload
+   key already exists, EAS must use it (`npx eas-cli credentials`, Android,
+   upload the existing keystore). Letting EAS generate a new key would make
+   the upload fail.
+3. **Release history:** the highest `versionCode` already uploaded. EAS
+   manages version codes remotely (`appVersionSource: remote`), so set it
+   above that number first (`npx eas-cli build:version:set --platform android`).
+4. Only then build `android-play-internal` and upload to internal testing.
+
+None of this changes iOS. The iOS profile, its build number and the
+1.0.1 (10) review are not touched.
+
+## Rider navigation release (1.0.2)
+
+This release changes the app shell only. It needs a **new native build on
+both platforms** because it adds the `harveytaxi://` URL scheme (`expo.scheme`).
+It does not change, rebuild or replace iOS 1.0.1 (10).
+
+| Platform | Build | Notes |
+|---|---|---|
+| iOS | 1.0.2, next EAS build number (11 or higher, assigned by EAS) | `npx eas-cli build --platform ios --profile production`, then TestFlight. Do not attach it to the 1.0.1 (10) review. |
+| Android (device testing) | 1.0.2 test APK | `npx eas-cli build --platform android --profile android-test`. Installs directly on test devices; nothing goes to Google Play. Verify the items below first only if the APK will later be replaced by a Play build on the same devices. |
+| Android (Play internal testing) | 1.0.2 `.aab` | `npx eas-cli build --platform android --profile android-play-internal`. **Only after the Android verification below.** Upload manually to the **internal testing** track; there is no automatic submit config for Android. |
+
+Behaviour:
+- **Launch:** a signed-in rider lands on the rider dashboard. The site's own
+  `GET /api/rider/session` check decides this, using the WebView's session
+  cookie; the app never reads the cookie. A signed-out visitor sees the home page.
+- **Links:** `harveytaxi://book[?mode=]`, `harveytaxi://ride/<id>`,
+  `harveytaxi://dashboard` and `https://harveytaxiservice.com/...` links open
+  that exact screen. They are never replaced by the launch redirect.
+- **Android Back:**
+  - booking or tracking → dashboard (the page's own "Back to Dashboard");
+  - other site pages → previous page;
+  - dashboard or home → leaves the app, the standard top-level behaviour.
+- **iOS:** the edge swipe walks the WebView history (`allowsBackForwardNavigationGestures`).
+  Booking and tracking are history entries over the dashboard, so swiping back
+  from them returns to the dashboard.
+
+Not covered by this release:
+- **Push notifications:** ride notifications are Web Push and are not delivered
+  inside the app. Tapping one opens the browser.
+- **Universal Links / Android App Links:** `https://` links from SMS or email open
+  the browser, not the app. That needs `associatedDomains` / `intentFilters`, plus
+  `apple-app-site-association` and `assetlinks.json` served by the site. Only
+  `harveytaxi://` links open the app today.
+
+### Device checklist (release build, both platforms unless marked)
+
+| # | Scenario | Expected |
+|---|---|---|
+| N1 | Fresh install, launch | The home page appears, with no flash of the dashboard. |
+| N2 | Sign in, force-quit, relaunch | The dashboard opens directly, with no home-page flash. |
+| N3 | Dashboard → Request a Ride → Android Back / iOS edge swipe | Returns to the dashboard; no ride is created. |
+| N4 | From the payment step (card authorized), Back | Dashboard with the "no ride was requested" notice; no ride is created. |
+| N5 | Active ride → Open Live Tracking → Back / swipe | Dashboard with the active ride. |
+| N6 | Android: Back on the dashboard | The app goes to the background; reopening shows the dashboard. |
+| N7 | Android: Support page → Back | Previous page. |
+| N8 | Open `harveytaxi://ride/<real ride id>` (Notes app or `adb shell am start -d`) with the app closed, then again with it open | The tracking screen for that ride opens, not the dashboard and not a new booking. |
+| N9 | Open `harveytaxi://book?mode=airport` | The booking screen in Airport mode. |
+| N10 | Session expired or revoked (sign out on another device, or wait out the session TTL), relaunch | The home page or sign-in screen; no rider data is shown. After sign-in the dashboard shows. |
+| N11 | Airplane mode at launch, then network on and Try Again | Offline screen, then the home page or dashboard per the session. |
+| N12 | Android: background the app for 30+ minutes, reopen | Still signed in, with no blank screen. |

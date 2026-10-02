@@ -1,0 +1,177 @@
+import React from 'react';
+import { AppState, BackHandler, Linking, Platform } from 'react-native';
+import { act, create } from 'react-test-renderer';
+
+import App from '../App';
+import { CLOSE_WIZARD_SCRIPT, LAUNCH_CHECK_TIMEOUT_MS } from '../src/navigation';
+import { START_URL } from '../src/startup';
+
+jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
+
+const mockWebViews = [];
+const mockInjected = [];
+const mockGoBack = jest.fn();
+jest.mock('react-native-webview', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  const WebView = React.forwardRef((props, ref) => {
+    React.useImperativeHandle(ref, () => ({
+      injectJavaScript: (code) => mockInjected.push(code),
+      goBack: () => mockGoBack()
+    }));
+    mockWebViews.push(props);
+    return React.createElement(View, { testID: props.testID });
+  });
+  return { WebView };
+});
+
+const latest = () => mockWebViews[mockWebViews.length - 1];
+const has = (tree, id) => tree.root.findAll((n) => n.props.testID === id && typeof n.type === 'string').length > 0;
+
+let backListener;
+let urlListener;
+let initialUrl;
+
+function send(message) {
+  act(() => {
+    latest().onMessage({ nativeEvent: { data: JSON.stringify({ source: 'harvey-shell', ...message }) } });
+  });
+}
+function load(url = START_URL) {
+  act(() => latest().onLoad({ nativeEvent: { url } }));
+}
+function pressBack() {
+  let handled;
+  act(() => {
+    handled = backListener();
+  });
+  return handled;
+}
+async function render() {
+  let tree;
+  await act(async () => {
+    tree = create(<App />);
+  });
+  return tree;
+}
+
+beforeEach(() => {
+  jest.useFakeTimers();
+  mockWebViews.length = 0;
+  mockInjected.length = 0;
+  mockGoBack.mockReset();
+  initialUrl = null;
+  Platform.OS = 'android';
+  jest.spyOn(AppState, 'addEventListener').mockImplementation(() => ({ remove: jest.fn() }));
+  jest.spyOn(BackHandler, 'addEventListener').mockImplementation((_type, listener) => {
+    backListener = listener;
+    return { remove: jest.fn() };
+  });
+  jest.spyOn(Linking, 'getInitialURL').mockImplementation(() => Promise.resolve(initialUrl));
+  jest.spyOn(Linking, 'addEventListener').mockImplementation((_type, listener) => {
+    urlListener = listener;
+    return { remove: jest.fn() };
+  });
+  jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+  jest.spyOn(console, 'warn').mockImplementation(() => {});
+});
+
+afterEach(() => {
+  jest.useRealTimers();
+  jest.restoreAllMocks();
+});
+
+describe('launch', () => {
+  test('signed-in rider: the loading screen stays until the dashboard has loaded (no home-page flash)', async () => {
+    const tree = await render();
+    load();
+    expect(has(tree, 'startup-loading')).toBe(true);
+    send({ type: 'launch', result: 'redirect' });
+    expect(has(tree, 'startup-loading')).toBe(true);
+    load('https://harveytaxiservice.com/rider-dashboard.html');
+    expect(has(tree, 'startup-loading')).toBe(false);
+  });
+
+  test('signed-out visitor: the home page is shown', async () => {
+    const tree = await render();
+    load();
+    send({ type: 'launch', result: 'stay' });
+    expect(has(tree, 'startup-loading')).toBe(false);
+  });
+
+  test('no answer from the launch check: the page is shown after a short wait', async () => {
+    const tree = await render();
+    load();
+    act(() => jest.advanceTimersByTime(LAUNCH_CHECK_TIMEOUT_MS));
+    expect(has(tree, 'startup-loading')).toBe(false);
+  });
+
+  test('a tracking link that opened the app is kept exactly', async () => {
+    initialUrl = 'harveytaxi://ride/RIDE-42';
+    await render();
+    expect(latest().source).toEqual({ uri: 'https://harveytaxiservice.com/rider-dashboard.html?screen=track&ride_id=RIDE-42' });
+  });
+
+  test('a booking link that opened the app is kept exactly', async () => {
+    initialUrl = 'https://harveytaxiservice.com/rider-dashboard.html?screen=book&mode=airport';
+    await render();
+    expect(latest().source).toEqual({ uri: 'https://harveytaxiservice.com/rider-dashboard.html?screen=book&mode=airport' });
+  });
+
+  test('a link arriving while the app is open navigates the loaded page', async () => {
+    await render();
+    load();
+    send({ type: 'launch', result: 'stay' });
+    act(() => urlListener({ url: 'harveytaxi://ride/RIDE-7' }));
+    expect(mockInjected.pop()).toContain('rider-dashboard.html?screen=track&ride_id=RIDE-7');
+  });
+
+  test('foreign links are ignored', async () => {
+    await render();
+    load();
+    send({ type: 'launch', result: 'stay' });
+    act(() => urlListener({ url: 'https://evil.example/phish' }));
+    expect(mockInjected).toHaveLength(0);
+  });
+});
+
+describe('Android Back', () => {
+  async function ready() {
+    const tree = await render();
+    load();
+    send({ type: 'launch', result: 'stay' });
+    return tree;
+  }
+
+  test('booking/tracking screen -> dashboard via the page\'s own Back to Dashboard', async () => {
+    await ready();
+    send({ type: 'page', path: '/rider-dashboard.html', wizardOpen: true });
+    expect(pressBack()).toBe(true);
+    expect(mockInjected).toEqual([CLOSE_WIZARD_SCRIPT]);
+    expect(mockGoBack).not.toHaveBeenCalled();
+  });
+
+  test('dashboard -> leaves the app (system default), even with history', async () => {
+    await ready();
+    act(() => latest().onNavigationStateChange({ canGoBack: true }));
+    send({ type: 'page', path: '/rider-dashboard.html', wizardOpen: false });
+    expect(pressBack()).toBe(false);
+    expect(mockGoBack).not.toHaveBeenCalled();
+  });
+
+  test('another site page -> previous page', async () => {
+    await ready();
+    act(() => latest().onNavigationStateChange({ canGoBack: true }));
+    send({ type: 'page', path: '/support.html', wizardOpen: false });
+    expect(pressBack()).toBe(true);
+    expect(mockGoBack).toHaveBeenCalledTimes(1);
+  });
+
+  test('while loading or on the error screen Back is left to the system', async () => {
+    const tree = await render();
+    expect(pressBack()).toBe(false);
+    act(() => latest().onError({ nativeEvent: { code: -1009 }, preventDefault() {} }));
+    expect(has(tree, 'startup-error')).toBe(true);
+    expect(pressBack()).toBe(false);
+  });
+});
