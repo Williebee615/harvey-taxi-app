@@ -142,7 +142,36 @@ The production-configuration gate therefore **failed**. Stages 0 to 2 keep it th
 2. Run the real Stripe test-mode suites A and B (§5 and §6) on the same SHA, using a **test secret key** (`sk_test_…`). A key ID (`mk_…`) is not a secret key. Before anything runs, both suites ask Stripe to confirm test mode (`livemode: false`) and refuse to run otherwise.
 3. Record the validated SHA, the counts for A and B, and confirmation that every test hold ended `canceled`. If the code changes after this, repeat Stage 1.
 
+**Stage 1 result (2026-10-02): complete.** Validated SHA **`a9cab989a20e25c489587b11734d417a6cfb8b77`**: `40507ab` plus a test-only change to `test/stripe-isolated.e2e.test.js` (a `return_url` on test-side confirms, and a per-run idempotency key; no application code).
+
+| Check | Result |
+|---|---|
+| Real Stripe suite A (`test/stripe-test-mode`) | 12 passed, 0 failed, 0 skipped |
+| Real Stripe suite B (`test/stripe-isolated`, `Stripe: stripe_test_mode`) | 30 passed, 0 failed, 1 skipped (`SIM_ONLY`: write failure and cancel failure, which needs injected Stripe faults; it passes under the simulator) |
+| Race outcomes | Release vs. attachment, 5 runs in each suite: the release won every run. Reconciliation vs. authorization (0/3/6/10/20 ms): authorization won every run. Never both. |
+| Dry-run reconciliation | Changed nothing (test passed) |
+| Test mode | `livemode: false` confirmed before each run; every PaymentIntent created was test mode |
+| Cleanup | 124 test PaymentIntents created across all runs, 124 `canceled`, none captured, no refunds |
+| Full `npx jest` / DB suites / isolated (simulator) / CI | 1,295 passed (122 opt-in skips) / 83 of 83 / 31 of 31 / all green |
+
 ### Stage 2: deploy this PR with cards still off
+
+**Stage 2 status: GitHub complete; production verification pending.** Stage 2 stays in this state until the Render and device checks below pass.
+
+| Check | Status |
+|---|---|
+| Merge with "Create a merge commit", pinned to `a9cab98` | **Done**: merge commit `5be6d7e` (2026-10-02 17:59:37Z). The tree of `main` is identical to the validated tree. |
+| CI on `main` at `5be6d7e` | **Passed** |
+| #152 shows as merged | **Done**: marked merged by GitHub (head `fa9f47a`) |
+| Live keys, payment gate, automation flags | **Not changed** by this stage. The gate stays on; the flags stay off. |
+| Render shows `5be6d7e` live; logs show no new errors | Pending (owner) |
+| `/api/health` (as admin) reports Stripe as before | Pending (owner) |
+| Payment Configuration card unchanged (cards still off) | Pending (owner) |
+| App Review sign-in and simulated payment | Pending (owner) |
+| Every flag listed in Stage 0 still off or absent | Pending (owner) |
+| `POST /api/admin/payments/reconcile/dry-run` returns without error (item 3) | Pending (owner) |
+| Device checks from #152: iOS app swipe-back from booking and tracking returns to the dashboard; Android hardware Back (needs the #154 build); Safari and Chrome launch, sign-in, refresh, booking open and close, notification tap | Pending (owner) |
+
 1. Merge with **"Create a merge commit"**, pinned to the validated SHA. Render Auto-Deploy deploys it.
 2. Verify that:
    - Render shows the merge commit as live, and its logs show no new errors;
@@ -209,7 +238,7 @@ STRIPE_TEST_SECRET_KEY=sk_test_... npx jest test/stripe-test-mode --runInBand
 | A ride's payment | A release request gets 409, and the hold stays `requires_capture`. |
 | Simultaneous release and attachment (5 runs) | **Exactly one wins.** Either the ride is authorized with a live hold and the release is refused, or the hold is cancelled and the ride is neither authorized nor dispatched. Never both. |
 
-**Status: not yet run against real Stripe.** The first attempt (2026-10-02) stopped at the safety check because the stored credential was a key ID (`mk_…`), not a test secret key. Both real-Stripe suites now ask Stripe to confirm `livemode: false` before anything runs, which also covers a key injected by a proxy. Run it on a machine with network access and a test key, supplied as an environment secret, never in chat or the repository. Paste the result into this PR before enabling `unused_hold_release_enabled`. Keep `unused_hold_sweep_enabled` off.
+**Status: passed against real Stripe test mode on 2026-10-02** (validated SHA `a9cab98`; see the Stage 1 result in §3). Re-run it on a machine with network access and a test key, supplied as an environment secret, never in chat or the repository, whenever this code changes. Keep `unused_hold_sweep_enabled` off until its own approval.
 
 ## 6. Isolated end-to-end environment (test keys, test database, test drivers)
 `test/stripe-isolated.e2e.test.js` runs the unmodified server through the complete card flow. It never touches production and never dispatches to a real driver.
