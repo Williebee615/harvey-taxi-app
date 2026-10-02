@@ -27,6 +27,7 @@ const STRIPE_MODE = KEY_IS_TEST ? "stripe_test_mode" : "simulated";
 
 const { startIsolatedEnvironment, stripOutboundCredentials } = require("./isolated/isolatedEnv");
 const { createStripeSimulator } = require("./isolated/stripeSimulator");
+const { assertStripeTestMode } = require("./isolated/assertStripeTestMode");
 const { makeRider, makeDriver, makeRide, signTestRiderToken, signTestDriverToken, riderAuthHeaders, driverAuthHeaders } = require("./rideTestHelpers");
 
 const describeIsolated = RUN ? describe : describe.skip;
@@ -60,6 +61,8 @@ describeIsolated(`card flow in an isolated environment (Stripe: ${STRIPE_MODE})`
 
     if (KEY_IS_TEST) {
       stripe = require("stripe")(TEST_KEY);
+      // Stripe must confirm test mode before the server is even loaded.
+      await assertStripeTestMode(stripe);
     } else {
       stripe = createStripeSimulator();
       jest.doMock("stripe", () => function StripeSimulator() {

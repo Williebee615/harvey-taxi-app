@@ -111,17 +111,81 @@ A `review_required` hold can still be attached by a genuine booking; authorizati
 
 The rider notice changes to "has been cancelled" **only after** the server confirms the cancellation. Otherwise it keeps saying the hold "has not been used or cancelled". It never promises when the bank will remove a pending amount.
 
-## 3. Rollout
-1. Merge after #152. This branch is stacked on it and touches the same route.
-2. Confirm whether live Stripe and the payment gate are enabled in Render. If they are, this PR is required for real card bookings to complete.
-3. Run a Stripe test-mode booking end to end on staging: authorize → ride `payment_authorized` → `payments` row `authorized`.
-4. Turn on `unused_hold_release_enabled`, then test-mode: card step → Back → the hold shows as cancelled in the Stripe test dashboard.
-5. After deploy, run the dry run (`POST /api/admin/payments/reconcile/dry-run`) and inspect its findings **before** setting `stripe_reconciliation_enabled`.
-6. Turn on `unused_hold_sweep_enabled` only after reviewing a day of release logs (`audit_logs.action = 'unused_card_hold_released'`) and reconciliation dry runs.
+## 3. Staged release (live payments stay off until this PR is deployed and verified)
 
-**Rollback:**
-- Set either flag to `"false"`; it takes effect immediately.
-- Reverting the code leaves `payments` rows in place. They are harmless, and `rides.payment_id` keeps its foreign key.
+### Production state, checked 2026-10-02
+Source: the admin dashboard's Payment Configuration card (#160 and #161), read on harveytaxiservice.com.
+- `secret_key_mode` and `publishable_key_mode` are both `unrecognized`. Neither value in Render is a Stripe key.
+- `stripe_account`: Stripe rejects the key with `StripeAuthenticationError`, so the connected account **is not verified**.
+- `webhook_secret_set` is `false`.
+- `payment_gate_enabled` is `true`, but `card_payments_effective` and `live_card_payments_effective` are `false`.
+
+**Card payments are currently ineffective in production:** every card authorization fails at Stripe. Reviewer simulation (App Review) does not call Stripe and is unaffected.
+
+The production-configuration gate therefore **failed**. Stages 0 to 2 keep it that way on purpose until this PR is live.
+
+### Stage 0: hold (now)
+- **Do not** put live Stripe keys into Render yet. Leave the current values, which keep cards ineffective.
+- **Keep `ENABLE_PAYMENT_GATE` on.** Turning it off would let rides dispatch without payment.
+- These flags stay off or absent:
+  - `stripe_reconciliation_enabled`
+  - `unused_hold_sweep_enabled`
+  - `unused_hold_release_enabled`
+  - every `agent_*` flag
+
+### Stage 1: validate the merge candidate
+1. Candidate = this branch merged with current `main`, which includes #160 and #161. Run on that **exact SHA**:
+   - the full `npx jest` suite;
+   - the database suites;
+   - the isolated suite;
+   - CI (Node 20 and 22, `db-functions`, `mobile`).
+2. Run the real Stripe test-mode suites A and B (§5 and §6) on the same SHA, using a **test secret key** (`sk_test_…`). A key ID (`mk_…`) is not a secret key. Before anything runs, both suites ask Stripe to confirm test mode (`livemode: false`) and refuse to run otherwise.
+3. Record the validated SHA, the counts for A and B, and confirmation that every test hold ended `canceled`. If the code changes after this, repeat Stage 1.
+
+### Stage 2: deploy this PR with cards still off
+1. Merge with **"Create a merge commit"**, pinned to the validated SHA. Render Auto-Deploy deploys it.
+2. Verify that:
+   - Render shows the merge commit as live, and its logs show no new errors;
+   - `/api/health` (as admin) reports Stripe as before;
+   - the Payment Configuration card is unchanged (cards still off);
+   - App Review sign-in and the simulated payment still work;
+   - every flag above is still off;
+   - #152 shows as merged. Close it manually if it doesn't.
+3. `POST /api/admin/payments/reconcile/dry-run` returns without error. It is read-only, and it reports a Stripe error while the keys are invalid.
+
+### Stage 3: configure Harvey Taxi2's live keys and webhook (separate approval)
+In Render, set each value exactly as Stripe shows it: no quotes, no `Bearer`, no variable name.
+
+| Render variable | Value |
+|---|---|
+| `STRIPE_SECRET_KEY` | Harvey Taxi2's live **secret** key (`sk_live_…`) or a restricted key (`rk_live_…`). Not the key ID (`mk_…`). |
+| `STRIPE_PUBLISHABLE_KEY` | Harvey Taxi2's `pk_live_…` |
+| `STRIPE_WEBHOOK_SECRET` | The signing secret (`whsec_…`) of a **live** webhook endpoint you create in Stripe. Point it at `https://harveytaxiservice.com/api/stripe/webhook` with these events: `payment_intent.succeeded`, `payment_intent.amount_capturable_updated`, `payment_intent.payment_failed`, `payment_intent.canceled`. |
+
+After saving, Render restarts the service. Reload the Payment Configuration card. All of these must hold:
+- `secret_key_mode` and `publishable_key_mode` are `live`, and `key_modes_match` is `true`;
+- `webhook_secret_set` is `true`;
+- `payment_gate_enabled`, `card_payments_effective` and `live_card_payments_effective` are `true`;
+- `problems` is `[]`;
+- `stripe_account.id` is **`acct_1TG2yqK0dBlmhLqa`** (Harvey Taxi2), and `charges_enabled` is `true`.
+
+In the Stripe Dashboard, send a test event to the endpoint and confirm it is delivered with a `2xx` response.
+
+**Rollback for Stage 3:** restore the previous values, or clear `STRIPE_SECRET_KEY`. Cards become ineffective again and the payment gate stays on.
+
+### Stage 4: one supervised live check (separate approval)
+1. The owner makes one small real booking with their own card, then backs out at the card step or cancels.
+2. Confirm that:
+   - a `payments` row exists with the PaymentIntent id and `metadata.app = harvey_taxi`;
+   - the dry run lists it correctly;
+   - the hold is cancelled in the Stripe Dashboard. Cancel it manually there; release automation stays off.
+
+### Later, each with separate approval
+1. `unused_hold_release_enabled`, after a test-mode card step, then Back, shows the hold cancelled.
+2. `stripe_reconciliation_enabled`, after reviewing dry-run findings.
+3. `unused_hold_sweep_enabled`, after a day of release logs (`audit_logs.action = 'unused_card_hold_released'`) and dry runs.
+
+**Flag rollback:** set the flag to `"false"`; it takes effect immediately. Reverting the code leaves `payments` rows in place. They are harmless, and `rides.payment_id` keeps its foreign key.
 
 ## 4. Not covered
 - Updating `payments` on capture and on ride-cancellation voids. The ride columns remain the source of truth for those workflows.
@@ -145,7 +209,7 @@ STRIPE_TEST_SECRET_KEY=sk_test_... npx jest test/stripe-test-mode --runInBand
 | A ride's payment | A release request gets 409, and the hold stays `requires_capture`. |
 | Simultaneous release and attachment (5 runs) | **Exactly one wins.** Either the ride is authorized with a live hold and the release is refused, or the hold is cancelled and the ride is neither authorized nor dispatched. Never both. |
 
-**Status: written, not yet run.** This build environment cannot reach `api.stripe.com` and has no Stripe test key. Run it on a machine with network access and a test key, supplied as an environment secret, never in chat or the repository. Paste the result into this PR before enabling `unused_hold_release_enabled`. Keep `unused_hold_sweep_enabled` off.
+**Status: not yet run against real Stripe.** The first attempt (2026-10-02) stopped at the safety check because the stored credential was a key ID (`mk_…`), not a test secret key. Both real-Stripe suites now ask Stripe to confirm `livemode: false` before anything runs, which also covers a key injected by a proxy. Run it on a machine with network access and a test key, supplied as an environment secret, never in chat or the repository. Paste the result into this PR before enabling `unused_hold_release_enabled`. Keep `unused_hold_sweep_enabled` off.
 
 ## 6. Isolated end-to-end environment (test keys, test database, test drivers)
 `test/stripe-isolated.e2e.test.js` runs the unmodified server through the complete card flow. It never touches production and never dispatches to a real driver.

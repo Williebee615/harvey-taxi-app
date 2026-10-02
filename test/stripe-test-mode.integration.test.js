@@ -47,17 +47,21 @@ if (TEST_KEY && !KEY_IS_TEST) {
   throw new Error("STRIPE_TEST_SECRET_KEY must be a Stripe TEST key (sk_test_/rk_test_). Refusing to run.");
 }
 
+const { assertStripeTestMode } = require("./isolated/assertStripeTestMode");
+
 describeStripe("#155 against Stripe test mode", () => {
   let app;
   let request;
   let stripe;
   const created = [];
 
-  beforeAll(() => {
+  beforeAll(async () => {
+    stripe = require("stripe")(TEST_KEY);
+    // Stripe must confirm test mode before the server is even loaded.
+    await assertStripeTestMode(stripe);
     mockSupabaseClient = createFakeSupabase({}, { uniqueColumns: { payments: ["id"] } });
     ({ app } = require("../server"));
     request = require("supertest");
-    stripe = require("stripe")(TEST_KEY);
   });
 
   afterAll(async () => {
