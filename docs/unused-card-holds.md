@@ -4,21 +4,22 @@
 
 | Check | Result |
 |---|---|
-| `audit_logs` rows for `ride_payment_intent_created` | **0**. No real PaymentIntent has been created through the app. |
+| `audit_logs` rows for `ride_payment_intent_created` | **0**. This does **not** show that no PaymentIntent exists. That audit write is best effort, and before this PR the `payments` record was too (and was skipped without a rider ID). |
 | `payments` rows | **0** |
 | `rides` | 5, all App Review rides; none has a `payment_id` |
 | `rides.payment_id` | `FOREIGN KEY → payments(id) ON DELETE SET NULL` (`rides_payment_id_fkey`) |
 | Triggers on `rides` | none |
 | Code that inserts into `payments` | **none** |
 
-**Finding 1: abandoned holds.** The database has no record of any abandoned authorization, because none has been created. The database also cannot show abandoned holds at all: before this change, nothing recorded a PaymentIntent until a ride was bound to it. **Stripe is the source of truth for holds that already exist.** I had no Stripe access, so the owner should check **Stripe Dashboard → Payments → filter "Uncaptured"** for holds older than a few hours with no matching ride.
+**Finding 1: abandoned holds.** The database cannot show abandoned holds: before this change, nothing recorded a PaymentIntent until a ride was bound to it. **Stripe is the source of truth for holds that already exist.** I had no Stripe access, so the owner should check **Stripe Dashboard → Payments → filter "Uncaptured"** for holds older than a few hours with no matching ride.
 
 **Finding 2: real card authorization cannot have succeeded (pre-existing).**
 - `POST /api/rides/:id/authorize` writes `rides.payment_id = <PaymentIntent id>`. With no `payments` row, the foreign key rejects that write.
 - Before #152, the route ignored the write error and dispatched anyway, using an in-memory ride object.
 - #152 made the write conditional and checked, so the route now fails closed (HTTP 500, no dispatch) instead of dispatching a ride with no bound payment.
 - **This PR creates the payment record, which makes real card authorization work.**
-- It has not been exercised in production. Production shows no real PaymentIntents, so Stripe and/or `ENABLE_PAYMENT_GATE` may not be live; the owner should confirm this in Render.
+- It has not been exercised in production.
+- **Whether production has PaymentIntents is unknown.** Empty `payments` and audit tables don't establish it: the tracking gap fixed in this PR means intents could exist with no row. Stripe is the only reliable source. Check the Stripe Dashboard (Payments, filtered to "Uncaptured") or, after deploy, the admin reconciliation dry run.
 
 ## 2. What this PR changes
 
@@ -62,6 +63,15 @@ A hold is cancelled only if **every** one of these holds:
 6. **Stripe is re-checked after the claim, immediately before cancelling.** If the intent has meanwhile been captured or changed, nothing is cancelled: the record goes to `review_required` and an alert is raised. If it is already cancelled, the record goes to `released`.
 7. Stripe cancellation runs with an idempotency key (`harvey-hold-release-<id>`) and `cancellation_reason: "abandoned"`. A Stripe failure leaves the record `release_failed`, which can be retried; it is never left half done.
 
+### The `"unidentified"` placeholder
+**Production schema, verified read-only:** `payments.rider_id` is `text NOT NULL` with no foreign key, check constraint or trigger, so the placeholder is valid. RLS is enabled, and the server uses the service role.
+
+It cannot grant ownership or link riders:
+- **Every `payments` query is keyed by PaymentIntent `id`.** None filters, groups or lists by `rider_id`.
+- **Ownership never reads `payments.rider_id`.** Session ownership needs the intent's server-written `rider_verified = "true"`. The placeholder is never written to Stripe as a rider (a client sending it is treated as no rider), and a session claiming it is refused.
+- **Real rider ids are server-generated** (`RIDER-` plus 10 hex characters). Production has no rider with the id `unidentified`.
+- **Tests:** two sessionless riders' holds can't release each other's; each can release its own.
+
 ### Intent metadata
 Every intent carries:
 - `app: "harvey_taxi"` and `account: "harvey_taxi_service"`, which identify this application's own intents in a shared Stripe account;
@@ -72,7 +82,17 @@ Every intent carries:
 
 ### Stripe-side reconciliation (`reconcileStripeHolds`)
 Stripe, not the database, is the source of truth for which holds exist.
-- **Schedule:** every 30 minutes, plus on demand through `POST /api/admin/payments/reconcile` (admin only; `dry_run` defaults to true).
+- **Two flags, both off by default:**
+
+  | Flag | Controls |
+  |---|---|
+  | `stripe_reconciliation_enabled` | Whether **scheduled** reconciliation runs at all (every 30 minutes). Off means it does nothing. |
+  | `unused_hold_sweep_enabled` (existing) | Whether reconciliation and the database sweep may **cancel** holds |
+
+- **Admin dry run:** `POST /api/admin/payments/reconcile/dry-run` (admin only) is **read-only, whatever the flags say**:
+  - it writes no records, flags nothing, cancels nothing and sends no alerts or notifications;
+  - it reports findings: intent id, Stripe status, amount, age, whether it is tracked, record status, whether it is bound to a ride, and the action and reason live mode would take. There is no client secret, card or contact detail, and no rider id.
+  - A test checks the database, the audit trail, Stripe statuses and alerts before and after a dry run, with both flags on.
 - **Scope:** Harvey Taxi intents created between 8 days ago (card authorizations expire after about 7) and 2 hours ago. It pages through Stripe's list (100 per page, at most 20 pages per run) and raises an alert if it had to stop early.
 
 | Situation | Action |
@@ -96,7 +116,7 @@ The rider notice changes to "has been cancelled" **only after** the server confi
 2. Confirm whether live Stripe and the payment gate are enabled in Render. If they are, this PR is required for real card bookings to complete.
 3. Run a Stripe test-mode booking end to end on staging: authorize → ride `payment_authorized` → `payments` row `authorized`.
 4. Turn on `unused_hold_release_enabled`, then test-mode: card step → Back → the hold shows as cancelled in the Stripe test dashboard.
-5. After deploy, run `POST /api/admin/payments/reconcile` (a dry run) and review its summary and any `payment_ops_alert_*` audit rows.
+5. After deploy, run the dry run (`POST /api/admin/payments/reconcile/dry-run`) and inspect its findings **before** setting `stripe_reconciliation_enabled`.
 6. Turn on `unused_hold_sweep_enabled` only after reviewing a day of release logs (`audit_logs.action = 'unused_card_hold_released'`) and reconciliation dry runs.
 
 **Rollback:**
@@ -175,7 +195,7 @@ npx jest test/stripe-isolated --runInBand
 - Report back only the `Tests:` summary line and the names of any failing tests.
 
 **Status:**
-- **Simulated Stripe:** 28/28 passed locally against the real database, on three consecutive runs. CI's `db-functions` job runs this mode on every push.
+- **Simulated Stripe:** 31/31 passed locally against the real database, on three consecutive runs. CI's `db-functions` job runs this mode on every push.
 - **Stripe test mode:** not yet run. This build environment's network policy blocks `api.stripe.com`.
 
 ### Scope of each suite (what a pass does and does not prove)
