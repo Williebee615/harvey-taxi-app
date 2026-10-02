@@ -488,7 +488,7 @@ const {
   geoConfigLogLines
 } = require("./lib/geoConfig");
 const { resolvePerMinuteLimit } = require("./lib/rateLimitConfig");
-const { describePaymentConfig } = require("./lib/paymentConfig");
+const { describePaymentConfig, describeStripeAccount } = require("./lib/paymentConfig");
 
 // AI Agent Manager (docs/ai-agent-manager.md). No OpenAI/Anthropic
 // dependency: rules engine + optional self-hosted model.
@@ -22977,6 +22977,31 @@ app.get(
    configuration -- key modes by prefix, gate, webhook secret -- never from
    payment counts, and never returning any key material.
 ========================================================= */
+// The Stripe account the running secret key belongs to (GET /v1/account),
+// cached briefly. Reports only an allow-listed summary, or the Stripe
+// error code (e.g. authentication_error) if the key can't be used.
+let stripeAccountCache = { at: 0, value: null };
+const STRIPE_ACCOUNT_CACHE_MS = 10 * 60_000;
+
+async function currentStripeAccountSummary() {
+  if (!stripe) return { id: null, error: "stripe_not_configured" };
+  if (stripeAccountCache.value && Date.now() - stripeAccountCache.at < STRIPE_ACCOUNT_CACHE_MS) {
+    return stripeAccountCache.value;
+  }
+  let value;
+  try {
+    const account = await Promise.race([
+      stripe.accounts.retrieve(),
+      new Promise((_, reject) => setTimeout(() => reject(Object.assign(new Error("timeout"), { code: "timeout" })), 5000))
+    ]);
+    value = describeStripeAccount(account);
+  } catch (err) {
+    value = { id: null, error: String(err?.type || err?.code || "unavailable").slice(0, 60) };
+  }
+  stripeAccountCache = { at: Date.now(), value };
+  return value;
+}
+
 app.get(
   "/api/admin/payments/config-status",
   requireAdmin,
@@ -22988,7 +23013,8 @@ app.get(
         webhookSecret: STRIPE_WEBHOOK_SECRET,
         paymentGateEnabled: ENABLE_PAYMENT_GATE,
         stripeClientReady: Boolean(stripe)
-      })
+      }),
+      stripe_account: await currentStripeAccountSummary()
     });
   })
 );
