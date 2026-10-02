@@ -128,4 +128,16 @@ describe("admin-dashboard.html session handling", () => {
   test("never persists the admin password", () => {
     expect(script).not.toMatch(/localStorage\.setItem\(\s*["']harvey_admin_password/);
   });
+
+  // Browser behaviour is covered in admin-payment-config.browser.test.js
+  // (skipped in CI without Chromium); these checks always run.
+  test("Payment Configuration viewer uses the session via api() and shows only allow-listed fields", () => {
+    expect(html).toMatch(/id="loadPaymentConfigBtn"[^>]*>Load Payment Configuration</);
+    expect(script).toContain('await api("/api/admin/payments/config-status"');
+    expect(script).toContain("if(!state.signedIn){");
+    expect(script).toContain('const STRIPE_ACCOUNT_FIELDS = ["id","display_name","country","charges_enabled","error"];');
+    expect(script).toMatch(/pre\.textContent = JSON\.stringify\(clean, null, 2\);/);
+    // No token or key handling client-side.
+    expect(script).not.toMatch(/x-admin-token|ADMIN_API_TOKEN|localStorage\.setItem\(\s*["'][^"']*(token|stripe|payment)/i);
+  });
 });
