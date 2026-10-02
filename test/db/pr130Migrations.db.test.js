@@ -25,7 +25,10 @@ const EXPECTED_ORDER = [
   "20260927220100_rides_payment_capture_and_cancellation_columns.sql",
   "20260927220200_rides_quote_jti_idempotency.sql",
   "20260927220300_dispatch_functions_hardening.sql",
-  "20260927220400_accept_driver_offer_atomic.sql"
+  "20260927220400_accept_driver_offer_atomic.sql",
+  // Not part of PR #130; applied by the harness because it postdates the
+  // baseline. Covered by test/db/deletionRequests.db.test.js.
+  "20261001120000_add_deletion_requests.sql"
 ];
 
 // Synthetic pre-existing row (no production data), inserted after the
