@@ -17,6 +17,30 @@ const { createFakeSupabase } = require("./fakeSupabase");
 
 let mockSupabaseClient;
 jest.mock("@supabase/supabase-js", () => ({ createClient: () => mockSupabaseClient }));
+
+// GET /v1/account, as Stripe returns it (including fields that must never
+// be reported). mockStripeAccount = null simulates a key Stripe rejects.
+let mockStripeAccount = {
+  id: "acct_TEST123",
+  email: "owner@example.test",
+  country: "US",
+  charges_enabled: true,
+  settings: { dashboard: { display_name: "Harvey Taxi2" } },
+  business_profile: { support_phone: "+16155550100" }
+};
+jest.mock("stripe", () =>
+  function MockStripe() {
+    return {
+      accounts: {
+        retrieve: async () => {
+          if (!mockStripeAccount) throw Object.assign(new Error("Invalid API Key provided"), { type: "StripeAuthenticationError" });
+          return mockStripeAccount;
+        }
+      },
+      paymentIntents: {}
+    };
+  }
+);
 const request = require("supertest");
 
 const ORIGINAL = { ...process.env };
@@ -78,4 +102,21 @@ test("payment configuration status is admin-only and contains no key material", 
   expect(res.status).toBe(200);
   expect(res.body.payments).toMatchObject({ secret_key_mode: "test", publishable_key_mode: "test", key_modes_match: true, webhook_secret_set: true, live_card_payments_effective: false });
   expect(JSON.stringify(res.body)).not.toMatch(/kkkk|pppp|wwww|sk_test|pk_test|whsec/);
+  // Which Stripe account the running key belongs to -- allow-listed only.
+  expect(res.body.stripe_account).toEqual({ id: "acct_TEST123", display_name: "Harvey Taxi2", country: "US", charges_enabled: true });
+  expect(JSON.stringify(res.body)).not.toMatch(/example\.test|5550100/);
+});
+
+test("a key Stripe rejects is reported by error type only, never the key", async () => {
+  const saved = mockStripeAccount;
+  mockStripeAccount = null;
+  try {
+    const app = loadServer({ STRIPE_SECRET_KEY: "sk_live_" + "r".repeat(30), STRIPE_PUBLISHABLE_KEY: "pk_live_" + "q".repeat(30), ENABLE_PAYMENT_GATE: "true" });
+    const res = await request(app).get("/api/admin/payments/config-status").set("x-admin-token", "test-admin-token");
+    expect(res.status).toBe(200);
+    expect(res.body.stripe_account).toEqual({ id: null, error: "StripeAuthenticationError" });
+    expect(JSON.stringify(res.body)).not.toMatch(/rrrr|qqqq|sk_live|pk_live/);
+  } finally {
+    mockStripeAccount = saved;
+  }
 });
