@@ -71,6 +71,7 @@
     .empty{padding:18px;border:1px dashed var(--line);border-radius:18px;text-align:center;color:var(--muted);line-height:1.5}
     .tab{background:rgba(255,255,255,.04);border:1px solid var(--line);color:var(--muted);border-radius:999px}
     .tab.active{background:linear-gradient(90deg,var(--cyan),var(--blue));color:#061325}
+    .config-json{margin-top:12px;padding:12px 14px;border-radius:14px;border:1px solid var(--line);background:rgba(0,0,0,.28);color:var(--text);font:12.5px/1.5 ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;word-break:break-word;max-height:360px;overflow:auto}
     .footer{text-align:center;color:var(--muted);font-size:.86rem;margin-top:20px}
     @media(max-width:1200px){.stats{grid-template-columns:repeat(2,1fr)}.grid,.item-grid,.settings{grid-template-columns:1fr}}
     @media(max-width:720px){.topbar{align-items:flex-start}.top-actions a,.top-actions button,.hero-actions button,.actions button{width:100%}.stats{grid-template-columns:1fr}}
@@ -177,6 +178,22 @@
           <button class="danger" id="adminLogoutBtn" style="display:none">Sign Out</button>
           <button class="neutral" id="checkHealthBtn">Check Health</button>
         </div>
+      </section>
+
+      <section class="card" id="paymentConfigCard">
+        <div class="card-head">
+          <div>
+            <div class="title">Payment Configuration</div>
+            <div class="sub">Sanitized Stripe status from the running server: key modes (test/live), payment gate and the connected Stripe account. No keys or tokens are ever shown.</div>
+          </div>
+          <span class="badge blue" id="paymentConfigBadge">Not loaded</span>
+        </div>
+        <div class="actions">
+          <button class="primary" id="loadPaymentConfigBtn">Load Payment Configuration</button>
+          <button class="neutral" id="copyPaymentConfigBtn" disabled>Copy</button>
+        </div>
+        <div id="paymentConfigSummary" class="item-sub" style="margin-top:12px;"></div>
+        <pre class="config-json" id="paymentConfigJson" style="display:none"></pre>
       </section>
 
       <section class="card">
@@ -636,6 +653,74 @@ async function setDispatchPaused(paused){
   }
 }
 
+/* -------- Payment Configuration (read-only, sanitized) -------- */
+// Shows GET /api/admin/payments/config-status using the same signed-in
+// session cookie as the rest of this page. The server already reports
+// only key MODES (never keys); this re-picks an explicit allow-list of
+// fields so nothing else the endpoint might return is ever displayed or
+// copied.
+const PAYMENT_CONFIG_FIELDS = ["stripe_client_ready","secret_key_mode","publishable_key_mode","key_modes_match","webhook_secret_set","payment_gate_enabled","card_payments_effective","live_card_payments_effective","problems"];
+const STRIPE_ACCOUNT_FIELDS = ["id","display_name","country","charges_enabled","error"];
+function pickFields(obj, fields){
+  const out = {};
+  if(!obj || typeof obj !== "object") return out;
+  for(const f of fields){ if(Object.prototype.hasOwnProperty.call(obj,f)) out[f] = obj[f]; }
+  return out;
+}
+function sanitizePaymentConfig(data){
+  const payments = pickFields(data && data.payments, PAYMENT_CONFIG_FIELDS);
+  if(Array.isArray(payments.problems)) payments.problems = payments.problems.map(p=>String(p));
+  return { payments, stripe_account: pickFields(data && data.stripe_account, STRIPE_ACCOUNT_FIELDS) };
+}
+function yesNo(v){ return v === true ? "yes" : v === false ? "no" : "—"; }
+async function loadPaymentConfig(){
+  const badge = $("paymentConfigBadge");
+  const summary = $("paymentConfigSummary");
+  const pre = $("paymentConfigJson");
+  $("copyPaymentConfigBtn").disabled = true;
+  pre.style.display = "none";
+  pre.textContent = "";
+  if(!state.signedIn){
+    badge.textContent = "Sign in required"; badge.className = "badge warn";
+    summary.textContent = "Sign in above to load the payment configuration.";
+    return;
+  }
+  badge.textContent = "Loading"; badge.className = "badge blue";
+  summary.textContent = "Loading payment configuration...";
+  try{
+    const clean = sanitizePaymentConfig(await api("/api/admin/payments/config-status", { cache:"no-store" }));
+    const p = clean.payments, a = clean.stripe_account;
+    const mode = p.secret_key_mode || "not set";
+    badge.textContent = p.live_card_payments_effective ? "LIVE cards on" : p.card_payments_effective ? "Test cards on" : "Cards off";
+    badge.className = "badge " + (p.live_card_payments_effective ? "ok" : p.card_payments_effective ? "warn" : "bad");
+    summary.innerHTML =
+      `Secret key mode: <strong>${esc(mode)}</strong> · Publishable key mode: <strong>${esc(p.publishable_key_mode || "not set")}</strong> · Modes match: <strong>${yesNo(p.key_modes_match)}</strong><br>` +
+      `Payment gate: <strong>${yesNo(p.payment_gate_enabled)}</strong> · Card payments effective: <strong>${yesNo(p.card_payments_effective)}</strong> · Webhook secret set: <strong>${yesNo(p.webhook_secret_set)}</strong><br>` +
+      `Stripe account: <strong>${esc(a.id || "unavailable")}</strong>${a.display_name ? " (" + esc(a.display_name) + ")" : ""}${a.error ? " · error: " + esc(a.error) : ""}` +
+      (Array.isArray(p.problems) && p.problems.length ? `<br><span style="color:#ffd76a">Problems: ${p.problems.map(esc).join(" · ")}</span>` : "");
+    pre.textContent = JSON.stringify(clean, null, 2);
+    pre.style.display = "block";
+    $("copyPaymentConfigBtn").disabled = false;
+  }catch(e){
+    badge.textContent = "Unavailable"; badge.className = "badge bad";
+    summary.innerHTML = `<span style="color:#ff7e97">Could not load payment configuration: ${esc(e.message)}</span>`;
+  }
+}
+async function copyPaymentConfig(){
+  const text = $("paymentConfigJson").textContent;
+  if(!text) return;
+  try{
+    await navigator.clipboard.writeText(text);
+    showResult("Payment configuration copied.");
+  }catch(e){
+    // Clipboard API unavailable (e.g. permissions): select the text so it can be copied manually.
+    const range = document.createRange();
+    range.selectNodeContents($("paymentConfigJson"));
+    const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+    showResult("Text selected — press Cmd+C (Mac) or Ctrl+C to copy.");
+  }
+}
+
 /* -------- Account Deletion Requests -------- */
 async function loadDeletionRequests(){
   const box = $("deletionRequestsList");
@@ -691,6 +776,8 @@ $("loadFinanceBtn").onclick=loadFinance;
 $("pauseDispatchBtn").onclick=()=>setDispatchPaused(true);
 $("resumeDispatchBtn").onclick=()=>setDispatchPaused(false);
 $("refreshSystemBtn").onclick=refreshSystemStatus;
+$("loadPaymentConfigBtn").onclick=loadPaymentConfig;
+$("copyPaymentConfigBtn").onclick=copyPaymentConfig;
 $("runAiBrainBtn").onclick=runAI;
 $("quickAiReviewBtn").onclick=()=>{els.aiInput.value="Review current Harvey Taxi admin data: riders, drivers, rides, HTAF applications, revenue, and urgent operational risks.";runAI();}
 $("clearAiBrainBtn").onclick=()=>{els.aiInput.value="";els.aiResult.innerHTML="";};
