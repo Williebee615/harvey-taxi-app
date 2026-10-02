@@ -156,7 +156,22 @@ The production-configuration gate therefore **failed**. Stages 0 to 2 keep it th
 
 ### Stage 2: deploy this PR with cards still off
 
-**Stage 2 progress (2026-10-02):** merged at 17:59:37Z as **`5be6d7e`** ("Create a merge commit", pinned to `a9cab98`; the tree of `main` is identical to the validated tree). CI on `main` passed. #152 is marked merged. Live keys, the payment gate and the automation flags were not changed. The deployment checks in item 2 and the dry run in item 3 are **still pending** and are run by the owner.
+**Stage 2 status: GitHub complete; production verification pending.** Stage 2 stays in this state until the Render and device checks below pass.
+
+| Check | Status |
+|---|---|
+| Merge with "Create a merge commit", pinned to `a9cab98` | **Done**: merge commit `5be6d7e` (2026-10-02 17:59:37Z). The tree of `main` is identical to the validated tree. |
+| CI on `main` at `5be6d7e` | **Passed** |
+| #152 shows as merged | **Done**: marked merged by GitHub (head `fa9f47a`) |
+| Live keys, payment gate, automation flags | **Not changed** by this stage. The gate stays on; the flags stay off. |
+| Render shows `5be6d7e` live; logs show no new errors | Pending (owner) |
+| `/api/health` (as admin) reports Stripe as before | Pending (owner) |
+| Payment Configuration card unchanged (cards still off) | Pending (owner) |
+| App Review sign-in and simulated payment | Pending (owner) |
+| Every flag listed in Stage 0 still off or absent | Pending (owner) |
+| `POST /api/admin/payments/reconcile/dry-run` returns without error (item 3) | Pending (owner) |
+| Device checks from #152: iOS app swipe-back from booking and tracking returns to the dashboard; Android hardware Back (needs the #154 build); Safari and Chrome launch, sign-in, refresh, booking open and close, notification tap | Pending (owner) |
+
 1. Merge with **"Create a merge commit"**, pinned to the validated SHA. Render Auto-Deploy deploys it.
 2. Verify that:
    - Render shows the merge commit as live, and its logs show no new errors;
