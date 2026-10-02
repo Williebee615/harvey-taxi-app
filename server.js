@@ -488,6 +488,19 @@ const {
   geoConfigLogLines
 } = require("./lib/geoConfig");
 const { resolvePerMinuteLimit } = require("./lib/rateLimitConfig");
+const {
+  PAYMENT_RECORD_STATUS,
+  BINDABLE_RECORD_STATUSES,
+  DEFAULT_SWEEP_MIN_AGE_MS,
+  buildCreatedPaymentRecord,
+  buildAuthorizedPaymentRecord,
+  decideHoldRelease,
+  releaseIdempotencyKey,
+  RELEASABLE_INTENT_STATUSES,
+  buildIntentMetadata,
+  decideReconciliation,
+  buildPaymentOpsAlert
+} = require("./lib/unusedHolds");
 const { describePaymentConfig, describeStripeAccount } = require("./lib/paymentConfig");
 
 // AI Agent Manager (docs/ai-agent-manager.md). No OpenAI/Anthropic
@@ -3317,7 +3330,8 @@ async function notifyRideStage(ride, stageKey) {
 
         body,
 
-        url: "/rider-dashboard.html"
+        // Opens this ride\'s tracking screen, not a new booking.
+        url: `/rider-dashboard.html?screen=track&ride_id=${encodeURIComponent(ride.id)}`
 
       }).catch(() => {});
 
@@ -11736,12 +11750,15 @@ app.post(
       }
     }
 
+    // Verified only when a valid rider session (whether or not sign-in is
+    // enforced) names the same rider; a client-supplied rider_id alone
+    // never counts.
+    const sessionRider = req.rider || (riderId ? await resolveVerifiedRiderSession(req) : null);
+    const riderVerified = Boolean(sessionRider?.id) && String(sessionRider.id) === String(riderId);
+
     let paymentIntent;
-
     try {
-
       paymentIntent =
-
         await stripe.paymentIntents.create({
 
           amount:
@@ -11765,23 +11782,14 @@ app.post(
           },
 
           ...attachmentFields,
-
-          metadata: {
-
-            app:
-
-              "harvey_taxi",
-
-            ride_type:
-
-              rideType,
-
-            rider_id:
-
-              riderId
-
-          }
-
+          // Explicit app/account tags (reconciliation acts only on these),
+          // and rider_verified = whether rider_id came from a verified
+          // session rather than the client.
+          metadata: buildIntentMetadata({
+            rideType,
+            riderId,
+            riderVerified
+          })
         }, idempotencyKey ? { idempotencyKey } : undefined);
 
     } catch (error) {
@@ -11810,6 +11818,36 @@ app.post(
 
       );
 
+    }
+
+    // A retried request whose Stripe idempotency key belongs to an intent
+    // this server already cancelled (see below) gets that cancelled intent
+    // back from Stripe. Never hand it out; the client starts a new attempt.
+    if (!RELEASABLE_INTENT_STATUSES.includes(paymentIntent.status)) {
+      return fail(res, "This payment attempt can no longer be used. Please try again.", 409, { retry_with_new_key: true });
+    }
+
+    // Every intent is recorded BEFORE its client secret leaves the server,
+    // so no hold can exist that the database doesn't know about. This is a
+    // reliability rule, not part of the (flagged) cleanup feature.
+    const persisted = await persistCreatedPaymentRecord({
+      intent: paymentIntent,
+      riderId,
+      rideType,
+      stripeCustomerId: attachmentFields.customer || null
+    });
+    if (!persisted.ok) {
+      if (persisted.reason === "record_not_reusable") {
+        return fail(res, "This payment attempt can no longer be used. Please try again.", 409, { retry_with_new_key: true });
+      }
+      if (persisted.reason === "record_unreadable") {
+        // The record exists (so the intent is tracked) but couldn't be read
+        // back; another request may already be using this intent, so it is
+        // not cancelled. The client simply retries.
+        return fail(res, "Payment could not be started. Please try again.", 503);
+      }
+      await abandonUntrackedIntent(paymentIntent);
+      return fail(res, "Payment could not be started. Please try again.", 503, { retry_with_new_key: true });
     }
 
     auditLog({
@@ -12581,6 +12619,30 @@ app.post(
       });
     }
 
+    // A ride is authorized exactly once. Without this check a repeated call
+    // (a retry, a second tab, a replayed request) for a ride that had
+    // already moved on -- payment_authorized, dispatched, even in progress
+    // -- re-ran verification, rewrote the ride back to payment_authorized
+    // and dispatched it again. A repeat carrying the PaymentIntent already
+    // on the ride is answered idempotently with nothing changed; anything
+    // else is refused.
+    if (ride.status !== RIDE_STATUS.PAYMENT_REQUIRED) {
+      const requestedIntentId = cleanString(req.body.payment_intent_id, 200);
+      const sameIntent =
+        Boolean(ride.payment_id) &&
+        (!requestedIntentId || requestedIntentId === String(ride.payment_id));
+      const live = ![RIDE_STATUS.CANCELLED, RIDE_STATUS.FAILED].includes(ride.status);
+      if (sameIntent && live) {
+        return ok(res, {
+          ride_id: ride.id,
+          status: ride.status,
+          already_authorized: true,
+          dispatch: null
+        });
+      }
+      return fail(res, "This ride is not awaiting payment authorization.", 409);
+    }
+
     const paymentIntentId =
       cleanString(
         req.body.payment_intent_id ||
@@ -12706,31 +12768,39 @@ app.post(
 
     }
 
-    await supabase
+    // rides.payment_id is a foreign key to payments(id): the payment record
+    // must exist, bound to this ride, before the ride can reference it. The
+    // bind is a conditional write on the payments row, which is also what
+    // stops a concurrent unused-hold release from cancelling this payment
+    // (lib/unusedHolds.js).
+    const paymentBinding = await bindPaymentRecordToRide({ intent, ride });
+    if (!paymentBinding.ok) {
+      return fail(res, paymentBinding.error, paymentBinding.statusCode);
+    }
 
+    // Conditional on the ride still awaiting payment, so two concurrent
+    // calls can't both authorize (and dispatch) the same ride.
+    const { data: authorizedRows, error: authorizeWriteError } = await supabase
       .from("rides")
-
       .update({
-
-        payment_id:
-
-          paymentIntentId,
-
-        status:
-
-          RIDE_STATUS.PAYMENT_AUTHORIZED,
-
-        dispatch_status:
-
-          "ready_to_dispatch",
-
-        updated_at:
-
-          nowIso()
-
+        payment_id: paymentIntentId,
+        status: RIDE_STATUS.PAYMENT_AUTHORIZED,
+        dispatch_status: "ready_to_dispatch",
+        updated_at: nowIso()
       })
+      .eq("id", rideId)
+      .eq("status", RIDE_STATUS.PAYMENT_REQUIRED)
+      .select("id");
 
-      .eq("id", rideId);
+    if (authorizeWriteError || !Array.isArray(authorizedRows) || !authorizedRows.length) {
+      // The ride was not authorized: hand the payment record back so the
+      // unused hold can still be released.
+      await unbindPaymentRecordFromRide({ paymentIntentId, rideId });
+      if (authorizeWriteError) {
+        return fail(res, "This ride could not be authorized.", 500);
+      }
+      return fail(res, "This ride is not awaiting payment authorization.", 409);
+    }
 
     const updatedRide = {
 
@@ -22706,10 +22776,13 @@ app.get(
 
 );
 
+// Old request pages were booking (or, with ride_id, tracking) links, so
+// they go straight to that screen. The dashboard itself never redirects,
+// so there is no loop.
 function redirectToDashboard(res, query) {
   const params = new URLSearchParams(query);
-  const qs = params.toString();
-  return res.redirect(301, `/rider-dashboard.html${qs ? `?${qs}` : ""}`);
+  params.set("screen", params.get("ride_id") ? "track" : "book");
+  return res.redirect(301, `/rider-dashboard.html?${params.toString()}`);
 }
 
 // request-ride.html, request-food.html, and request-groceries.html were
@@ -23663,7 +23736,492 @@ app.get(
 
 
 /* =========================================================
+   PAYMENT RECORDS AND UNUSED CARD HOLDS
+   See lib/unusedHolds.js and docs/unused-card-holds.md.
+   - persistCreatedPaymentRecord(): payments row for a new PaymentIntent,
+     written before its client secret is returned.
+   - reconcileStripeHolds(): Stripe-side reconciliation of holds.
+   - bindPaymentRecordToRide(): makes rides.payment_id's foreign key
+     satisfiable and claims the hold for the ride.
+   - releaseUnusedHold(): cancels an uncaptured hold that never became a
+     ride, for its owner or the sweep. Both entry points are off unless
+     their system flag is "true".
+========================================================= */
+// Redacted operational alert: an allow-listed payload (never a client
+// secret, card detail or contact detail) to the server log, the audit trail
+// and, best effort, the admin inbox.
+async function paymentOpsAlert(event, fields) {
+  const alert = buildPaymentOpsAlert(event, fields);
+  console.error("🚨 PAYMENT_OPS_ALERT", JSON.stringify(alert));
+  await auditLog({ action: `payment_ops_alert_${alert.event}`, actor_type: "system", actor_id: "payments", metadata: alert }).catch(() => {});
+  await sendEmail({
+    to: ADMIN_EMAIL,
+    subject: `Harvey Taxi payment alert: ${alert.event}`,
+    text: Object.entries(alert).map(([k, v]) => `${k}: ${v}`).join("\n")
+  }).catch(() => {});
+  return alert;
+}
 
+// The payments row for a newly created PaymentIntent, written before the
+// client secret is returned. A duplicate request (same Stripe idempotency
+// key -> same intent) finds its own row and succeeds; a row that has moved
+// on (in release, or released) is not reused.
+async function persistCreatedPaymentRecord({ intent, riderId, rideType, stripeCustomerId }) {
+  let error;
+  try {
+    ({ error } = await supabase
+      .from("payments")
+      .insert(buildCreatedPaymentRecord({ intent, riderId, rideType, stripeCustomerId })));
+  } catch (err) {
+    error = err || { code: "exception" };
+  }
+  if (!error) return { ok: true };
+  if (error.code === "23505") {
+    const { data: existing, error: readError } = await supabase.from("payments").select("id,status").eq("id", intent.id).maybeSingle();
+    if (readError || !existing) return { ok: false, reason: "record_unreadable" };
+    if (BINDABLE_RECORD_STATUSES.includes(existing.status)) return { ok: true, duplicate: true };
+    return { ok: false, reason: "record_not_reusable" };
+  }
+  return { ok: false, reason: "record_write_failed" };
+}
+
+// Persistence failed: the intent must not be used. Cancel it; if Stripe
+// can't cancel it either, raise an alert. Its app/account metadata lets
+// reconciliation (reconcileStripeHolds) find and record it later.
+async function abandonUntrackedIntent(intent) {
+  try {
+    await stripe.paymentIntents.cancel(intent.id, { cancellation_reason: "abandoned" }, { idempotencyKey: `harvey-untracked-cancel-${intent.id}` });
+    console.warn("⚠️ Payment record not written; new PaymentIntent cancelled:", intent.id);
+    return { cancelled: true };
+  } catch (err) {
+    await paymentOpsAlert("payment_intent_untracked", {
+      payment_intent_id: intent.id,
+      reason: "record_write_failed_and_cancel_failed",
+      amount_cents: intent.amount,
+      intent_status: intent.status,
+      action_needed: "reconciliation will record it; check Stripe if this repeats"
+    });
+    return { cancelled: false };
+  }
+}
+
+// Marks a hold for a person to decide (conditional: never overrides a ride
+// binding or an in-flight release). Alerts once, on the transition.
+async function flagHoldForReview({ intent, reason }) {
+  const { data: rows } = await supabase
+    .from("payments")
+    .update({ status: PAYMENT_RECORD_STATUS.REVIEW_REQUIRED, failure_message: String(reason).slice(0, 120), updated_at: nowIso() })
+    .eq("id", intent.id)
+    .is("ride_id", null)
+    .in("status", [PAYMENT_RECORD_STATUS.CREATED, PAYMENT_RECORD_STATUS.RELEASE_FAILED])
+    .select("id");
+  const flagged = Array.isArray(rows) && rows.length === 1;
+  if (flagged) {
+    await paymentOpsAlert("payment_hold_review_required", {
+      payment_intent_id: intent.id,
+      reason,
+      amount_cents: intent.amount,
+      intent_status: intent.status,
+      age_minutes: Math.round((Date.now() - Number(intent.created) * 1000) / 60000),
+      action_needed: "decide in Stripe whether to keep or cancel this hold"
+    });
+  }
+  return flagged;
+}
+
+async function bindPaymentRecordToRide({ intent, ride }) {
+  const record = buildAuthorizedPaymentRecord({ intent, ride });
+  const { error: insertError } = await supabase.from("payments").insert(record);
+  if (!insertError) {
+    return { ok: true };
+  }
+  if (insertError.code !== "23505") {
+    return { ok: false, error: "Payment could not be recorded. Please try again.", statusCode: 500 };
+  }
+  const { data: existing, error: readError } = await supabase
+    .from("payments")
+    .select("id,status,ride_id")
+    .eq("id", intent.id)
+    .maybeSingle();
+  if (readError || !existing) {
+    return { ok: false, error: "Payment could not be recorded. Please try again.", statusCode: 500 };
+  }
+  if (existing.ride_id && String(existing.ride_id) !== String(ride.id)) {
+    return { ok: false, error: "This payment is already associated with another ride.", statusCode: 409 };
+  }
+  if (!BINDABLE_RECORD_STATUSES.includes(existing.status)) {
+    return { ok: false, error: "This payment authorization is no longer available. Please book again.", statusCode: 409 };
+  }
+  const { id: _id, ...patch } = record;
+  const { data: bound, error: bindError } = await supabase
+    .from("payments")
+    .update({ ...patch, updated_at: nowIso() })
+    .eq("id", intent.id)
+    .in("status", BINDABLE_RECORD_STATUSES)
+    .select("id,ride_id");
+  if (bindError) {
+    return { ok: false, error: "Payment could not be recorded. Please try again.", statusCode: 500 };
+  }
+  const row = Array.isArray(bound) ? bound[0] : null;
+  if (!row || String(row.ride_id) !== String(ride.id)) {
+    return { ok: false, error: "This payment authorization is no longer available. Please book again.", statusCode: 409 };
+  }
+  return { ok: true };
+}
+
+async function unbindPaymentRecordFromRide({ paymentIntentId, rideId }) {
+  await supabase
+    .from("payments")
+    .update({ status: PAYMENT_RECORD_STATUS.CREATED, ride_id: null, updated_at: nowIso() })
+    .eq("id", paymentIntentId)
+    .eq("ride_id", rideId)
+    .eq("status", PAYMENT_RECORD_STATUS.AUTHORIZED)
+    .then(() => {}, () => {});
+}
+
+// Shared by the rider route and the sweep. Returns { released, reason, statusCode }.
+async function releaseUnusedHold({ paymentIntentId, requester, trigger, req = null, minAgeMs = DEFAULT_SWEEP_MIN_AGE_MS }) {
+  let intent;
+  try {
+    intent = await stripe.paymentIntents.retrieve(paymentIntentId);
+  } catch {
+    return { released: false, reason: "intent_not_found", statusCode: 404 };
+  }
+  const [{ data: boundRides, error: ridesError }, { data: record, error: recordError }] = await Promise.all([
+    supabase.from("rides").select("id,status").eq("payment_id", paymentIntentId),
+    supabase.from("payments").select("id,status,ride_id,rider_id").eq("id", paymentIntentId).maybeSingle()
+  ]);
+  if (ridesError || recordError) {
+    return { released: false, reason: "data_unavailable", statusCode: 503 };
+  }
+  const decision = decideHoldRelease({
+    intent,
+    boundRideIds: (boundRides || []).map((r) => r.id),
+    record: record || null,
+    requester,
+    minAgeMs
+  });
+  if (!decision.release) {
+    const statusCode = decision.reason === "not_owner" || decision.reason === "not_a_harvey_taxi_payment" ? 404 : 409;
+    return { released: false, reason: decision.reason, statusCode };
+  }
+
+  // Claim the record. Exactly one of this claim and a ride's bind
+  // (bindPaymentRecordToRide) can succeed for the same PaymentIntent.
+  let claimed = false;
+  if (record) {
+    const { data: rows } = await supabase
+      .from("payments")
+      .update({ status: PAYMENT_RECORD_STATUS.RELEASE_PENDING, updated_at: nowIso() })
+      .eq("id", paymentIntentId)
+      .is("ride_id", null)
+      .in("status", [PAYMENT_RECORD_STATUS.CREATED, PAYMENT_RECORD_STATUS.RELEASE_FAILED])
+      .select("id");
+    claimed = Array.isArray(rows) && rows.length === 1;
+  } else {
+    const { error: insertError } = await supabase.from("payments").insert({
+      ...buildCreatedPaymentRecord({
+        intent,
+        riderId: intent.metadata?.rider_id || "unidentified",
+        rideType: intent.metadata?.ride_type || null
+      }),
+      status: PAYMENT_RECORD_STATUS.RELEASE_PENDING
+    });
+    claimed = !insertError;
+  }
+  if (!claimed) {
+    return { released: false, reason: "claimed_by_ride_or_release", statusCode: 409 };
+  }
+
+  // Belt and braces: a ride must never lose its payment.
+  const { data: lateRides } = await supabase.from("rides").select("id").eq("payment_id", paymentIntentId);
+  if ((lateRides || []).length) {
+    await supabase
+      .from("payments")
+      .update({ status: PAYMENT_RECORD_STATUS.CREATED, updated_at: nowIso() })
+      .eq("id", paymentIntentId)
+      .eq("status", PAYMENT_RECORD_STATUS.RELEASE_PENDING);
+    return { released: false, reason: "bound_to_ride", statusCode: 409 };
+  }
+  // Re-check Stripe after the claim: the hold may have been captured,
+  // cancelled or changed since the decision above.
+  let fresh;
+  try {
+    fresh = await stripe.paymentIntents.retrieve(paymentIntentId);
+  } catch {
+    fresh = null;
+  }
+  if (!fresh || !RELEASABLE_INTENT_STATUSES.includes(fresh.status)) {
+    const settled = Boolean(fresh) && fresh.status === "canceled";
+    await supabase
+      .from("payments")
+      .update({ status: settled ? PAYMENT_RECORD_STATUS.RELEASED : PAYMENT_RECORD_STATUS.REVIEW_REQUIRED, failure_message: settled ? null : "status_changed_before_cancel", updated_at: nowIso() })
+      .eq("id", paymentIntentId)
+      .eq("status", PAYMENT_RECORD_STATUS.RELEASE_PENDING);
+    if (!settled) {
+      await paymentOpsAlert("payment_hold_review_required", {
+        payment_intent_id: paymentIntentId,
+        reason: fresh ? `status_changed_to_${fresh.status}` : "intent_unreadable_after_claim",
+        action_needed: "check this payment in Stripe"
+      });
+    }
+    return { released: false, reason: settled ? "already_cancelled" : "status_changed", statusCode: 409 };
+  }
+  try {
+    await stripe.paymentIntents.cancel(
+      paymentIntentId,
+      { cancellation_reason: "abandoned" },
+      { idempotencyKey: releaseIdempotencyKey(paymentIntentId) }
+    );
+  } catch (err) {
+    await supabase
+      .from("payments")
+      .update({ status: PAYMENT_RECORD_STATUS.RELEASE_FAILED, failure_message: "stripe_cancel_failed", updated_at: nowIso() })
+      .eq("id", paymentIntentId);
+    console.warn("⚠️ Unused hold release failed at Stripe:", err && err.code ? err.code : "error");
+    return { released: false, reason: "stripe_cancel_failed", statusCode: 502 };
+  }
+
+  await supabase
+    .from("payments")
+    .update({
+      status: PAYMENT_RECORD_STATUS.RELEASED,
+      stripe_latest_status: "canceled",
+      canceled_at: nowIso(),
+      cancel_reason: decision.reason,
+      updated_at: nowIso()
+    })
+    .eq("id", paymentIntentId);
+  auditLog({
+    actor_type: requester.kind === "rider" ? "rider" : "system",
+    actor_id: requester.kind === "rider" ? requester.riderId || null : "unused-hold-sweep",
+    action: "unused_card_hold_released",
+    entity_type: "payment",
+    entity_id: paymentIntentId,
+    metadata: { reason: decision.reason, trigger, amount: Number(intent.amount || 0) / 100 },
+    req
+  }).catch(() => {});
+  return { released: true, reason: decision.reason, statusCode: 200 };
+}
+
+app.post(
+  "/api/payments/holds/:paymentIntentId/release",
+  rateLimit({ windowMs: 60_000, max: resolvePerMinuteLimit("UNUSED_HOLD_RELEASE_PER_MINUTE", 10), keyPrefix: "unused_hold_release" }),
+  asyncRoute(async (req, res) => {
+    if ((await getSystemFlag("unused_hold_release_enabled", "false")) !== "true") {
+      return res.status(503).json({ ok: false, released: false, reason: "disabled" });
+    }
+    if (!stripe) {
+      return res.status(503).json({ ok: false, released: false, reason: "payments_not_configured" });
+    }
+    const paymentIntentId = cleanString(req.params.paymentIntentId, 200);
+    if (!/^pi_[A-Za-z0-9_]+$/.test(paymentIntentId)) {
+      return fail(res, "Payment not found.", 404);
+    }
+    const rider = await resolveVerifiedRiderSession(req);
+    const result = await releaseUnusedHold({
+      paymentIntentId,
+      requester: {
+        kind: "rider",
+        riderId: rider ? String(rider.id) : null,
+        clientSecret: typeof req.body?.client_secret === "string" ? req.body.client_secret.slice(0, 300) : null
+      },
+      trigger: "rider_left_booking",
+      req
+    });
+    if (!result.released) {
+      // Ownership failures look like "not found" so a guessed id reveals nothing.
+      return res.status(result.statusCode).json({
+        ok: false,
+        released: false,
+        reason: result.statusCode === 404 ? "not_found" : result.reason
+      });
+    }
+    return ok(res, { released: true });
+  })
+);
+
+let unusedHoldSweepRunning = false;
+
+async function runUnusedHoldSweep({ minAgeMs = DEFAULT_SWEEP_MIN_AGE_MS, limit = 25 } = {}) {
+  if (unusedHoldSweepRunning || !stripe) return { skipped: true };
+  if ((await getSystemFlag("unused_hold_sweep_enabled", "false")) !== "true") return { skipped: true };
+  unusedHoldSweepRunning = true;
+  const result = { released: [], kept: [] };
+  try {
+    const cutoff = new Date(Date.now() - minAgeMs).toISOString();
+    const { data: candidates, error } = await supabase
+      .from("payments")
+      .select("id,created_at")
+      .in("status", [PAYMENT_RECORD_STATUS.CREATED, PAYMENT_RECORD_STATUS.RELEASE_FAILED])
+      .is("ride_id", null)
+      .lt("created_at", cutoff)
+      .limit(limit);
+    if (error) return result;
+    for (const row of candidates || []) {
+      const outcome = await releaseUnusedHold({
+        paymentIntentId: row.id,
+        requester: { kind: "sweep" },
+        trigger: "sweep"
+      });
+      (outcome.released ? result.released : result.kept).push({ id: row.id, reason: outcome.reason });
+    }
+    return result;
+  } finally {
+    unusedHoldSweepRunning = false;
+  }
+}
+
+// Stripe-side reconciliation. Stripe, not the database, is the source of
+// truth for which holds exist, so this walks Harvey Taxi's own uncaptured
+// PaymentIntents (explicit app/account metadata), oldest window first,
+// with pagination:
+//   - records any intent the database doesn't know about (tracking is
+//     always on; it is a reliability function, not cleanup);
+//   - keeps anything bound to a ride;
+//   - flags uncertain ownership/attachment for a person (alert, no action);
+//   - cancels an unused hold ONLY when unused_hold_sweep_enabled is "true"
+//     (off by default), through releaseUnusedHold(), which claims the
+//     payments row (the same row a ride's authorization must claim, so the
+//     two can't both win across server instances), re-checks the rides
+//     table, and re-checks Stripe immediately before cancelling.
+let stripeReconcileRunning = false;
+const RECONCILE_LOOKBACK_MS = 8 * 24 * 60 * 60 * 1000; // card authorizations expire after ~7 days
+
+// intentFilter: test-only scoping (e.g. to a run's own intents in a shared
+// Stripe test account); production passes none.
+// mode "live":    records unknown intents, flags review cases (with one
+//                 alert each), and cancels release candidates only when
+//                 unused_hold_sweep_enabled is "true".
+// mode "dry_run": reads Stripe and the database and reports what live mode
+//                 WOULD do. It writes nothing, cancels nothing and sends no
+//                 alerts or notifications.
+async function reconcileStripeHolds({ mode = "live", minAgeMs = DEFAULT_SWEEP_MIN_AGE_MS, lookbackMs = RECONCILE_LOOKBACK_MS, pageSize = 100, maxPages = 20, now = Date.now(), intentFilter = null, maxFindings = 500 } = {}) {
+  if (!stripe) return { skipped: true, reason: "stripe_not_configured" };
+  const dryRun = mode === "dry_run";
+  // A dry run only reads, so it never blocks (or is blocked by) a live run.
+  if (!dryRun && stripeReconcileRunning) return { skipped: true, reason: "already_running" };
+  if (!dryRun) stripeReconcileRunning = true;
+  const summary = { mode: dryRun ? "dry_run" : "live", scanned: 0, harvey_holds: 0, newly_tracked: 0, would_track: 0, kept: 0, review: 0, would_release: 0, released: 0, release_refused: 0, errors: 0, pages: 0, truncated: false, cleanup_enabled: false, findings: [] };
+  try {
+    summary.cleanup_enabled = (await getSystemFlag("unused_hold_sweep_enabled", "false")) === "true";
+    const created = { lte: Math.floor((now - minAgeMs) / 1000), gte: Math.floor((now - lookbackMs) / 1000) };
+    let startingAfter;
+    let hasMore = true;
+    while (hasMore && summary.pages < maxPages) {
+      const page = await stripe.paymentIntents.list({ created, limit: pageSize, ...(startingAfter ? { starting_after: startingAfter } : {}) });
+      summary.pages += 1;
+      const items = page?.data || [];
+      hasMore = Boolean(page?.has_more) && items.length > 0;
+      if (items.length) startingAfter = items[items.length - 1].id;
+      for (const intent of items) {
+        summary.scanned += 1;
+        if (intent?.metadata?.app !== "harvey_taxi" || !RELEASABLE_INTENT_STATUSES.includes(intent.status)) continue;
+        if (intentFilter && !intentFilter(intent)) continue;
+        summary.harvey_holds += 1;
+        try {
+          await reconcileOneHold({ intent, summary, now, minAgeMs, dryRun, maxFindings });
+        } catch {
+          summary.errors += 1;
+        }
+      }
+    }
+    if (hasMore) {
+      summary.truncated = true;
+      if (!dryRun) {
+        await paymentOpsAlert("payment_reconciliation_truncated", { reason: `stopped after ${summary.pages} pages`, action_needed: "run reconciliation again" });
+      }
+    }
+    return summary;
+  } finally {
+    if (!dryRun) stripeReconcileRunning = false;
+  }
+}
+
+// Scheduled entry point: does nothing unless stripe_reconciliation_enabled
+// is "true" (off by default). Cancellation additionally needs
+// unused_hold_sweep_enabled (also off by default).
+async function runScheduledReconciliation() {
+  if ((await getSystemFlag("stripe_reconciliation_enabled", "false")) !== "true") return { skipped: true, reason: "disabled" };
+  return reconcileStripeHolds({ mode: "live" });
+}
+
+async function loadHoldState(paymentIntentId) {
+  const [{ data: rides, error: ridesError }, { data: record, error: recordError }] = await Promise.all([
+    supabase.from("rides").select("id").eq("payment_id", paymentIntentId),
+    supabase.from("payments").select("id,status,ride_id,rider_id").eq("id", paymentIntentId).maybeSingle()
+  ]);
+  if (ridesError || recordError) throw new Error("hold_state_unavailable");
+  return { boundRideIds: (rides || []).map((r) => r.id), record: record || null };
+}
+
+async function reconcileOneHold({ intent, summary, now, minAgeMs, dryRun, maxFindings }) {
+  let { boundRideIds, record } = await loadHoldState(intent.id);
+  const wasTracked = Boolean(record);
+  if (!record) {
+    if (dryRun) {
+      summary.would_track += 1;
+    } else {
+      const { error } = await supabase.from("payments").insert(
+        buildCreatedPaymentRecord({ intent, riderId: intent.metadata?.rider_id, rideType: intent.metadata?.ride_type })
+      );
+      if (!error) summary.newly_tracked += 1;
+      ({ boundRideIds, record } = await loadHoldState(intent.id));
+    }
+  }
+  const decision = decideReconciliation({ intent, boundRideIds, record, now, minAgeMs });
+  // Findings carry no client secret, card or contact detail, or rider id.
+  if (summary.findings.length < maxFindings) {
+    summary.findings.push({
+      payment_intent_id: intent.id,
+      stripe_status: intent.status,
+      amount_cents: intent.amount,
+      age_minutes: Math.round((now - Number(intent.created) * 1000) / 60000),
+      tracked: wasTracked,
+      record_status: record ? record.status : null,
+      bound_ride: boundRideIds.length > 0 || Boolean(record && record.ride_id),
+      action: decision.action,
+      reason: decision.reason
+    });
+  }
+  if (decision.action === "ignore") return;
+  if (decision.action === "keep") {
+    summary.kept += 1;
+    return;
+  }
+  if (decision.action === "review") {
+    summary.review += 1;
+    if (!dryRun) await flagHoldForReview({ intent, reason: decision.reason });
+    return;
+  }
+  if (dryRun || !summary.cleanup_enabled) {
+    summary.would_release += 1;
+    return;
+  }
+  const outcome = await releaseUnusedHold({ paymentIntentId: intent.id, requester: { kind: "sweep" }, trigger: "reconciliation", minAgeMs });
+  if (outcome.released) summary.released += 1;
+  else summary.release_refused += 1;
+}
+
+/* =========================================================
+   ADMIN: STRIPE HOLD RECONCILIATION DRY RUN
+   Read-only, always: reports what scheduled reconciliation would record,
+   flag or cancel. It writes no records, cancels nothing and sends no
+   alerts or notifications, whatever the flags say. Live reconciliation
+   runs only on the schedule, and only when stripe_reconciliation_enabled
+   is "true".
+========================================================= */
+app.post(
+  "/api/admin/payments/reconcile/dry-run",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const summary = await reconcileStripeHolds({ mode: "dry_run" });
+    const reconciliationEnabled = (await getSystemFlag("stripe_reconciliation_enabled", "false")) === "true";
+    return ok(res, { dry_run: true, scheduled_reconciliation_enabled: reconciliationEnabled, reconciliation: summary });
+  })
+);
+
+/* =========================================================
    API 404 HANDLER
 
 ========================================================= */
@@ -24144,6 +24702,18 @@ async function startServer() {
       runStuckRedispatchRecovery();
       setInterval(runStuckRedispatchRecovery, 30_000);
 
+      // Cancels uncaptured card holds that never became a ride. Off unless
+      // the unused_hold_sweep_enabled system flag is "true".
+      setInterval(() => {
+        runUnusedHoldSweep().catch(() => {});
+      }, 10 * 60_000);
+
+      // Stripe-side reconciliation. Does nothing unless
+      // stripe_reconciliation_enabled is "true" (off by default); cancels
+      // nothing unless unused_hold_sweep_enabled is also "true" (off).
+      setInterval(() => {
+        runScheduledReconciliation().catch(() => {});
+      }, 30 * 60_000);
       // One real health check at boot so the admin page can say whether the
       // optional self-hosted model is reachable (Disabled when unset).
       agentLlm.healthCheck().catch(() => {});
@@ -24178,4 +24748,4 @@ if (require.main === module) {
 // runOfferExpirySweep is exported only so tests can drive the real
 // Supabase adapters for the offer-expiry sweep; production runs it on the
 // interval set up under require.main === module below.
-module.exports = { app, runOfferExpirySweep, runAgentCoordinationSweep };
+module.exports = { app, runOfferExpirySweep, runUnusedHoldSweep, runAgentCoordinationSweep, reconcileStripeHolds, runScheduledReconciliation };

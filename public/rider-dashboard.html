@@ -782,6 +782,13 @@
       background: rgba(255, 255, 255, 0.065);
     }
 
+    .hero-request-btn {
+      width: 100%;
+      max-width: 360px;
+      margin: 18px 0 6px;
+      font-size: 1.05rem;
+    }
+
     .btn.primary {
       background: linear-gradient(135deg, var(--cyan), var(--blue));
       color: var(--ink);
@@ -837,6 +844,12 @@
       border-color: rgba(109, 255, 179, 0.24);
       background: rgba(109, 255, 179, 0.08);
       color: #c9ffe4;
+    }
+
+    .notice.warning {
+      border-color: rgba(255, 196, 0, 0.35);
+      background: rgba(255, 196, 0, 0.08);
+      color: #ffe59a;
     }
 
     .notice.danger {
@@ -2554,7 +2567,9 @@
         align-items: flex-start;
       }
 
-      #rideWizardOverlay .top-actions {
+      /* Phones keep "Back to Dashboard"; the other top links (Live
+         Support, Foundation) are reachable from the dashboard. */
+      #rideWizardOverlay .top-actions .pill-link:not(.wizard-close-link) {
         display: none;
       }
 
@@ -3025,80 +3040,13 @@
       <button type="button" class="app-review-entry" id="appReviewSignInBtn">App Review Sign-In</button>
     </section>
 
-    <!-- HERO -->
-    <section class="hero">
-      <div class="hero-inner">
-        <div class="badge">
-          Rides • Food • Groceries • Harvey Taxi
-        </div>
-
-        <h1 id="heroTitle">
-          Your Harvey Taxi super app starts here.
-        </h1>
-
-        <p id="heroText">
-          Manage rides, food delivery, grocery delivery, rider verification,
-          payment readiness, active orders, trip history, tipping, and support
-          from one futuristic dashboard.
-        </p>
-
-        <div class="hero-stats">
-          <div class="hero-stat">
-            <strong id="heroRiderName">Rider</strong>
-            <span>Current rider profile</span>
-          </div>
-
-          <div class="hero-stat">
-            <strong id="heroApprovalState">Pending</strong>
-            <span>Persona / rider access</span>
-          </div>
-
-          <div class="hero-stat">
-            <strong id="heroRideCount">0</strong>
-            <span>Rides loaded</span>
-          </div>
-
-          <div class="hero-stat">
-            <strong id="heroDeliveryCount">0</strong>
-            <span>Deliveries loaded</span>
-          </div>
-        </div>
-
-        <div class="service-launch">
-          <button class="launch-card" type="button" data-action="ride">
-            <div class="launch-icon">🚖</div>
-            <strong>Request Ride</strong>
-            <span>
-              Start a Harvey Taxi ride with rider verification and payment gate support.
-            </span>
-          </button>
-
-          <button class="launch-card" type="button" data-action="food">
-            <div class="launch-icon">🍔</div>
-            <strong>Food Delivery</strong>
-            <span>
-              Launch a food delivery request using your delivery-ready backend flow.
-            </span>
-          </button>
-
-          <button class="launch-card" type="button" data-action="grocery">
-            <div class="launch-icon">🛒</div>
-            <strong>Grocery Delivery</strong>
-            <span>
-              Request groceries with pickup, dropoff, items, payment, and dispatch support.
-            </span>
-          </button>
-
-          <button class="launch-card" type="button" data-action="htaf">
-            <div class="launch-icon">🩺</div>
-            <strong>HTAF Medical Ride</strong>
-            <span>
-              Request nonprofit transportation support through the Harvey Taxi Assistance Foundation.
-            </span>
-          </button>
-        </div>
-      </div>
-    </section>
+    <!-- Dashboard-wide notices (e.g. "booking not completed"). -->
+    <div
+      id="systemNotice"
+      class="notice success"
+      role="status"
+      style="display:none;"
+    ></div>
 
     <!-- ACTIVE REQUEST -->
     <section class="section" id="activeRequestSection" style="display:none;">
@@ -3163,6 +3111,86 @@
       </div>
     </section>
 
+    <!-- HERO -->
+    <section class="hero">
+      <div class="hero-inner">
+        <div class="badge">
+          Rides • Food • Groceries • Harvey Taxi
+        </div>
+
+        <h1 id="heroTitle">
+          Your Harvey Taxi super app starts here.
+        </h1>
+
+        <p id="heroText">
+          Manage rides, food delivery, grocery delivery, rider verification,
+          payment readiness, active orders, trip history, tipping, and support
+          from one futuristic dashboard.
+        </p>
+
+        <!-- The booking screen opens only from explicit actions like this. -->
+        <button class="btn primary hero-request-btn" type="button" id="heroRequestRideBtn" data-action="ride">
+          Request a Ride
+        </button>
+
+        <div class="hero-stats">
+          <div class="hero-stat">
+            <strong id="heroRiderName">Rider</strong>
+            <span>Current rider profile</span>
+          </div>
+
+          <div class="hero-stat">
+            <strong id="heroApprovalState">Pending</strong>
+            <span>Persona / rider access</span>
+          </div>
+
+          <div class="hero-stat">
+            <strong id="heroRideCount">0</strong>
+            <span>Rides loaded</span>
+          </div>
+
+          <div class="hero-stat">
+            <strong id="heroDeliveryCount">0</strong>
+            <span>Deliveries loaded</span>
+          </div>
+        </div>
+
+        <div class="service-launch">
+          <button class="launch-card" type="button" data-action="ride">
+            <div class="launch-icon">🚖</div>
+            <strong>Request Ride</strong>
+            <span>
+              Start a Harvey Taxi ride with rider verification and payment gate support.
+            </span>
+          </button>
+
+          <button class="launch-card" type="button" data-action="food">
+            <div class="launch-icon">🍔</div>
+            <strong>Food Delivery</strong>
+            <span>
+              Launch a food delivery request using your delivery-ready backend flow.
+            </span>
+          </button>
+
+          <button class="launch-card" type="button" data-action="grocery">
+            <div class="launch-icon">🛒</div>
+            <strong>Grocery Delivery</strong>
+            <span>
+              Request groceries with pickup, dropoff, items, payment, and dispatch support.
+            </span>
+          </button>
+
+          <button class="launch-card" type="button" data-action="htaf">
+            <div class="launch-icon">🩺</div>
+            <strong>HTAF Medical Ride</strong>
+            <span>
+              Request nonprofit transportation support through the Harvey Taxi Assistance Foundation.
+            </span>
+          </button>
+        </div>
+      </div>
+    </section>
+
     <!-- SCHEDULED RIDES -->
     <section class="section" id="scheduledSection" style="display:none;">
       <div class="section-header">
@@ -3179,58 +3207,6 @@
 
       <div id="scheduledEmpty" class="empty" style="display:none;">
         No upcoming scheduled rides.
-      </div>
-    </section>
-
-    <!-- RIDER STATUS -->
-    <section class="section">
-      <div class="section-header">
-        <div>
-          <h2>Rider status</h2>
-          <p>
-            Your account readiness for rides, food delivery,
-            grocery delivery, payment authorization, and dispatch.
-          </p>
-        </div>
-      </div>
-
-      <div
-        id="approvalNotice"
-        class="notice"
-        style="display:none;"
-      >
-        Rider Persona verification must be approved before
-        requesting rides or delivery.
-      </div>
-
-      <div
-        id="systemNotice"
-        class="notice success"
-        style="display:none;"
-      ></div>
-
-      <div class="status-strip">
-
-        <div class="status-card">
-          <strong id="statusApproval">Pending</strong>
-          <span>Rider approval</span>
-        </div>
-
-        <div class="status-card">
-          <strong id="statusRideAccess">Pending</strong>
-          <span>Ride access</span>
-        </div>
-
-        <div class="status-card">
-          <strong id="statusDeliveryAccess">Pending</strong>
-          <span>Delivery access</span>
-        </div>
-
-        <div class="status-card">
-          <strong id="statusRiderId">—</strong>
-          <span>Active rider ID</span>
-        </div>
-
       </div>
     </section>
 
@@ -3418,79 +3394,6 @@
 
     </div>
 
-    <!-- GRID 2 -->
-    <div class="grid">
-
-      <!-- NOTIFICATIONS -->
-      <section class="section">
-
-        <div class="section-header">
-          <div>
-            <h2>Notifications</h2>
-
-            <p>
-              Get alerted the moment your ride or delivery status changes.
-            </p>
-          </div>
-        </div>
-
-        <div id="notificationStatus" class="notice" style="display:none;"></div>
-
-        <div class="actions" style="margin-bottom:16px;">
-          <button class="btn success" type="button" id="enablePushBtn">
-            Enable Ride Alerts
-          </button>
-        </div>
-
-        <div id="notificationFeed" class="notification-feed"></div>
-
-        <div id="notificationFeedEmpty" class="empty">
-          No recent notifications. Status changes on your active ride or
-          delivery will show up here.
-        </div>
-
-      </section>
-
-      <!-- HTAF STATUS -->
-      <section class="section">
-
-        <div class="section-header">
-          <div>
-            <h2>HTAF application status</h2>
-
-            <p>
-              Your most recent Harvey Taxi Assistance Foundation application.
-            </p>
-          </div>
-        </div>
-
-        <div id="htafStatusCard">
-          <div class="empty" id="htafStatusEmpty">
-            No HTAF application found for your account email yet.
-          </div>
-
-          <div class="trip-card" id="htafStatusDetail" style="display:none;">
-            <div class="trip-top">
-              <div>
-                <div class="trip-title" id="htafStatusProgram">—</div>
-                <div class="trip-sub" id="htafStatusCode">—</div>
-              </div>
-
-              <div class="trip-status" id="htafStatusPill">—</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="actions" style="margin-top:16px;">
-          <button class="btn primary" type="button" data-action="htaf">
-            Start New Application
-          </button>
-        </div>
-
-      </section>
-
-    </div>
-
     <!-- ACTIVITY -->
     <section
       class="section"
@@ -3550,6 +3453,52 @@
         or grocery delivery to start your history.
       </div>
 
+    </section>
+
+    <!-- RIDER STATUS -->
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <h2>Rider status</h2>
+          <p>
+            Your account readiness for rides, food delivery,
+            grocery delivery, payment authorization, and dispatch.
+          </p>
+        </div>
+      </div>
+
+      <div
+        id="approvalNotice"
+        class="notice"
+        style="display:none;"
+      >
+        Rider Persona verification must be approved before
+        requesting rides or delivery.
+      </div>
+
+      <div class="status-strip">
+
+        <div class="status-card">
+          <strong id="statusApproval">Pending</strong>
+          <span>Rider approval</span>
+        </div>
+
+        <div class="status-card">
+          <strong id="statusRideAccess">Pending</strong>
+          <span>Ride access</span>
+        </div>
+
+        <div class="status-card">
+          <strong id="statusDeliveryAccess">Pending</strong>
+          <span>Delivery access</span>
+        </div>
+
+        <div class="status-card">
+          <strong id="statusRiderId">—</strong>
+          <span>Active rider ID</span>
+        </div>
+
+      </div>
     </section>
 
     <!-- ACCOUNT + SUPPORT -->
@@ -3714,6 +3663,79 @@
 
     </div>
 
+    <!-- GRID 2 -->
+    <div class="grid">
+
+      <!-- NOTIFICATIONS -->
+      <section class="section">
+
+        <div class="section-header">
+          <div>
+            <h2>Notifications</h2>
+
+            <p>
+              Get alerted the moment your ride or delivery status changes.
+            </p>
+          </div>
+        </div>
+
+        <div id="notificationStatus" class="notice" style="display:none;"></div>
+
+        <div class="actions" style="margin-bottom:16px;">
+          <button class="btn success" type="button" id="enablePushBtn">
+            Enable Ride Alerts
+          </button>
+        </div>
+
+        <div id="notificationFeed" class="notification-feed"></div>
+
+        <div id="notificationFeedEmpty" class="empty">
+          No recent notifications. Status changes on your active ride or
+          delivery will show up here.
+        </div>
+
+      </section>
+
+      <!-- HTAF STATUS -->
+      <section class="section">
+
+        <div class="section-header">
+          <div>
+            <h2>HTAF application status</h2>
+
+            <p>
+              Your most recent Harvey Taxi Assistance Foundation application.
+            </p>
+          </div>
+        </div>
+
+        <div id="htafStatusCard">
+          <div class="empty" id="htafStatusEmpty">
+            No HTAF application found for your account email yet.
+          </div>
+
+          <div class="trip-card" id="htafStatusDetail" style="display:none;">
+            <div class="trip-top">
+              <div>
+                <div class="trip-title" id="htafStatusProgram">—</div>
+                <div class="trip-sub" id="htafStatusCode">—</div>
+              </div>
+
+              <div class="trip-status" id="htafStatusPill">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="actions" style="margin-top:16px;">
+          <button class="btn primary" type="button" data-action="htaf">
+            Start New Application
+          </button>
+        </div>
+
+      </section>
+
+    </div>
+
     <!-- FOOTER -->
     <footer class="footer">
 
@@ -3767,6 +3789,7 @@
     <button
       class="nav-btn active"
       type="button"
+      data-action="home"
     >
       Rider
     </button>
@@ -3889,8 +3912,8 @@
 
         <div class="top-actions">
 
-          <a class="pill-link wizard-close-link" href="#" data-action="close-wizard">
-            Close
+          <a class="pill-link wizard-close-link" href="#" data-action="close-wizard" aria-label="Back to Dashboard">
+            &larr; Back to Dashboard
           </a>
 
           <a class="pill-link" href="/support.html">
@@ -5020,7 +5043,7 @@
           <div class="mini-list">
 
             <a href="#" class="wizard-close-link" data-action="close-wizard">
-              Back to Rider Dashboard
+              &larr; Back to Dashboard
             </a>
 
             <a href="/support.html">
@@ -5093,7 +5116,7 @@
               type="button"
               id="openDashboardBtn"
             >
-              Open Rider Dashboard
+              Back to Dashboard
             </button>
 
           </div>
@@ -7036,6 +7059,30 @@
     // server-verified session, GET /api/rider/session's review_mode): the
     // payment step is simulated, so the card form is replaced by a clear
     // "no card is charged" notice. Ordinary riders are unaffected.
+    // Tracking an existing ride (?screen=track) shows its status only:
+    // no "Request Dispatch", "Reset Request Flow" or "Back to Payment", so
+    // it can't read as starting a new booking.
+    function setTrackingView(on) {
+      els.requestRideBtn?.classList.toggle("hidden", on);
+      els.resetFlowBtn?.classList.toggle("hidden", on);
+      els.stageDispatchBackBtn?.classList.toggle("hidden", on);
+    }
+
+    // Back to the dashboard from inside the wizard. After a request has
+    // been made the dashboard picks up the active ride; before that it is
+    // a plain exit (nothing requested, authorized or dispatched by leaving).
+    function leaveToDashboard() {
+      if (window.HarveyRideWizard) {
+        if (state.ride?.rideId) {
+          window.HarveyRideWizard.finish();
+        } else {
+          window.HarveyRideWizard.close();
+        }
+        return;
+      }
+      window.location.replace(CONFIG.DASHBOARD_URL);
+    }
+
     function isAppReviewMode() {
       return window.HarveyReviewMode === true;
     }
@@ -8209,7 +8256,22 @@
       return state.payment.idempotencyKey;
     }
 
+    // Tracking an existing ride (or a ride already created in this visit)
+    // must never start a second booking or a second card authorization.
+    function refuseIfRideExists() {
+      if (!state.ride?.rideId) return false;
+      showNotice(
+        `Ride ${state.ride.rideId} has already been requested, so nothing new was booked or authorized. Contact Support if something looks wrong.`,
+        "warning"
+      );
+      return true;
+    }
+
     async function authorizePayment() {
+      if (refuseIfRideExists()) {
+        return false;
+      }
+
       const tripError =
         validateTripFields();
 
@@ -8395,6 +8457,12 @@
       } catch (error) {
         state.payment.authorized = false;
 
+        // The server cancelled (or refused to reuse) that payment attempt;
+        // the next try must create a new one, not get the old one back.
+        if (error?.data?.retry_with_new_key) {
+          state.payment.idempotencyKey = null;
+        }
+
         setBadge("Payment Failed");
 
         setTimeline(
@@ -8473,6 +8541,10 @@
     }    async function requestDispatch(event) {
       if (event) {
         event.preventDefault();
+      }
+
+      if (refuseIfRideExists()) {
+        return false;
       }
 
       const riderError = validateRiderFields();
@@ -8663,7 +8735,7 @@
           els.htafDonationCard.classList.remove("hidden");
         } else {
           setTimeout(() => {
-            window.location.href = CONFIG.DASHBOARD_URL;
+            leaveToDashboard();
           }, 1800);
         }
 
@@ -9228,14 +9300,14 @@
       els.openDashboardBtn?.addEventListener(
         "click",
         () => {
-          window.location.href = CONFIG.DASHBOARD_URL;
+          leaveToDashboard();
         }
       );
 
       els.htafDonationSkipBtn?.addEventListener(
         "click",
         () => {
-          window.location.href = CONFIG.DASHBOARD_URL;
+          leaveToDashboard();
         }
       );
 
@@ -9246,7 +9318,7 @@
         "click",
         () => {
           setTimeout(() => {
-            window.location.href = CONFIG.DASHBOARD_URL;
+            leaveToDashboard();
           }, 400);
         }
       );
@@ -9359,6 +9431,8 @@
       // *previous* unrelated ride's driver card underneath it.
       const trackRideId = getRawQueryParam("ride_id");
 
+      setTrackingView(Boolean(trackRideId));
+
       if (trackRideId) {
         state.ride.rideId = trackRideId;
         confirmService();
@@ -9376,7 +9450,11 @@
         refreshRideStatus();
         startRideStream(trackRideId);
       } else {
-        goToStage("confirm");
+        // A prefill (AI request, saved place) has already confirmed the
+        // service and moved on to pickup; don't send it back.
+        if (!state.modeLocked) {
+          goToStage("confirm");
+        }
       }
     }
 
@@ -9394,10 +9472,18 @@
     // re-runs to pick up the newly requested mode/ride_id.
     let __wizardBooted = false;
 
+    // Re-runs boot()'s URL-driven setup for an already-booted wizard:
+    // mode/prefills for a booking, or the tracking stage for ?ride_id=.
     function __applyWizardParams() {
+      // A new visit starts unlocked; a prefill below may lock it again.
+      state.modeLocked = false;
+      els.modeGrid?.classList.remove("locked");
+      // The post-request donation prompt belongs to the previous visit.
+      els.htafDonationCard?.classList.add("hidden");
       hydrateFromStorage();
 
       const trackRideId = getRawQueryParam("ride_id");
+      setTrackingView(Boolean(trackRideId));
 
       if (trackRideId) {
         state.ride.rideId = trackRideId;
@@ -9407,32 +9493,66 @@
         setTimeline("dispatch", `Tracking ride ${trackRideId}.`);
         refreshRideStatus();
         startRideStream(trackRideId);
-      } else {
+      } else if (!state.modeLocked) {
         goToStage("confirm");
       }
     }
 
-    function __openWizard(params) {
-      const url = new URL(window.location.href);
-      const search = new URLSearchParams();
+    // ----- Screens and navigation -----
+    // One wizard implementation, three URL-addressable screens:
+    //   dashboard  /rider-dashboard.html                    (default home)
+    //   booking    /rider-dashboard.html?screen=book&mode=…  (new request)
+    //   tracking   /rider-dashboard.html?screen=track&ride_id=…
+    // Only an explicit screen= opens the wizard. A bare ?mode= (old home
+    // page links) or no parameters at all always lands on the dashboard.
+    // The wizard reads its own prefill parameters (mode, ride_type,
+    // ai_destination, ai_pickup, ai_scheduled_time, ride_id) from the URL,
+    // so the screen URL carries exactly those.
+    const WIZARD_PARAM_KEYS = ["mode", "ride_id", "ride_type", "ai_destination", "ai_pickup", "ai_scheduled_time"];
+    const DASHBOARD_PATH = "/rider-dashboard.html";
+    let __pushedOverDashboard = false;
+    let __leavingAfterBooking = false;
 
-      Object.entries(params || {}).forEach(([key, value]) => {
+    function __wizardUrl(params) {
+      const search = new URLSearchParams();
+      search.set("screen", params.ride_id ? "track" : "book");
+      WIZARD_PARAM_KEYS.forEach((key) => {
+        const value = params[key];
         if (value !== undefined && value !== null && value !== "") {
-          search.set(key, value);
+          search.set(key, String(value));
         }
       });
+      if (!params.ride_id && !search.get("mode")) {
+        search.set("mode", "driver");
+      }
+      return `${DASHBOARD_PATH}?${search.toString()}`;
+    }
 
-      url.search = search.toString();
-      window.history.pushState({ rideWizardOpen: true }, "", url);
+    // Screen requested by a URL, or null for the dashboard.
+    function __screenFromLocation(loc = window.location) {
+      const query = new URLSearchParams(loc.search);
+      const screen = query.get("screen");
+      if (screen !== "book" && screen !== "track") return null;
+      const params = {};
+      WIZARD_PARAM_KEYS.forEach((key) => {
+        if (query.get(key)) params[key] = query.get(key);
+      });
+      if (screen === "track" && !params.ride_id) return null;
+      if (screen === "book") delete params.ride_id;
+      return params;
+    }
 
+    function __showWizard() {
       const overlay = document.getElementById("rideWizardOverlay");
-      if (overlay) overlay.hidden = false;
+      if (overlay) {
+        overlay.hidden = false;
+        overlay.scrollTop = 0; // the overlay scrolls on its own
+      }
       document.body.classList.add("ride-wizard-open");
+      window.scrollTo(0, 0);
 
       // Wait one frame so the just-unhidden overlay has a real layout box
-      // before Google Maps / address autocomplete try to measure it —
-      // initializing a map into a still-hidden (0x0) container is a known
-      // way to get a blank/mis-sized map.
+      // before the wizard measures it.
       requestAnimationFrame(() => {
         if (!__wizardBooted) {
           __wizardBooted = true;
@@ -9444,14 +9564,104 @@
       });
     }
 
-    function __closeWizard() {
-      stopRideStream();
-
+    // Hides the wizard. Nothing here creates a ride, authorizes a payment
+    // or dispatches a driver -- it only stops this screen's live updates.
+    // If the rider leaves a booking after a card hold but before requesting
+    // the ride, the dashboard is told so it can say no ride was requested.
+    function __hideWizard() {
       const overlay = document.getElementById("rideWizardOverlay");
-      if (overlay) overlay.hidden = true;
+      if (!overlay || overlay.hidden) return;
+
+      const unusedHold =
+        !__leavingAfterBooking &&
+        state.payment?.authorized === true &&
+        !state.ride?.rideId;
+      const simulated = typeof isAppReviewMode === "function" && isAppReviewMode();
+
+      stopRideStream();
+      overlay.hidden = true;
       document.body.classList.remove("ride-wizard-open");
 
-      window.history.pushState({}, "", "/rider-dashboard.html");
+      if (__leavingAfterBooking) {
+        window.dispatchEvent(new CustomEvent("harvey-booking-complete", {
+          detail: { rideId: state.ride?.rideId || null }
+        }));
+      } else if (unusedHold) {
+        window.dispatchEvent(new CustomEvent("harvey-booking-abandoned", {
+          detail: {
+            heldPayment: !simulated,
+            paymentIntentId: simulated ? "" : state.payment.paymentId || "",
+            clientSecret: simulated ? "" : state.payment.clientSecret || "",
+            // Called only after the server cancelled the hold: the wizard
+            // must not try to book with a cancelled authorization.
+            onReleased() {
+              state.payment.authorized = false;
+              state.payment.paymentId = "";
+              state.payment.clientSecret = "";
+              try { localStorage.removeItem(CONFIG.STORAGE_KEYS.lastPaymentId); } catch {}
+            }
+          }
+        }));
+      }
+      __leavingAfterBooking = false;
+    }
+
+    // Explicit booking/tracking action from the dashboard, AI assistant,
+    // saved places, etc.: a new history entry, so Back returns here.
+    function __openWizard(params) {
+      const screen = __screenFromLocation(new URL(__wizardUrl(params || {}), window.location.origin));
+      if (!screen) return;
+      window.history.pushState({ harveyScreen: screen.ride_id ? "track" : "book" }, "", __wizardUrl(screen));
+      __pushedOverDashboard = true;
+      __showWizard();
+    }
+
+    // "Back to Dashboard" and other in-wizard exits. Uses the real history
+    // entry when there is one, so browser/Android Back stays in step.
+    function __closeWizard() {
+      if (__pushedOverDashboard && window.history.state?.harveyScreen) {
+        __pushedOverDashboard = false;
+        window.history.back();
+        return;
+      }
+      window.history.replaceState({}, "", DASHBOARD_PATH);
+      __hideWizard();
+    }
+
+    // After a successful request: back to the dashboard, which shows the
+    // active ride with live updates.
+    function __finishBooking() {
+      __leavingAfterBooking = true;
+      __closeWizard();
+    }
+
+    // Browser/Android Back and Forward.
+    window.addEventListener("popstate", () => {
+      const screen = __screenFromLocation();
+      if (screen) {
+        __pushedOverDashboard = false;
+        __showWizard();
+      } else {
+        __hideWizard();
+      }
+    });
+
+    // Arrival URL. A deep link to a screen (home page "Request Ride",
+    // an old /request-ride link, a ride notification) gets a dashboard
+    // entry underneath it, so Back goes to the dashboard, not off-site.
+    // A bare ?mode= is cleaned off and stays on the dashboard.
+    function __handleArrivalUrl() {
+      const screen = __screenFromLocation();
+      if (screen) {
+        window.history.replaceState({}, "", DASHBOARD_PATH);
+        window.history.pushState({ harveyScreen: screen.ride_id ? "track" : "book" }, "", __wizardUrl(screen));
+        __pushedOverDashboard = true;
+        __showWizard();
+        return;
+      }
+      if (window.location.search && new URLSearchParams(window.location.search).has("mode")) {
+        window.history.replaceState({}, "", DASHBOARD_PATH);
+      }
     }
 
     document.addEventListener("click", (event) => {
@@ -9467,23 +9677,16 @@
 
       if (switchLink) {
         event.preventDefault();
-        __openWizard({ mode: switchLink.dataset.mode || "driver" });
-      }
-    });
-
-    window.addEventListener("popstate", () => {
-      const overlay = document.getElementById("rideWizardOverlay");
-
-      if (overlay && !overlay.hidden) {
-        stopRideStream();
-        overlay.hidden = true;
-        document.body.classList.remove("ride-wizard-open");
+        window.history.replaceState(window.history.state, "", __wizardUrl({ mode: switchLink.dataset.mode || "driver" }));
+        __showWizard();
       }
     });
 
     window.HarveyRideWizard = {
       open: __openWizard,
-      close: __closeWizard
+      close: __closeWizard,
+      finish: __finishBooking,
+      handleArrivalUrl: __handleArrivalUrl
     };
   })();
   </script>
@@ -10455,8 +10658,15 @@
       }
     }
 
+    // "Home" inside the rider area is this dashboard: close the booking
+    // or tracking screen if it is open, otherwise go back to the top.
     function goHome() {
-      window.location.href = "index.html";
+      const overlay = document.getElementById("rideWizardOverlay");
+      if (overlay && !overlay.hidden) {
+        window.HarveyRideWizard.close();
+        return;
+      }
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
     function goSupport() {
@@ -11603,6 +11813,57 @@
       }
     }
 
+    // Back from a completed booking (or from ride tracking): show the
+    // active ride, which keeps updating via loadActiveRequest's polling.
+    window.addEventListener("harvey-booking-complete", async () => {
+      hideSystemNotice();
+      await Promise.allSettled([loadActiveRequest(), loadHistory()]);
+      // The active ride card is the first section on the dashboard.
+      window.scrollTo({ top: 0 });
+    });
+
+    // Asks the server to cancel the unused card hold. The notice changes
+    // only when the server confirms the cancellation; otherwise the
+    // "has not been used or cancelled" notice stays, which is still true.
+    async function releaseUnusedHold(detail) {
+      try {
+        const response = await fetch(
+          `/api/payments/holds/${encodeURIComponent(detail.paymentIntentId)}/release`,
+          {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json", "x-requested-with": "harvey-rider-app" },
+            body: JSON.stringify({ client_secret: detail.clientSecret })
+          }
+        );
+        const body = await response.json().catch(() => ({}));
+        if (response.ok && body.released === true) {
+          if (typeof detail.onReleased === "function") detail.onReleased();
+          showSystemNotice(
+            "Booking not completed: no ride was requested and your card was not charged. The temporary authorization hold on your card has been cancelled. Your bank decides when the pending amount disappears from your statement.",
+            "warning"
+          );
+        }
+      } catch {
+        // Keep the existing notice.
+      }
+    }
+
+    // Left a booking before requesting it. Leaving never requests a ride,
+    // charges a card or dispatches a driver; say so plainly.
+    window.addEventListener("harvey-booking-abandoned", (event) => {
+      const detail = event.detail || {};
+      if (detail.heldPayment && detail.paymentIntentId && detail.clientSecret) {
+        releaseUnusedHold(detail);
+      }
+      showSystemNotice(
+        event.detail?.heldPayment
+          ? "Booking not completed: no ride was requested and your card was not charged. A temporary authorization hold was placed on your card for this booking and has not been used or cancelled, so it may appear as pending. Your bank decides when a pending hold disappears. Contact Support if you need help with it."
+          : "Booking not completed: no ride was requested.",
+        "warning"
+      );
+    });
+
     function bindEvents() {
       document.querySelectorAll("[data-action]").forEach((button) => {
         button.addEventListener("click", () => {
@@ -11763,24 +12024,11 @@
         );
       }
 
-      // Auto-open the merged ride wizard when arriving with a mode or
-      // ride_id already in the URL — covers direct links (index.html's
-      // service cards, the AI widget, push notifications) and the
-      // now-retired request-ride.html/request-food.html/
-      // request-groceries.html redirect stubs, which forward their own
-      // query string here unchanged.
-      const initialParams = new URLSearchParams(window.location.search);
-      const initialMode = initialParams.get("mode");
-      const initialRideId = initialParams.get("ride_id");
-
-      if (initialMode || initialRideId) {
-        window.HarveyRideWizard.open({
-          mode: initialMode || "driver",
-          ride_id: initialRideId || undefined,
-          ride_type: initialParams.get("ride_type") || undefined,
-          ai_destination: initialParams.get("ai_destination") || undefined
-        });
-      }
+      // Arrival URL: only an explicit ?screen=book / ?screen=track opens
+      // the booking or tracking screen (home page "Request Ride", old
+      // /request-ride links, ride notifications). Normal launch, sign-in,
+      // signup completion and a bare ?mode= all stay on this dashboard.
+      window.HarveyRideWizard.handleArrivalUrl();
     }
 
     async function boot() {
