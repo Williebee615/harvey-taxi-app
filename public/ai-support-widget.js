@@ -200,7 +200,7 @@
 
       const pageSpecific = {
         general: [
-          { label: "Request Ride", action: "link", href: "rider-dashboard.html?mode=driver" },
+          { label: "Request Ride", action: "link", href: "rider-dashboard.html?screen=book&mode=driver" },
           { label: "Driver Signup", action: "link", href: "driver-signup.html" },
           { label: "Ask About Pilot", action: "message", message: "What is autonomous pilot mode?" }
         ],
@@ -911,7 +911,9 @@
           return;
         }
 
-        const search = new URLSearchParams();
+        // Another page: open the booking screen explicitly (a bare ?mode=
+        // lands on the rider dashboard without opening it).
+        const search = new URLSearchParams({ screen: "book" });
         Object.entries(params).forEach(([key, value]) => {
           if (value) search.set(key, value);
         });

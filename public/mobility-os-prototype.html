@@ -597,9 +597,9 @@
     // is ever scheduled), so it doesn't route through rider-dashboard.html's
     // wizard like the other three services do.
     const destinations = {
-      ride: "/rider-dashboard.html?mode=driver",
-      food: "/rider-dashboard.html?mode=food",
-      grocery: "/rider-dashboard.html?mode=grocery",
+      ride: "/rider-dashboard.html?screen=book&mode=driver",
+      food: "/rider-dashboard.html?screen=book&mode=food",
+      grocery: "/rider-dashboard.html?screen=book&mode=grocery",
       htaf: "/htaf-application.html"
     };
     window.location.href = destinations[service] || "/rider-dashboard.html";
