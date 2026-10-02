@@ -434,9 +434,8 @@ const STRIPE_SECRET_KEY = env("STRIPE_SECRET_KEY");
 const STRIPE_WEBHOOK_SECRET = env("STRIPE_WEBHOOK_SECRET");
 
 // Not secret — this is the key Stripe.js needs in the browser to collect
-// card details. Served through GET /api/stripe-key the same way
-// GOOGLE_MAPS_BROWSER_KEY is served through /api/maps-key, so it never has
-// to be hardcoded or committed to git.
+// card details. Served through GET /api/stripe-key, so it never has to be
+// hardcoded or committed to git.
 const STRIPE_PUBLISHABLE_KEY = env("STRIPE_PUBLISHABLE_KEY");
 
 let stripe = null;
@@ -479,12 +478,24 @@ const CHECKR_API_KEY = env("CHECKR_API_KEY");
 
 const CHECKR_WEBHOOK_SECRET = env("CHECKR_WEBHOOK_SECRET");
 
-// Browser-restricted Google Maps/Places key. Safe to hand to the client —
-// it's designed to be embedded in page requests and protected by HTTP
-// referrer restrictions in Google Cloud Console, not by keeping it secret —
-// but it still shouldn't be hardcoded into a file committed to git, so it's
-// served from this env var through GET /api/maps-key instead.
-const GOOGLE_MAPS_BROWSER_KEY = env("GOOGLE_MAPS_BROWSER_KEY");
+// Mapbox powers address search, geocoding and driving distance/duration.
+// The token is read here, trimmed, and used only by server-side requests
+// (lib/mapboxClient.js); it is never sent to browsers, logged, or returned.
+const {
+  GEO_UNAVAILABLE_MESSAGE,
+  readGeoToken,
+  describeGeoConfig,
+  geoConfigLogLines
+} = require("./lib/geoConfig");
+const { resolvePerMinuteLimit } = require("./lib/rateLimitConfig");
+const { describePaymentConfig } = require("./lib/paymentConfig");
+const { createMapboxClient, isFiniteCoord, ERROR: GEO_ERROR } = require("./lib/mapboxClient");
+const GEO_CONFIG = describeGeoConfig(process.env);
+const geoClient = createMapboxClient({ token: readGeoToken(process.env) });
+{
+  const { level, lines } = geoConfigLogLines(GEO_CONFIG);
+  lines.forEach((line) => console[level](line));
+}
 
 /* =========================================================
 
@@ -1248,13 +1259,7 @@ app.use(
 
     windowMs: 60_000,
 
-    max: envNumber(
-
-      "API_RATE_LIMIT_PER_MINUTE",
-
-      120
-
-    ),
+    max: resolvePerMinuteLimit("API_RATE_LIMIT_PER_MINUTE", 120),
 
     keyPrefix: "api"
 
@@ -3497,10 +3502,22 @@ const {
   isValidatedReviewerSession,
   planReviewAwareDispatch,
   buildSimulatedPaymentIntentResponse,
+  decideReviewRideInitialState,
+  SIMULATED_PAYMENT_LABEL,
+  REVIEW_MODE_LABEL,
   resolveSystemFlagDiagnostics,
   extractSupabaseProjectRef,
   buildFlagDiagnosticLogEvent
 } = require("./lib/reviewAccounts");
+
+const {
+  DELETION_STATUS,
+  DELETION_MODE,
+  REVIEW_DELETION_MESSAGE,
+  planAccountDeletion,
+  resolveAccountByVerifiedPhone,
+  isDeletionConfirmed
+} = require("./lib/accountDeletion");
 
 // requireRider — P0 remediation PR #1 (docs/p0-security-remediation-plan.md).
 // Not yet applied to any route: this only establishes the middleware and
@@ -11956,15 +11973,19 @@ app.post(
     // payment here — see lib/riderPayments.js. Only POST
     // /api/rides/:id/authorize, after retrieving and verifying the intent
     // with Stripe, may move a paid ride to PAYMENT_AUTHORIZED.
-    const status =
-
-      decideInitialRideStatus({
-
+    // An App Review ride (authenticated reviewer session only, see
+    // isReviewRide above) is created already authorized with payment
+    // not_required: it never touches Stripe at any later step.
+    const reviewRideState = decideReviewRideInitialState({
+      isReviewRide,
+      defaultStatus: decideInitialRideStatus({
         enablePaymentGate: ENABLE_PAYMENT_GATE,
-
         paymentIntentId: req.body.payment_intent_id
+      }),
+      authorizedStatus: RIDE_STATUS.PAYMENT_AUTHORIZED
+    });
 
-      });
+    const status = reviewRideState.status;
 
     const now =
 
@@ -11985,8 +12006,11 @@ app.post(
         riderId || null,
 
       is_review_ride:
-
         isReviewRide,
+
+      ...(reviewRideState.simulated
+        ? { payment_status: reviewRideState.payment_status }
+        : {}),
 
       rider_name:
 
@@ -12397,23 +12421,21 @@ app.post(
     }).catch(() => {});
 
     return ok(
-
       res,
-
       {
-
         ride:
-
           data,
-
         estimate,
-
-        dispatch
-
+        dispatch,
+        ...(reviewRideState.simulated
+          ? {
+              review_mode: true,
+              simulated_payment: true,
+              simulated_label: SIMULATED_PAYMENT_LABEL
+            }
+          : {})
       },
-
       201
-
     );
 
   })
@@ -12468,16 +12490,73 @@ app.post(
 
     }
 
+    // App Review rides are created already authorized with payment
+    // not_required (see POST /api/rides/request) and must never reach
+    // Stripe -- a reviewer client never has a real PaymentIntent, and
+    // rides.payment_id is a foreign key to payments, so a fake id can't
+    // be stored either. A review ride still awaiting authorization (only
+    // possible for one created before this change) is authorized here
+    // without Stripe, and only for the reviewer session that owns it.
+    if (ride.is_review_ride === true) {
+      if (ride.status !== RIDE_STATUS.PAYMENT_REQUIRED) {
+        return ok(res, {
+          ride,
+          dispatch: null,
+          review_mode: true,
+          simulated_payment: true,
+          simulated_label: SIMULATED_PAYMENT_LABEL
+        });
+      }
+
+      const reviewerRider = await resolveAuthenticatedReviewRider(req);
+
+      if (!reviewerRider || String(reviewerRider.id) !== String(ride.rider_id || "")) {
+        return fail(res, "This ride could not be authorized.", 403);
+      }
+
+      const { data: authorizedReviewRide, error: reviewAuthError } = await supabase
+        .from("rides")
+        .update({
+          status: RIDE_STATUS.PAYMENT_AUTHORIZED,
+          dispatch_status: "ready_to_dispatch",
+          payment_status: "not_required",
+          updated_at: nowIso()
+        })
+        .eq("id", rideId)
+        .select()
+        .maybeSingle();
+
+      if (reviewAuthError || !authorizedReviewRide) {
+        return fail(res, "This ride could not be authorized.", 500);
+      }
+
+      const reviewDispatch = shouldDispatchRideNow(authorizedReviewRide)
+        ? await dispatchRide(authorizedReviewRide)
+        : null;
+
+      auditLog({
+        actor_type: "rider",
+        actor_id: reviewerRider.id,
+        action: "review_ride_authorized_simulated",
+        entity_type: "ride",
+        entity_id: rideId,
+        req
+      }).catch(() => {});
+
+      return ok(res, {
+        ride: authorizedReviewRide,
+        dispatch: reviewDispatch,
+        review_mode: true,
+        simulated_payment: true,
+        simulated_label: SIMULATED_PAYMENT_LABEL
+      });
+    }
+
     const paymentIntentId =
-
       cleanString(
-
         req.body.payment_intent_id ||
-
         ride.payment_id,
-
         200
-
       );
 
     if (!paymentIntentId) {
@@ -13517,7 +13596,9 @@ const RIDER_HISTORY_COLUMNS =
   "estimated_fare, final_fare, tip_amount, " +
   "scheduled_time, created_at, updated_at, completed_at, cancelled_at, " +
   "delivery_stage, delivery_pin, merchant_name, item_count, " +
-  "pickup_instructions, delivery_instructions, delivered_at, delivery_proof_url";
+  "pickup_instructions, delivery_instructions, delivered_at, delivery_proof_url, " +
+  // Lets the rider's own history label App Review rides as simulated.
+  "is_review_ride";
 
 // "Active" vs "completed" here means "still open" vs "finished" — a
 // cancelled or failed ride counts as finished/historical, same as a
@@ -13679,22 +13760,138 @@ app.get(
 
 /* =========================================================
 
-   GOOGLE MAPS BROWSER KEY
+   ADDRESS SEARCH AND ROUTING (Mapbox, server-side)
 
-   Serves the browser-restricted Maps/Places key from an env
-   var instead of it being hardcoded into a static HTML file
-   committed to git. request-ride.html falls back to this when
-   its <meta name="google-maps-browser-key"> tag is empty.
-   Returns an empty key (never an error) when unconfigured, so
-   the page's own graceful-degradation logic takes over.
+   The browser never receives the Mapbox token: it calls these
+   routes and gets back only labels, coordinates and route
+   distance/duration. All are public (ordinary riders book
+   without a session) and rate-limited per IP, because each
+   call is billed by Mapbox.
+
+   Errors are deliberately plain: 503 geo_not_configured /
+   geo_unavailable (provider down, token rejected, timeout),
+   404 address_not_found, 422 no_route, 400 for bad input.
+   Logs carry the category and HTTP status only.
 
 ========================================================= */
 
+const GEO_WARNING_INTERVAL_MS = 10 * 60_000;
+const lastGeoWarningAt = new Map();
+
+// At most one warning per category every 10 minutes. Never logs the
+// request URL (it contains the token) or the provider's response body.
+function warnGeoProblem(category, status, now = Date.now()) {
+  if (now - (lastGeoWarningAt.get(category) || 0) < GEO_WARNING_INTERVAL_MS) {
+    return false;
+  }
+  lastGeoWarningAt.set(category, now);
+  if (category === GEO_ERROR.NOT_CONFIGURED) {
+    console.warn("⚠️ Address search requested but MAPBOX_ACCESS_TOKEN is not set; lookups and route estimates are unavailable.");
+  } else if (status === 401 || status === 403) {
+    console.warn(
+      `⚠️ Mapbox rejected a request (HTTP ${status}). Check that MAPBOX_ACCESS_TOKEN is valid and allowed to use ` +
+        "Geocoding and Directions; permanent geocoding also requires a credit card on the Mapbox account."
+    );
+  } else {
+    console.warn(`⚠️ Mapbox request failed (${category}${status ? `, HTTP ${status}` : ""}).`);
+  }
+  return true;
+}
+
+function sendGeoFailure(res, outcome) {
+  if (outcome.error === GEO_ERROR.NOT_FOUND) {
+    return fail(res, "We couldn't find that address. Check it or pick a suggestion.", 404, { code: "address_not_found" });
+  }
+  if (outcome.error === GEO_ERROR.NO_ROUTE) {
+    return fail(res, "There is no driving route between these addresses.", 422, { code: "no_route" });
+  }
+  warnGeoProblem(outcome.error, outcome.status);
+  return fail(res, GEO_UNAVAILABLE_MESSAGE, 503, {
+    code: outcome.error === GEO_ERROR.NOT_CONFIGURED ? "geo_not_configured" : "geo_unavailable"
+  });
+}
+
+function parseCoord(value) {
+  if (!value || typeof value !== "object") return null;
+  const lat = Number(value.lat);
+  const lng = Number(value.lng);
+  return isFiniteCoord(lat, lng) ? { lat, lng } : null;
+}
+
+function cleanGeoQuery(value) {
+  const q = cleanString(value, 200);
+  return q.length >= 3 ? q : "";
+}
+
+// Whether address search is configured. Boolean only.
 app.get(
-  "/api/maps-key",
-  rateLimit({ windowMs: 60_000, max: 60, keyPrefix: "maps_key" }),
+  "/api/geo/status",
+  rateLimit({ windowMs: 60_000, max: 60, keyPrefix: "geo_status" }),
+  asyncRoute(async (req, res) => ok(res, { configured: GEO_CONFIG.configured }))
+);
+
+// Suggestions while typing. Temporary results: shown, never stored.
+app.get(
+  "/api/geo/suggest",
+  rateLimit({ windowMs: 60_000, max: 60, keyPrefix: "geo_suggest" }),
   asyncRoute(async (req, res) => {
-    return ok(res, { key: GOOGLE_MAPS_BROWSER_KEY || "" });
+    const q = cleanGeoQuery(req.query.q);
+    if (!q) {
+      return fail(res, "Type at least 3 characters.", 400, { code: "invalid_query" });
+    }
+    const near = parseCoord({ lat: req.query.lat, lng: req.query.lng });
+    const outcome = await geoClient.suggest(q, { near });
+    if (!outcome.ok) return sendGeoFailure(res, outcome);
+    return ok(res, { results: outcome.results });
+  })
+);
+
+// The address a ride is booked with (permanent result, may be stored).
+app.post(
+  "/api/geo/resolve",
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "geo_resolve" }),
+  asyncRoute(async (req, res) => {
+    const q = cleanGeoQuery(req.body?.query);
+    if (!q) {
+      return fail(res, "Enter an address of at least 3 characters.", 400, { code: "invalid_query" });
+    }
+    const outcome = await geoClient.resolve(q, { near: parseCoord(req.body?.near) });
+    if (!outcome.ok) return sendGeoFailure(res, outcome);
+    return ok(res, { place: outcome.place });
+  })
+);
+
+// "Use my location": street address for device coordinates.
+app.post(
+  "/api/geo/reverse",
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "geo_reverse" }),
+  asyncRoute(async (req, res) => {
+    const point = parseCoord(req.body);
+    if (!point) {
+      return fail(res, "Valid coordinates are required.", 400, { code: "invalid_coordinates" });
+    }
+    const outcome = await geoClient.reverse(point.lat, point.lng);
+    if (!outcome.ok) return sendGeoFailure(res, outcome);
+    return ok(res, { place: outcome.place });
+  })
+);
+
+// Driving distance and duration between two points.
+app.post(
+  "/api/geo/route",
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "geo_route" }),
+  asyncRoute(async (req, res) => {
+    const from = parseCoord(req.body?.from);
+    const to = parseCoord(req.body?.to);
+    if (!from || !to) {
+      return fail(res, "Valid pickup and destination coordinates are required.", 400, { code: "invalid_coordinates" });
+    }
+    const outcome = await geoClient.route(from, to);
+    if (!outcome.ok) return sendGeoFailure(res, outcome);
+    return ok(res, {
+      distance_miles: outcome.distance_miles,
+      duration_minutes: outcome.duration_minutes
+    });
   })
 );
 
@@ -13702,8 +13899,8 @@ app.get(
 
    STRIPE PUBLISHABLE KEY
 
-   Serves the Stripe publishable key the same way /api/maps-key
-   serves the Maps key — an env var instead of a hardcoded value
+   Serves the Stripe publishable key from an env var instead of
+   a hardcoded value
    in a static HTML file. request-ride.html uses this to load
    Stripe.js and collect real card details before authorizing a
    ride's payment. Returns an empty key (never an error) when
@@ -16613,15 +16810,16 @@ app.get(
       );
 
     return ok(res, {
-
       total_earnings:
-
         Number(total.toFixed(2)),
-
       records:
-
-        data || []
-
+        data || [],
+      // App Review driver accounts only: their rides and earnings are
+      // simulated, and the dashboard labels them as such. Derived from
+      // the authenticated driver row, never from client input.
+      ...(req.driver?.is_review_account === true
+        ? { review_mode: true, review_label: REVIEW_MODE_LABEL }
+        : {})
     });
 
   })
@@ -19913,272 +20111,261 @@ async function anonymizeAccount({
 
   }
 
+  // Same for drivers: rides keeps its own driver_name/driver_phone
+  // snapshot, separate from the drivers row scrubbed above.
+  if (table === "drivers") {
+    await supabase
+      .from("rides")
+      .update({
+        driver_name: "Deleted Driver",
+        driver_phone: null,
+        updated_at: now
+      })
+      .eq("driver_id", id);
+  }
+
   return true;
 
 }
 
-/* -------- RIDER: immediate self-service deletion -------- */
-
-app.post(
-
-  "/api/account/rider/delete",
-
-  asyncRoute(async (req, res) => {
-
-    const riderId =
-
-      cleanString(req.body.rider_id, 100);
-
-    const phone =
-
-      cleanPhone(req.body.phone);
-
-    const code =
-
-      cleanString(req.body.code, 20);
-
-    const reason =
-
-      cleanString(req.body.reason, 500);
-
-    if (!riderId || !phone || !code) {
-
-      return fail(
-
-        res,
-
-        "rider_id, phone, and a verification code are required to delete your account.",
-
-        400
-
-      );
-
-    }
-
-    // Confirm identity via OTP (same mechanism as signup verify).
-
-    const verification =
-
-      await verifyCode({
-
-        channel: "sms",
-
-        destination: phone,
-
-        code,
-
-        purpose: "account_deletion"
-
-      });
-
-    if (!verification.ok) {
-
-      return fail(
-
-        res,
-
-        verification.reason || "Verification failed.",
-
-        400
-
-      );
-
-    }
-
-    // Ensure the rider exists and the phone matches.
-
-    const { data: rider, error } =
-
-      await supabase
-
-        .from("riders")
-
-        .select("id, phone")
-
-        .eq("id", riderId)
-
-        .maybeSingle();
-
-    if (error || !rider) {
-
-      return fail(res, "Rider account not found.", 404);
-
-    }
-
-    try {
-
-      await anonymizeAccount({
-
-        table: "riders",
-
-        id: riderId,
-
-        reason,
-
-        deletedBy: "rider_self"
-
-      });
-
-    } catch (delErr) {
-
-      console.error("❌ Rider deletion failed:", delErr.message);
-
-      return fail(res, "Account deletion could not be completed.", 500);
-
-    }
-
-    // Record the completed deletion for the audit trail.
-
-    const requestId = makeId("DEL");
-
+/* Designated App Review accounts: record the request and confirm it,
+   but keep the account (see lib/accountDeletion.js). Auditable through
+   both deletion_requests (status review_simulated, kept out of the
+   admin pending queue) and audit_logs. Never sends SMS. */
+async function recordReviewDeletionSimulation({ userType, userId, reason, verifiedBy, req }) {
+  const requestId = makeId("DEL");
+  const now = nowIso();
+  const { error } =
     await supabase
-
       .from("deletion_requests")
-
       .insert({
-
         request_id: requestId,
-
-        user_type: "rider",
-
-        user_id: riderId,
-
-        status: "completed",
-
+        user_type: userType,
+        user_id: userId,
+        status: DELETION_STATUS.REVIEW_SIMULATED,
         reason,
-
-        requested_at: nowIso(),
-
-        completed_at: nowIso(),
-
-        reviewed_by: "self_service"
-
+        requested_at: now,
+        completed_at: now,
+        reviewed_by: "app_review_simulation"
       });
+  if (error) {
+    console.error("❌ Review deletion simulation insert failed:", error.message);
+  }
+  await auditLog({
+    actor_type: userType,
+    actor_id: userId,
+    action: "account_deletion_review_simulated",
+    entity_type: userType,
+    entity_id: userId,
+    metadata: { request_id: requestId, verified_by: verifiedBy, account_preserved: true },
+    req
+  }).catch(() => {});
+  return requestId;
+}
 
+/* -------- RIDER: immediate self-service deletion --------
+   Identity comes from one of two places, never from a client-supplied
+   rider id:
+     - a valid rider session (in-app, signed in), plus typing DELETE;
+     - an SMS one-time code, with the account resolved from that
+       verified phone number (no session needed). */
+app.post(
+  "/api/account/rider/delete",
+  rateLimit({ windowMs: 10 * 60_000, max: 10, keyPrefix: "account_rider_delete_ip" }),
+  asyncRoute(async (req, res) => {
+    const reason =
+      cleanString(req.body.reason, 500);
+    const sessionRider =
+      await resolveVerifiedRiderSession(req);
+    let rider = null;
+    let verifiedBy = null;
+    if (sessionRider) {
+      if (!isDeletionConfirmed(req.body.confirm)) {
+        return fail(res, "Type DELETE to confirm account deletion.", 400);
+      }
+      rider = sessionRider;
+      verifiedBy = "rider_session";
+    } else {
+      const phone =
+        cleanPhone(req.body.phone);
+      const code =
+        cleanString(req.body.code, 20);
+      if (!phone || !code) {
+        return fail(
+          res,
+          "Sign in, or enter your account phone number and verification code, to delete your account.",
+          400
+        );
+      }
+      const verification =
+        await verifyCode({
+          channel: "sms",
+          destination: phone,
+          code,
+          purpose: "account_deletion"
+        });
+      if (!verification.ok) {
+        return fail(
+          res,
+          verification.reason || "Verification failed.",
+          400
+        );
+      }
+      const { data: rows, error } =
+        await supabase
+          .from("riders")
+          .select("id, phone, is_review_account")
+          .eq("phone", phone)
+          .limit(2);
+      if (error) {
+        throw error;
+      }
+      const match = resolveAccountByVerifiedPhone(rows);
+      if (!match.ok) {
+        return fail(res, match.message, match.statusCode);
+      }
+      rider = match.row;
+      verifiedBy = "sms_code";
+    }
+    const riderId = rider.id;
+    const plan = planAccountDeletion({ row: rider, userType: "rider" });
+    if (plan.mode === DELETION_MODE.REVIEW_SIMULATED) {
+      const requestId = await recordReviewDeletionSimulation({
+        userType: "rider",
+        userId: riderId,
+        reason,
+        verifiedBy,
+        req
+      });
+      return ok(res, {
+        deleted: false,
+        simulated: true,
+        request_id: requestId,
+        status: DELETION_STATUS.REVIEW_SIMULATED,
+        message: REVIEW_DELETION_MESSAGE
+      });
+    }
+    try {
+      await anonymizeAccount({
+        table: "riders",
+        id: riderId,
+        reason,
+        deletedBy: "rider_self"
+      });
+    } catch (delErr) {
+      console.error("❌ Rider deletion failed:", delErr.message);
+      return fail(res, "Account deletion could not be completed.", 500);
+    }
+    // Record the completed deletion for the audit trail. The account is
+    // already anonymized at this point, so a failed insert is logged
+    // rather than reported to the rider as a failed deletion.
+    const requestId = makeId("DEL");
+    const { error: recordError } =
+      await supabase
+        .from("deletion_requests")
+        .insert({
+          request_id: requestId,
+          user_type: "rider",
+          user_id: riderId,
+          status: DELETION_STATUS.COMPLETED,
+          reason,
+          requested_at: nowIso(),
+          completed_at: nowIso(),
+          reviewed_by: "self_service"
+        });
+    if (recordError) {
+      console.error("❌ Rider deletion record insert failed:", recordError.message);
+    }
     auditLog({
-
       actor_type: "rider",
-
       actor_id: riderId,
-
       action: "account_deleted",
-
       entity_type: "rider",
-
       entity_id: riderId,
-
-      metadata: { self_service: true },
-
+      metadata: { self_service: true, verified_by: verifiedBy, request_id: requestId },
       req
-
     }).catch(() => {});
-
+    if (sessionRider) {
+      clearRiderSessionCookie(res);
+    }
     return ok(res, {
-
       deleted: true,
-
+      request_id: requestId,
       message: "Your account has been deleted and your personal information removed."
-
     });
-
   })
-
 );
 
-/* -------- DRIVER: request deletion (revokes access now) -------- */
-
+/* -------- DRIVER: request deletion (revokes access now) --------
+   The driver's own session only (no admin override). The request is
+   recorded before access is revoked, so a failure never leaves a
+   driver locked out with no request on file. */
 app.post(
-
   "/api/account/driver/delete-request",
-
-  requireDriver,
-
+  requireDriverSelf,
   asyncRoute(async (req, res) => {
-
     const driverId = req.driver.id;
-
     const reason =
-
       cleanString(req.body.reason, 500);
-
-    // Immediately revoke login access (anonymization waits for review).
-
-    await supabase
-
-      .from("drivers")
-
-      .update({
-
-        access_revoked: true,
-
-        status: "deletion_pending",
-
-        updated_at: nowIso()
-
-      })
-
-      .eq("id", driverId);
-
-    const requestId = makeId("DEL");
-
-    const { error } =
-
-      await supabase
-
-        .from("deletion_requests")
-
-        .insert({
-
-          request_id: requestId,
-
-          user_type: "driver",
-
-          user_id: driverId,
-
-          status: "pending",
-
-          reason,
-
-          requested_at: nowIso()
-
-        });
-
-    if (error) {
-
-      throw error;
-
+    const plan = planAccountDeletion({ row: req.driver, userType: "driver" });
+    if (plan.mode === DELETION_MODE.REVIEW_SIMULATED) {
+      const requestId = await recordReviewDeletionSimulation({
+        userType: "driver",
+        userId: driverId,
+        reason,
+        verifiedBy: "driver_session",
+        req
+      });
+      return ok(res, {
+        request_id: requestId,
+        simulated: true,
+        status: DELETION_STATUS.REVIEW_SIMULATED,
+        message: REVIEW_DELETION_MESSAGE
+      });
     }
-
+    const requestId = makeId("DEL");
+    const { error } =
+      await supabase
+        .from("deletion_requests")
+        .insert({
+          request_id: requestId,
+          user_type: "driver",
+          user_id: driverId,
+          status: DELETION_STATUS.PENDING,
+          reason,
+          requested_at: nowIso()
+        });
+    if (error) {
+      throw error;
+    }
+    // Immediately revoke login access (anonymization waits for review).
+    const { error: revokeError } =
+      await supabase
+        .from("drivers")
+        .update({
+          access_revoked: true,
+          status: "deletion_pending",
+          updated_at: nowIso()
+        })
+        .eq("id", driverId);
+    if (revokeError) {
+      throw revokeError;
+    }
     auditLog({
-
       actor_type: "driver",
-
       actor_id: driverId,
-
       action: "account_deletion_requested",
-
       entity_type: "driver",
-
       entity_id: driverId,
-
       metadata: { request_id: requestId },
-
       req
-
     }).catch(() => {});
-
     return ok(res, {
-
       request_id: requestId,
-
-      status: "pending",
-
+      status: DELETION_STATUS.PENDING,
       message: "Your deletion request was received and your account access has been disabled. An administrator will finalize the deletion after review."
-
     });
-
   })
-
 );
 
 /* -------- ADMIN: list deletion requests -------- */
@@ -21778,7 +21965,11 @@ app.get(
 
         web_push:
 
-          pushEnabled
+          pushEnabled,
+
+        mapbox:
+
+          GEO_CONFIG.configured && GEO_CONFIG.problems.length === 0
 
       },
 
@@ -21966,9 +22157,9 @@ app.get(
 
           Boolean(OPENAI_API_KEY),
 
-        GOOGLE_MAPS_BROWSER_KEY:
+        MAPBOX_ACCESS_TOKEN:
 
-          Boolean(GOOGLE_MAPS_BROWSER_KEY),
+          GEO_CONFIG.configured,
 
         VAPID_PUBLIC_KEY:
 
@@ -22749,6 +22940,28 @@ app.get(
 
     )
 
+);
+
+/* =========================================================
+   ADMIN: effective payment configuration (no secrets)
+   Answers "are live card payments enabled right now?" from the running
+   configuration -- key modes by prefix, gate, webhook secret -- never from
+   payment counts, and never returning any key material.
+========================================================= */
+app.get(
+  "/api/admin/payments/config-status",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    return ok(res, {
+      payments: describePaymentConfig({
+        secretKey: STRIPE_SECRET_KEY,
+        publishableKey: STRIPE_PUBLISHABLE_KEY,
+        webhookSecret: STRIPE_WEBHOOK_SECRET,
+        paymentGateEnabled: ENABLE_PAYMENT_GATE,
+        stripeClientReady: Boolean(stripe)
+      })
+    });
+  })
 );
 
 /* =========================================================

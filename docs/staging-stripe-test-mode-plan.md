@@ -112,7 +112,7 @@ production did once `APP_BASE_URL` was set correctly.
 | `APP_BASE_URL` | the staging Render URL | Lets CORS and absolute-link generation resolve correctly, per §1 |
 | `TWILIO_*` | reuse production's, or a separate subaccount/number | SMS is a transport, not a data or auth boundary — sending a real OTP SMS from staging doesn't expose or weaken anything production-side. A separate number is a nice-to-have for cleanliness (e.g. so a staging text is visibly distinguishable), not a security requirement |
 | `SENDGRID_*` | reuse production's, or a separate sender identity | Same reasoning as Twilio |
-| `GOOGLE_MAPS_BROWSER_KEY`, `GOOGLE_ROUTES_API_KEY` | reuse production's, restricted to the staging domain if the key supports HTTP-referrer/IP restrictions | Optional — staging doesn't need real routing-API testing for this plan; `dispatch_route_api_enabled` stays off in staging too (§6) |
+| `MAPBOX_ACCESS_TOKEN`, `GOOGLE_ROUTES_API_KEY` | a separate staging Mapbox token (server-side only) and, if used, a staging-restricted Routes key | Optional — staging doesn't need real routing-API testing for this plan; `dispatch_route_api_enabled` stays off in staging too (§6) |
 | `NODE_ENV` / `RENDER` | whatever marks this a non-production instance | Confirms `IS_PRODUCTION`-gated code paths behave as expected in logs during verification |
 
 **Key isolation guarantee**: even if every one of these staging values

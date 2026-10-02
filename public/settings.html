@@ -384,12 +384,18 @@
       .access-panel { flex-direction: column; align-items: flex-start; }
       .access-controls { width: 100%; }
     }
+    .deletion-identity, .deletion-help { margin: 12px 0; line-height: 1.5; }
+    .deletion-help { font-size: 0.9em; opacity: 0.85; }
   </style>
 </head>
 
 <body>
 
   <a href="#mainContent" class="skip-link">Skip to content</a>
+
+  <div id="settingsReviewBanner" role="status" hidden style="position:sticky; top:0; z-index:50; margin:8px; padding:10px 14px; border-radius:12px; border:1px solid rgba(255,196,0,0.55); background:rgba(255,196,0,0.14); color:#ffe59a; font-weight:700; text-align:center;">
+    App Review mode — rides, payments, earnings and account deletion are simulated for this review account.
+  </div>
 
   <main id="mainContent" class="shell">
 
@@ -686,7 +692,7 @@
         <!-- DANGER ZONE / ACCOUNT DELETION — NEW: previously advertised
              in the meta description and hero copy but had no actual UI
              anywhere on the page -->
-        <section class="panel danger">
+        <section class="panel danger" id="account-deletion">
           <div class="section-head">
             <h2 data-i18n="dangerZoneTitle">Account Deletion</h2>
             <p data-i18n="dangerZoneIntro">Request permanent deletion of your Harvey Taxi rider or driver account and associated data.</p>
@@ -702,10 +708,28 @@
               <label for="deletionReason" data-i18n="deletionReasonLabel">Reason for Deletion (optional)</label>
               <textarea id="deletionReason" placeholder="Help us understand why you're leaving (optional)"></textarea>
             </div>
-            <div class="field">
-              <label for="deletionConfirmEmail" data-i18n="deletionConfirmLabel">Confirm Account Email</label>
-              <input id="deletionConfirmEmail" type="email" placeholder="Re-enter your account email to confirm" autocomplete="email" />
+            <!-- How the request proves who you are: a signed-in session when
+                 there is one, otherwise (riders only) a code texted to the
+                 account's phone number. Filled in by refreshDeletionIdentity(). -->
+            <p id="deletionIdentity" class="deletion-identity">Checking whether you're signed in…</p>
+            <div id="deletionSmsFields" hidden>
+              <div class="field">
+                <label for="deletionPhone">Account Phone Number</label>
+                <input id="deletionPhone" type="tel" placeholder="Phone number on your rider account" autocomplete="tel" />
+              </div>
+              <div class="button-row">
+                <button class="btn" type="button" onclick="sendAccountDeletionCode()">Send Verification Code</button>
+              </div>
+              <div class="field">
+                <label for="deletionCode">Verification Code</label>
+                <input id="deletionCode" type="text" inputmode="numeric" placeholder="Enter the code we texted you" autocomplete="one-time-code" />
+              </div>
             </div>
+            <div class="field">
+              <label for="deletionConfirmText">Type DELETE to confirm</label>
+              <input id="deletionConfirmText" type="text" autocapitalize="characters" autocomplete="off" placeholder="DELETE" />
+            </div>
+            <p class="deletion-help">Can't sign in or receive a text? <a href="support.html">Contact support</a> and we'll verify your identity and delete your account.</p>
           </div>
           <div class="button-row">
             <button class="btn danger" type="button" onclick="requestAccountDeletion()" data-i18n="requestDeletion">Request Account Deletion</button>
@@ -757,7 +781,8 @@
         "accountType", "accountEmail",
         "batteryOptimizerToggle", "preciseLocationToggle", "lowPowerWarningToggle",
         "tripNotificationsToggle", "driverMissionToggle", "marketingToggle",
-        "profileNotice", "deletionNotice", "deletionReason", "deletionConfirmEmail",
+        "profileNotice", "deletionNotice", "deletionReason", "deletionIdentity",
+        "deletionSmsFields", "deletionPhone", "deletionCode", "deletionConfirmText",
         "auditList", "syncStatus",
         "statPersona", "statBattery", "statLocation", "statSync"
       ];
@@ -1180,47 +1205,163 @@
        ACCOUNT DELETION (NEW — was advertised in meta/hero copy
        but had no actual UI or logic anywhere in the page)
        ============================================================ */
+    // Who is deleting: a signed-in rider (session cookie), a signed-in
+    // driver (driver token from the driver dashboard), or -- riders only
+    // -- nobody yet, in which case a texted code proves the phone number.
+    // The server resolves the account from that proof, never from an id
+    // sent by this page.
+    const DRIVER_TOKEN_KEY = "harvey_driver_token";
+    const DRIVER_ID_KEY = "harvey_driver_id";
+    // riderReview/driverReview come from the server's view of the signed-in
+    // account (review_mode), never from anything stored in this browser.
+    const deletionIdentity = { rider: false, riderReview: false, driverToken: "", driverReview: false };
+
+    function readDriverToken() {
+      try { return localStorage.getItem(DRIVER_TOKEN_KEY) || ""; } catch { return ""; }
+    }
+
+    function selectedAccountType() {
+      return els.accountType?.value === "driver" ? "driver" : "rider";
+    }
+
+    async function refreshDeletionIdentity() {
+      deletionIdentity.driverToken = readDriverToken();
+      try {
+        const res = await fetch(`${HARVEY_API_BASE}/api/rider/session`, {
+          credentials: "include",
+          cache: "no-store"
+        });
+        deletionIdentity.rider = res.ok;
+        const data = res.ok ? await res.json().catch(() => ({})) : {};
+        deletionIdentity.riderReview = data.review_mode === true;
+      } catch {
+        deletionIdentity.rider = false;
+        deletionIdentity.riderReview = false;
+      }
+      deletionIdentity.driverReview = false;
+      if (deletionIdentity.driverToken) {
+        // The earnings route resolves the driver from the token itself;
+        // its review_mode flag marks App Review driver accounts.
+        let driverId = "";
+        try { driverId = localStorage.getItem(DRIVER_ID_KEY) || ""; } catch {}
+        try {
+          const res = await fetch(`${HARVEY_API_BASE}/api/driver/${encodeURIComponent(driverId || "self")}/earnings`, {
+            headers: { "x-driver-token": deletionIdentity.driverToken },
+            cache: "no-store"
+          });
+          const data = res.ok ? await res.json().catch(() => ({})) : {};
+          deletionIdentity.driverReview = data.review_mode === true;
+        } catch {}
+      }
+      renderDeletionIdentity();
+    }
+
+    function renderDeletionIdentity() {
+      if (!els.deletionIdentity) return;
+      const type = selectedAccountType();
+      let text;
+      let smsVisible = false;
+      if (type === "driver") {
+        text = deletionIdentity.driverToken
+          ? "You're signed in as a driver. Type DELETE below to request deletion of this driver account."
+          : "Sign in on the Driver Dashboard first, then return here (or use Delete Account there) to delete your driver account.";
+      } else if (deletionIdentity.rider) {
+        text = "You're signed in. Type DELETE below to delete this rider account.";
+      } else {
+        text = "You're not signed in. We'll text a code to the phone number on your rider account to confirm it's you.";
+        smsVisible = true;
+      }
+      const reviewAccount = type === "driver" ? deletionIdentity.driverReview : deletionIdentity.riderReview;
+      if (reviewAccount) {
+        text += " This is an App Review account: deletion is simulated. The request is recorded and confirmed, but the account and its data are kept so review can continue.";
+      }
+      els.deletionIdentity.textContent = text;
+      if (els.deletionSmsFields) els.deletionSmsFields.hidden = !smsVisible;
+      const banner = document.getElementById("settingsReviewBanner");
+      if (banner) banner.hidden = !(deletionIdentity.riderReview || deletionIdentity.driverReview);
+    }
+
+    async function sendAccountDeletionCode() {
+      const phone = els.deletionPhone?.value?.trim() || "";
+      if (!phone) {
+        dispatchNotice(els.deletionNotice, "Enter the phone number on your account first.", "error");
+        return;
+      }
+      try {
+        dispatchNotice(els.deletionNotice, "Sending verification code...", "info");
+        const response = await fetch(`${HARVEY_API_BASE}/api/verify/sms/start`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone, purpose: "account_deletion", user_type: "rider" })
+        });
+        if (!response.ok) throw new Error(`Request failed (HTTP ${response.status})`);
+        dispatchNotice(els.deletionNotice, "If that number is on a rider account, a code is on its way. Enter it below.", "success");
+        trackSettingsEvent("account_deletion_code_sent", { account_type: "rider" });
+      } catch (err) {
+        dispatchNotice(els.deletionNotice, "Unable to send a verification code right now. Please try again shortly or contact support.", "error");
+        trackSettingsEvent("account_deletion_code_failed", { message: err.message });
+      }
+    }
+
     async function requestAccountDeletion() {
       const reason = els.deletionReason?.value?.trim() || "";
-      const confirmEmail = els.deletionConfirmEmail?.value?.trim() || "";
-      const accountEmail = els.accountEmail?.value?.trim() || "";
+      const confirmText = els.deletionConfirmText?.value?.trim() || "";
+      const type = selectedAccountType();
 
-      if (!confirmEmail) {
-        dispatchNotice(els.deletionNotice, "Please confirm your account email before submitting a deletion request.", "error");
-        return;
-      }
-      if (accountEmail && confirmEmail.toLowerCase() !== accountEmail.toLowerCase()) {
-        dispatchNotice(els.deletionNotice, "Confirmation email does not match the account email above.", "error");
-        return;
-      }
-      if (!confirm("This will permanently request deletion of your Harvey Taxi account. This cannot be undone. Continue?")) {
+      if (confirmText.toUpperCase() !== "DELETE") {
+        dispatchNotice(els.deletionNotice, "Type DELETE in the confirmation box to continue.", "error");
         return;
       }
 
-      const payload = {
-        email: confirmEmail,
-        account_type: els.accountType?.value || "rider",
-        reason: reason || null,
-        requested_at: new Date().toISOString(),
-        source: "settings.html"
-      };
+      let path;
+      let headers = { "Content-Type": "application/json", "x-requested-with": "harvey-rider-app" };
+      let body = { reason: reason || null, confirm: "DELETE" };
+
+      if (type === "driver") {
+        if (!deletionIdentity.driverToken) {
+          dispatchNotice(els.deletionNotice, "Sign in on the Driver Dashboard first, then request deletion.", "error");
+          return;
+        }
+        path = "/api/account/driver/delete-request";
+        headers = { "Content-Type": "application/json", "x-driver-token": deletionIdentity.driverToken };
+      } else {
+        path = "/api/account/rider/delete";
+        if (!deletionIdentity.rider) {
+          const phone = els.deletionPhone?.value?.trim() || "";
+          const code = els.deletionCode?.value?.trim() || "";
+          if (!phone || !code) {
+            dispatchNotice(els.deletionNotice, "Enter your account phone number and the code we texted you.", "error");
+            return;
+          }
+          body = { ...body, phone, code };
+        }
+      }
 
       try {
         dispatchNotice(els.deletionNotice, "Submitting deletion request...", "info");
-        const response = await fetch(`${HARVEY_API_BASE}/api/account/delete-request`, {
+        const response = await fetch(`${HARVEY_API_BASE}${path}`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
+          credentials: "include",
+          headers,
+          body: JSON.stringify(body)
         });
-        if (!response.ok) throw new Error(`Request failed (HTTP ${response.status})`);
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.ok === false) {
+          throw new Error(data.error || data.message || `Request failed (HTTP ${response.status})`);
+        }
 
-        dispatchNotice(els.deletionNotice, "Deletion request submitted. Our team will confirm by email before any data is removed.", "success");
-        addAuditEntry("Account Deletion Requested", `${payload.account_type} account — confirmation sent to ${confirmEmail}.`);
-        trackSettingsEvent("account_deletion_requested", { account_type: payload.account_type });
+        dispatchNotice(els.deletionNotice, data.message || "Your deletion request was submitted.", "success");
+        addAuditEntry("Account Deletion Requested", `${type} account${data.simulated ? " (App Review mode)" : ""}.`);
+        trackSettingsEvent("account_deletion_requested", { account_type: type, simulated: data.simulated === true });
+        if (els.deletionConfirmText) els.deletionConfirmText.value = "";
+        if (data.deleted === true) {
+          deletionIdentity.rider = false;
+          renderDeletionIdentity();
+        }
       } catch (err) {
         dispatchNotice(
           els.deletionNotice,
-          "Unable to submit your deletion request right now. Please try again shortly or contact support directly.",
+          err.message || "Unable to submit your deletion request right now. Please try again shortly or contact support.",
           "error"
         );
         trackSettingsEvent("account_deletion_failed", { message: err.message });
@@ -1246,6 +1387,17 @@
           syncStatusEl.textContent = "Offline — changes saved locally only";
         }
       }
+    }
+
+    // The dashboards link here as settings.html?account=rider|driver#account-deletion.
+    function bindDeletionIdentity() {
+      const requested = new URLSearchParams(window.location.search).get("account");
+      if (els.accountType && (requested === "rider" || requested === "driver")) {
+        els.accountType.value = requested;
+      }
+      if (els.accountType) els.accountType.addEventListener("change", renderDeletionIdentity);
+      renderDeletionIdentity();
+      refreshDeletionIdentity();
     }
 
     function bindStatTriggers() {
@@ -1287,12 +1439,14 @@
       runStep("restoreSavedSettings", restoreSavedSettings);
       runStep("bindStatTriggers", bindStatTriggers);
       runStep("updateSettingsStats", updateSettingsStats);
+      runStep("bindDeletionIdentity", bindDeletionIdentity);
       trackSettingsEvent("settings_page_view", { version: APP_VERSION });
     }
 
     window.commitSavedSettings = commitSavedSettings;
     window.runSettingsHealthCheck = runSettingsHealthCheck;
     window.requestAccountDeletion = requestAccountDeletion;
+    window.sendAccountDeletionCode = sendAccountDeletionCode;
     window.openHarveyAiChat = openHarveyAiChat;
     window.closeHarveyAiChat = closeHarveyAiChat;
     window.safeGo = safeGo;

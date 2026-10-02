@@ -1713,6 +1713,54 @@
       gap: 7px;
     }
 
+    #rideWizardOverlay .geo-suggestions {
+      display: grid;
+      gap: 2px;
+      margin-top: 6px;
+      padding: 6px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: #0b1427;
+    }
+
+    #rideWizardOverlay .geo-suggestions[hidden] {
+      display: none;
+    }
+
+    #rideWizardOverlay .geo-suggestion {
+      text-align: left;
+      padding: 10px 12px;
+      border: 0;
+      border-radius: 10px;
+      background: transparent;
+      color: var(--text-main);
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    #rideWizardOverlay .geo-suggestion:hover,
+    #rideWizardOverlay .geo-suggestion:focus {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    #rideWizardOverlay .geo-attribution {
+      margin: 6px 0 0;
+      font-size: 11px;
+      color: var(--text-soft);
+    }
+
+    #rideWizardOverlay .geo-attribution a {
+      color: inherit;
+      text-decoration: underline;
+      margin-right: 6px;
+    }
+
+    /* .field sets display:grid, which otherwise overrides the hidden
+       attribute (e.g. the card field hidden for App Review riders). */
+    #rideWizardOverlay .field[hidden] {
+      display: none;
+    }
+
     #rideWizardOverlay .field label {
       color: #dfeaff;
       font-size: 0.82rem;
@@ -2562,6 +2610,56 @@
        default (not [hidden]) so there's no flash of dashboard content
        before the bootstrap check resolves; boot() hides it only after
        GET /api/rider/session confirms a real session. */
+    #authCheckRetry {
+      position: fixed;
+      inset: 0;
+      z-index: 10001;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+      background: rgba(4, 8, 20, 0.92);
+    }
+
+    #authCheckRetry[hidden] {
+      display: none;
+    }
+
+    #authCheckRetry .auth-card {
+      width: 100%;
+      max-width: 420px;
+      text-align: center;
+      display: grid;
+      gap: 12px;
+      padding: 24px 20px;
+      border-radius: 20px;
+      background: #0b1430;
+      border: 1px solid rgba(122, 162, 255, 0.28);
+      color: #f4f7ff;
+    }
+
+    #authCheckRetry h2 {
+      font-size: 1.2rem;
+    }
+
+    #authCheckRetry p {
+      color: #aab8de;
+      line-height: 1.5;
+    }
+
+    #authCheckRetry .auth-btn {
+      min-height: 44px;
+      border: 0;
+      border-radius: 12px;
+      background: linear-gradient(90deg, #2563eb, #22d3ee);
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    #authCheckRetry .auth-btn:disabled {
+      opacity: 0.6;
+    }
+
     #riderAuthOverlay {
       position: fixed;
       inset: 0;
@@ -2596,6 +2694,10 @@
       align-items: center;
       gap: 10px;
       margin-bottom: 18px;
+    }
+
+    #riderAuthOverlay .auth-tabs[hidden] {
+      display: none;
     }
 
     #riderAuthOverlay .auth-tabs {
@@ -2696,6 +2798,166 @@
       flex-wrap: wrap;
     }
 
+    /* App Review mode: simulated-data banner and the signed-out
+       "App Review Sign-In" entry points. */
+    .app-review-banner {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      margin: 0 0 12px;
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 196, 0, 0.55);
+      /* Opaque: the banner sticks to the top while content scrolls under it. */
+      background: #2b2410;
+      color: #ffe59a;
+      font-size: 0.9rem;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    /* "App Review Access": its own card, visibly apart from the rider
+       booking flow, shown only while signed out. */
+    .app-review-access {
+      margin: 0 0 18px;
+      padding: 16px 18px;
+      border-radius: 18px;
+      border: 1px dashed rgba(255, 196, 0, 0.6);
+      background: rgba(255, 196, 0, 0.06);
+    }
+
+    .app-review-access h2 {
+      margin: 0 0 6px;
+      font-size: 1rem;
+      color: #ffe59a;
+      letter-spacing: 0.02em;
+    }
+
+    .app-review-access p {
+      margin: 0 0 12px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .app-review-entry {
+      padding: 10px 16px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 196, 0, 0.6);
+      background: rgba(255, 196, 0, 0.12);
+      color: #ffe59a;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    /* Dedicated reviewer sign-in panel: separate from the rider
+       sign-in overlay and the booking wizard. */
+    #appReviewPanel {
+      position: fixed;
+      inset: 0;
+      z-index: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(2, 5, 12, 0.94);
+      overflow-y: auto;
+    }
+
+    #appReviewPanel[hidden] {
+      display: none;
+    }
+
+    .app-review-panel-card {
+      width: 100%;
+      max-width: 420px;
+      padding: 22px;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 196, 0, 0.55);
+      background: #0b1427;
+      color: var(--text);
+    }
+
+    .app-review-panel-card h2 {
+      margin: 0 0 6px;
+      color: #ffe59a;
+    }
+
+    .app-review-panel-card p {
+      margin: 0 0 14px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .app-review-panel-card label {
+      display: block;
+      margin: 10px 0 6px;
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+
+    .app-review-panel-card input {
+      width: 100%;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      font-size: 16px;
+    }
+
+    .app-review-panel-actions {
+      display: grid;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .app-review-panel-actions button {
+      padding: 12px;
+      border-radius: 12px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    #appReviewSubmitBtn {
+      border: 0;
+      background: #ffc400;
+      color: #1a1300;
+    }
+
+    #appReviewBackBtn {
+      border: 1px solid var(--line);
+      background: transparent;
+      color: var(--text);
+    }
+
+    .app-review-panel-error {
+      margin: 10px 0 0;
+      color: #ff9db0;
+    }
+
+    .sim-tag {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 196, 0, 0.6);
+      background: rgba(255, 196, 0, 0.14);
+      color: #ffe59a;
+      font-size: 0.72rem;
+      font-weight: 800;
+      vertical-align: middle;
+    }
+
+    .review-sim-note {
+      margin: 10px 0;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 196, 0, 0.55);
+      background: rgba(255, 196, 0, 0.12);
+      color: #ffe59a;
+      font-weight: 700;
+    }
+
     #riderAuthOverlay .auth-link {
       background: none;
       border: none;
@@ -2729,6 +2991,10 @@
 <body>
   <div class="shell">
 
+    <div class="app-review-banner" id="appReviewBanner" role="status" hidden>
+      App Review mode — rides, payments and earnings are simulated. No card is charged and no real driver is dispatched.
+    </div>
+
     <!-- TOPBAR -->
     <header class="topbar">
       <div class="brand-wrap">
@@ -2744,9 +3010,20 @@
         <button class="top-chip" type="button" data-action="home">Home</button>
         <button class="top-chip" type="button" data-action="support">Support</button>
         <button class="top-chip" type="button" data-action="ride">Book</button>
+        <a class="top-chip" href="settings.html?account=rider#account-deletion" id="riderDeleteAccountLink">Delete Account</a>
         <button class="top-chip" type="button" id="riderLogoutBtn">Sign out</button>
       </div>
     </header>
+
+    <!-- APP REVIEW ACCESS: shown only while signed out. Opens the
+         dedicated reviewer panel below, which signs in through
+         POST /api/review/rider/login -- the server accepts only accounts
+         flagged is_review_account in the database. -->
+    <section class="app-review-access" id="appReviewAccess" aria-labelledby="appReviewAccessTitle" hidden>
+      <h2 id="appReviewAccessTitle">App Review Access</h2>
+      <p>For authorized Apple App Store and Google Play reviewers only. Review rides, payments, and earnings are simulated.</p>
+      <button type="button" class="app-review-entry" id="appReviewSignInBtn">App Review Sign-In</button>
+    </section>
 
     <!-- HERO -->
     <section class="hero">
@@ -3515,6 +3792,14 @@
   <!-- ===== Rider sign-in gate (P0 remediation PR 2a) — visible until a
        real, server-verified session exists. See
        docs/security-remediation/pr-02a-rider-client-auth.md ===== -->
+  <div id="authCheckRetry" role="alertdialog" aria-labelledby="authCheckRetryTitle" aria-describedby="authCheckRetryText" hidden>
+    <div class="auth-card">
+      <h2 id="authCheckRetryTitle">We couldn't check your sign-in</h2>
+      <p id="authCheckRetryText">Harvey Taxi is busy or your connection dropped, so we couldn't confirm whether you're signed in. Nothing has been changed. Please try again in a moment.</p>
+      <button type="button" class="auth-btn" id="authCheckRetryBtn">Try again</button>
+    </div>
+  </div>
+
   <div id="riderAuthOverlay">
     <div class="auth-card">
       <div class="auth-brand">
@@ -3537,7 +3822,7 @@
         <button type="submit" class="auth-btn" id="authStartBtn">Send code</button>
         <p class="auth-error" id="authStartError" hidden></p>
         <p class="auth-footnote">New to Harvey Taxi? <a href="rider-signup.html">Create an account</a></p>
-        <p class="auth-footnote"><button type="button" class="auth-link" id="authReviewToggleBtn">Google Play reviewer sign-in</button></p>
+        <p class="auth-footnote"><button type="button" class="auth-link" id="authAppReviewLink">App Review Access</button></p>
       </form>
 
       <form id="authVerifyForm" class="auth-step" hidden>
@@ -3552,28 +3837,38 @@
         </div>
       </form>
 
-      <!-- Google Play reviewer sign-in: a separate email+password form,
-           independent of the OTP flow above. Only ever functional for
-           the two dedicated review accounts (server-side rejects any
-           other email) -- see POST /api/review/rider/login. -->
-      <form id="authReviewForm" class="auth-step" hidden>
-        <label class="auth-label" for="authReviewEmail">Reviewer email</label>
-        <input id="authReviewEmail" type="email" inputmode="email" autocomplete="username" class="auth-input" />
-        <label class="auth-label" for="authReviewPassword">Reviewer password</label>
-        <input id="authReviewPassword" type="password" autocomplete="current-password" class="auth-input" />
-        <button type="submit" class="auth-btn" id="authReviewBtn">Sign in as reviewer</button>
-        <p class="auth-error" id="authReviewError" hidden></p>
-        <p class="auth-footnote"><button type="button" class="auth-link" id="authReviewBackBtn">Back to rider sign-in</button></p>
-      </form>
-
       <p class="auth-status" id="authStatusMsg" hidden></p>
     </div>
   </div>
 
   <!-- ===== Merged from request-ride.html: full booking/payment/tracking wizard, hidden by default, opened via window.HarveyRideWizard.open({mode, ride_id}) ===== -->
+  <!-- Dedicated App Review sign-in panel. Deliberately outside both the
+       rider sign-in overlay (phone/email codes) and the booking wizard. -->
+  <div id="appReviewPanel" role="dialog" aria-modal="true" aria-labelledby="appReviewPanelTitle" hidden>
+    <div class="app-review-panel-card">
+      <h2 id="appReviewPanelTitle">App Review Sign-In</h2>
+      <p>For authorized Apple App Store and Google Play reviewers only. Review rides, payments, and earnings are simulated.</p>
+      <form id="appReviewForm" novalidate>
+        <label for="appReviewEmail">Reviewer email</label>
+        <input id="appReviewEmail" type="email" inputmode="email" autocomplete="username" />
+        <label for="appReviewPassword">Reviewer password</label>
+        <input id="appReviewPassword" type="password" autocomplete="current-password" />
+        <p class="app-review-panel-error" id="appReviewError" role="alert" hidden></p>
+        <div class="app-review-panel-actions">
+          <button type="submit" id="appReviewSubmitBtn">Sign in as reviewer</button>
+          <button type="button" id="appReviewBackBtn">Back to regular booking</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div id="rideWizardOverlay" hidden>
   <div class="page">
     <div class="shell">
+
+      <div class="app-review-banner" role="status" hidden>
+        App Review mode — this ride and its payment are simulated. No card is charged and no real driver is dispatched.
+      </div>
 
       <!-- TOPBAR -->
       <header class="topbar">
@@ -4067,6 +4362,8 @@
                 hidden
               ></span>
 
+              <p class="geo-attribution">Address search and routes: <a href="https://www.mapbox.com/about/maps/" target="_blank" rel="noopener">© Mapbox</a> <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a> <a href="https://www.mapbox.com/map-feedback/" target="_blank" rel="noopener">Improve this map</a></p>
+
               <!-- GPS STATUS -->
               <div class="gps-status">
 
@@ -4122,6 +4419,8 @@
                 role="alert"
                 hidden
               ></span>
+
+              <p class="geo-attribution">Address search and routes: <a href="https://www.mapbox.com/about/maps/" target="_blank" rel="noopener">© Mapbox</a> <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a> <a href="https://www.mapbox.com/map-feedback/" target="_blank" rel="noopener">Improve this map</a></p>
 
             </div>
 
@@ -4392,6 +4691,7 @@
               <p id="breakdownMinimumNote" class="fare-breakdown-note hidden">
                 Minimum fare applied.
               </p>
+              <p class="geo-attribution">Address search and routes: <a href="https://www.mapbox.com/about/maps/" target="_blank" rel="noopener">© Mapbox</a> <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a> <a href="https://www.mapbox.com/map-feedback/" target="_blank" rel="noopener">Improve this map</a></p>
             </div>
 
             <div class="actions">
@@ -4440,6 +4740,11 @@
 
             <!-- STAGE: PAYMENT & APPROVAL -->
             <div class="wizard-step" data-stage="payment" id="wizardStagePayment">
+
+            <!-- App Review accounts only: payment is simulated, no card. -->
+            <p class="review-sim-note" id="reviewPaymentNotice" hidden>
+              Simulated payment — App Review mode. No card is charged.
+            </p>
 
             <!-- SAVED CARDS -->
             <div class="field" id="savedCardsField" hidden>
@@ -5602,90 +5907,12 @@
     // a ride exists. Uses a straight dashed line between the two points
     // rather than a routed path — that's an honest "as the crow flies"
     // connector, not a claim about the driver's actual road route.
-    function updateLiveTrackingMap(data) {
-      if (!els.liveTrackingMap) return;
-
-      const tracking = data?.tracking;
-      const driverLoc = data?.driver?.location;
-
-      const targetLoc =
-        tracking?.target === "store" || tracking?.target === "pickup"
-          ? data?.pickup_location
-          : data?.destination_location;
-
-      const canRender =
-        window.__HARVEY_MAPS_ENABLED__ &&
-        window.google?.maps &&
-        tracking &&
-        driverLoc &&
-        Number.isFinite(Number(driverLoc.lat)) &&
-        Number.isFinite(Number(driverLoc.lng)) &&
-        targetLoc &&
-        Number.isFinite(Number(targetLoc.lat)) &&
-        Number.isFinite(Number(targetLoc.lng));
-
-      if (!canRender) {
+    // No in-app map: Mapbox is used server-side for address search and
+    // routing only, so tracking shows the text status, not a map.
+    function updateLiveTrackingMap() {
+      if (els.liveTrackingMap) {
         els.liveTrackingMap.classList.add("hidden");
-        return;
       }
-
-      els.liveTrackingMap.classList.remove("hidden");
-
-      const driverPos = { lat: Number(driverLoc.lat), lng: Number(driverLoc.lng) };
-      const targetPos = { lat: Number(targetLoc.lat), lng: Number(targetLoc.lng) };
-      const targetTitle =
-        tracking.target === "store" ? "Store" :
-        tracking.target === "customer" ? "You" :
-        tracking.target === "pickup" ? "Pickup" :
-        "Destination";
-
-      const tm = state.trackingMap;
-
-      if (!tm.instance) {
-        tm.instance = new google.maps.Map(els.liveTrackingMap, {
-          center: driverPos,
-          zoom: 13,
-          disableDefaultUI: true,
-          zoomControl: true,
-          streetViewControl: false,
-          mapTypeControl: false,
-          fullscreenControl: true
-        });
-
-        tm.driverMarker = new google.maps.Marker({
-          position: driverPos,
-          map: tm.instance,
-          title: "Your driver",
-          icon: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png"
-        });
-
-        tm.targetMarker = new google.maps.Marker({
-          position: targetPos,
-          map: tm.instance,
-          title: targetTitle
-        });
-
-        tm.line = new google.maps.Polyline({
-          path: [driverPos, targetPos],
-          strokeOpacity: 0,
-          icons: [{
-            icon: { path: "M 0,-1 0,1", strokeOpacity: 0.55, scale: 3 },
-            offset: "0",
-            repeat: "12px"
-          }],
-          map: tm.instance
-        });
-      } else {
-        tm.driverMarker.setPosition(driverPos);
-        tm.targetMarker.setPosition(targetPos);
-        tm.targetMarker.setTitle(targetTitle);
-        tm.line.setPath([driverPos, targetPos]);
-      }
-
-      const bounds = new google.maps.LatLngBounds();
-      bounds.extend(driverPos);
-      bounds.extend(targetPos);
-      tm.instance.fitBounds(bounds, 40);
     }
 
     function updateDeliveryInfo(status, delivery) {
@@ -6066,71 +6293,13 @@
       els.merchantSelectedBadge.classList.remove("hidden");
     }
 
-    function canUsePlacesAutocomplete() {
-      return Boolean(
-        window.__HARVEY_MAPS_ENABLED__ &&
-        window.google &&
-        window.google.maps &&
-        window.google.maps.places
-      );
-    }
 
-    function initMerchantAutocomplete() {
-      if (state.merchantAutocomplete || !els.merchantSearchInput) return;
-      if (!canUsePlacesAutocomplete()) return;
+    // Store search by name needs a points-of-interest search, which the
+    // address geocoder doesn't provide. Riders pick a quick pick or type the
+    // store name and its address; the address is resolved like any other.
+    function initMerchantAutocomplete() {}
 
-      try {
-        const autocomplete = new google.maps.places.Autocomplete(
-          els.merchantSearchInput,
-          { types: ["establishment"], fields: ["name", "formatted_address", "geometry"] }
-        );
-
-        if (state.pickup.latitude !== null && state.pickup.longitude !== null) {
-          const center = new google.maps.LatLng(state.pickup.latitude, state.pickup.longitude);
-          const circle = new google.maps.Circle({ center, radius: 15000 });
-          autocomplete.setBounds(circle.getBounds());
-        }
-
-        autocomplete.addListener("place_changed", () => {
-          const place = autocomplete.getPlace();
-          if (!place || !place.name) return;
-
-          state.merchant.name = place.name;
-          state.merchant.lat = place.geometry?.location?.lat() ?? null;
-          state.merchant.lng = place.geometry?.location?.lng() ?? null;
-
-          if (els.pickupAddress && place.formatted_address) {
-            els.pickupAddress.value = place.formatted_address;
-            state.pickup.address = place.formatted_address;
-          }
-
-          if (state.merchant.lat !== null && state.merchant.lng !== null) {
-            state.pickup.latitude = state.merchant.lat;
-            state.pickup.longitude = state.merchant.lng;
-            state.pickup.source = "merchant_search";
-          }
-
-          showMerchantSelected(place.name);
-
-          if (els.merchantPickerHint) {
-            els.merchantPickerHint.textContent =
-              "Pickup address filled in automatically. You can edit it below if needed.";
-          }
-        });
-
-        state.merchantAutocomplete = autocomplete;
-      } catch (err) {
-        // Places failed to initialize (e.g. billing/quota issue upstream).
-        // Manual search-box typing and quick picks still work without it.
-        state.merchantAutocomplete = null;
-      }
-    }
-
-    window.addEventListener("harvey-maps-ready", () => {
-      if (state.mode === "food" || state.mode === "grocery") {
-        initMerchantAutocomplete();
-      }
-
+    window.addEventListener("harvey-geo-ready", () => {
       initAddressAutocompletes();
     });
 
@@ -6139,45 +6308,101 @@
     // searches for restaurants/stores). Every rider-facing service —
     // taxi, food, grocery — routes pickup/destination through these same
     // two inputs, so binding it once here covers all of them.
+    // Address suggestions while typing, from GET /api/geo/suggest (Mapbox,
+    // server-side). Suggestions are "temporary" results under Mapbox's
+    // terms: choosing one only fills in the text. The address the ride is
+    // booked with is resolved (and may be stored) when the rider continues
+    // -- see ensureEndpointCoordinates().
     function bindAddressAutocomplete(inputEl, target, stateKey) {
-      if (!inputEl || state[stateKey] || !canUsePlacesAutocomplete()) return;
+      if (!inputEl || state[stateKey] || !geoAvailable()) return;
 
-      try {
-        const autocomplete = new google.maps.places.Autocomplete(
-          inputEl,
-          { fields: ["formatted_address", "geometry"] }
-        );
+      const list = document.createElement("div");
+      list.className = "geo-suggestions";
+      list.id = `${inputEl.id}Suggestions`;
+      list.setAttribute("role", "listbox");
+      list.hidden = true;
+      inputEl.setAttribute("aria-autocomplete", "list");
+      inputEl.setAttribute("aria-controls", list.id);
+      const anchor = document.getElementById(`${inputEl.id}Error`) || inputEl;
+      anchor.insertAdjacentElement("afterend", list);
 
-        autocomplete.addListener("place_changed", () => {
-          const place = autocomplete.getPlace();
-          const lat = place?.geometry?.location?.lat() ?? null;
-          const lng = place?.geometry?.location?.lng() ?? null;
+      let timer = null;
+      let lastQuery = "";
 
-          if (lat === null || lng === null) return;
+      const hide = () => {
+        list.hidden = true;
+        list.innerHTML = "";
+      };
 
-          target.latitude = lat;
-          target.longitude = lng;
-          target.source = "autocomplete";
+      const choose = (label) => {
+        inputEl.value = label;
+        target.address = label;
+        target.latitude = null;
+        target.longitude = null;
+        target.source = "suggestion";
+        lastQuery = label;
+        hide();
+        resetEstimateAndPayment("Trip details changed. Please get a fresh estimate.");
+      };
 
-          if (place.formatted_address) {
-            inputEl.value = place.formatted_address;
-            target.address = place.formatted_address;
-          }
-
-          resetEstimateAndPayment(
-            "Trip details changed. Please get a fresh estimate."
-          );
-
-          scheduleRouteRecalc(0);
+      const render = (results) => {
+        list.innerHTML = "";
+        if (!results.length) {
+          hide();
+          return;
+        }
+        results.forEach((result) => {
+          const option = document.createElement("button");
+          option.type = "button";
+          option.className = "geo-suggestion";
+          option.setAttribute("role", "option");
+          option.textContent = result.label;
+          // mousedown, not click: fires before the input's blur hides the list.
+          option.addEventListener("mousedown", (event) => {
+            event.preventDefault();
+            choose(result.label);
+          });
+          list.appendChild(option);
         });
+        const credit = document.createElement("div");
+        credit.className = "geo-attribution";
+        credit.innerHTML = GEO_ATTRIBUTION_HTML;
+        list.appendChild(credit);
+        list.hidden = false;
+      };
 
-        state[stateKey] = autocomplete;
-      } catch (err) {
-        // Places failed to initialize (e.g. billing/quota issue upstream).
-        // Manual typing + the forward-geocode fallback in
-        // ensureTripDistance() below still work without it.
-        state[stateKey] = null;
-      }
+      const search = async () => {
+        const query = safeTrim(inputEl.value);
+        if (query.length < 3 || query === lastQuery) return;
+        lastQuery = query;
+        const near =
+          target !== state.pickup && state.pickup.latitude !== null
+            ? `&lat=${encodeURIComponent(state.pickup.latitude)}&lng=${encodeURIComponent(state.pickup.longitude)}`
+            : "";
+        try {
+          const data = await apiFetch(`/api/geo/suggest?q=${encodeURIComponent(query)}${near}`);
+          if (safeTrim(inputEl.value) === query) {
+            render(Array.isArray(data?.results) ? data.results : []);
+          }
+        } catch {
+          hide();
+        }
+      };
+
+      inputEl.addEventListener("input", () => {
+        clearTimeout(timer);
+        if (safeTrim(inputEl.value).length < 3) {
+          hide();
+          return;
+        }
+        timer = setTimeout(search, 300);
+      });
+      inputEl.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") hide();
+      });
+      inputEl.addEventListener("blur", () => setTimeout(hide, 150));
+
+      state[stateKey] = { list };
     }
 
     function initAddressAutocompletes() {
@@ -6207,33 +6432,28 @@
     // Forward-geocodes a free-typed address string into coordinates —
     // the fallback for when a rider types an address and tabs away
     // without picking an Autocomplete suggestion.
-    function geocodeAddressString(address) {
-      if (
-        !window.__HARVEY_MAPS_ENABLED__ ||
-        !window.google ||
-        !window.google.maps ||
-        !window.google.maps.Geocoder ||
-        !safeTrim(address)
-      ) {
-        return Promise.resolve(null);
+    // Resolves typed text to the address and coordinates the ride is booked
+    // with, via POST /api/geo/resolve (a "permanent" Mapbox result, which
+    // may be stored). Returns { lat, lng, label }, or null when the address
+    // isn't found or the service is down (geoAvailable() tells which).
+    async function geocodeAddressString(address) {
+      if (!geoAvailable()) return null;
+      const near =
+        state.pickup.latitude !== null
+          ? { lat: state.pickup.latitude, lng: state.pickup.longitude }
+          : undefined;
+      try {
+        const data = await apiPost("/api/geo/resolve", { query: address, near });
+        state.geoServiceDown = false;
+        const place = data?.place;
+        if (!place || !Number.isFinite(Number(place.lat)) || !Number.isFinite(Number(place.lng))) {
+          return null;
+        }
+        return { lat: Number(place.lat), lng: Number(place.lng), label: place.label || "" };
+      } catch (err) {
+        noteGeoFailure(err);
+        return null;
       }
-
-      if (!geocoder) {
-        geocoder = new window.google.maps.Geocoder();
-      }
-
-      return new Promise((resolve) => {
-        geocoder.geocode({ address }, (results, status) => {
-          if (status === "OK" && results && results[0]?.geometry?.location) {
-            resolve({
-              lat: results[0].geometry.location.lat(),
-              lng: results[0].geometry.location.lng()
-            });
-          } else {
-            resolve(null);
-          }
-        });
-      });
     }
 
     async function ensureEndpointCoordinates(target, addressEl) {
@@ -6253,6 +6473,12 @@
       target.longitude = geocoded.lng;
       target.source = "geocoded";
 
+      // Book with the resolved address text, not the typed or suggested one.
+      if (geocoded.label) {
+        target.address = geocoded.label;
+        if (addressEl) addressEl.value = geocoded.label;
+      }
+
       return true;
     }
 
@@ -6268,70 +6494,60 @@
     // show a concise error next to the specific address that failed
     // (field: "pickup" | "destination" | "route" | "maps") instead of one
     // generic "something went wrong" banner repeated at every later stage.
+    // Real driving distance/duration between pickup and destination, from
+    // POST /api/geo/route (Mapbox Directions, server-side), stored on
+    // state.estimate.distanceMiles/durationMinutes -- the fields
+    // buildTripPayload() sends to the fare estimate.
+    //
+    // Returns a structured result so callers can show a concise error next
+    // to the address that failed (field: "pickup" | "destination" |
+    // "route"), or a "temporarily unavailable" message (field: null) when
+    // the lookup service itself is down -- never blaming a good address.
     async function ensureTripDistance() {
       if (state.estimate.distanceKnown) {
         return { ok: true };
       }
 
-      if (
-        !window.__HARVEY_MAPS_ENABLED__ ||
-        !window.google ||
-        !window.google.maps
-      ) {
+      if (!geoAvailable()) {
         return { ok: false, field: null, reason: "maps_unavailable" };
       }
 
       const hasPickup = await ensureEndpointCoordinates(state.pickup, els.pickupAddress);
-
       if (!hasPickup) {
-        return { ok: false, field: "pickup", reason: "pickup_geocode_failed" };
+        return geoAvailable()
+          ? { ok: false, field: "pickup", reason: "pickup_geocode_failed" }
+          : { ok: false, field: null, reason: "maps_unavailable" };
       }
 
       const hasDestination = await ensureEndpointCoordinates(state.destination, els.destinationAddress);
-
       if (!hasDestination) {
-        return { ok: false, field: "destination", reason: "destination_geocode_failed" };
+        return geoAvailable()
+          ? { ok: false, field: "destination", reason: "destination_geocode_failed" }
+          : { ok: false, field: null, reason: "maps_unavailable" };
       }
 
-      if (!window.google.maps.DistanceMatrixService) {
-        return { ok: false, field: null, reason: "maps_unavailable" };
+      try {
+        const data = await apiPost("/api/geo/route", {
+          from: { lat: state.pickup.latitude, lng: state.pickup.longitude },
+          to: { lat: state.destination.latitude, lng: state.destination.longitude }
+        });
+        state.geoServiceDown = false;
+        const miles = Number(data?.distance_miles);
+        const minutes = Number(data?.duration_minutes);
+        if (!Number.isFinite(miles) || !Number.isFinite(minutes)) {
+          return { ok: false, field: "route", reason: "distance_matrix_failed", detail: "bad_response" };
+        }
+        state.estimate.distanceMiles = miles;
+        state.estimate.durationMinutes = minutes;
+        state.estimate.distanceKnown = true;
+        return { ok: true };
+      } catch (err) {
+        if (err?.status === 422) {
+          return { ok: false, field: "route", reason: "distance_matrix_failed", detail: "no_route" };
+        }
+        noteGeoFailure(err);
+        return { ok: false, field: null, reason: "maps_unavailable", detail: `http_${err?.status || 0}` };
       }
-
-      return new Promise((resolve) => {
-        const service = new google.maps.DistanceMatrixService();
-
-        service.getDistanceMatrix(
-          {
-            origins: [{ lat: state.pickup.latitude, lng: state.pickup.longitude }],
-            destinations: [{ lat: state.destination.latitude, lng: state.destination.longitude }],
-            travelMode: google.maps.TravelMode.DRIVING,
-            unitSystem: google.maps.UnitSystem.IMPERIAL
-          },
-          (response, status) => {
-            const element = response?.rows?.[0]?.elements?.[0];
-
-            if (status !== "OK" || !element || element.status !== "OK") {
-              resolve({
-                ok: false,
-                field: "route",
-                reason: "distance_matrix_failed",
-                detail: `${status}/${element?.status || "no_element"}`
-              });
-              return;
-            }
-
-            state.estimate.distanceMiles =
-              Number((element.distance.value / 1609.34).toFixed(2));
-
-            state.estimate.durationMinutes =
-              Number((element.duration.value / 60).toFixed(1));
-
-            state.estimate.distanceKnown = true;
-
-            resolve({ ok: true });
-          }
-        );
-      });
     }
 
     // Best-effort, silent report of a client-side Google Maps routing
@@ -6399,6 +6615,44 @@
     // Pickup / Edit Destination / Retry Route recovery actions — replacing
     // the old pattern of one large "we couldn't calculate a route..."
     // paragraph repeated across every later wizard stage.
+    // Mapbox attribution, required next to search and route results when
+    // they're shown without a Mapbox map.
+    const GEO_ATTRIBUTION_HTML =
+      'Address search and routes: <a href="https://www.mapbox.com/about/maps/" target="_blank" rel="noopener">© Mapbox</a> ' +
+      '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a> ' +
+      '<a href="https://www.mapbox.com/map-feedback/" target="_blank" rel="noopener">Improve this map</a>';
+
+    // Address search/routing availability: configured on the server
+    // (GET /api/geo/status) and not currently failing.
+    function geoAvailable() {
+      return window.__HARVEY_GEO_ENABLED__ === true && state.geoServiceDown !== true;
+    }
+
+    // A 503 (not configured / provider down) or network failure marks the
+    // service down so riders get "temporarily unavailable", not "bad
+    // address". A later success clears it.
+    function noteGeoFailure(err) {
+      const status = Number(err?.status || 0);
+      if (status === 0 || status >= 500) {
+        state.geoServiceDown = true;
+        if (err?.data?.code === "geo_not_configured") {
+          window.__HARVEY_GEO_CONFIG_ERROR__ = true;
+        }
+      }
+    }
+
+    // Shown when Google Maps itself is unavailable, so the rider isn't told
+    // their (perfectly good) address couldn't be found.
+    function mapsUnavailableMessage() {
+      return "Address lookup and fare estimates are temporarily unavailable. Please try again later or contact support.";
+    }
+
+    function showMapsUnavailable() {
+      setBadge("Maps Unavailable");
+      showNotice(mapsUnavailableMessage(), "error");
+      reportRouteFailure("maps_unavailable");
+    }
+
     function showRouteFailure(result) {
       setBadge("Distance Unavailable");
       setDispatchState("Distance Unavailable");
@@ -6432,6 +6686,8 @@
         message = "Check your destination address below, then retry.";
       } else if (result.field === "route") {
         message = "We couldn't find a driving route between these two addresses. Please double-check both, then retry.";
+      } else if (result.reason === "maps_unavailable") {
+        message = mapsUnavailableMessage();
       }
 
       showNotice(message, "error");
@@ -6776,10 +7032,38 @@
       return true;
     }
 
+    // App Review accounts only (set by the dashboard script from the
+    // server-verified session, GET /api/rider/session's review_mode): the
+    // payment step is simulated, so the card form is replaced by a clear
+    // "no card is charged" notice. Ordinary riders are unaffected.
+    function isAppReviewMode() {
+      return window.HarveyReviewMode === true;
+    }
+
+    function applyReviewPaymentUi() {
+      const review = isAppReviewMode();
+      const notice = document.getElementById("reviewPaymentNotice");
+      const newCardField = document.getElementById("newCardField");
+
+      if (notice) notice.hidden = !review;
+      if (newCardField) newCardField.hidden = review;
+      if (review && els.savedCardsField) els.savedCardsField.hidden = true;
+
+      if (els.authorizePaymentBtn) {
+        els.authorizePaymentBtn.textContent = review
+          ? "Continue with simulated payment"
+          : "Authorize Payment";
+      }
+    }
+
     function goToStage(stageId) {
       if (!STAGES.includes(stageId)) return;
 
       state.stage = stageId;
+
+      if (stageId === "payment") {
+        applyReviewPaymentUi();
+      }
 
       const isConfirm = stageId === "confirm";
 
@@ -7943,6 +8227,34 @@
         }
       }
 
+      // App Review mode: no card, no Stripe call. The server creates a
+      // review ride already authorized with payment not_required, so
+      // there is nothing to authorize here.
+      if (isAppReviewMode()) {
+        state.payment.authorized = true;
+        state.payment.paymentId = "";
+        state.payment.simulated = true;
+
+        if (els.requestRideBtn) {
+          els.requestRideBtn.disabled = false;
+        }
+
+        setBadge("Simulated Payment");
+        setTimeline(
+          "payment",
+          "Simulated payment — App Review mode. No card is charged."
+        );
+        setLiveStatus(
+          "Simulated payment ready (App Review mode)."
+        );
+        showNotice(
+          "Simulated payment — App Review mode. No card is charged.",
+          "success"
+        );
+
+        return true;
+      }
+
       const usingSavedCard =
         Boolean(state.payment.selectedMethodId) &&
         state.payment.selectedMethodId !== "new";
@@ -8278,7 +8590,7 @@
             state.mode
           );
 
-          if (CONFIG.REQUIRE_PAYMENT_AUTHORIZATION && paymentId) {
+          if (CONFIG.REQUIRE_PAYMENT_AUTHORIZATION && paymentId && !isAppReviewMode()) {
             try {
               await apiPost(
                 `${CONFIG.ENDPOINTS.authorizeRide}/${encodeURIComponent(state.ride.rideId)}/authorize`,
@@ -8328,7 +8640,9 @@
         );
 
         showNotice(
-          "Dispatch request submitted successfully.",
+          isAppReviewMode()
+            ? "Dispatch request submitted (App Review mode: simulated ride and payment)."
+            : "Dispatch request submitted successfully.",
           "success"
         );
 
@@ -8531,43 +8845,21 @@
       stopRidePolling();
     }
 
-    function canUseGoogleMaps() {
-      return Boolean(
-        window.__HARVEY_MAPS_ENABLED__ &&
-        window.google &&
-        window.google.maps &&
-        els.pickupMap
-      );
-    }
 
     let geocoder = null;
 
-    function reverseGeocode(lat, lng) {
-      if (
-        !window.__HARVEY_MAPS_ENABLED__ ||
-        !window.google ||
-        !window.google.maps ||
-        !window.google.maps.Geocoder
-      ) {
-        return Promise.resolve(null);
+    // Street address for the rider's GPS position ("Use My Location"),
+    // via POST /api/geo/reverse (permanent Mapbox result).
+    async function reverseGeocode(lat, lng) {
+      if (!geoAvailable()) return null;
+      try {
+        const data = await apiPost("/api/geo/reverse", { lat, lng });
+        state.geoServiceDown = false;
+        return data?.place?.label || null;
+      } catch (err) {
+        noteGeoFailure(err);
+        return null;
       }
-
-      if (!geocoder) {
-        geocoder = new window.google.maps.Geocoder();
-      }
-
-      return new Promise((resolve) => {
-        geocoder.geocode(
-          { location: { lat, lng } },
-          (results, status) => {
-            if (status === "OK" && results && results[0]) {
-              resolve(results[0].formatted_address);
-            } else {
-              resolve(null);
-            }
-          }
-        );
-      });
     }
 
     function hideMapFallback() {
@@ -8588,61 +8880,19 @@
       }
     }
 
+    // No in-app map (see updateLiveTrackingMap): the map area shows the
+    // location status card instead.
     function initOrUpdateMap() {
+      showMapFallback();
       if (
         state.pickup.latitude === null ||
         state.pickup.longitude === null
       ) {
-        showMapFallback();
         setMapBadge("Map Standby");
         return;
       }
-
-      const center = {
-        lat: Number(state.pickup.latitude),
-        lng: Number(state.pickup.longitude)
-      };
-
       updateLocationMeta();
-
-      if (!canUseGoogleMaps()) {
-        showMapFallback();
-        setMapBadge("GPS Captured");
-        return;
-      }
-
-      hideMapFallback();
-      setMapBadge("Live Map");
-
-      if (!state.map.instance) {
-        state.map.instance = new google.maps.Map(
-          els.pickupMap,
-          {
-            center,
-            zoom: CONFIG.MAP_DEFAULT_ZOOM,
-            disableDefaultUI: true,
-            zoomControl: true,
-            streetViewControl: false,
-            mapTypeControl: false,
-            fullscreenControl: true
-          }
-        );
-
-        state.map.marker = new google.maps.Marker({
-          position: center,
-          map: state.map.instance,
-          title: "Harvey Taxi Pickup Location"
-        });
-
-        state.map.loaded = true;
-        return;
-      }
-
-      state.map.instance.setCenter(center);
-
-      if (state.map.marker) {
-        state.map.marker.setPosition(center);
-      }
+      setMapBadge("Location Captured");
     }
 
     function detectLocation() {
@@ -8811,6 +9061,11 @@
 
         setBusy(els.stagePickupContinueBtn, false);
 
+        if (!resolved && !geoAvailable()) {
+          showMapsUnavailable();
+          return;
+        }
+
         if (!resolved) {
           setFieldError(
             els.pickupAddressError,
@@ -8842,6 +9097,11 @@
         const resolved = await ensureEndpointCoordinates(state.destination, els.destinationAddress);
 
         setBusy(els.stageDestinationContinueBtn, false);
+
+        if (!resolved && !geoAvailable()) {
+          showMapsUnavailable();
+          return;
+        }
 
         if (!resolved) {
           setFieldError(
@@ -9268,7 +9528,7 @@
       activeRequestLastStatus: "",
       savedPlaces: [],
       trackingMap: { instance: null, driverMarker: null, targetMarker: null, line: null },
-      mapsEnabled: false,
+      geoEnabled: false,
       htafApplication: null
     };
 
@@ -9628,13 +9888,16 @@
       resendBtn: document.getElementById("authResendBtn"),
       backBtn: document.getElementById("authBackBtn"),
       logoutBtn: document.getElementById("riderLogoutBtn"),
-      reviewToggleBtn: document.getElementById("authReviewToggleBtn"),
-      reviewForm: document.getElementById("authReviewForm"),
-      reviewEmail: document.getElementById("authReviewEmail"),
-      reviewPassword: document.getElementById("authReviewPassword"),
-      reviewBtn: document.getElementById("authReviewBtn"),
-      reviewError: document.getElementById("authReviewError"),
-      reviewBackBtn: document.getElementById("authReviewBackBtn")
+      appReviewLink: document.getElementById("authAppReviewLink"),
+      reviewAccess: document.getElementById("appReviewAccess"),
+      reviewEntryBtn: document.getElementById("appReviewSignInBtn"),
+      reviewPanel: document.getElementById("appReviewPanel"),
+      reviewForm: document.getElementById("appReviewForm"),
+      reviewEmail: document.getElementById("appReviewEmail"),
+      reviewPassword: document.getElementById("appReviewPassword"),
+      reviewBtn: document.getElementById("appReviewSubmitBtn"),
+      reviewError: document.getElementById("appReviewError"),
+      reviewBackBtn: document.getElementById("appReviewBackBtn")
     };
 
     function showAuthOverlay() {
@@ -9666,6 +9929,7 @@
     }
 
     function resetAuthStep() {
+      setAuthTabsVisible(true);
       authEls.startForm.hidden = false;
       authEls.verifyForm.hidden = true;
       clearAuthError(authEls.startError);
@@ -9833,32 +10097,58 @@
     // approved PR 2a scope). Any non-2xx here always means "show the
     // sign-in gate," regardless of what's cached locally.
     // Rollout switch for the sign-in gate itself (P0 remediation PR 2a,
-    // docs/security-remediation/pr-02a-rider-client-auth.md) -- separate
-    // from the future rider_auth_enforced flag (server-side route
-    // enforcement, PR 2b). Defaults to false on any error, same as the
-    // flag's own server-side default, so a network hiccup on this one
-    // check can never accidentally turn the new gate on for someone who
-    // shouldn't see it yet.
-    async function isRiderAuthUiEnabled() {
+    // docs/security-remediation/pr-02a-rider-client-auth.md). Returns
+    // "enabled" or "disabled" only when the server actually answered.
+    // A rate limit (429), timeout, network error, server error or
+    // malformed reply is "unavailable" -- never "disabled": treating a
+    // failed check as "sign-in is off" would let anyone who triggers a
+    // 429 skip the sign-in screen. The caller shows a retry state instead.
+    // Server-side route enforcement (requireRider, rider_auth_enforced)
+    // does not depend on this check at all.
+    const AUTH_CHECK_TIMEOUT_MS = 8000;
+
+    async function fetchWithTimeout(url, options = {}) {
+      const controller = typeof AbortController === "function" ? new AbortController() : null;
+      const timer = controller ? setTimeout(() => controller.abort(), AUTH_CHECK_TIMEOUT_MS) : null;
       try {
-        const response = await fetch(`${apiBase()}/api/rider/auth-ui-config`);
-
-        if (!response.ok) {
-          return false;
-        }
-
-        const data = await response.json();
-        return data?.enabled === true;
-      } catch {
-        return false;
+        return await fetch(url, controller ? { ...options, signal: controller.signal } : options);
+      } finally {
+        if (timer) clearTimeout(timer);
       }
+    }
+
+    async function checkRiderAuthUi() {
+      let response;
+      try {
+        response = await fetchWithTimeout(`${apiBase()}/api/rider/auth-ui-config`);
+      } catch {
+        return "unavailable";
+      }
+      if (!response.ok) {
+        return "unavailable";
+      }
+      let data;
+      try {
+        data = await response.json();
+      } catch {
+        return "unavailable";
+      }
+      if (!data || typeof data.enabled !== "boolean") {
+        return "unavailable";
+      }
+      return data.enabled ? "enabled" : "disabled";
+    }
+
+    // Statuses that mean "we could not find out", not "signed out".
+    function isTransientAuthStatus(status) {
+      return status === 0 || status === 408 || status === 429 || status >= 500;
     }
 
     async function bootstrapRiderSession() {
       let response;
 
       try {
-        response = await fetch(`${apiBase()}/api/rider/session`, {
+        response = await fetchWithTimeout(`${apiBase()}/api/rider/session`, {
           credentials: "include"
         });
       } catch {
@@ -9889,6 +10179,8 @@
         approval_status: data.approval_status
       };
 
+      setAppReviewMode(data.review_mode === true);
+
       // Non-authoritative UI continuity only (other code on this page
       // still reads this key directly during the migration) -- never
       // treated as proof of identity by this bootstrap check itself,
@@ -9908,6 +10200,8 @@
 
       hideAuthOverlay();
       resetAuthStep();
+      closeAppReviewPanel({ returnToSignIn: false });
+      setSignedOutReviewEntry(false);
       await runAuthenticatedBoot();
     }
 
@@ -9928,6 +10222,8 @@
       clearRiderSession();
       state.riderId = "";
       state.riderProfile = null;
+      setAppReviewMode(false);
+      setSignedOutReviewEntry(true);
 
       if (authEls.logoutBtn) {
         authEls.logoutBtn.disabled = false;
@@ -9987,24 +10283,78 @@
       await requestLoginCode();
     }
 
-    // Google Play reviewer sign-in: a separate email+password form (see
-    // authReviewForm in the HTML above), independent of the OTP flow
-    // above it. POST /api/review/rider/login mints the exact same
+    // App Review sign-in: the dedicated #appReviewPanel email+password
+    // form, independent of the rider code sign-in above. POST /api/review/rider/login mints the exact same
     // session cookie a real OTP login does, so completeSignIn() below
     // works unchanged for a reviewer session.
-    function showReviewForm() {
-      authEls.startForm.hidden = true;
-      authEls.reviewForm.hidden = false;
+    // App Review mode (server-verified via GET /api/rider/session's
+    // review_mode, true only for the flagged review account): shows the
+    // "simulated" banner and lets the ride wizard skip the card step.
+    // Purely presentational -- the server decides what is simulated.
+    function setAppReviewMode(on) {
+      window.HarveyReviewMode = on === true;
+      document.body.classList.toggle("app-review-mode", window.HarveyReviewMode);
+
+      // Every banner on the page: the dashboard's and the booking
+      // wizard's (the wizard overlay covers the dashboard).
+      document.querySelectorAll(".app-review-banner").forEach((banner) => {
+        banner.hidden = !window.HarveyReviewMode;
+      });
+    }
+
+    // The "App Review Access" card is shown only while signed out,
+    // regardless of rider_auth_ui_enabled (which stays off). It opens the
+    // dedicated reviewer panel -- never the rider sign-in overlay or the
+    // booking wizard -- and the server accepts that panel's credentials
+    // only for accounts flagged is_review_account.
+    let reviewPanelReturnsToSignIn = false;
+
+    function setSignedOutReviewEntry(visible) {
+      if (authEls.reviewAccess) {
+        authEls.reviewAccess.hidden = !visible;
+      }
+    }
+
+    // The Phone/Email tabs belong to the rider code sign-in only.
+    function setAuthTabsVisible(visible) {
+      const tabs = document.querySelector("#riderAuthOverlay .auth-tabs");
+      if (tabs) {
+        tabs.hidden = !visible;
+      }
+    }
+
+    function openAppReviewPanel(event) {
+      if (event) {
+        event.preventDefault();
+      }
+
+      if (window.HarveyRideWizard) {
+        window.HarveyRideWizard.close();
+      }
+
+      // Opened from inside the rider sign-in overlay (only shown when
+      // rider_auth_ui_enabled is on): remember to return there on Back.
+      reviewPanelReturnsToSignIn = !authEls.overlay.hidden;
+      hideAuthOverlay();
+      setAuthTabsVisible(false);
+
       clearAuthError(authEls.reviewError);
+      authEls.reviewPanel.hidden = false;
       authEls.reviewEmail.focus();
     }
 
-    function hideReviewForm() {
-      authEls.reviewForm.hidden = true;
-      authEls.startForm.hidden = false;
-      clearAuthError(authEls.reviewError);
+    function closeAppReviewPanel({ returnToSignIn = reviewPanelReturnsToSignIn } = {}) {
+      authEls.reviewPanel.hidden = true;
       authEls.reviewEmail.value = "";
       authEls.reviewPassword.value = "";
+      clearAuthError(authEls.reviewError);
+      setAuthTabsVisible(true);
+      reviewPanelReturnsToSignIn = false;
+
+      if (returnToSignIn) {
+        resetAuthStep();
+        showAuthOverlay();
+      }
     }
 
     // Mirrors lib/reviewAccounts.js's resolveReviewLoginClientMessage
@@ -10014,7 +10364,7 @@
     // no-enumeration principle the server already applies.
     function resolveReviewLoginMessage(status, retryAfterSeconds) {
       if (status === 503) {
-        return "Google Play review sign-in is temporarily disabled.";
+        return "App review sign-in is temporarily disabled.";
       }
 
       if (status === 429) {
@@ -10086,12 +10436,14 @@
 
       authEls.backBtn.addEventListener("click", resetAuthStep);
 
-      if (authEls.reviewToggleBtn) {
-        authEls.reviewToggleBtn.addEventListener("click", showReviewForm);
-      }
+      [authEls.reviewEntryBtn, authEls.appReviewLink].forEach((el) => {
+        if (el) {
+          el.addEventListener("click", openAppReviewPanel);
+        }
+      });
 
       if (authEls.reviewBackBtn) {
-        authEls.reviewBackBtn.addEventListener("click", hideReviewForm);
+        authEls.reviewBackBtn.addEventListener("click", () => closeAppReviewPanel());
       }
 
       if (authEls.reviewForm) {
@@ -10216,6 +10568,20 @@
       `;
     }
 
+    function rememberDefaultHeroCopy() {
+      if (els.heroTitle.dataset.defaultTitle === undefined) {
+        els.heroTitle.dataset.defaultTitle = els.heroTitle.textContent;
+        els.heroText.dataset.defaultText = els.heroText.textContent;
+      }
+    }
+
+    function restoreDefaultHeroCopy() {
+      if (els.heroTitle.dataset.defaultTitle !== undefined) {
+        els.heroTitle.textContent = els.heroTitle.dataset.defaultTitle;
+        els.heroText.textContent = els.heroText.dataset.defaultText;
+      }
+    }
+
     async function loadRiderStatus() {
       // state.riderId/riderProfile may already be set by
       // bootstrapRiderSession() (server-verified, via GET
@@ -10234,6 +10600,8 @@
         !state.riderId &&
         !state.riderProfile?.email
       ) {
+        rememberDefaultHeroCopy();
+
         els.heroTitle.textContent =
           "Finish rider setup to continue.";
 
@@ -10243,6 +10611,10 @@
         renderRider();
         return;
       }
+
+      // Signing in without a page reload (e.g. App Review Sign-In) must
+      // replace the signed-out "Finish rider setup" copy shown above.
+      restoreDefaultHeroCopy();
 
       const query = state.riderId
         ? `riderId=${encodeURIComponent(state.riderId)}`
@@ -10533,6 +10905,7 @@
             <div class="trip-status ${statusClass(status)}">
               ${escapeHtml(human(status))}
             </div>
+            ${item.is_review_ride === true ? '<span class="sim-tag">Simulated</span>' : ""}
           </div>
 
           <div class="trip-meta">
@@ -10685,116 +11058,28 @@
     // line between driver and current target" honesty (not a routed
     // path), just rendered directly on the dashboard instead of only
     // behind the "Open Live Tracking" deep link.
-    function renderActiveRequestMap(data) {
-      if (!els.activeRequestMap) return;
-
-      const tracking = data?.tracking;
-      const driverLoc = data?.driver?.location;
-
-      const targetLoc =
-        tracking?.target === "store" || tracking?.target === "pickup"
-          ? data?.pickup_location
-          : data?.destination_location;
-
-      const canRender =
-        state.mapsEnabled &&
-        window.google?.maps &&
-        tracking &&
-        driverLoc &&
-        Number.isFinite(Number(driverLoc.lat)) &&
-        Number.isFinite(Number(driverLoc.lng)) &&
-        targetLoc &&
-        Number.isFinite(Number(targetLoc.lat)) &&
-        Number.isFinite(Number(targetLoc.lng));
-
-      if (!canRender) {
+    // No in-app map; the active request card shows text status only.
+    function renderActiveRequestMap() {
+      if (els.activeRequestMap) {
         els.activeRequestMap.classList.add("hidden");
-        return;
       }
-
-      els.activeRequestMap.classList.remove("hidden");
-
-      const driverPos = { lat: Number(driverLoc.lat), lng: Number(driverLoc.lng) };
-      const targetPos = { lat: Number(targetLoc.lat), lng: Number(targetLoc.lng) };
-      const tm = state.trackingMap;
-
-      if (!tm.instance) {
-        tm.instance = new google.maps.Map(els.activeRequestMap, {
-          center: driverPos,
-          zoom: 13,
-          disableDefaultUI: true,
-          zoomControl: true,
-          streetViewControl: false,
-          mapTypeControl: false
-        });
-
-        tm.driverMarker = new google.maps.Marker({
-          position: driverPos,
-          map: tm.instance,
-          title: "Your driver",
-          icon: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png"
-        });
-
-        tm.targetMarker = new google.maps.Marker({
-          position: targetPos,
-          map: tm.instance
-        });
-
-        tm.line = new google.maps.Polyline({
-          path: [driverPos, targetPos],
-          strokeOpacity: 0,
-          icons: [{
-            icon: { path: "M 0,-1 0,1", strokeOpacity: 0.55, scale: 3 },
-            offset: "0",
-            repeat: "12px"
-          }],
-          map: tm.instance
-        });
-      } else {
-        tm.driverMarker.setPosition(driverPos);
-        tm.targetMarker.setPosition(targetPos);
-        tm.line.setPath([driverPos, targetPos]);
-      }
-
-      const bounds = new google.maps.LatLngBounds();
-      bounds.extend(driverPos);
-      bounds.extend(targetPos);
-      tm.instance.fitBounds(bounds, 40);
     }
 
-    async function loadGoogleMaps() {
-      // Guard against double-injection: the merged ride wizard (below)
-      // also depends on window.google.maps and shares this single load
-      // rather than injecting its own competing <script> tag, which
-      // used to trigger Google's "included the Maps API multiple times"
-      // warning and unpredictable re-initialization when both loaded.
-      if (window.google && window.google.maps) {
-        state.mapsEnabled = true;
-        window.__HARVEY_MAPS_ENABLED__ = true;
-        return;
-      }
-
+    // Whether address search and routing (Mapbox, server-side) are
+    // configured. Boolean only; the token never reaches the browser.
+    async function loadGeoStatus() {
       try {
-        const res = await fetch(`${apiBase()}/api/maps-key`);
-        const data = await res.json();
-
-        if (!data?.key) return;
-
-        const script = document.createElement("script");
-        // libraries=places is required by the merged ride wizard's
-        // address autocomplete (google.maps.places.Autocomplete).
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(data.key)}&libraries=places`;
-        script.async = true;
-        script.onload = () => {
-          state.mapsEnabled = true;
-          window.__HARVEY_MAPS_ENABLED__ = true;
-          window.dispatchEvent(new Event("harvey-maps-ready"));
-        };
-        script.onerror = () => {
-          window.__HARVEY_MAPS_ENABLED__ = false;
-        };
-        document.head.appendChild(script);
-      } catch {}
+        const res = await fetch(`${apiBase()}/api/geo/status`);
+        const data = await res.json().catch(() => ({}));
+        const configured = res.ok && data?.configured === true;
+        state.geoEnabled = configured;
+        window.__HARVEY_GEO_ENABLED__ = configured;
+        window.__HARVEY_GEO_CONFIG_ERROR__ = res.ok && data?.configured === false;
+      } catch {
+        state.geoEnabled = false;
+        window.__HARVEY_GEO_ENABLED__ = false;
+      }
+      window.dispatchEvent(new Event("harvey-geo-ready"));
     }
 
     // ---- Notifications: in-page feed + browser push ----
@@ -11503,7 +11788,7 @@
       bindAuthEvents();
       setAuthChannel("phone");
       renderNotificationFeed();
-      loadGoogleMaps();
+      loadGeoStatus();
 
       // Always attempt the server-verified session check first,
       // regardless of rider_auth_ui_enabled. That flag only controls
@@ -11521,25 +11806,42 @@
       // rider too after clearing site data or switching devices --
       // "Finish rider setup to continue" shown despite a valid,
       // server-confirmed session.
+      await resolveRiderAccess();
+    }
+
+    // Decides what this visitor may see. Run at load and again from the
+    // "Try again" button; any answer that isn't a real server answer stops
+    // here with the retry state.
+    async function resolveRiderAccess() {
+      hideAuthCheckRetry();
       const bootstrap = await bootstrapRiderSession();
 
       if (bootstrap.ok) {
+        setSignedOutReviewEntry(false);
         hideAuthOverlay();
         await runAuthenticatedBoot();
         return;
       }
 
-      const authUiEnabled = await isRiderAuthUiEnabled();
+      if (isTransientAuthStatus(bootstrap.status)) {
+        showAuthCheckRetry();
+        return;
+      }
 
-      if (!authUiEnabled) {
-        // Rollout flag off (the default): for anyone without a
-        // verified session, fall back to this page's pre-PR-2a boot
-        // behavior untouched -- loadRiderStatus() already falls back
-        // to getStoredRiderId()/getStoredRiderProfile() when
-        // state.riderId/riderProfile haven't been set by the bootstrap
-        // check above. This lets the whole PR ship to production inert
-        // until an admin has confirmed real SMS/email OTP delivery
-        // works and deliberately flips rider_auth_ui_enabled on.
+      setAppReviewMode(false);
+      setSignedOutReviewEntry(true);
+
+      const authUi = await checkRiderAuthUi();
+
+      if (authUi === "unavailable") {
+        showAuthCheckRetry();
+        return;
+      }
+
+      if (authUi === "disabled") {
+        // Rollout flag confirmed off by the server (the default): for
+        // anyone without a verified session, the page's pre-PR-2a boot
+        // behavior, untouched.
         hideAuthOverlay();
         await runAuthenticatedBoot();
         return;
@@ -11548,6 +11850,29 @@
       showAuthOverlay();
       await tryAutoStartSignupVerification();
     }
+
+    function showAuthCheckRetry() {
+      // Only the retry state is shown: not the sign-in form (we don't know
+      // yet whether it's needed) and not the rider experience.
+      hideAuthOverlay();
+      const panel = document.getElementById("authCheckRetry");
+      if (panel) panel.hidden = false;
+    }
+
+    function hideAuthCheckRetry() {
+      const panel = document.getElementById("authCheckRetry");
+      if (panel) panel.hidden = true;
+    }
+
+    const authCheckRetryBtn = document.getElementById("authCheckRetryBtn");
+    authCheckRetryBtn?.addEventListener("click", async () => {
+      authCheckRetryBtn.disabled = true;
+      try {
+        await resolveRiderAccess();
+      } finally {
+        authCheckRetryBtn.disabled = false;
+      }
+    });
 
     document.addEventListener("DOMContentLoaded", boot);
   </script>

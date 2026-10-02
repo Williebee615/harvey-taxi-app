@@ -402,7 +402,7 @@ describe("POST /api/rides/payment-intent -- identity must come from an authentic
 
     expect(res.status).toBe(200);
     expect(res.body.simulated).toBe(true);
-    expect(res.body.simulated_label.toLowerCase()).toContain("google play review mode");
+    expect(res.body.simulated_label.toLowerCase()).toContain("app review mode");
     expect(res.body.payment_intent_id).toMatch(/^review_sim_/);
   });
 
