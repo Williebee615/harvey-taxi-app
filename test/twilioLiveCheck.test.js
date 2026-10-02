@@ -11,16 +11,20 @@ const ENV = {
   TWILIO_FROM_NUMBER: "+18447950299"
 };
 
-function fakeFetch() {
+// `tollfree`: the number's toll-free verification status. `unauthorized`:
+// every request fails as Twilio does for a bad credential.
+function fakeFetch({ tollfree = "IN_REVIEW", unauthorized = false } = {}) {
   const calls = [];
   const fn = async (url, init = {}) => {
     calls.push({ url: String(url), method: init.method || "GET", headers: init.headers || {} });
     const u = String(url);
+    if (unauthorized) return { status: 401, json: async () => ({ code: 20003, status: 401 }) };
     let body = {};
-    if (u.endsWith(`/Accounts/${ENV.TWILIO_ACCOUNT_SID}.json`)) body = { status: "active", type: "Full" };
+    // A Standard API key can't read the account resource.
+    if (u.endsWith(`/Accounts/${ENV.TWILIO_ACCOUNT_SID}.json`)) return { status: 401, json: async () => ({ code: 20003, status: 401 }) };
     else if (u.includes("/v2/Services/") && !u.includes("Verification")) body = { code_length: 6 };
     else if (u.includes("IncomingPhoneNumbers")) body = { incoming_phone_numbers: [{ sid: "PNtest", capabilities: { sms: true } }] };
-    else if (u.includes("Tollfree/Verifications")) body = { verifications: [{ status: "IN_REVIEW" }] };
+    else if (u.includes("Tollfree/Verifications")) body = { verifications: [{ status: tollfree }] };
     else if (u.endsWith("/Verifications")) return { status: 201, json: async () => ({ status: "pending" }) };
     return { status: 200, json: async () => body };
   };
@@ -43,7 +47,7 @@ afterEach(() => {
 test("read-only mode (the default) makes only GET requests and never prints the auth token", async () => {
   global.fetch = fakeFetch();
   await main([], ENV);
-  expect(global.fetch.calls.length).toBeGreaterThanOrEqual(4);
+  expect(global.fetch.calls.length).toBe(3);
   expect(global.fetch.calls.every((c) => c.method === "GET")).toBe(true);
   expect(global.fetch.calls.some((c) => c.url.startsWith("https://messaging.twilio.com/"))).toBe(true);
   const out = logs.join("\n");
@@ -74,4 +78,41 @@ test("an authorized send makes exactly one Verify request to the formatted numbe
 
 test("unknown arguments are rejected rather than ignored", () => {
   expect(() => parseArgs(["--send"])).toThrow(/Unknown argument/);
+});
+
+describe("access is validated through Verify and IncomingPhoneNumbers, not /Accounts", () => {
+  test("a Standard API key passes: /Accounts is never read and account status is reported as not checked", async () => {
+    global.fetch = fakeFetch({ tollfree: "TWILIO_APPROVED" });
+    const ok = await main([], ENV);
+    expect(ok).toBe(true);
+    expect(global.fetch.calls.some((c) => /\/Accounts\/[^/]+\.json/.test(c.url))).toBe(false);
+    expect(global.fetch.calls.map((c) => new URL(c.url).hostname)).toEqual([
+      "verify.twilio.com",
+      "api.twilio.com",
+      "messaging.twilio.com"
+    ]);
+    const out = logs.join("\n");
+    expect(out).toMatch(/SKIP\s+account_status: not checked/);
+    expect(out).toMatch(/PASS\s+verify_service/);
+    expect(out).toMatch(/PASS\s+from_number/);
+    expect(out).toMatch(/PASS\s+tollfree_verification: status=TWILIO_APPROVED/);
+  });
+
+  test("a rejected credential fails both checks with an authentication hint", async () => {
+    global.fetch = fakeFetch({ unauthorized: true });
+    const ok = await main([], ENV);
+    expect(ok).toBe(false);
+    const out = logs.join("\n");
+    expect(out).toMatch(/FAIL\s+verify_service: HTTP 401 \(Twilio error 20003\): authentication failed/);
+    expect(out).toMatch(/FAIL\s+from_number: HTTP 401 \(Twilio error 20003\): authentication failed/);
+    expect(global.fetch.calls.every((c) => c.method === "GET")).toBe(true);
+  });
+
+  test("without TWILIO_ACCOUNT_SID the sender number can't be checked and the run fails", async () => {
+    global.fetch = fakeFetch();
+    const { TWILIO_ACCOUNT_SID, ...env } = ENV;
+    const ok = await main([], env);
+    expect(ok).toBe(false);
+    expect(logs.join("\n")).toMatch(/FAIL\s+from_number: TWILIO_ACCOUNT_SID is not set/);
+  });
 });

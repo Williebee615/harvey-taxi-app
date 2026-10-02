@@ -6,9 +6,9 @@
 
 | Check | Host | What passes |
 |---|---|---|
-| `account` | `api.twilio.com` | The account exists and its status is `active` |
+| `account_status` | none | **Not checked** (reported as `SKIP`). A Standard API key can't read `/Accounts/{sid}.json`, so reading it would report a false failure. Access to the account is validated by the next two checks instead. |
 | `verify_service` | `verify.twilio.com` | `TWILIO_VERIFY_SERVICE_SID` exists (used by rider and driver sign-in) |
-| `from_number` | `api.twilio.com` | `TWILIO_FROM_NUMBER` belongs to the account and can send SMS |
+| `from_number` | `api.twilio.com` | `TWILIO_FROM_NUMBER` belongs to the account (`IncomingPhoneNumbers`) and can send SMS. Needs `TWILIO_ACCOUNT_SID`. |
 | `tollfree_verification` | `messaging.twilio.com` | For a toll-free `TWILIO_FROM_NUMBER`: Twilio's toll-free verification is `TWILIO_APPROVED`. Until it is, ordinary SMS from that number is undelivered with error 30032 (`docs/production-incidents.md`, 2026-07-31). |
 | `verify_send` *(opt-in)* | `verify.twilio.com` | One Verify code is sent to the named number (`pending`) |
 | `verify_check` *(opt-in)* | `verify.twilio.com` | The code received on that phone is `approved` |
@@ -44,6 +44,6 @@ node scripts/twilio-live-check.js --send-verify --to +1XXXXXXXXXX --i-authorize-
 node scripts/twilio-live-check.js --check-verify --to +1XXXXXXXXXX --code <code received>
 ```
 
-Behind an HTTPS proxy, prefix each command with `NODE_USE_ENV_PROXY=1` (Node 22.21 or later). Exit codes: `0` all checks passed, `1` a check failed, `2` usage or network error.
+Behind an HTTPS proxy, prefix each command with `NODE_USE_ENV_PROXY=1` (Node 22.21 or later). Exit codes: `0` all checks passed, `1` a check failed, `2` usage or network error. A `401` (Twilio error 20003) on every check means the credential itself is being rejected: confirm it sends `Authorization: Basic <base64 of SK…:secret>` for a key that belongs to this account.
 
 **Sending is refused** unless `--to` is a valid number and `--i-authorize-one-sms` is present. Each authorized run sends exactly one Verify SMS, which Twilio bills to the account.

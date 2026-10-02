@@ -2,11 +2,14 @@
 // Real Twilio connectivity check for Harvey Taxi (docs/twilio-live-check.md).
 //
 // Default mode is READ-ONLY and sends no SMS, so it costs nothing:
-//   1. the account exists and is active             (api.twilio.com)
-//   2. the Verify service exists                    (verify.twilio.com)
-//   3. TWILIO_FROM_NUMBER belongs to the account    (api.twilio.com)
-//   4. the toll-free verification status of that    (messaging.twilio.com)
+//   1. the Verify service exists                    (verify.twilio.com)
+//   2. TWILIO_FROM_NUMBER belongs to the account    (api.twilio.com)
+//   3. the toll-free verification status of that    (messaging.twilio.com)
 //      number, if it is toll-free
+// Access to the account is validated through 1 and 2. The account
+// resource itself (/Accounts/{sid}.json) is not read: a Standard API key
+// can't read it, so it would report a false failure. Account status is
+// reported as "not checked".
 //
 // Sending a real SMS needs an explicit number AND an explicit
 // authorization flag, and sends exactly one Twilio Verify code:
@@ -76,19 +79,14 @@ async function twilio(env, method, url, form) {
 }
 
 function failure(r) {
-  return `HTTP ${r.status}${r.body && r.body.code ? ` (Twilio error ${r.body.code})` : ""}`;
+  const code = r.body && r.body.code ? ` (Twilio error ${r.body.code})` : "";
+  const hint = r.status === 401 ? ": authentication failed; check the Twilio credential" : "";
+  return `HTTP ${r.status}${code}${hint}`;
 }
 
 async function readOnlyChecks(env, report) {
-  const sid = env.TWILIO_ACCOUNT_SID;
-  if (!sid) {
-    report("account", false, "TWILIO_ACCOUNT_SID is not set");
-    return;
-  }
-
-  const acct = await twilio(env, "GET", `https://api.twilio.com/2010-04-01/Accounts/${sid}.json`);
-  report("account", acct.status === 200 && acct.body.status === "active",
-    acct.status === 200 ? `status=${acct.body.status} type=${acct.body.type}` : failure(acct));
+  report("account_status", null,
+    "not checked (a Standard API key can't read /Accounts; access is validated through Verify and IncomingPhoneNumbers)");
 
   const vsid = env.TWILIO_VERIFY_SERVICE_SID;
   if (!vsid) {
@@ -99,6 +97,11 @@ async function readOnlyChecks(env, report) {
       svc.status === 200 ? `code_length=${svc.body.code_length}` : failure(svc));
   }
 
+  const sid = env.TWILIO_ACCOUNT_SID;
+  if (!sid) {
+    report("from_number", false, "TWILIO_ACCOUNT_SID is not set");
+    return;
+  }
   const from = toVerifyE164(env.TWILIO_FROM_NUMBER || env.TWILIO_PHONE_NUMBER);
   if (!from) {
     report("from_number", false, "TWILIO_FROM_NUMBER is not set or not a valid number");
@@ -124,7 +127,12 @@ async function readOnlyChecks(env, report) {
 async function main(argv = process.argv.slice(2), env = process.env) {
   const args = parseArgs(argv);
   const results = [];
+  // ok: true = PASS, false = FAIL, null = not checked (doesn't count).
   const report = (name, ok, detail) => {
+    if (ok === null) {
+      console.log(`SKIP  ${name}: ${detail}`);
+      return;
+    }
     results.push({ name, ok });
     console.log(`${ok ? "PASS" : "FAIL"}  ${name}: ${detail}`);
   };
