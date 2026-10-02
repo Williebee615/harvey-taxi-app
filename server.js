@@ -502,6 +502,7 @@ const {
   buildPaymentOpsAlert
 } = require("./lib/unusedHolds");
 const { describePaymentConfig, describeStripeAccount } = require("./lib/paymentConfig");
+const { toVerifyE164, smsSkippedLogDetails, describeTwilioError } = require("./lib/twilioSafety");
 
 // AI Agent Manager (docs/ai-agent-manager.md). No OpenAI/Anthropic
 // dependency: rules engine + optional self-hosted model.
@@ -1545,18 +1546,11 @@ function cleanPhone(value) {
 
 }
 
-// Twilio Verify rejects a phone number that isn't strict E.164 (a
-// leading "+") with error 60436/68004 -- unlike the plain Messaging API,
-// which tolerates a bare "1XXXXXXXXXX" like the ones already stored on
-// existing driver rows. Only prepends "+"; never reformats digits, so a
-// number that's already E.164 (or already has "+") passes through
-// unchanged.
+// Twilio Verify only accepts strict E.164. See lib/twilioSafety.js:
+// returns null for a number that can't be formatted, so callers fail
+// closed instead of asking Twilio to text a malformed number.
 function toE164(phone) {
-
-  const digits = cleanPhone(phone);
-
-  return digits.startsWith("+") ? digits : `+${digits}`;
-
+  return toVerifyE164(phone);
 }
 
 function toNumber(value, fallback = 0) {
@@ -3016,7 +3010,8 @@ async function sendSms({
 
       "📲 SMS skipped:",
 
-      { to, body }
+      // Never the message itself: it can carry a verification code.
+      smsSkippedLogDetails({ to, body })
 
     );
 
@@ -6371,7 +6366,7 @@ app.post(
               .services(TWILIO_VERIFY_SERVICE_SID)
               .verifications.create({ to: e164, channel: "sms" });
           } catch (err) {
-            console.error("❌ Rider session start: Twilio Verify send failed:", err.message);
+            console.error("❌ Rider session start: Twilio Verify send failed:", describeTwilioError(err));
           }
         }
       }
@@ -6493,7 +6488,7 @@ app.post(
           .services(TWILIO_VERIFY_SERVICE_SID)
           .verificationChecks.create({ to: e164, code });
       } catch (err) {
-        console.error("❌ Rider session verify: Twilio Verify check failed:", err.message);
+        console.error("❌ Rider session verify: Twilio Verify check failed:", describeTwilioError(err));
         return invalidCode();
       }
 
@@ -6793,24 +6788,28 @@ app.post(
 
     }
 
+    const verifyTo = toE164(driver.phone);
+    if (!verifyTo) {
+      console.error(
+        "❌ Driver session start: phone on file can't be formatted for Twilio Verify:",
+        driverId
+      );
+      return fail(
+        res,
+        "The phone number on file can't receive a login code. Please contact support.",
+        422
+      );
+    }
+
     let verification;
-
     try {
-
       verification =
-
         await twilioClient.verify
-
           .services(TWILIO_VERIFY_SERVICE_SID)
-
           .verifications
-
           .create({
-
-            to: toE164(driver.phone),
-
+            to: verifyTo,
             channel: "sms"
-
           });
 
     } catch (err) {
@@ -6819,7 +6818,7 @@ app.post(
 
         "❌ Driver session start: Twilio Verify send failed:",
 
-        err.message
+        describeTwilioError(err)
 
       );
 
@@ -6941,24 +6940,20 @@ app.post(
 
     }
 
+    const verifyTo = toE164(driver.phone);
+    if (!verifyTo) {
+      return fail(res, "Invalid or expired code.", 400);
+    }
+
     let check;
-
     try {
-
       check =
-
         await twilioClient.verify
-
           .services(TWILIO_VERIFY_SERVICE_SID)
-
           .verificationChecks
-
           .create({
-
-            to: toE164(driver.phone),
-
+            to: verifyTo,
             code
-
           });
 
     } catch (err) {
@@ -6971,7 +6966,7 @@ app.post(
 
         "❌ Driver session verify: Twilio Verify check failed:",
 
-        err.message
+        describeTwilioError(err)
 
       );
 
