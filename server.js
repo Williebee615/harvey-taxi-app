@@ -487,6 +487,8 @@ const {
   describeGeoConfig,
   geoConfigLogLines
 } = require("./lib/geoConfig");
+const { resolvePerMinuteLimit } = require("./lib/rateLimitConfig");
+const { describePaymentConfig } = require("./lib/paymentConfig");
 
 // AI Agent Manager (docs/ai-agent-manager.md). No OpenAI/Anthropic
 // dependency: rules engine + optional self-hosted model.
@@ -1286,13 +1288,7 @@ app.use(
 
     windowMs: 60_000,
 
-    max: envNumber(
-
-      "API_RATE_LIMIT_PER_MINUTE",
-
-      120
-
-    ),
+    max: resolvePerMinuteLimit("API_RATE_LIMIT_PER_MINUTE", 120),
 
     keyPrefix: "api"
 
@@ -22973,6 +22969,28 @@ app.get(
 
     )
 
+);
+
+/* =========================================================
+   ADMIN: effective payment configuration (no secrets)
+   Answers "are live card payments enabled right now?" from the running
+   configuration -- key modes by prefix, gate, webhook secret -- never from
+   payment counts, and never returning any key material.
+========================================================= */
+app.get(
+  "/api/admin/payments/config-status",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    return ok(res, {
+      payments: describePaymentConfig({
+        secretKey: STRIPE_SECRET_KEY,
+        publishableKey: STRIPE_PUBLISHABLE_KEY,
+        webhookSecret: STRIPE_WEBHOOK_SECRET,
+        paymentGateEnabled: ENABLE_PAYMENT_GATE,
+        stripeClientReady: Boolean(stripe)
+      })
+    });
+  })
 );
 
 /* =========================================================

@@ -3,8 +3,9 @@ name: CI
 on:
   push:
     branches: [ "main" ]
+  # Every pull request, including ones stacked on another PR's branch, so
+  # stacked PRs are tested on their own combined changes.
   pull_request:
-    branches: [ "main" ]
 
 jobs:
   build:
