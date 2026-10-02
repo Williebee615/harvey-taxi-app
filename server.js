@@ -24446,13 +24446,21 @@ const RECONCILE_LOOKBACK_MS = 8 * 24 * 60 * 60 * 1000; // card authorizations ex
 
 // intentFilter: test-only scoping (e.g. to a run's own intents in a shared
 // Stripe test account); production passes none.
-async function reconcileStripeHolds({ minAgeMs = DEFAULT_SWEEP_MIN_AGE_MS, lookbackMs = RECONCILE_LOOKBACK_MS, pageSize = 100, maxPages = 20, allowRelease = true, now = Date.now(), intentFilter = null } = {}) {
+// mode "live":    records unknown intents, flags review cases (with one
+//                 alert each), and cancels release candidates only when
+//                 unused_hold_sweep_enabled is "true".
+// mode "dry_run": reads Stripe and the database and reports what live mode
+//                 WOULD do. It writes nothing, cancels nothing and sends no
+//                 alerts or notifications.
+async function reconcileStripeHolds({ mode = "live", minAgeMs = DEFAULT_SWEEP_MIN_AGE_MS, lookbackMs = RECONCILE_LOOKBACK_MS, pageSize = 100, maxPages = 20, now = Date.now(), intentFilter = null, maxFindings = 500 } = {}) {
   if (!stripe) return { skipped: true, reason: "stripe_not_configured" };
-  if (stripeReconcileRunning) return { skipped: true, reason: "already_running" };
-  stripeReconcileRunning = true;
-  const summary = { scanned: 0, harvey_holds: 0, newly_tracked: 0, kept: 0, review: 0, would_release: 0, released: 0, release_refused: 0, errors: 0, pages: 0, truncated: false, cleanup_enabled: false };
+  const dryRun = mode === "dry_run";
+  // A dry run only reads, so it never blocks (or is blocked by) a live run.
+  if (!dryRun && stripeReconcileRunning) return { skipped: true, reason: "already_running" };
+  if (!dryRun) stripeReconcileRunning = true;
+  const summary = { mode: dryRun ? "dry_run" : "live", scanned: 0, harvey_holds: 0, newly_tracked: 0, would_track: 0, kept: 0, review: 0, would_release: 0, released: 0, release_refused: 0, errors: 0, pages: 0, truncated: false, cleanup_enabled: false, findings: [] };
   try {
-    summary.cleanup_enabled = allowRelease && (await getSystemFlag("unused_hold_sweep_enabled", "false")) === "true";
+    summary.cleanup_enabled = (await getSystemFlag("unused_hold_sweep_enabled", "false")) === "true";
     const created = { lte: Math.floor((now - minAgeMs) / 1000), gte: Math.floor((now - lookbackMs) / 1000) };
     let startingAfter;
     let hasMore = true;
@@ -24468,7 +24476,7 @@ async function reconcileStripeHolds({ minAgeMs = DEFAULT_SWEEP_MIN_AGE_MS, lookb
         if (intentFilter && !intentFilter(intent)) continue;
         summary.harvey_holds += 1;
         try {
-          await reconcileOneHold({ intent, summary, now, minAgeMs });
+          await reconcileOneHold({ intent, summary, now, minAgeMs, dryRun, maxFindings });
         } catch {
           summary.errors += 1;
         }
@@ -24476,12 +24484,22 @@ async function reconcileStripeHolds({ minAgeMs = DEFAULT_SWEEP_MIN_AGE_MS, lookb
     }
     if (hasMore) {
       summary.truncated = true;
-      await paymentOpsAlert("payment_reconciliation_truncated", { reason: `stopped after ${summary.pages} pages`, action_needed: "run reconciliation again" });
+      if (!dryRun) {
+        await paymentOpsAlert("payment_reconciliation_truncated", { reason: `stopped after ${summary.pages} pages`, action_needed: "run reconciliation again" });
+      }
     }
     return summary;
   } finally {
-    stripeReconcileRunning = false;
+    if (!dryRun) stripeReconcileRunning = false;
   }
+}
+
+// Scheduled entry point: does nothing unless stripe_reconciliation_enabled
+// is "true" (off by default). Cancellation additionally needs
+// unused_hold_sweep_enabled (also off by default).
+async function runScheduledReconciliation() {
+  if ((await getSystemFlag("stripe_reconciliation_enabled", "false")) !== "true") return { skipped: true, reason: "disabled" };
+  return reconcileStripeHolds({ mode: "live" });
 }
 
 async function loadHoldState(paymentIntentId) {
@@ -24493,16 +24511,35 @@ async function loadHoldState(paymentIntentId) {
   return { boundRideIds: (rides || []).map((r) => r.id), record: record || null };
 }
 
-async function reconcileOneHold({ intent, summary, now, minAgeMs }) {
+async function reconcileOneHold({ intent, summary, now, minAgeMs, dryRun, maxFindings }) {
   let { boundRideIds, record } = await loadHoldState(intent.id);
+  const wasTracked = Boolean(record);
   if (!record) {
-    const { error } = await supabase.from("payments").insert(
-      buildCreatedPaymentRecord({ intent, riderId: intent.metadata?.rider_id, rideType: intent.metadata?.ride_type })
-    );
-    if (!error) summary.newly_tracked += 1;
-    ({ boundRideIds, record } = await loadHoldState(intent.id));
+    if (dryRun) {
+      summary.would_track += 1;
+    } else {
+      const { error } = await supabase.from("payments").insert(
+        buildCreatedPaymentRecord({ intent, riderId: intent.metadata?.rider_id, rideType: intent.metadata?.ride_type })
+      );
+      if (!error) summary.newly_tracked += 1;
+      ({ boundRideIds, record } = await loadHoldState(intent.id));
+    }
   }
   const decision = decideReconciliation({ intent, boundRideIds, record, now, minAgeMs });
+  // Findings carry no client secret, card or contact detail, or rider id.
+  if (summary.findings.length < maxFindings) {
+    summary.findings.push({
+      payment_intent_id: intent.id,
+      stripe_status: intent.status,
+      amount_cents: intent.amount,
+      age_minutes: Math.round((now - Number(intent.created) * 1000) / 60000),
+      tracked: wasTracked,
+      record_status: record ? record.status : null,
+      bound_ride: boundRideIds.length > 0 || Boolean(record && record.ride_id),
+      action: decision.action,
+      reason: decision.reason
+    });
+  }
   if (decision.action === "ignore") return;
   if (decision.action === "keep") {
     summary.kept += 1;
@@ -24510,10 +24547,10 @@ async function reconcileOneHold({ intent, summary, now, minAgeMs }) {
   }
   if (decision.action === "review") {
     summary.review += 1;
-    await flagHoldForReview({ intent, reason: decision.reason });
+    if (!dryRun) await flagHoldForReview({ intent, reason: decision.reason });
     return;
   }
-  if (!summary.cleanup_enabled) {
+  if (dryRun || !summary.cleanup_enabled) {
     summary.would_release += 1;
     return;
   }
@@ -24523,19 +24560,20 @@ async function reconcileOneHold({ intent, summary, now, minAgeMs }) {
 }
 
 /* =========================================================
-   ADMIN: STRIPE HOLD RECONCILIATION (on demand)
-   Dry run by default: reports what reconciliation found without
-   cancelling anything. With dry_run=false it may cancel unused holds, and
-   only when unused_hold_sweep_enabled is "true". Tracking and review
-   flags happen either way.
+   ADMIN: STRIPE HOLD RECONCILIATION DRY RUN
+   Read-only, always: reports what scheduled reconciliation would record,
+   flag or cancel. It writes no records, cancels nothing and sends no
+   alerts or notifications, whatever the flags say. Live reconciliation
+   runs only on the schedule, and only when stripe_reconciliation_enabled
+   is "true".
 ========================================================= */
 app.post(
-  "/api/admin/payments/reconcile",
+  "/api/admin/payments/reconcile/dry-run",
   requireAdmin,
   asyncRoute(async (req, res) => {
-    const dryRun = req.body?.dry_run !== false;
-    const summary = await reconcileStripeHolds({ allowRelease: !dryRun });
-    return ok(res, { dry_run: dryRun, reconciliation: summary });
+    const summary = await reconcileStripeHolds({ mode: "dry_run" });
+    const reconciliationEnabled = (await getSystemFlag("stripe_reconciliation_enabled", "false")) === "true";
+    return ok(res, { dry_run: true, scheduled_reconciliation_enabled: reconciliationEnabled, reconciliation: summary });
   })
 );
 
@@ -25042,11 +25080,11 @@ async function startServer() {
         runAgentCoordinationSweep().catch(() => {});
       }, 60_000);
 
-      // Stripe-side reconciliation: records any Harvey Taxi hold the
-      // database is missing and flags uncertain ones for review. It cancels
-      // nothing unless unused_hold_sweep_enabled is "true" (off by default).
+      // Stripe-side reconciliation. Does nothing unless
+      // stripe_reconciliation_enabled is "true" (off by default); cancels
+      // nothing unless unused_hold_sweep_enabled is also "true" (off).
       setInterval(() => {
-        reconcileStripeHolds().catch(() => {});
+        runScheduledReconciliation().catch(() => {});
       }, 30 * 60_000);
 
     }
@@ -25072,4 +25110,4 @@ if (require.main === module) {
 // runOfferExpirySweep is exported only so tests can drive the real
 // Supabase adapters for the offer-expiry sweep; production runs it on the
 // interval set up under require.main === module below.
-module.exports = { app, runOfferExpirySweep, runUnusedHoldSweep, runAgentCoordinationSweep, reconcileStripeHolds };
+module.exports = { app, runOfferExpirySweep, runUnusedHoldSweep, runAgentCoordinationSweep, reconcileStripeHolds, runScheduledReconciliation };

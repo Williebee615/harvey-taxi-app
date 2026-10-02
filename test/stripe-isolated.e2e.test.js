@@ -513,6 +513,86 @@ describeIsolated(`card flow in an isolated environment (Stripe: ${STRIPE_MODE})`
     expect(Number((await q("select count(*) from public.payments where id = any($1)", [ids]))[0].count)).toBe(5);
   });
 
+  test("admin dry run: authenticated, reports findings, and changes nothing even with both flags on", async () => {
+    await reset([]);
+    await setFlag("unused_hold_sweep_enabled", "true");
+    await setFlag("stripe_reconciliation_enabled", "true");
+    // An unused tracked hold, an untracked hold, and a legacy (no account tag) hold.
+    const tracked = await createIntent({ headers: riderAuthHeaders(signTestRiderToken("RIDER_1")), riderId: "RIDER_1" });
+    await stripe.paymentIntents.confirm(tracked.body.payment_intent_id, { payment_method: "pm_card_visa" });
+    const untracked = await stripe.paymentIntents.create({ amount: 2000, currency: "usd", capture_method: "manual", metadata: { app: "harvey_taxi", account: "harvey_taxi_service", rider_id: "", rider_verified: "false" } }, {});
+    created.push(untracked.id);
+    await stripe.paymentIntents.confirm(untracked.id, { payment_method: "pm_card_visa" });
+    const legacy = await hold();
+    const ids = [tracked.body.payment_intent_id, untracked.id, legacy.id];
+    for (const id of ids) if (stripe._age) stripe._age(id, 3 * 3600);
+
+    const snapshot = async () => ({
+      payments: await q("select id, status, ride_id, rider_id, updated_at from public.payments order by id"),
+      audit: Number((await q("select count(*) from public.audit_logs"))[0].count),
+      stripe: await Promise.all(ids.map(async (id) => (await stripe.paymentIntents.retrieve(id)).status))
+    });
+    // The setup's own audit rows (estimate, payment intent) are written in
+    // the background; let them land before the "before" snapshot.
+    for (let i = 0; i < 50 && Number((await q("select count(*) from public.audit_logs"))[0].count) < 2; i++) {
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    await new Promise((r) => setTimeout(r, 300));
+    const before = await snapshot();
+    const alerts = [];
+    const spy = jest.spyOn(console, "error").mockImplementation((tag) => {
+      if (tag === "🚨 PAYMENT_OPS_ALERT") alerts.push(tag);
+    });
+    let res;
+    try {
+      expect((await request(app).post("/api/admin/payments/reconcile/dry-run").send({})).status).toBe(401);
+      res = await request(app).post("/api/admin/payments/reconcile/dry-run").set("x-admin-token", "isolated-admin-token").send({ dry_run: false });
+    } finally {
+      spy.mockRestore();
+    }
+    expect(res.status).toBe(200);
+    expect(res.body.dry_run).toBe(true);
+    expect(res.body.reconciliation.mode).toBe("dry_run");
+    expect(await snapshot()).toEqual(before);
+    expect(alerts).toHaveLength(0);
+    if (!KEY_IS_TEST) {
+      // With the simulator the account holds only this test's intents.
+      const byId = Object.fromEntries(res.body.reconciliation.findings.map((f) => [f.payment_intent_id, f]));
+      expect(byId[tracked.body.payment_intent_id]).toMatchObject({ tracked: true, action: "release_candidate" });
+      expect(byId[untracked.id]).toMatchObject({ tracked: false, action: "release_candidate" });
+      expect(byId[legacy.id]).toMatchObject({ action: "review", reason: "missing_account_tag" });
+      expect(res.body.reconciliation).toMatchObject({ would_track: 2, would_release: 2, review: 1, released: 0, newly_tracked: 0 });
+      expect(JSON.stringify(res.body)).not.toMatch(/_secret_|RIDER_1/);
+    }
+  });
+
+  test("scheduled reconciliation is off unless stripe_reconciliation_enabled is true", async () => {
+    await reset([]);
+    const untracked = await stripe.paymentIntents.create({ amount: 2000, currency: "usd", capture_method: "manual", metadata: { app: "harvey_taxi", account: "harvey_taxi_service", rider_id: "", rider_verified: "false" } }, {});
+    created.push(untracked.id);
+    const { runScheduledReconciliation } = require("../server");
+    expect(await runScheduledReconciliation()).toEqual({ skipped: true, reason: "disabled" });
+    expect(await paymentRow(untracked.id)).toBeUndefined();
+  });
+
+  test('"unidentified" records never link sessionless riders or grant ownership', async () => {
+    await reset([]);
+    const a = await createIntent({});
+    const b = await createIntent({ riderId: "unidentified" });
+    expect(a.status).toBe(200);
+    expect(b.status).toBe(200);
+    expect((await paymentRow(a.body.payment_intent_id)).rider_id).toBe("unidentified");
+    expect((await paymentRow(b.body.payment_intent_id)).rider_id).toBe("unidentified");
+    // A client-sent "unidentified" is not recorded as an identity at Stripe.
+    expect((await stripe.paymentIntents.retrieve(b.body.payment_intent_id)).metadata).toMatchObject({ rider_id: "", rider_verified: "false" });
+    // A's secret cannot release B's hold, and vice versa.
+    expect((await request(app).post(`/api/payments/holds/${b.body.payment_intent_id}/release`).send({ client_secret: a.body.client_secret })).status).toBe(404);
+    expect((await request(app).post(`/api/payments/holds/${a.body.payment_intent_id}/release`).send({ client_secret: b.body.client_secret })).status).toBe(404);
+    // Each owner can release its own.
+    expect((await request(app).post(`/api/payments/holds/${a.body.payment_intent_id}/release`).send({ client_secret: a.body.client_secret })).status).toBe(200);
+    expect((await stripe.paymentIntents.retrieve(b.body.payment_intent_id)).status).not.toBe("canceled");
+  });
+
   // Head starts (ms) for authorization; across them both interleavings occur
   // (measured locally: reconciliation wins at 0 ms most often, authorization
   // at 20 ms), and every run must have exactly one winner.
