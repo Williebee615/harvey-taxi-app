@@ -16,6 +16,12 @@
 
   },
 
+  "jest": {
+
+    "testPathIgnorePatterns": ["/node_modules/", "<rootDir>/mobile/"]
+
+  },
+
   "engines": {
 
     "node": "22.x"

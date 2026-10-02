@@ -487,6 +487,37 @@ const {
   describeGeoConfig,
   geoConfigLogLines
 } = require("./lib/geoConfig");
+const { resolvePerMinuteLimit } = require("./lib/rateLimitConfig");
+const { describePaymentConfig, describeStripeAccount } = require("./lib/paymentConfig");
+
+// AI Agent Manager (docs/ai-agent-manager.md). No OpenAI/Anthropic
+// dependency: rules engine + optional self-hosted model.
+const {
+  AGENT_FLAG_KEYS,
+  BOOLEAN_FLAG_KEYS: AGENT_BOOLEAN_FLAG_KEYS,
+  RULE_BOUNDS: AGENT_RULE_BOUNDS,
+  resolveAgentFlags,
+  resolveAgentMode,
+  evaluateFlagChange: evaluateAgentFlagChange,
+  parseStoredRules: parseAgentRules,
+  validateRules: validateAgentRules
+} = require("./lib/agent/policy");
+const { redactForLog: agentRedactForLog } = require("./lib/agent/escalation");
+const { recommendDrivers: recommendAgentDrivers, driverLabel: agentDriverLabel } = require("./lib/agent/recommender");
+const { readLlmConfig: readAgentLlmConfig, createLlmClient: createAgentLlmClient, describeLlmConfig: describeAgentLlmConfig } = require("./lib/agent/llmClient");
+const { createAgentTools } = require("./lib/agent/tools");
+const { handleAssist: handleAgentAssist } = require("./lib/agent/assistant");
+const {
+  AGENT_ACTIONS,
+  RECORD_TYPES: AGENT_RECORD_TYPES,
+  newCaseId: newAgentCaseId,
+  cleanToolCalls: cleanAgentToolCalls,
+  assistDecisionEntry: agentAssistDecisionEntry,
+  caseOpenedEntry: agentCaseOpenedEntry,
+  caseResolvedEntry: agentCaseResolvedEntry,
+  summarizeCases: summarizeAgentCases
+} = require("./lib/agent/audit");
+const { planStalledRides: planAgentStalledRides, buildAlerts: buildAgentAlerts } = require("./lib/agent/coordinator");
 const { createMapboxClient, isFiniteCoord, ERROR: GEO_ERROR } = require("./lib/mapboxClient");
 const GEO_CONFIG = describeGeoConfig(process.env);
 const geoClient = createMapboxClient({ token: readGeoToken(process.env) });
@@ -1257,13 +1288,7 @@ app.use(
 
     windowMs: 60_000,
 
-    max: envNumber(
-
-      "API_RATE_LIMIT_PER_MINUTE",
-
-      120
-
-    ),
+    max: resolvePerMinuteLimit("API_RATE_LIMIT_PER_MINUTE", 120),
 
     keyPrefix: "api"
 
@@ -22971,6 +22996,697 @@ app.get(
 );
 
 /* =========================================================
+   ADMIN: effective payment configuration (no secrets)
+   Answers "are live card payments enabled right now?" from the running
+   configuration -- key modes by prefix, gate, webhook secret -- never from
+   payment counts, and never returning any key material.
+========================================================= */
+// The Stripe account the running secret key belongs to (GET /v1/account),
+// cached briefly. Reports only an allow-listed summary, or the Stripe
+// error code (e.g. authentication_error) if the key can't be used.
+let stripeAccountCache = { at: 0, value: null };
+const STRIPE_ACCOUNT_CACHE_MS = 10 * 60_000;
+
+async function currentStripeAccountSummary() {
+  if (!stripe) return { id: null, error: "stripe_not_configured" };
+  if (stripeAccountCache.value && Date.now() - stripeAccountCache.at < STRIPE_ACCOUNT_CACHE_MS) {
+    return stripeAccountCache.value;
+  }
+  let value;
+  try {
+    const account = await Promise.race([
+      stripe.accounts.retrieve(),
+      new Promise((_, reject) => setTimeout(() => reject(Object.assign(new Error("timeout"), { code: "timeout" })), 5000))
+    ]);
+    value = describeStripeAccount(account);
+  } catch (err) {
+    value = { id: null, error: String(err?.type || err?.code || "unavailable").slice(0, 60) };
+  }
+  stripeAccountCache = { at: Date.now(), value };
+  return value;
+}
+
+app.get(
+  "/api/admin/payments/config-status",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    return ok(res, {
+      payments: describePaymentConfig({
+        secretKey: STRIPE_SECRET_KEY,
+        publishableKey: STRIPE_PUBLISHABLE_KEY,
+        webhookSecret: STRIPE_WEBHOOK_SECRET,
+        paymentGateEnabled: ENABLE_PAYMENT_GATE,
+        stripeClientReady: Boolean(stripe)
+      }),
+      stripe_account: await currentStripeAccountSummary()
+    });
+  })
+);
+
+/* =========================================================
+   AI AGENT MANAGER
+   Coordinates rider/driver assistance and admin dispatch advice. See
+   docs/ai-agent-manager.md. Every capability is behind system_flags rows
+   that default OFF (lib/agent/policy.js), the agent's only data access is
+   the role-scoped tools in lib/agent/tools.js, and the only operational
+   action it can ever take (automatic redispatch of a stalled paid ride)
+   goes through the existing dispatchRide() and is OFF in this release.
+   The conversational model is optional, self-hosted and configured by
+   AGENT_LLM_* env vars; with it unset or down, answers are rule-based.
+   Booking and dispatch never call into this block.
+========================================================= */
+const agentLlmConfig = readAgentLlmConfig();
+const agentLlm = createAgentLlmClient({ config: agentLlmConfig });
+const agentTools = createAgentTools({ supabase });
+// In-process memory only: cooldowns and log de-duplication. Losing it on
+// restart is safe -- the ride-row claim below is what prevents duplicates.
+const agentRedispatchHistory = new Map();
+const agentShadowLogged = new Map();
+const agentEscalatedRides = new Set();
+let agentSweepRunning = false;
+
+async function loadAgentState() {
+  const keys = [...AGENT_BOOLEAN_FLAG_KEYS, AGENT_FLAG_KEYS.RULES, "dispatch_paused"];
+  try {
+    const { data, error } = await supabase
+      .from("system_flags")
+      .select("key,value,updated_at")
+      .in("key", keys);
+    if (error) throw error;
+    const rows = data || [];
+    const flags = resolveAgentFlags(rows);
+    const dispatchPaused = rows.some((r) => r.key === "dispatch_paused" && r.value === "true");
+    const rulesRow = rows.find((r) => r.key === AGENT_FLAG_KEYS.RULES);
+    return {
+      ok: true,
+      flags,
+      dispatchPaused,
+      rules: parseAgentRules(rulesRow ? rulesRow.value : null),
+      mode: resolveAgentMode(flags, { dispatchPaused })
+    };
+  } catch (err) {
+    // Fail closed: if the flags can't be read, the agent is fully off and
+    // automation is treated as blocked.
+    const flags = resolveAgentFlags([]);
+    return {
+      ok: false,
+      flags,
+      dispatchPaused: true,
+      rules: parseAgentRules(null),
+      mode: resolveAgentMode(flags, { dispatchPaused: true })
+    };
+  }
+}
+
+function agentAudit(entry, req = null) {
+  return auditLog({ ...entry, req }).catch(() => {});
+}
+
+async function openAgentCase({ role, actorId, escalation, message, source, rideId = null, caseId: fixedCaseId = null }) {
+  const caseId = fixedCaseId || newAgentCaseId();
+  const entry = agentCaseOpenedEntry({ caseId, role, actorId, escalation, message, source });
+  if (rideId) entry.metadata.ride_id = String(rideId);
+  await agentAudit(entry);
+  if (escalation.category === "emergency") {
+    broadcastSse("agent_emergency_case", { case_id: caseId, at: nowIso() });
+  }
+  return caseId;
+}
+
+const AGENT_UNAVAILABLE_REPLY = {
+  reply:
+    "The Harvey Taxi assistant is not available right now. You can still book and track rides as usual. In an emergency, call 911.",
+  source: "rules",
+  actions: [{ type: "call_911", label: "Call 911", href: "tel:911" }]
+};
+
+async function runAgentAssist(req, res, { role, actor }) {
+  const state = await loadAgentState();
+  if (!state.mode.assist_enabled) {
+    return res.status(503).json({ ok: false, agent_available: false, ...AGENT_UNAVAILABLE_REPLY });
+  }
+  const message = typeof req.body?.message === "string" ? req.body.message : "";
+  if (!message.trim()) {
+    return fail(res, "message required.", 400);
+  }
+  const result = await handleAgentAssist({
+    role,
+    actor,
+    message,
+    tools: agentTools,
+    llm: agentLlmConfig.configured ? agentLlm : null
+  });
+  let caseId = null;
+  if (result.escalation) {
+    caseId = await openAgentCase({ role, actorId: actor ? actor.id : null, escalation: result.escalation, message, source: "assist" });
+  }
+  agentAudit(agentAssistDecisionEntry({ role, actorId: actor ? actor.id : null, result, mode: state.mode.mode }), req);
+  return ok(res, {
+    agent_available: true,
+    reply: result.reply,
+    source: result.source,
+    intent: result.intent,
+    escalation: result.escalation,
+    actions: result.actions,
+    case_id: caseId
+  });
+}
+
+const agentAssistRateLimit = rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "agent_assist" });
+
+app.get(
+  "/api/agent/status",
+  rateLimit({ windowMs: 60_000, max: 60, keyPrefix: "agent_status" }),
+  asyncRoute(async (req, res) => {
+    const state = await loadAgentState();
+    return ok(res, {
+      assist_available: state.mode.assist_enabled,
+      answer_mode: agentLlmConfig.configured ? "self_hosted_model_with_rules_fallback" : "rules_only"
+    });
+  })
+);
+
+app.post(
+  "/api/agent/rider/assist",
+  agentAssistRateLimit,
+  asyncRoute(async (req, res) => {
+    // Personal ride data only with a real, verified rider session. A
+    // sessionless rider still gets general help and booking guidance.
+    const rider = await resolveVerifiedRiderSession(req);
+    return runAgentAssist(req, res, { role: "rider", actor: rider ? { role: "rider", id: String(rider.id) } : null });
+  })
+);
+
+app.post(
+  "/api/agent/driver/assist",
+  agentAssistRateLimit,
+  requireDriverSelf,
+  asyncRoute(async (req, res) => {
+    return runAgentAssist(req, res, { role: "driver", actor: { role: "driver", id: String(req.driver.id) } });
+  })
+);
+
+const AGENT_ADMIN_ACTOR = Object.freeze({ role: "admin", id: "admin" });
+const AGENT_LOG_ACTIONS = Object.values(AGENT_ACTIONS);
+
+async function loadAgentSnapshot() {
+  const trace = [];
+  const [rides, drivers, busyDriverIds] = await Promise.all([
+    agentTools.invoke("admin_open_rides", AGENT_ADMIN_ACTOR, {}, trace),
+    agentTools.invoke("admin_candidate_drivers", AGENT_ADMIN_ACTOR, {}, trace),
+    getBusyDriverIds({ supabase })
+  ]);
+  const offers = await agentTools.invoke("admin_ride_offers", AGENT_ADMIN_ACTOR, { rideIds: rides.map((r) => r.id) }, trace);
+  return { rides, drivers, busyDriverIds, offers, trace };
+}
+
+app.get(
+  "/api/admin/agent/overview",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const state = await loadAgentState();
+    const modelStatus = agentLlm.status();
+    let snapshot = null;
+    let snapshotError = null;
+    try {
+      snapshot = await loadAgentSnapshot();
+    } catch (err) {
+      snapshotError = "Live ride and driver data could not be loaded.";
+    }
+    const [{ data: logRows }, { data: caseRows }] = await Promise.all([
+      supabase
+        .from("audit_logs")
+        .select("id,actor_type,actor_id,action,entity_type,entity_id,metadata,created_at")
+        .in("action", AGENT_LOG_ACTIONS.filter((a) => a !== AGENT_ACTIONS.CASE_OPENED && a !== AGENT_ACTIONS.CASE_RESOLVED))
+        .order("created_at", { ascending: false })
+        .limit(50),
+      supabase
+        .from("audit_logs")
+        .select("id,actor_id,action,entity_id,metadata,created_at")
+        .in("action", [AGENT_ACTIONS.CASE_OPENED, AGENT_ACTIONS.CASE_RESOLVED])
+        .order("created_at", { ascending: false })
+        .limit(500)
+    ]);
+    const now = Date.now();
+    let alerts = [];
+    let counts = null;
+    let stalledPlan = [];
+    let driverRows = [];
+    let rideRows = [];
+    if (snapshot) {
+      ({ alerts, counts } = buildAgentAlerts({ ...snapshot, rules: state.rules, now, dispatchPaused: state.dispatchPaused, modelStatus }));
+      stalledPlan = planAgentStalledRides({ rides: snapshot.rides, offers: snapshot.offers, rules: state.rules, now, lastAgentRedispatchAt: agentRedispatchHistory });
+      const busy = new Set(snapshot.busyDriverIds.map(String));
+      driverRows = snapshot.drivers
+        .filter((d) => !d.is_review_account)
+        .map((d) => {
+          const seen = Date.parse(d.last_location_at || d.last_seen_at || "");
+          return {
+            driver_id: String(d.id),
+            label: agentDriverLabel(d),
+            online: d.online === true || d.is_online === true,
+            busy: busy.has(String(d.id)),
+            compliance_ready: computeDriverReadiness(d, { enablePersona: ENABLE_PERSONA, enableCheckr: ENABLE_CHECKR }).ready,
+            location_age_minutes: Number.isFinite(seen) ? Math.round((now - seen) / 60000) : null,
+            rating: d.rating ?? null
+          };
+        })
+        .sort((a, b) => Number(b.online) - Number(a.online) || Number(a.busy) - Number(b.busy));
+      rideRows = snapshot.rides.map((r) => ({
+        id: r.id,
+        status: r.status,
+        dispatch_status: r.dispatch_status || null,
+        ride_type: r.ride_type || r.service_type || null,
+        driver_name: r.driver_name || null,
+        pickup_address: r.pickup_address || null,
+        scheduled_time: r.scheduled_time || null,
+        dispatch_attempts: r.dispatch_attempts || 0,
+        is_review_ride: Boolean(r.is_review_ride),
+        updated_at: r.updated_at || null
+      }));
+    }
+    return ok(res, {
+      mode: state.mode,
+      flags: state.flags,
+      flags_read_ok: state.ok,
+      dispatch_paused: state.dispatchPaused,
+      rules: state.rules,
+      rule_bounds: AGENT_RULE_BOUNDS,
+      model: modelStatus,
+      admin_can_enable_automation: req.admin.method === "admin_token",
+      counts,
+      alerts,
+      snapshot_error: snapshotError,
+      active_rides: rideRows,
+      drivers: driverRows,
+      recommendations: stalledPlan,
+      decisions: logRows || [],
+      cases: summarizeAgentCases(caseRows || [])
+    });
+  })
+);
+
+app.get(
+  "/api/admin/agent/rides/:id/recommendations",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const state = await loadAgentState();
+    if (!state.mode.recommendations_enabled) {
+      return fail(res, "The agent kill switch is engaged.", 409);
+    }
+    const rideId = cleanString(req.params.id, 100);
+    const trace = [];
+    const [ride] = await agentTools.invoke("admin_ride", AGENT_ADMIN_ACTOR, { rideId }, trace);
+    if (!ride) {
+      return fail(res, "Ride not found.", 404);
+    }
+    const [drivers, busyDriverIds, offers] = await Promise.all([
+      agentTools.invoke("admin_candidate_drivers", AGENT_ADMIN_ACTOR, {}, trace),
+      getBusyDriverIds({ supabase }),
+      agentTools.invoke("admin_ride_offers", AGENT_ADMIN_ACTOR, { rideIds: [ride.id] }, trace)
+    ]);
+    const recommendation = recommendAgentDrivers({
+      ride,
+      drivers,
+      busyDriverIds,
+      offeredDriverIds: offers.map((o) => o.driver_id),
+      rules: state.rules,
+      complianceOptions: { enablePersona: ENABLE_PERSONA, enableCheckr: ENABLE_CHECKR }
+    });
+    agentAudit(
+      {
+        actor_type: "agent",
+        actor_id: "agent-manager",
+        action: AGENT_ACTIONS.RECOMMENDATION,
+        entity_type: "ride",
+        entity_id: String(ride.id),
+        metadata: {
+          record_type: AGENT_RECORD_TYPES.RECOMMENDATION,
+          policy: "recommend.eligible_nearest",
+          requested_by: req.admin.email,
+          candidate_driver_ids: recommendation.eligible.map((c) => c.driver_id),
+          excluded_count: recommendation.excluded.length,
+          tool_calls: cleanAgentToolCalls(trace),
+          executed: false
+        }
+      },
+      req
+    );
+    return ok(res, { ride: { id: ride.id, status: ride.status, ride_type: ride.ride_type || null }, recommendation });
+  })
+);
+
+app.post(
+  "/api/admin/agent/flags",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const key = cleanString(req.body?.key, 80);
+    const check = evaluateAgentFlagChange({ key, enable: req.body?.enabled, adminMethod: req.admin.method });
+    if (!check.ok) {
+      return fail(res, check.error, check.status);
+    }
+    const before = await loadAgentState();
+    const reason = cleanString(req.body?.reason, 300);
+    const { error } = await supabase
+      .from("system_flags")
+      .upsert({ key, value: check.value, reason: reason || null, updated_at: nowIso() });
+    if (error) {
+      return fail(res, "The flag could not be saved. Nothing was changed.", 500);
+    }
+    const after = await loadAgentState();
+    await agentAudit(
+      {
+        actor_type: "admin",
+        actor_id: req.admin.email,
+        action: AGENT_ACTIONS.FLAG_CHANGED,
+        entity_type: "system_flag",
+        entity_id: key,
+        metadata: {
+          record_type: AGENT_RECORD_TYPES.ADMIN,
+          value: check.value,
+          reason: reason || null,
+          admin_method: req.admin.method,
+          mode_before: before.mode.mode,
+          mode_after: after.mode.mode,
+          human_override: true
+        }
+      },
+      req
+    );
+    return ok(res, { key, value: check.value, mode: after.mode, flags: after.flags });
+  })
+);
+
+app.post(
+  "/api/admin/agent/rules",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const check = validateAgentRules(req.body?.rules, { partial: true });
+    if (!check.ok) {
+      return res.status(400).json({ ok: false, error: "Invalid rules.", errors: check.errors });
+    }
+    const before = await loadAgentState();
+    const rules = { ...before.rules, ...check.rules };
+    const { error } = await supabase
+      .from("system_flags")
+      .upsert({ key: AGENT_FLAG_KEYS.RULES, value: JSON.stringify(rules), reason: "agent rules update", updated_at: nowIso() });
+    if (error) {
+      return fail(res, "The rules could not be saved. Nothing was changed.", 500);
+    }
+    await agentAudit(
+      {
+        actor_type: "admin",
+        actor_id: req.admin.email,
+        action: AGENT_ACTIONS.RULES_CHANGED,
+        entity_type: "system_flag",
+        entity_id: AGENT_FLAG_KEYS.RULES,
+        metadata: { record_type: AGENT_RECORD_TYPES.ADMIN, before: before.rules, after: rules, human_override: true }
+      },
+      req
+    );
+    return ok(res, { rules });
+  })
+);
+
+const AGENT_CASE_RESOLUTIONS = Object.freeze(["resolved", "referred_to_support", "no_action_needed", "escalated_externally"]);
+
+app.post(
+  "/api/admin/agent/cases/:id/resolve",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const caseId = cleanString(req.params.id, 40);
+    const resolution = cleanString(req.body?.resolution, 40);
+    if (!AGENT_CASE_RESOLUTIONS.includes(resolution)) {
+      return fail(res, `resolution must be one of: ${AGENT_CASE_RESOLUTIONS.join(", ")}.`, 400);
+    }
+    const { data: rows, error } = await supabase
+      .from("audit_logs")
+      .select("action,entity_id")
+      .eq("entity_type", "agent_case")
+      .eq("entity_id", caseId);
+    if (error) {
+      return fail(res, "Case data is temporarily unavailable.", 503);
+    }
+    if (!(rows || []).some((r) => r.action === AGENT_ACTIONS.CASE_OPENED)) {
+      return fail(res, "Case not found.", 404);
+    }
+    if ((rows || []).some((r) => r.action === AGENT_ACTIONS.CASE_RESOLVED)) {
+      return fail(res, "Case is already resolved.", 409);
+    }
+    await agentAudit(agentCaseResolvedEntry({ caseId, admin: req.admin, resolution, note: req.body?.note }), req);
+    return ok(res, { case_id: caseId, status: "resolved", resolution });
+  })
+);
+
+app.post(
+  "/api/admin/agent/overrides",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const rideId = cleanString(req.body?.ride_id, 100);
+    const decision = cleanString(req.body?.decision, 40);
+    if (!rideId || !["accepted_recommendation", "rejected_recommendation", "manual_assignment"].includes(decision)) {
+      return fail(res, "ride_id and a valid decision are required.", 400);
+    }
+    await agentAudit(
+      {
+        actor_type: "admin",
+        actor_id: req.admin.email,
+        action: AGENT_ACTIONS.OVERRIDE,
+        entity_type: "ride",
+        entity_id: rideId,
+        metadata: {
+          record_type: AGENT_RECORD_TYPES.ADMIN,
+          decision,
+          driver_id: cleanString(req.body?.driver_id, 100) || null,
+          note: agentRedactForLog(req.body?.note || "", 300),
+          human_override: true
+        }
+      },
+      req
+    );
+    return ok(res, { recorded: true });
+  })
+);
+
+// One coordination pass. In "shadow" mode it only records what it would
+// have done. In "automation" mode (OFF in this release) it executes a
+// planned redispatch through the existing dispatchRide(), after an
+// optimistic claim that fails if anything else touched the ride.
+// forceShadow: an admin's manual "evaluate now" -- never executes.
+// Fresh read before each automated action (see the sweep below).
+async function agentAutomationStillAllowed() {
+  const state = await loadAgentState();
+  return state.ok && state.mode.auto_redispatch_enabled === true;
+}
+
+async function runAgentCoordinationSweep({ forceShadow = false } = {}) {
+  if (agentSweepRunning) return { skipped: "already_running" };
+  agentSweepRunning = true;
+  try {
+    const state = await loadAgentState();
+    const execute = !forceShadow && state.mode.auto_redispatch_enabled;
+    if (!forceShadow && !execute && !state.mode.shadow_enabled) {
+      return { skipped: `mode_${state.mode.mode}` };
+    }
+    const snapshot = await loadAgentSnapshot();
+    const now = Date.now();
+    const plan = planAgentStalledRides({ rides: snapshot.rides, offers: snapshot.offers, rules: state.rules, now, lastAgentRedispatchAt: agentRedispatchHistory });
+    const outcomes = [];
+    for (const item of plan) {
+      const ride = snapshot.rides.find((r) => String(r.id) === item.ride_id);
+      if (item.decision === "escalate") {
+        // One case per ride, across instances and restarts: the case id is
+        // derived from the ride, and an existing case row is checked first.
+        if (!agentEscalatedRides.has(item.ride_id)) {
+          const caseId = `CASE-DISPATCH-${item.ride_id}`.slice(0, 40);
+          const { data: existingCase } = await supabase
+            .from("audit_logs")
+            .select("id")
+            .eq("action", AGENT_ACTIONS.CASE_OPENED)
+            .eq("entity_id", caseId)
+            .limit(1);
+          if (!(existingCase || []).length) {
+            await openAgentCase({
+              role: "system",
+              actorId: null,
+              escalation: { category: "dispatch_exhausted", severity: "high" },
+              message: `Ride waiting after ${item.attempts} dispatch attempts; needs a dispatcher.`,
+              source: "coordination",
+              rideId: item.ride_id,
+              caseId
+            });
+          }
+          agentEscalatedRides.add(item.ride_id);
+        }
+        outcomes.push({ ...item, executed: false });
+        continue;
+      }
+      if (item.decision !== "redispatch") {
+        outcomes.push({ ...item, executed: false });
+        continue;
+      }
+      const recommendation = recommendAgentDrivers({
+        ride,
+        drivers: snapshot.drivers,
+        busyDriverIds: snapshot.busyDriverIds,
+        offeredDriverIds: snapshot.offers.filter((o) => String(o.ride_id) === item.ride_id).map((o) => o.driver_id),
+        rules: state.rules,
+        complianceOptions: { enablePersona: ENABLE_PERSONA, enableCheckr: ENABLE_CHECKR },
+        now
+      });
+      const candidateIds = recommendation.eligible.map((c) => c.driver_id);
+      if (!execute) {
+        const lastLogged = agentShadowLogged.get(item.ride_id) || 0;
+        if (forceShadow || now - lastLogged > state.rules.redispatch_cooldown_seconds * 1000) {
+          agentShadowLogged.set(item.ride_id, now);
+          await agentAudit({
+            actor_type: "agent",
+            actor_id: "agent-manager",
+            action: AGENT_ACTIONS.SHADOW,
+            entity_type: "ride",
+            entity_id: item.ride_id,
+            metadata: {
+              record_type: AGENT_RECORD_TYPES.SHADOW,
+              policy: "coordination.redispatch_stalled",
+              would_do: "redispatch",
+              reason: item.reason,
+              candidate_driver_ids: candidateIds,
+              executed: false,
+              trigger: forceShadow ? "admin_manual_evaluation" : "shadow_sweep"
+            }
+          });
+        }
+        outcomes.push({ ...item, decision: "would_redispatch", candidate_driver_ids: candidateIds, executed: false });
+        continue;
+      }
+      // Automation path.
+      //
+      // Kill switch: the agent's state is re-read from the database before
+      // every action (not once per sweep), so engaging the kill switch, or
+      // turning any automation flag off, pausing dispatch or turning shadow
+      // mode on, stops the very next action on every server instance. The
+      // remaining planned items of this sweep are dropped, not executed.
+      if (!(await agentAutomationStillAllowed())) {
+        outcomes.push({ ...item, decision: "skipped", reason: "automation_stopped", executed: false });
+        break;
+      }
+      // Duplicate protection is in the database, not in this process: the
+      // claim only succeeds if the ride is still paid, unassigned and
+      // unchanged since the snapshot (updated_at), so of any number of
+      // concurrent sweeps -- here or on other instances -- at most one
+      // claims a ride. last_dispatch_at carries the cooldown across
+      // instances and restarts. dispatch_status "redispatching" +
+      // dispatch_claimed_at hand a crash mid-dispatch to the existing
+      // stuck-redispatch recovery.
+      const claimedAt = nowIso();
+      const { data: claimedRows, error: claimError } = await supabase
+        .from("rides")
+        .update({ dispatch_status: "redispatching", dispatch_claimed_at: claimedAt, last_dispatch_at: claimedAt, updated_at: claimedAt })
+        .eq("id", item.ride_id)
+        .eq("status", RIDE_STATUS.PAYMENT_AUTHORIZED)
+        .is("driver_id", null)
+        .eq("updated_at", item.observed_updated_at)
+        .select("id,status,pickup_address,pickup_lat,pickup_lng,ride_type,rider_id,rider_phone,is_review_ride,scheduled_time,dispatch_attempts");
+      const claimed = !claimError && Array.isArray(claimedRows) ? claimedRows[0] : null;
+      if (!claimed) {
+        outcomes.push({ ...item, decision: "skipped", reason: "ride_changed_or_claimed_elsewhere", executed: false });
+        continue;
+      }
+      agentRedispatchHistory.set(item.ride_id, now);
+      // Last check between claim and dispatch. If automation was stopped in
+      // that window, hand the ride back exactly as it was (so neither this
+      // agent nor the stuck-redispatch recovery dispatches it) and stop.
+      if (!(await agentAutomationStillAllowed())) {
+        await supabase
+          .from("rides")
+          .update({ dispatch_status: item.previous_dispatch_status, dispatch_claimed_at: null })
+          .eq("id", item.ride_id)
+          .eq("dispatch_status", "redispatching")
+          .eq("dispatch_claimed_at", claimedAt);
+        outcomes.push({ ...item, decision: "skipped", reason: "automation_stopped", executed: false });
+        break;
+      }
+      let dispatchResult;
+      try {
+        dispatchResult = await dispatchRide(claimed);
+      } catch (err) {
+        dispatchResult = { dispatched: false, reason: "dispatch_error" };
+      }
+      // Verify against the database rather than trusting the return value.
+      const [{ data: afterRide }, { data: afterOffers }] = await Promise.all([
+        supabase.from("rides").select("id,status,dispatch_status,driver_id").eq("id", item.ride_id).maybeSingle(),
+        supabase.from("driver_offers").select("id,status").eq("ride_id", item.ride_id).eq("status", "pending")
+      ]);
+      const verified = {
+        ride_status: afterRide ? afterRide.status : null,
+        pending_offers: (afterOffers || []).length,
+        driver_assigned: Boolean(afterRide && afterRide.driver_id)
+      };
+      const dispatchedVerified = verified.pending_offers > 0 || verified.driver_assigned;
+      await agentAudit({
+        actor_type: "agent",
+        actor_id: "agent-manager",
+        action: AGENT_ACTIONS.EXECUTED,
+        entity_type: "ride",
+        entity_id: item.ride_id,
+        metadata: {
+          record_type: AGENT_RECORD_TYPES.EXECUTED,
+          policy: "coordination.redispatch_stalled",
+          action: "redispatch_via_dispatchRide",
+          reason: item.reason,
+          dispatched: dispatchedVerified,
+          reported_by_dispatch: Boolean(dispatchResult && dispatchResult.dispatched),
+          verified,
+          dispatch_reason: dispatchResult && dispatchResult.reason ? String(dispatchResult.reason).slice(0, 120) : null,
+          executed: true
+        }
+      });
+      outcomes.push({ ...item, decision: "redispatched", dispatched: dispatchedVerified, verified, executed: true });
+    }
+    return { mode: forceShadow ? "manual_shadow" : state.mode.mode, outcomes };
+  } catch (err) {
+    console.error("⚠️ Agent coordination sweep failed:", err && err.message ? err.message : err);
+    return { error: "sweep_failed" };
+  } finally {
+    agentSweepRunning = false;
+  }
+}
+
+app.post(
+  "/api/admin/agent/model/check",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    await agentLlm.healthCheck();
+    return ok(res, { model: agentLlm.status() });
+  })
+);
+
+app.post(
+  "/api/admin/agent/evaluate",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const state = await loadAgentState();
+    if (state.mode.kill_switch) {
+      return fail(res, "The agent kill switch is engaged.", 409);
+    }
+    const result = await runAgentCoordinationSweep({ forceShadow: true });
+    if (result.error) {
+      return fail(res, "Evaluation failed; no action was taken.", 503);
+    }
+    if (result.skipped) {
+      return fail(res, "An evaluation is already running.", 409);
+    }
+    return ok(res, result);
+  })
+);
+
+app.get(
+  "/admin-agent",
+  (req, res) => sendStaticPage(res, "admin-agent.html")
+);
+
+
+/* =========================================================
 
    API 404 HANDLER
 
@@ -23413,6 +24129,10 @@ async function startServer() {
       );
 
       console.log(
+        `🧭 Agent model: ${agentLlmConfig.configured ? `self-hosted (${describeAgentLlmConfig(agentLlmConfig).host})` : "rules only"}`
+      );
+
+      console.log(
 
         "================================================="
 
@@ -23448,6 +24168,17 @@ async function startServer() {
       runStuckRedispatchRecovery();
       setInterval(runStuckRedispatchRecovery, 30_000);
 
+      // One real health check at boot so the admin page can say whether the
+      // optional self-hosted model is reachable (Disabled when unset).
+      agentLlm.healthCheck().catch(() => {});
+
+      // AI Agent Manager coordination pass. Does nothing unless an admin
+      // turns on shadow mode (records "would do" only) or, later and with
+      // elevated approval, automation. Never blocks booking or dispatch.
+      setInterval(() => {
+        runAgentCoordinationSweep().catch(() => {});
+      }, 60_000);
+
     }
 
   );
@@ -23471,4 +24202,4 @@ if (require.main === module) {
 // runOfferExpirySweep is exported only so tests can drive the real
 // Supabase adapters for the offer-expiry sweep; production runs it on the
 // interval set up under require.main === module below.
-module.exports = { app, runOfferExpirySweep };
+module.exports = { app, runOfferExpirySweep, runAgentCoordinationSweep };
