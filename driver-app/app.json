@@ -70,7 +70,9 @@
       "expo-web-browser"
     ],
     "extra": {
-      "eas": {}
+      "eas": {
+        "projectId": "0a1de77e-7850-4378-b46c-9c21ba80a094"
+      }
     }
   }
 }
