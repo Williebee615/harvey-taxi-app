@@ -27,25 +27,74 @@ EAS uploads that Apple accepted show two App Store Connect apps under team
 Connect which record is the live/in-review Harvey Taxi app before anything
 in `mobile/` is changed.
 
-## A0. iOS signing (the current iOS blocker): one interactive step on your Mac
+## A0. Apple: what's needed, and the quickest route (your Mac)
+
+There are two separate kinds of Apple credentials:
+
+| | **Signing** (needed to *build*) | **Submission** (needed to *upload* to App Store Connect) |
+|---|---|---|
+| What | Distribution certificate, App Store provisioning profile for `com.harveytaxiservice.driver`, APNs push key | App Store Connect API key (`.p8`, Key ID, Issuer ID), plus the driver app's App Store Connect **Apple ID** number in `eas.json` |
+| Stored | On Expo's servers (EAS credentials) | On Expo's servers (EAS credentials) |
+| Today | Missing for the driver app. Your team's distribution certificate (valid to 2027-08-26) already exists in EAS and can be reused | No API key stored in EAS |
+
+**Quickest route: interactive Apple sign-in on your Mac (about 10 minutes).**
 
 ```sh
-git fetch origin claude/driver-app && git checkout claude/driver-app
+# 1. Get the branch
+git clone https://github.com/Williebee615/harvey-taxi-app.git   # or: git fetch && git checkout claude/driver-app
+cd harvey-taxi-app && git checkout claude/driver-app
 cd driver-app && npm ci
-npx eas-cli login                       # your Expo account (williebee615)
-npx eas-cli credentials -p ios          # choose "production"
-#   -> sign in with your Apple ID (team AYF633JM4W)
-#   -> "Build Credentials: set up all" : registers com.harveytaxiservice.driver,
-#      reuses or creates the distribution certificate, creates the provisioning profile
-#   -> "Push Notifications: set up" : creates or reuses the APNs key
+
+# 2. Sign in to Expo (account williebee615)
+npx eas-cli login
+
+# 3. Signing credentials
+npx eas-cli credentials -p ios
+#   Which build profile?                       -> production
+#   Do you want to log in to your Apple account? -> Yes (Apple ID + 2-factor code; entered on your Mac only)
+#   Team                                        -> AYF633JM4W  Harvey Taxi Service LLC (Mobile)
+#   Menu: "Build Credentials: Manage everything needed to build your project"
+#         -> "Set up all the required credentials to build your project"
+#            - registers the bundle ID com.harveytaxiservice.driver   <- availability check:
+#              if Apple refuses it, stop and tell me
+#            - "Reuse an existing Distribution Certificate?"  -> Yes (the one valid to 2027-08-26)
+#            - creates the App Store provisioning profile
+#   Menu: "Push Notifications: Manage your Apple Push Notifications Key"
+#         -> "Set up your project to use Push Notifications" (reuse an existing key or create one)
+
+# 4. Submission credentials (can be done now or later)
+#   a) https://appstoreconnect.apple.com/access/integrations/api -> Team Keys -> "+"
+#      Name "EAS Harvey Taxi Driver", Access "App Manager" -> Generate -> download the .p8 once.
+#   b) npx eas-cli credentials -p ios
+#      -> "App Store Connect: Manage your API Key" -> "Set up your project to use an API Key for EAS Submit"
+#      -> add the .p8, Key ID and Issuer ID. Keep the .p8 file private; never commit it.
+#   c) App Store Connect -> Apps -> "+" New App: iOS, "Harvey Taxi Driver",
+#      bundle ID com.harveytaxiservice.driver, SKU harvey-taxi-driver, then App Information -> copy "Apple ID"
+#      and tell me the number (it is not secret); I'll put it in driver-app/eas.json.
 ```
 
-If Apple says `com.harveytaxiservice.driver` is unavailable, stop and tell
-me; that is the availability check. After this, I can run iOS builds from
-here. For uploads to TestFlight from here, also add an App Store Connect API
-key to EAS: https://appstoreconnect.apple.com/access/integrations/api →
-**+** (role **App Manager**), download the `.p8`, then
-`npx eas-cli credentials -p ios` → **App Store Connect: Manage your API Key** → add.
+When steps 3 and 4 are done, tell me. I'll start the iOS production build
+from here and upload it to TestFlight, then send you the build link and the
+TestFlight build number.
+
+## A1. Google Play: service account for uploads
+
+Needed only for uploads from EAS (`eas submit`). **The first Android upload
+must be manual in Play Console anyway.**
+
+1. **Play Console → Create app**: "Harvey Taxi Driver", default language English (US), App, Free; accept the declarations.
+2. **Google Cloud** (https://console.cloud.google.com): select or create a project (for example "harvey-taxi-play") → **IAM & Admin → Service Accounts → Create service account** "eas-play-upload". Grant no project role.
+3. In that service account, open **Keys → Add key → Create new key → JSON**. Download it and keep it private.
+4. Enable the **Google Play Android Developer API** for that project (APIs & Services → Library).
+5. **Play Console → Users and permissions → Invite new user**: the service account's email. Under **App permissions**, add Harvey Taxi Driver with **Release apps to testing tracks** (add production later if wanted) → Invite.
+6. Store the key in EAS, not in GitHub: `npx eas-cli credentials -p android` → production → **Google Service Account → Upload a Google Service Account Key** → choose the JSON.
+7. **First upload (manual):** Play Console → Harvey Taxi Driver → **Testing → Internal testing → Create new release** → upload the `.aab` from the EAS build page → save and roll out to internal testers.
+
+**Android push (separate from uploads):** Firebase project with Android app
+`com.harveytaxi.driver`; upload its FCM V1 service-account key with
+`npx eas-cli credentials -p android` → **Google Service Account → FCM V1**,
+and add `google-services.json` as the EAS file variable `GOOGLE_SERVICES_JSON`
+(see C). Until this is done, Android builds work but Android push doesn't.
 
 ## A. Give this environment access (or run the EAS steps on your own computer)
 
@@ -159,7 +208,7 @@ signed in as the test driver, capture the six screens listed in
    **support@harveytaxiservice.com**, the support address already on the
    home page. Confirm it, or give the address to use. A mailing address is
    optional.
-2. **Store category:** Navigation, Business, or another.
+2. **Store category:** recommended **Navigation** (App Store) / **Maps & Navigation** (Play); used in the listing drafts.
 3. Approval to run `docs/driver-app-deploy.md` in production (migration, then deploy).
 4. Approval to submit for App Review and to send the Play release to review,
    once D and E are complete.

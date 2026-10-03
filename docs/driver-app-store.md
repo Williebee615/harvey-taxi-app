@@ -10,7 +10,7 @@ reverse. Items marked **[owner]** need facts only you have.
 |---|---|---|
 | Name | Harvey Taxi Driver | Harvey Taxi Driver |
 | Subtitle / short description | Drive with Harvey Taxi | Accept and complete Harvey Taxi rides as an approved driver. |
-| Category | Navigation (primary), Business (secondary) **[owner to confirm]** | Maps & Navigation **[owner to confirm]** |
+| Category | **Navigation** (recommended; secondary: Business) | **Maps & Navigation** |
 | Support URL | https://harveytaxiservice.com/support.html | same |
 | Privacy policy URL | https://harveytaxiservice.com/privacy-policy.html (update first, see below) | same |
 | Account deletion URL (Play) | — | https://harveytaxiservice.com/settings.html?account=driver#account-deletion |
