@@ -1173,6 +1173,9 @@ function getClientIp(req) {
 // phone number, or one shared IP (an office, a NAT) targeting many
 // different destinations, need their own dimension.
 const { computeRetryAfterSeconds, buildRateLimitExceededLogEvent } = require("./lib/rateLimit");
+const { registerDriverAppRoutes, createDriverRealtime } = require("./lib/driverAppRoutes");
+const { locationPolicy: driverAppLocationPolicy, pushKindForTitle: driverAppPushKind } = require("./lib/driverApp");
+
 
 // Emits the exact sanitized event a rejected request produces (see
 // buildRateLimitExceededLogEvent, lib/rateLimit.js) and sets both the
@@ -3221,7 +3224,21 @@ const RIDE_STAGE_MESSAGES = {
 // Best-effort browser push. Never throws — same resilience contract as
 // sendSms()/sendEmail(). Cleans up subscriptions the push service reports
 // as gone (404/410) so a stale endpoint doesn't get retried forever.
+// Harvey Taxi Driver app (lib/driverAppRoutes.js): every driver
+// notification also nudges the driver's open app stream to re-read its
+// state, and goes out as a native push when driver_native_push_enabled is
+// on. Assigned where the routes are registered, below.
+const driverAppRealtime = createDriverRealtime();
+let driverAppNativePush = null;
+
 async function sendPushNotification({ ownerType, ownerId, title, body, url }) {
+
+  if (ownerType === "driver" && ownerId) {
+    driverAppRealtime.notifyDriver(ownerId, "sync", { reason: driverAppPushKind(title) });
+    if (driverAppNativePush) {
+      driverAppNativePush(ownerId, { title, body, kind: driverAppPushKind(title) }).catch(() => {});
+    }
+  }
 
   if (!pushEnabled || !ownerId) return;
 
@@ -3425,6 +3442,59 @@ const {
 // (and therefore payment/dispatch) fail closed with a 503, not silently
 // sign quotes with a guessed or shared secret.
 const RIDE_QUOTE_SECRET = env("RIDE_QUOTE_SECRET", "");
+
+// Ride tracking access (lib/rideAccess.js): who may read a ride's live
+// status and location.
+const {
+  signRideTrackingToken,
+  verifyRideTrackingToken,
+  deriveTrackingSecret,
+  decideRideViewer,
+  shapeStatusForViewer
+} = require("./lib/rideAccess");
+const RIDE_TRACKING_SECRET = deriveTrackingSecret({
+  trackingSecret: env("RIDE_TRACKING_SECRET", ""),
+  quoteSecret: RIDE_QUOTE_SECRET
+});
+
+function rideTrackingTokenFor(rideId) {
+  return signRideTrackingToken(rideId, RIDE_TRACKING_SECRET);
+}
+
+// Resolves who is asking about this ride, from verified credentials only:
+// admin credentials, a rider session that owns the ride, the ride's
+// tracking token (x-ride-tracking-token header, or ?t= for EventSource,
+// which can't send headers), or the assigned driver's session. Returns
+// "admin" | "rider" | "driver" | null.
+async function resolveRideViewer(req, ride) {
+  if (!ride) return null;
+  const isAdmin = isAdminRequest(req);
+  const rider = isAdmin ? null : await resolveVerifiedRiderSession(req);
+  const rawToken = req.headers["x-ride-tracking-token"] || req.query?.t;
+  const trackingTokenValid = verifyRideTrackingToken(ride.id, typeof rawToken === "string" ? rawToken : "", RIDE_TRACKING_SECRET);
+
+  let sessionDriverId = null;
+  const driverToken = req.headers["x-driver-token"];
+  if (!isAdmin && driverToken && ride.driver_id) {
+    const session = verifyDriverSession(driverToken);
+    if (session && String(session.driver_id) === String(ride.driver_id)) {
+      const { data: driverRow } = await supabase
+        .from("drivers")
+        .select("id, access_revoked")
+        .eq("id", session.driver_id)
+        .maybeSingle();
+      if (driverRow && driverRow.access_revoked !== true) sessionDriverId = driverRow.id;
+    }
+  }
+
+  return decideRideViewer({
+    ride,
+    isAdmin,
+    sessionRiderId: rider ? rider.id : null,
+    trackingTokenValid,
+    sessionDriverId
+  });
+}
 
 // Short-lived on purpose: long enough for a rider to review pricing and
 // authorize payment in one sitting, short enough that a leaked/observed
@@ -10869,6 +10939,10 @@ async function claimExpiredOffer(offerId) {
 
   if (error) throw error;
 
+  if (data && data.driver_id) {
+    driverAppRealtime.notifyDriver(data.driver_id, "sync", { reason: "offer_expired" });
+  }
+
   return data || null;
 }
 
@@ -12379,7 +12453,8 @@ app.post(
             return ok(res, {
               ride: existingRide,
               dispatch: null,
-              replay: true
+              replay: true,
+              tracking_token: rideTrackingTokenFor(existingRide.id)
             });
 
           }
@@ -12489,6 +12564,9 @@ app.post(
           data,
         estimate,
         dispatch,
+        // Lets this rider (and only whoever received this response) read
+        // the ride's live status and location; see lib/rideAccess.js.
+        tracking_token: rideTrackingTokenFor(data.id),
         ...(reviewRideState.simulated
           ? {
               review_mode: true,
@@ -12916,7 +12994,7 @@ app.get(
 
         "id, status, ride_type, pickup_address, dropoff_address, " +
 
-        "pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, " +
+        "pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, rider_id, " +
 
         "driver_id, driver_name, driver_vehicle, driver_phone, " +
 
@@ -12937,9 +13015,14 @@ app.get(
       .maybeSingle();
 
     if (error || !ride) {
-
       return fail(res, "Ride not found.", 404);
+    }
 
+    // Same answer as a missing ride, so the route doesn't confirm that a
+    // guessed id exists.
+    const viewer = await resolveRideViewer(req, ride);
+    if (!viewer) {
+      return fail(res, "Ride not found.", 404);
     }
 
     let driverPhotoUrl = null;
@@ -13066,8 +13149,7 @@ app.get(
 
     }
 
-    return ok(res, {
-
+    return ok(res, shapeStatusForViewer({
       id: ride.id,
 
       status: ride.status,
@@ -13145,12 +13227,9 @@ app.get(
             tip_amount: ride.tip_amount,
 
             proof_url: ride.delivery_proof_url
-
           }
-
         : null
-
-    });
+    }, viewer));
 
   })
 
@@ -16181,6 +16260,28 @@ app.post(
 
     if (!activeRide) {
 
+      // Online with no trip: store the position so dispatch
+      // (nearest_drivers, via the drivers.geog trigger) offers rides
+      // from where the driver actually is. Offline with no trip is still
+      // refused: nothing should be tracking then.
+      if (driverAppLocationPolicy({ driver: req.driver, activeRide: null }) === "online_idle") {
+        const idleAccuracy = Number(req.body.accuracy);
+        await supabase
+          .from("drivers")
+          .update({
+            current_lat: lat,
+            current_lng: lng,
+            heading: Number(req.body.heading || 0),
+            speed: Number(req.body.speed || 0),
+            location_accuracy_meters: Number.isFinite(idleAccuracy) ? idleAccuracy : null,
+            last_location_at: nowIso(),
+            last_seen_at: nowIso(),
+            updated_at: nowIso()
+          })
+          .eq("id", driverId);
+        return ok(res, { updated: true, tracking_ride_id: null, mode: "online_idle" });
+      }
+
       return fail(
 
         res,
@@ -17024,19 +17125,15 @@ app.get(
     const rideId = cleanString(req.params.id, 100);
 
     const { data: ride } = await supabase
-
       .from("rides")
-
-      .select("id")
-
+      .select("id, rider_id, driver_id")
       .eq("id", rideId)
-
       .maybeSingle();
 
-    if (!ride) {
-
+    // Live location: only the ride's rider, its assigned driver or an
+    // admin (lib/rideAccess.js). Everyone else sees "not found".
+    if (!ride || !(await resolveRideViewer(req, ride))) {
       return fail(res, "Ride not found.", 404);
-
     }
 
     const clientId = makeId("RIDESSE");
@@ -20165,6 +20262,33 @@ async function anonymizeAccount({
 
   };
 
+  // Drivers: also remove location, photo, addresses and license/plate
+  // numbers, and take the driver offline. Clearing current_lat/lng also
+  // clears geog (trigger drivers_sync_geog). Ride and earnings rows stay
+  // for operational/financial records, without the name and phone.
+  if (table === "drivers") {
+    Object.assign(scrub, {
+      online: false,
+      current_lat: null,
+      current_lng: null,
+      latitude: null,
+      longitude: null,
+      heading: null,
+      speed: null,
+      location_accuracy_meters: null,
+      last_location_at: null,
+      photo_url: null,
+      home_address: null,
+      current_address: null,
+      last_known_address: null,
+      zipcode: null,
+      license_plate: null,
+      vehicle_plate: null,
+      drivers_license_number: null,
+      license_number: null
+    });
+  }
+
   const { error } =
 
     await supabase
@@ -20206,8 +20330,10 @@ async function anonymizeAccount({
   }
 
   // Same for drivers: rides keeps its own driver_name/driver_phone
-  // snapshot, separate from the drivers row scrubbed above.
+  // snapshot, separate from the drivers row scrubbed above. Their app's
+  // push tokens go too, so the device gets nothing more.
   if (table === "drivers") {
+    await supabase.from("driver_push_tokens").delete().eq("driver_id", id);
     await supabase
       .from("rides")
       .update({
@@ -24215,6 +24341,31 @@ app.post(
     return ok(res, { dry_run: true, scheduled_reconciliation_enabled: reconciliationEnabled, reconciliation: summary });
   })
 );
+
+/* =========================================================
+   HARVEY TAXI DRIVER APP (lib/driverAppRoutes.js, docs/driver-app.md)
+   Additive routes for the native driver app; the web dashboard's routes
+   are unchanged.
+========================================================= */
+({ sendDriverNativePush: driverAppNativePush } = registerDriverAppRoutes(app, {
+  supabase,
+  requireDriverSelf,
+  rateLimit,
+  asyncRoute,
+  ok,
+  fail,
+  getSystemFlag,
+  getTwilioClient: () => twilioClient,
+  twilioVerifyServiceSid: TWILIO_VERIFY_SERVICE_SID,
+  toE164,
+  signDriverSession,
+  driverSessionTtlHours: DRIVER_SESSION_TTL_HOURS,
+  computeDriverReadiness,
+  enablePersona: ENABLE_PERSONA,
+  enableCheckr: ENABLE_CHECKR,
+  auditLog,
+  realtime: driverAppRealtime
+}));
 
 /* =========================================================
    API 404 HANDLER

@@ -62,6 +62,9 @@ function createFakeSupabase(seed = {}, options = {}) {
     let wantSingle = false;
     let wantMaybeSingle = false;
     let selectedColumns = null;
+    let rangeBounds = null;
+    let pendingDelete = false;
+    let upsertConflictKey = null;
 
     function unknownColumnError(record) {
       const allowed = columns[table];
@@ -76,7 +79,7 @@ function createFakeSupabase(seed = {}, options = {}) {
 
     async function exec() {
       const rows = ensureTable(table);
-      const op = pendingInsertRows ? "insert" : pendingUpdatePatch ? "update" : "select";
+      const op = pendingInsertRows ? "insert" : pendingUpdatePatch ? "update" : pendingDelete ? "delete" : "select";
       log.push({ table, op, patch: pendingUpdatePatch });
 
       if (pendingInsertRows) {
@@ -108,7 +111,7 @@ function createFakeSupabase(seed = {}, options = {}) {
       }
 
       if (pendingInsertRows) {
-        const keyField = table === "system_flags" ? "key" : "id";
+        const keyField = upsertConflictKey || (table === "system_flags" ? "key" : "id");
 
         if (!isUpsert) {
           const uniqueCols = uniqueColumns[table] || [];
@@ -170,7 +173,17 @@ function createFakeSupabase(seed = {}, options = {}) {
         return { data: matched, error: null };
       }
 
-      const matched = applyFilters(rows, filters);
+      if (pendingDelete) {
+        const removed = applyFilters(rows, filters);
+        state[table] = rows.filter((row) => !removed.includes(row));
+        return { data: removed, error: null };
+      }
+
+      let matched = applyFilters(rows, filters);
+
+      if (rangeBounds) {
+        matched = matched.slice(rangeBounds[0], rangeBounds[1] + 1);
+      }
 
       if (wantSingle) {
         return matched.length
@@ -209,6 +222,38 @@ function createFakeSupabase(seed = {}, options = {}) {
       },
       in(col, arr) {
         filters.push((row) => arr.includes(row[col]));
+        return builder;
+      },
+      // Case-insensitive LIKE: % and _ wildcards, backslash escapes.
+      ilike(col, pattern) {
+        let re = "";
+        const p = String(pattern);
+        for (let i = 0; i < p.length; i += 1) {
+          const ch = p[i];
+          if (ch === "\\" && i + 1 < p.length) {
+            re += p[i + 1].replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            i += 1;
+          } else if (ch === "%") re += ".*";
+          else if (ch === "_") re += ".";
+          else re += ch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        }
+        const regex = new RegExp(`^${re}$`, "is");
+        filters.push((row) => row[col] !== null && row[col] !== undefined && regex.test(String(row[col])));
+        return builder;
+      },
+      // Only the not(col, "is", null) form.
+      not(col, op, val) {
+        if (op !== "is" || val !== null) throw new Error(`fakeSupabase.not: unsupported ${op} ${val}`);
+        filters.push((row) => row[col] !== null && row[col] !== undefined);
+        return builder;
+      },
+      // Pagination, as PostgREST's Range header: inclusive bounds.
+      range(from, to) {
+        rangeBounds = [from, to];
+        return builder;
+      },
+      delete() {
+        pendingDelete = true;
         return builder;
       },
       // PostgREST-style OR filter, e.g. "ride_type.is.null,ride_type.not.in.(food,grocery)".
@@ -281,8 +326,9 @@ function createFakeSupabase(seed = {}, options = {}) {
         pendingUpdatePatch = patch;
         return builder;
       },
-      upsert(record) {
+      upsert(record, upsertOptions) {
         isUpsert = true;
+        if (upsertOptions && typeof upsertOptions.onConflict === "string") upsertConflictKey = upsertOptions.onConflict;
         pendingInsertRows = Array.isArray(record) ? record : [record];
         return builder;
       },

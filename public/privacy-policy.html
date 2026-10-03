@@ -374,7 +374,7 @@
     <section class="hero">
       <div class="eyebrow">Privacy policy</div>
       <h1>Harvey Taxi Privacy Policy</h1>
-      <div class="effective">Effective Date: April 5, 2026</div>
+      <div class="effective">Effective Date: April 5, 2026 · Last updated: October 2026</div>
       <p>
         Harvey Taxi respects your privacy. This Privacy Policy explains how Harvey Taxi Service LLC
         may collect, use, store, protect, and share information when riders, drivers, merchants,
@@ -434,6 +434,9 @@
               <li>Payment-related information used to process transactions through secure payment providers and related service partners.</li>
               <li>Device, browser, usage, and technical information used to improve platform performance, security, troubleshooting, and support.</li>
               <li>Location-related information when needed to support ride functionality, dispatch, ETA, navigation, fraud prevention, and safety-related platform operations.</li>
+              <li><strong>Driver location (Harvey Taxi Driver app and driver dashboard):</strong> while a driver is online or on a trip, we collect the device's precise location, including when the app is closed or the screen is locked. We store the driver's latest position, replacing it with each update; we do not keep a history of past positions. Collection stops when the driver goes offline.</li>
+              <li><strong>Notifications:</strong> if you allow notifications in our apps, a device token that lets us send you ride requests and trip updates.</li>
+              <li><strong>Support messages:</strong> what you send us through support, including the in-app assistant.</li>
             </ul>
           </div>
 
@@ -452,9 +455,15 @@
           <div class="policy-card">
             <h3>3. Sharing of Information</h3>
             <p>
-              Harvey Taxi may share limited information with service providers and partners that help operate the platform,
-              including identity verification providers, background screening providers, mapping and geolocation providers,
-              hosting providers, analytics services, customer support tools, and payment processors.
+              <strong>Between riders and drivers, during a trip:</strong> the rider sees the assigned driver's name, photo, vehicle,
+              phone number and live location; the driver sees the rider's name, phone number and pickup and drop-off locations.
+              Before a driver accepts a ride, they see only the pickup and drop-off addresses and the estimated fare.
+            </p>
+            <p style="margin-top:12px;">
+              <strong>Service providers</strong> process information for us to run the platform: identity verification (Persona),
+              background screening (Checkr), payments (Stripe), text messages and sign-in codes (Twilio), email (SendGrid),
+              maps, addresses and arrival times (Mapbox), app notifications (Expo, Apple and Google), an AI service that helps answer
+              support questions (OpenAI), and hosting and database providers. We do not sell personal information.
             </p>
             <p style="margin-top:12px;">
               Information may also be shared when reasonably necessary to protect safety, investigate misuse,
@@ -486,13 +495,27 @@
               Harvey Taxi may retain information for as long as reasonably needed to operate the platform, maintain records,
               support legal compliance, resolve disputes, enforce agreements, improve services, and protect business operations.
             </p>
+            <p style="margin-top:12px;">
+              A driver's location is kept only as their latest position and is removed when their account is deleted.
+              Trip, payment and earnings records are kept after an account is deleted for accounting, tax, safety and legal
+              purposes, with the person's name and phone number removed. Information held by our identity-verification and
+              background-screening providers is kept under their terms and applicable law.
+            </p>
           </div>
 
           <div class="policy-card">
             <h3>7. Your Choices</h3>
             <ul>
               <li>You may contact Harvey Taxi to request account updates or corrections where available.</li>
-              <li>You may choose not to provide certain information, although some features may not function properly without it.</li>
+              <li>You may choose not to provide certain information, although some features may not function properly without it.
+                For example, drivers must allow location access to go online.</li>
+              <li>You can turn location access and notifications off at any time in your device's settings. Drivers can stop location
+                collection at any time by going offline.</li>
+              <li><strong>Deleting your account:</strong> in the Harvey Taxi Driver app (Account → Delete account), in your account settings at
+                <a href="/settings.html#account-deletion">harveytaxiservice.com/settings.html</a>, or by emailing us. Your access ends when you
+                request deletion. Rider accounts are deleted right away; driver deletion requests are reviewed first. Deletion removes your
+                name, email, phone number, and, for drivers, location, photo, addresses, license and plate numbers and notification tokens;
+                records described under Data Retention are kept without your name and phone number.</li>
               <li>You may discontinue use of the platform at any time.</li>
             </ul>
           </div>
@@ -543,29 +566,10 @@
           <div class="section-head">
             <h2>Contact</h2>
             <p>
-              For privacy-related questions, account concerns, or general support matters, contact Harvey Taxi Service LLC
-              through the support information provided on the platform or official business channels.
+              For privacy questions, account deletion, or requests to access or correct your information, contact
+              Harvey Taxi Service LLC at <a href="mailto:support@harveytaxiservice.com">support@harveytaxiservice.com</a>.
             </p>
           </div>
-
-          <p class="contact-note">
-            If you later add a public support email, public mailing address, or dedicated privacy contact,
-            you should update this page so the policy matches your final production business details.
-          </p>
-        </div>
-
-        <div class="section-card">
-          <div class="section-head">
-            <h2>Important Note</h2>
-            <p>
-              This page is intended to support platform transparency and review readiness.
-            </p>
-          </div>
-
-          <p class="footer-note">
-            You should later match this policy exactly to your final live production flows, payment providers,
-            verification providers, background screening providers, contact channels, and legal business details.
-          </p>
         </div>
       </div>
     </section>

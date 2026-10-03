@@ -28,7 +28,9 @@ const EXPECTED_ORDER = [
   "20260927220400_accept_driver_offer_atomic.sql",
   // Not part of PR #130; applied by the harness because it postdates the
   // baseline. Covered by test/db/deletionRequests.db.test.js.
-  "20261001120000_add_deletion_requests.sql"
+  "20261001120000_add_deletion_requests.sql",
+  // Likewise; covered by test/db/driverPushTokens.db.test.js.
+  "20261004120000_add_driver_push_tokens.sql"
 ];
 
 // Synthetic pre-existing row (no production data), inserted after the

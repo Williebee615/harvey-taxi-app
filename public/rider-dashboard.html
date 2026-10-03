@@ -5171,6 +5171,55 @@
 
 
   <script>
+    // Ride tracking tokens (server: lib/rideAccess.js). The server hands a
+    // ride's tracking token only to the request that created the ride; the
+    // status endpoint and the live stream require it (or a rider session
+    // that owns the ride). Kept per ride, newest 20, on this device only.
+    window.HarveyRideTracking = (function () {
+      var KEY = "harvey_ride_tracking_tokens";
+      function read() {
+        try { return JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { return {}; }
+      }
+      function write(map) {
+        try {
+          var ids = Object.keys(map);
+          if (ids.length > 20) ids.slice(0, ids.length - 20).forEach(function (id) { delete map[id]; });
+          localStorage.setItem(KEY, JSON.stringify(map));
+        } catch (e) {}
+      }
+      function get(rideId) { return rideId ? read()[rideId] || "" : ""; }
+      function save(rideId, token) {
+        if (!rideId || !token) return;
+        var map = read();
+        delete map[rideId];
+        map[rideId] = token;
+        write(map);
+      }
+      function rideIdFromPath(path) {
+        var m = /\/api\/rides\/([^/?#]+)\/(status|stream)\b/.exec(String(path || ""));
+        return m ? decodeURIComponent(m[1]) : "";
+      }
+      return {
+        get: get,
+        save: save,
+        headersFor: function (path) {
+          var token = get(rideIdFromPath(path));
+          return token ? { "x-ride-tracking-token": token } : {};
+        },
+        // EventSource can't send headers, so the token goes in the query.
+        streamUrl: function (rideId) {
+          var token = get(rideId);
+          return "/api/rides/" + encodeURIComponent(rideId) + "/stream" + (token ? "?t=" + encodeURIComponent(token) : "");
+        },
+        captureFrom: function (data) {
+          if (!data || !data.tracking_token) return;
+          var ride = data.ride || {};
+          save(ride.id || ride.ride_id || data.ride_id, data.tracking_token);
+        }
+      };
+    })();
+  </script>
+  <script>
   (function () {
     "use strict";
 
@@ -7317,6 +7366,7 @@
       const headers = {
         "Content-Type": "application/json",
         [RIDER_CLIENT_HEADER_NAME]: RIDER_CLIENT_HEADER_VALUE,
+        ...window.HarveyRideTracking.headersFor(path),
         ...(options.headers || {})
       };
 
@@ -7336,6 +7386,8 @@
           error: "Server returned a non-JSON response."
         };
       }
+
+      window.HarveyRideTracking.captureFrom(data);
 
       if (!response.ok) {
         const message =
@@ -8878,7 +8930,7 @@
 
       try {
         rideEventSource = new EventSource(
-          `/api/rides/${encodeURIComponent(rideId)}/stream`
+          window.HarveyRideTracking.streamUrl(rideId)
         );
 
         rideEventSource.addEventListener("stage", () => refreshRideStatus());
@@ -10017,6 +10069,7 @@
         headers: {
           "Content-Type": "application/json",
           [RIDER_CLIENT_HEADER_NAME]: RIDER_CLIENT_HEADER_VALUE,
+          ...window.HarveyRideTracking.headersFor(path),
           ...(options.headers || {})
         },
         ...options
@@ -10034,6 +10087,8 @@
           error: text || "Invalid server response."
         };
       }
+
+      window.HarveyRideTracking.captureFrom(data);
 
       if (!response.ok || data.ok === false) {
         throw new Error(

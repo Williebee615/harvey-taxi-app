@@ -266,4 +266,35 @@ describe("driver deletion request", () => {
     expect(row("rides", "RIDE_A").driver_name).toBe("Deleted Driver");
     expect(row("rides", "RIDE_A").driver_phone).toBeNull();
   });
+
+  test("driver deletion also removes location, photo, addresses, license/plate numbers and push tokens", async () => {
+    Object.assign(row("drivers", "DRIVER_REAL"), {
+      online: true,
+      current_lat: 36.16,
+      current_lng: -86.78,
+      last_location_at: new Date().toISOString(),
+      photo_url: "https://example.test/p.jpg",
+      home_address: "1 Home St",
+      license_plate: "ABC123",
+      drivers_license_number: "D1234567"
+    });
+    mockSupabaseClient._state.driver_push_tokens = [
+      { token: "ExponentPushToken[deletemetoken1]", driver_id: "DRIVER_REAL", platform: "ios" },
+      { token: "ExponentPushToken[keepthistoken2]", driver_id: "DRIVER_REVIEW", platform: "ios" }
+    ];
+    await request(app).post("/api/account/driver/delete-request").set(driverAuthHeaders(signTestDriverToken("DRIVER_REAL"))).send({});
+    const requestId = mockSupabaseClient._state.deletion_requests[0].request_id;
+    await request(app).post(`/api/admin/deletion-requests/${requestId}/approve`).set("x-admin-token", "test-admin-token").send({});
+    expect(row("drivers", "DRIVER_REAL")).toMatchObject({
+      online: false,
+      current_lat: null,
+      current_lng: null,
+      last_location_at: null,
+      photo_url: null,
+      home_address: null,
+      license_plate: null,
+      drivers_license_number: null
+    });
+    expect(mockSupabaseClient._state.driver_push_tokens.map((t) => t.driver_id)).toEqual(["DRIVER_REVIEW"]);
+  });
 });

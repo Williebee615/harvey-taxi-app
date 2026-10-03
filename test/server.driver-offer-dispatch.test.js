@@ -291,7 +291,12 @@ function subscribe(path, headers = {}) {
 
 // The rider-facing per-ride stream; a "stage" event is the SSE success
 // signal these routes emit after a committed assignment.
-const subscribeRideStream = (rideId) => subscribe(`/api/rides/${rideId}/stream`);
+// The rider's per-ride tracking token, as POST /api/rides/request issues it
+// (lib/rideAccess.js); the ride stream requires it.
+const { signRideTrackingToken, deriveTrackingSecret } = require("../lib/rideAccess");
+const rideTrackingQuery = (rideId) =>
+  `?t=${encodeURIComponent(signRideTrackingToken(rideId, deriveTrackingSecret({ trackingSecret: process.env.RIDE_TRACKING_SECRET, quoteSecret: process.env.RIDE_QUOTE_SECRET })))}`;
+const subscribeRideStream = (rideId) => subscribe(`/api/rides/${rideId}/stream${rideTrackingQuery(rideId)}`);
 
 const subscribeAdminStream = () =>
   subscribe("/api/admin/stream", {
