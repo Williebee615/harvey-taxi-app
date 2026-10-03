@@ -21126,158 +21126,111 @@ app.get(
 
 ========================================================= */
 
+// Emergency alerts. Anyone may raise one -- emergency access is never
+// gated -- but an alert is linked to a ride (and so to its rider and
+// driver) only when the caller is proven to be on that ride: the ride's
+// rider (session or tracking token), its assigned driver (driver session),
+// or an admin -- the same check as ride tracking (resolveRideViewer). A
+// ride id alone is a claim, not authorization: an unproven alert is still
+// recorded and broadcast to admins, without ride details, and marked
+// unverified. Ids in the body (rider_id) are never trusted.
+//
+// emergency_alerts columns (live schema): id, ride_id, rider_id,
+// driver_id, alert_type, message, status, created_at, updated_at. There
+// are no location columns, so a reported position goes in the message and
+// the audit log.
+const safetyAlertRateLimit = rateLimit({
+  windowMs: 10 * 60_000,
+  max: 20,
+  keyPrefix: "safety_911",
+  message: "Too many alerts from this device. If this is an emergency, call 911 now."
+});
+
+function finiteOrNull(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+async function resolveAlertDriver(req) {
+  const token = req.headers["x-driver-token"];
+  if (!token) return null;
+  const session = verifyDriverSession(token);
+  if (!session) return null;
+  const { data } = await supabase.from("drivers").select("id, access_revoked").eq("id", session.driver_id).maybeSingle();
+  return data && data.access_revoked !== true ? data : null;
+}
+
 app.post(
-
   "/api/safety/911",
-
+  safetyAlertRateLimit,
   asyncRoute(async (req, res) => {
+    const claimedRideId = cleanString(req.body.ride_id, 100) || null;
+    const latitude = finiteOrNull(req.body.latitude);
+    const longitude = finiteOrNull(req.body.longitude);
+    const text = cleanString(req.body.message, 1000) || "";
 
-    const rideId =
+    const isAdmin = isAdminRequest(req);
+    const [rider, driver] = isAdmin ? [null, null] : await Promise.all([resolveVerifiedRiderSession(req), resolveAlertDriver(req)]);
 
-      cleanString(req.body.ride_id, 100);
-
-    const riderId =
-
-      cleanString(req.body.rider_id, 100);
+    let ride = null;
+    let viewer = null;
+    if (claimedRideId) {
+      const { data } = await supabase.from("rides").select("id, rider_id, driver_id").eq("id", claimedRideId).maybeSingle();
+      ride = data || null;
+      viewer = ride ? await resolveRideViewer(req, ride) : null;
+    }
+    const linked = Boolean(ride && viewer);
+    const reporter = linked ? viewer : isAdmin ? "admin" : rider ? "rider" : driver ? "driver" : "anonymous";
+    const location = latitude !== null && longitude !== null ? `${latitude.toFixed(6)},${longitude.toFixed(6)}` : null;
 
     const emergency = {
-
-      id:
-
-        makeId("SOS"),
-
-      ride_id:
-
-        rideId || null,
-
-      rider_id:
-
-        riderId || null,
-
-      latitude:
-
-        req.body.latitude !== undefined
-
-          ? Number(req.body.latitude)
-
-          : null,
-
-      longitude:
-
-        req.body.longitude !== undefined
-
-          ? Number(req.body.longitude)
-
-          : null,
-
-      message:
-
-        cleanString(req.body.message, 1000),
-
-      status:
-
-        "active",
-
-      created_at:
-
-        nowIso(),
-
-      updated_at:
-
-        nowIso()
-
+      id: makeId("SOS"),
+      ride_id: linked ? ride.id : null,
+      rider_id: linked ? ride.rider_id || null : rider ? String(rider.id) : null,
+      driver_id: linked ? ride.driver_id || null : driver ? String(driver.id) : null,
+      alert_type: linked ? `sos_${reporter}` : reporter === "anonymous" ? "sos_unverified" : `sos_${reporter}_no_ride`,
+      message: [text, location ? `Reported location: ${location}` : "", claimedRideId && !linked ? "Ride not verified for this reporter." : ""]
+        .filter(Boolean)
+        .join("\n")
+        .slice(0, 1200) || null,
+      status: "open",
+      created_at: nowIso(),
+      updated_at: nowIso()
     };
 
-    const { data, error } =
-
-      await supabase
-
-        .from("emergency_alerts")
-
-        .insert(emergency)
-
-        .select()
-
-        .single();
-
+    const { data, error } = await supabase.from("emergency_alerts").insert(emergency).select().single();
     if (error) {
-
-      console.error(
-
-        "❌ Emergency alert insert failed:",
-
-        error.message
-
-      );
-
-      return fail(
-
-        res,
-
-        "Emergency alert could not be recorded.",
-
-        500
-
-      );
-
+      console.error("❌ Emergency alert insert failed:", error.message);
+      return fail(res, "Emergency alert could not be recorded. If this is an emergency, call 911 now.", 500);
     }
 
-    broadcastSse(
-
-      "emergency_alert",
-
-      data
-
-    );
-
+    broadcastSse("emergency_alert", { ...data, verified: linked });
     auditLog({
-
-      actor_type:
-
-        "rider",
-
-      actor_id:
-
-        riderId,
-
-      action:
-
-        "911_alert",
-
-      entity_type:
-
-        "emergency_alert",
-
-      entity_id:
-
-        data.id,
-
-      metadata:
-
-        data,
-
+      actor_type: reporter,
+      actor_id: linked ? (reporter === "driver" ? emergency.driver_id : reporter === "rider" ? emergency.rider_id : "admin") : emergency.rider_id || emergency.driver_id || null,
+      action: "911_alert",
+      entity_type: "emergency_alert",
+      entity_id: data.id,
+      metadata: {
+        alert_type: emergency.alert_type,
+        verified: linked,
+        ride_id: emergency.ride_id,
+        claimed_ride_id: claimedRideId && !linked ? claimedRideId : null,
+        location
+      },
       req
-
     }).catch(() => {});
 
     return ok(res, {
-
-      emergency_id:
-
-        data.id,
-
-      dispatched:
-
-        true,
-
-      message:
-
-        "Emergency alert recorded. If this is an immediate emergency, call 911 directly."
-
+      emergency_id: data.id,
+      dispatched: true,
+      linked_to_ride: linked,
+      message: linked
+        ? "Emergency alert recorded. If this is an immediate emergency, call 911 directly."
+        : "Emergency alert recorded. If this is an immediate emergency, call 911 directly. We couldn't confirm you're on that ride, so trip details weren't attached."
     });
-
   })
-
 );
 
 /* =========================================================
