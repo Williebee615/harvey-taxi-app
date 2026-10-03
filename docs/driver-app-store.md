@@ -11,7 +11,7 @@ reverse. Items marked **[owner]** need facts only you have.
 | Name | Harvey Taxi Driver | Harvey Taxi Driver |
 | Subtitle / short description | Drive with Harvey Taxi | Accept and complete Harvey Taxi rides as an approved driver. |
 | Category | **Navigation** (recommended; secondary: Business) | **Maps & Navigation** |
-| Support URL | https://harveytaxiservice.com/support.html | same |
+| Support URL | https://harveytaxiservice.com/support.html (contact section with support@harveytaxiservice.com added in the support-page PR) | same |
 | Privacy policy URL | https://harveytaxiservice.com/privacy-policy.html (update first, see below) | same |
 | Account deletion URL (Play) | — | https://harveytaxiservice.com/settings.html?account=driver#account-deletion |
 | Marketing URL | https://harveytaxiservice.com | — |
@@ -37,7 +37,7 @@ reverse. Items marked **[owner]** need facts only you have.
 >
 > You need an approved Harvey Taxi driver account. Apply at harveytaxiservice.com.
 
-**Keywords (App Store):** taxi driver, rideshare driver, Nashville, Harvey Taxi, driver app
+**Keywords (App Store, 100-character limit, commas without spaces):** `taxi driver,rideshare,driver app,Nashville,ride requests,driver earnings,trip history` (85 characters; the app name is indexed already, so it is not repeated)
 
 ## App icon
 
@@ -202,3 +202,22 @@ remove location, photo, addresses, license and plate numbers and push tokens
 | App access | Restricted: provide the test driver account and the steps above |
 | Foreground service permissions | Location, with the text above and the video link |
 | Content rating (IARC) | Category "Utility/Productivity/Communication/Other"; no violence, sexuality, language, drugs or gambling; users interact (rider and driver see each other's details during a trip); shares location with other users: yes |
+
+## App Store Connect: values entered for app 6818705885
+
+| Where | Field | Value |
+|---|---|---|
+| App Information | Subtitle | Drive with Harvey Taxi |
+| App Information | Primary category | Navigation |
+| App Information | Secondary category (optional) | Business |
+| App Information | Content Rights | **Owner to confirm.** Draft answer: "No, it does not contain, show, or access third-party content". The app shows only Harvey Taxi's own data and the driver's own trips; directions open in the phone's maps app. |
+| App Privacy | Privacy Policy URL | https://harveytaxiservice.com/privacy-policy.html |
+| Version 1.0 (English US) | Description | The description above |
+| Version 1.0 | Keywords | As above |
+| Version 1.0 | Support URL | https://harveytaxiservice.com/support.html |
+| Version 1.0 | Marketing URL (optional) | https://harveytaxiservice.com |
+| Version 1.0 | Copyright | **Owner to confirm** the legal name: "2026 Harvey Taxi Service LLC" |
+| Version 1.0 | Build | 1.0.0 (5), EAS build c618fa32 (uploaded 2026-10-03 16:20 UTC) |
+| App Review | Contact first and last name, phone, email | **Owner to provide.** Not published anywhere we can verify. |
+| App Review | Sign-in required | Yes: the review driver's email and password (owner enters them in App Store Connect only) |
+| App Review | Notes | The App Review notes above |
