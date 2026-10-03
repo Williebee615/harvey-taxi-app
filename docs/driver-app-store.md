@@ -39,6 +39,13 @@ reverse. Items marked **[owner]** need facts only you have.
 
 **Keywords (App Store):** taxi driver, rideshare driver, Nashville, Harvey Taxi, driver app
 
+## App icon
+
+**Approved by the owner (2026-10-03):** `driver-app/assets/icon.png`
+(1024×1024, no transparency), also used as the Android adaptive-icon
+foreground. It is the Harvey Taxi artwork with a "DRIVER" band, so it is
+distinct from the rider app's icon on a home screen.
+
 ## App Review notes (App Store) / app access instructions (Play)
 
 > Harvey Taxi Driver is for approved drivers. Please use the test account:
