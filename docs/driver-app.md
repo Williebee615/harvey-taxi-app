@@ -183,7 +183,10 @@ Existing settings the app relies on: `DRIVER_SESSION_SECRET`, Twilio Verify
 | Production JS bundles compile (iOS, Android) | **Verified** (`expo export`; also in CI) | CI job `driver-app` |
 | Payment gates for ordinary rides | **Unchanged** (no payment code touched); existing suites pass | `npm test` |
 | Existing rider flows | **Unchanged**; full suite passes | `npm test` (1,358 tests) |
-| Background / locked-screen location on devices | **Blocked**: needs builds and devices | §7 |
+| Ride status/stream only for the ride's rider, assigned driver or admin | **Tested** (server + Chromium on the real rider page) | `test/server.ride-tracking-access.test.js`, `test/rider-tracking-token.browser.test.js` |
+| Push-token migration on staging | **Applied and validated on staging** (RLS, privileges, constraints, upsert, geog trigger) | `docs/driver-app-deploy.md` |
+| Backend running against staging | **Not done**: no staging server or key available | `docs/driver-app-deploy.md` |
+| Background / locked-screen location on devices | **Not verified. Blocked**: needs builds and devices. Do not claim it works until D7 passes on hardware | §7 |
 | Push delivery to devices | **Blocked**: needs builds, Firebase/APNs | §7 |
 | Both apps together on physical devices | **Blocked** | §7 |
 
@@ -234,13 +237,15 @@ for each item.
 ## Blockers and earliest submission
 
 **Status: not ready to submit.** Nothing has been built, uploaded or submitted.
+The step-by-step owner checklist is `docs/driver-app-release-checklist.md`;
+production deployment is `docs/driver-app-deploy.md`.
 
 | Blocker | Needed from |
 |---|---|
 | This environment can't reach Expo/EAS, App Store Connect or Google Play (network policy), and there is no `EXPO_TOKEN` | Owner: environment settings, or run the EAS commands locally |
 | EAS project, Apple app record, Play app, signing, APNs, Firebase/FCM | Owner (Apple and Google accounts) |
 | Physical-device testing D1–D14 | Owner or tester with devices |
-| Privacy policy must be updated: it shows template instructions publicly, has no privacy contact, doesn't describe driver location collection while the app is in the background, and doesn't describe account deletion | Owner/legal (draft in `docs/driver-app-store.md`) |
+| Privacy policy: updated on this branch; needs your confirmation of the contact address (`support@harveytaxiservice.com`) and the production deploy | Owner |
 | Real screenshots | Need builds on devices or simulators |
 | Google Play testing requirement: personal developer accounts created after November 2023 must run a closed test with 12+ testers for 14 days before production | Owner to confirm the account type |
 | Background-location and foreground-service declarations in Play Console (with a short video) | Owner, using the text in `docs/driver-app-store.md` |
