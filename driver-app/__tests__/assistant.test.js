@@ -1,0 +1,55 @@
+// Harvey Assistant: how server proposals become in-app buttons
+// (src/assistant.js). Only proposals that still match the driver's live
+// state survive, and every ride, offer or availability change carries a
+// confirmation.
+import { isHandsFree, planActions, QUICK_PROMPTS, speakable } from '../src/assistant';
+
+const ride = { ride_id: 'R1', status: 'driver_enroute', pickup_address: '1 Broadway', dropoff_address: 'BNA', pickup_lat: 36.16, pickup_lng: -86.78, dropoff_lat: 36.13, dropoff_lng: -86.67 };
+const base = { driver: { online: false }, readiness: { ready: true }, offers: [], active_ride: null };
+
+test('offers: only live ones, accept and decline both confirmed', () => {
+  const snap = { ...base, offers: [{ offer_id: 'O1', pickup_address: '1 Broadway' }] };
+  const out = planActions([{ type: 'respond_offer', offer_id: 'O1' }, { type: 'respond_offer', offer_id: 'GONE' }], snap);
+  expect(out.map((a) => a.key)).toEqual(['accept:O1', 'decline:O1']);
+  expect(out.every((a) => a.confirm)).toBe(true);
+  expect(out[0].confirm.message).toMatch(/1 Broadway/);
+});
+
+test('trip step: only for the same ride in the same status, with confirmation', () => {
+  const snap = { ...base, active_ride: ride };
+  expect(planActions([{ type: 'trip_step', ride_id: 'R1', status: 'driver_enroute' }], snap)).toEqual([
+    expect.objectContaining({ key: 'step:arrived', label: "I've arrived at pickup", confirm: expect.any(Object) })
+  ]);
+  expect(planActions([{ type: 'trip_step', ride_id: 'R1', status: 'arrived' }], snap)).toEqual([]);
+  expect(planActions([{ type: 'trip_step', ride_id: 'OTHER', status: 'driver_enroute' }], snap)).toEqual([]);
+  const complete = planActions([{ type: 'trip_step', ride_id: 'R1', status: 'in_progress' }], { ...snap, active_ride: { ...ride, status: 'in_progress' } });
+  expect(complete[0].confirm.title).toBe('Complete this trip?');
+});
+
+test('navigation uses the live ride coordinates, needs no confirmation (it changes nothing)', () => {
+  const [nav] = planActions([{ type: 'navigate', ride_id: 'R1', target: 'dropoff', address: 'x' }], { ...base, active_ride: ride });
+  expect(nav).toMatchObject({ label: 'Navigate to drop-off', confirm: null, run: { type: 'navigate', target: { lat: 36.13, lng: -86.67, address: 'BNA' } } });
+});
+
+test('availability follows the live online state and readiness', () => {
+  expect(planActions([{ type: 'toggle_availability' }], base)[0]).toMatchObject({ key: 'online', confirm: { title: 'Go online?' } });
+  expect(planActions([{ type: 'toggle_availability' }], { ...base, driver: { online: true } })[0]).toMatchObject({ key: 'offline', confirm: { title: 'Go offline?' } });
+  expect(planActions([{ type: 'toggle_availability' }], { ...base, readiness: { ready: false } })).toEqual([]);
+});
+
+test('emergency actions are confirmed; web links and unknown types are dropped', () => {
+  const out = planActions(
+    [{ type: 'call_911' }, { type: 'safety_alert' }, { type: 'open_dashboard', href: '/driver-dashboard.html' }, { type: 'mystery' }, null, { type: 'open_screen', screen: 'settings' }],
+    { ...base, active_ride: ride }
+  );
+  expect(out.map((a) => a.key)).toEqual(['call911', 'safety']);
+  expect(out.every((a) => a.confirm)).toBe(true);
+  expect(out[1].run).toEqual({ type: 'safety_alert', rideId: 'R1' });
+});
+
+test('hands-free during a trip; spoken text drops quote marks; no "help me" prompts', () => {
+  expect(isHandsFree(base)).toBe(false);
+  expect(isHandsFree({ ...base, active_ride: ride })).toBe(true);
+  expect(speakable('tap "Start trip".')).toBe('tap Start trip.');
+  expect(QUICK_PROMPTS.some((q) => /help me/i.test(q.message))).toBe(false);
+});

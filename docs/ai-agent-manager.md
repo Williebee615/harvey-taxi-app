@@ -132,6 +132,36 @@ The recommender therefore uses the capability columns and reports `unsupported_i
 | `agent.case_opened` / `agent.case_resolved` | `human_review_case` / `admin_change` | The human-review queue. The case excerpt is redacted (card, phone, email and token patterns removed) and capped at 160 characters. |
 | `agent.override`, `agent.flag_changed`, `agent.rules_changed` | `admin_change` | Human overrides and configuration changes, with before and after values. |
 
+### In the Harvey Taxi Driver app (`driver-app/`)
+
+The same assistant is available in the driver app as **Harvey Assistant**. It uses the same route (`POST /api/agent/driver/assist`), rules engine, decision boundaries, audit trail and `agent_assist_enabled` flag as the web dashboard. The only difference is the request field `client: "driver_app"`, which the server accepts only on the driver route. The web dashboard sends no `client`, and its answers and links are unchanged.
+
+| | Web driver dashboard | Driver app |
+|---|---|---|
+| Where it opens | Floating launcher, then a panel | **Harvey Assistant** button on the Drive screen, then a full screen in place of the content. No floating overlay. |
+| Shown when | `GET /api/agent/status` reports `assist_available` | Same, checked at sign-in and whenever the app returns to the foreground |
+| Topics | Offers, active trip, earnings, availability | Same, plus **directions** (`driver_navigation`) and **support** (`driver_support`) |
+| Proposed actions | Link to the dashboard | In-app actions built only from the driver's own rows: `respond_offer` (offer id), `trip_step` (ride id and status), `navigate` (pickup or drop-off), `toggle_availability`, `open_screen`, `open_support` |
+| Emergencies | 911 first, safety alert after confirmation, human case | Same |
+
+**How app actions run.** The app (`driver-app/src/assistant.js`) checks each proposal against its live state:
+- an offer must still be pending for this driver;
+- a ride must still have the same id and status.
+
+Stale or foreign proposals are dropped. Anything that changes a ride, an offer or availability shows a confirmation dialog first. It then runs the **same app action and authenticated driver route** as the Drive screen's own button. The server never changes anything for the assistant. Directions open the phone's maps app, which changes nothing.
+
+**Hands-free while driving.**
+- **During an active trip:** typing is switched off. The assistant offers six large one-tap questions and reads answers aloud with the phone's built-in text-to-speech (`expo-speech`; on-device, with no new permissions and no data sent anywhere).
+- **Read aloud:** can be switched on or off at any time.
+- **New ride offers:** a newly arrived offer closes the assistant, so the offer card and its countdown are on screen.
+- **Not included:** voice *input*. It would need microphone and speech-recognition permissions, privacy-policy and App Privacy changes, and owner approval.
+
+**What drivers can ask.** Going online, ride offers, the next trip step, directions, earnings and support. Quick questions avoid the phrase "help me", which the emergency rule treats as possible distress.
+
+Tests:
+- `test/server.agent-driver-app.test.js`: own rows only, nothing changed by the server, web answers unchanged, the rider route ignores `client`, 401 without a session, 503 when off.
+- `driver-app/__tests__/assistant.test.js` and `Assistant.flow.test.js`: hidden when off; the driver session and `client` are sent; cancelling a confirmation changes nothing, confirming calls the same route as the Drive screen; a new offer closes the assistant; stale and foreign proposals are dropped; no typing and spoken answers during a trip; safe reply when the assistant is off.
+
 ## 3. Admin command center (`/admin-agent.html`)
 The page shows:
 - mode, with a one-click **Disable automation now** button (kill switch);
