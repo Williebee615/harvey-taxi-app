@@ -885,6 +885,24 @@
         text-align: left;
       }
     }
+    /* Data Collection program (optional; hidden unless the server reports it enabled) */
+    .dc-notice { padding: 12px 14px; border-radius: 16px; margin-bottom: 14px; line-height: 1.55; font-size: 0.93rem;
+      background: rgba(255, 215, 106, 0.08); border: 1px solid rgba(255, 215, 106, 0.22); color: var(--gold); }
+    .dc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 14px; }
+    .dc-stat { padding: 14px; border-radius: 16px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--line); }
+    .dc-stat span { display: block; color: var(--muted); font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
+    .dc-stat strong { display: block; font-size: 1.25rem; margin-top: 6px; overflow-wrap: anywhere; }
+    .dc-list { list-style: none; display: grid; gap: 8px; margin: 0 0 14px; padding: 0; }
+    .dc-list li { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 10px 12px; border-radius: 12px;
+      background: rgba(255, 255, 255, 0.03); border: 1px solid var(--line); }
+    .dc-pill { padding: 2px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 800; border: 1px solid var(--line); }
+    .dc-pill.good { color: var(--green); border-color: rgba(109, 255, 179, 0.3); }
+    .dc-pill.wait { color: var(--gold); border-color: rgba(255, 215, 106, 0.3); }
+    .dc-pill.bad { color: var(--danger); border-color: rgba(255, 126, 151, 0.3); }
+    .dc-h4 { margin: 18px 0 10px; font-size: 1rem; }
+    .dc-check { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 14px; color: var(--muted); line-height: 1.5; }
+    .dc-check input { margin-top: 4px; width: 18px; height: 18px; flex-shrink: 0; }
+    .dc-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.15rem; letter-spacing: 0.08em; }
   </style>
 </head>
 
@@ -1152,6 +1170,14 @@
           <button class="btn btn-primary" id="saveAvailabilityBtn" type="button">Save Availability</button>
         </div>
         <div id="availabilityMsg" class="msg"></div>
+      </section>
+
+      <section class="glass card span-12" id="dcSection" hidden aria-labelledby="dcTitle">
+        <h3 id="dcTitle">Data Collection Program (optional)</h3>
+        <p class="sub">Managed by Harvey Taxi Service LLC. Approved participants record eligible non-driving tasks in the Minute app. Program earnings are tracked separately from your ride earnings.</p>
+        <div class="dc-notice" id="dcIneligible" role="note"></div>
+        <div id="dcBody"></div>
+        <div id="dcMsg" class="msg" role="status" aria-live="polite"></div>
       </section>
 
       <section class="glass card span-12">
@@ -1572,6 +1598,7 @@
       showMessage(el.loginMsg, "Session initialized successfully.", "ok");
       fetchFreshDashboardState(false);
       startLivePollingSync();
+      if (typeof loadDataCollection === "function") loadDataCollection();
     }
 
     function clearDashboardSession() {
@@ -1599,6 +1626,7 @@
       resetProfileDOM();
       renderMockActivities(true);
       stopWorkflowVisibilities();
+      if (typeof resetDataCollection === "function") resetDataCollection();
       
       showMessage(el.globalMsg, "Session cleared. Local telemetry destroyed.", "ok");
     }
@@ -2328,5 +2356,205 @@
   </script>
   <!-- Harvey Assistant (AI Agent Manager); renders nothing unless agent_assist_enabled is on. -->
   <script src="/agent-assist.js" data-role="driver" data-token-key="harvey_driver_token" defer></script>
+  <script>
+    /*
+     * Data Collection program (optional). The server decides everything:
+     * whether the program is on, eligibility, and whether the
+     * organization code is shown. This section stays hidden unless the
+     * server reports program_enabled: true. Uses apiGet/apiPost above.
+     */
+    const DC_STATES = ["AL","AK","AZ","AR","CA","CO","CT","DE","DC","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY"];
+    const DC_STATUS_TEXT = {
+      submitted: ["Under review", "wait"], approved: ["Approved", "good"], rejected: ["Not approved", "bad"],
+      suspended: ["Suspended", "bad"], withdrawn: ["Withdrawn", "wait"],
+      pending: ["Pending review", "wait"], accepted: ["Accepted", "good"], payable: ["Scheduled for payment", "good"], paid: ["Paid", "good"],
+      signed: ["Signed", "good"], revoked: ["Revoked", "bad"], assigned: ["Assigned", "good"], returned: ["Returned", "wait"],
+      lost: ["Lost", "bad"], damaged: ["Damaged", "bad"]
+    };
+    const DC_PAYMENT_TEXT = {
+      payment_scheduled: "Payment scheduled", awaiting_payment_approval: "Awaiting payment approval",
+      hours_under_review: "Hours under review", paid_in_full: "Paid in full", no_hours: "No hours yet"
+    };
+    const DC_REASON_TEXT = {
+      driver_not_approved: "Your driver account must be approved first.",
+      account_inactive: "Your account is not active.",
+      account_restricted: "Your account is restricted.",
+      review_account: "Review accounts cannot join the program."
+    };
+
+    function dcEsc(v) {
+      return String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+    function dcMoney(cents) {
+      const n = Number(cents) || 0;
+      return `$${Math.floor(n / 100)}.${String(n % 100).padStart(2, "0")}`;
+    }
+    function dcPill(status) {
+      const [text, tone] = DC_STATUS_TEXT[status] || [status, "wait"];
+      return `<span class="dc-pill ${tone}">${dcEsc(text)}</span>`;
+    }
+    function dcMsg(text, kind) {
+      const m = document.getElementById("dcMsg");
+      if (!m) return;
+      m.textContent = text || "";
+      m.className = `msg${text ? " show " + (kind || "ok") : ""}`;
+    }
+
+    function resetDataCollection() {
+      const section = document.getElementById("dcSection");
+      if (section) section.hidden = true;
+      const body = document.getElementById("dcBody");
+      if (body) body.innerHTML = "";
+      dcMsg("");
+    }
+
+    async function loadDataCollection() {
+      const section = document.getElementById("dcSection");
+      if (!section || !getDriverToken()) return;
+      let data;
+      try {
+        data = await apiGet("/api/driver/data-collection");
+      } catch {
+        section.hidden = true; // Optional program: never disturb the dashboard.
+        return;
+      }
+      if (!data || data.program_enabled !== true) {
+        section.hidden = true;
+        return;
+      }
+      section.hidden = false;
+      document.getElementById("dcIneligible").textContent = data.ineligible_task_notice || "";
+      renderDataCollection(data);
+    }
+
+    function renderDataCollection(data) {
+      const body = document.getElementById("dcBody");
+      const app = data.application;
+      const parts = [];
+
+      if (!app || ["rejected", "withdrawn"].includes(app.status)) {
+        if (app) {
+          parts.push(`<p class="sub">Previous application: ${dcPill(app.status)} ${app.status_reason ? dcEsc(app.status_reason) : ""}</p>`);
+        }
+        if (!data.eligibility.eligible) {
+          const why = data.eligibility.reasons.map((r) => DC_REASON_TEXT[r] || r).join(" ");
+          parts.push(`<p class="sub">You can't apply yet. ${dcEsc(why)}</p>`);
+        } else if (!data.enrollment_open) {
+          parts.push(`<p class="sub">Enrollment is not open yet. Applications will open once the program is ready.</p>`);
+        } else {
+          parts.push(applicationFormHtml());
+        }
+      } else {
+        parts.push(`<h4 class="dc-h4">Your application</h4>
+          <ul class="dc-list">
+            <li><span>Status</span>${dcPill(app.status)}</li>
+            ${app.status_reason ? `<li><span>Note</span><span>${dcEsc(app.status_reason)}</span></li>` : ""}
+            <li><span>Phone</span><span>${dcEsc(app.phone_model)}</span></li>
+            <li><span>Location</span><span>${dcEsc(app.proposed_location)}, ${dcEsc(app.location_state)}, ${dcEsc(app.country)}</span></li>
+            <li><span>Tasks</span><span>${(app.proposed_tasks || []).map(dcEsc).join("; ")}</span></li>
+          </ul>
+          ${app.status === "submitted" ? '<button class="btn btn-secondary" type="button" id="dcWithdrawBtn">Withdraw application</button>' : ""}`);
+
+        parts.push(`<h4 class="dc-h4">Contributor agreement and consents</h4>
+          <ul class="dc-list">${(data.agreements || []).map((a) =>
+            `<li><span>${dcEsc(a.label)}</span>${a.status === "pending" ? '<span class="dc-pill wait">Not signed yet</span>' : dcPill(a.status)}</li>`).join("")}</ul>`);
+
+        parts.push(`<h4 class="dc-h4">Equipment checklist</h4>
+          ${(data.equipment || []).length
+            ? `<ul class="dc-list">${data.equipment.map((e) =>
+                `<li><span>${dcEsc(e.item)}${e.asset_tag ? ` (${dcEsc(e.asset_tag)})` : ""}</span>${dcPill(e.status)}</li>`).join("")}</ul>`
+            : '<p class="sub">No equipment assigned yet.</p>'}`);
+
+        if (data.minute) {
+          const links = [];
+          if (data.minute.download_links.ios) links.push(`<a class="contact-link" href="${dcEsc(data.minute.download_links.ios)}" target="_blank" rel="noopener noreferrer">Minute for iPhone</a>`);
+          if (data.minute.download_links.android) links.push(`<a class="contact-link" href="${dcEsc(data.minute.download_links.android)}" target="_blank" rel="noopener noreferrer">Minute for Android</a>`);
+          parts.push(`<h4 class="dc-h4">Minute app</h4>
+            <p class="sub">Recording and uploading happen in the Minute app. Never record while driving.</p>
+            <p class="sub">${links.length ? links.join(" · ") : "Download links will be provided by Harvey Taxi."}</p>
+            ${data.minute.organization_code
+              ? `<div class="dc-stat"><span>Organization code (do not share)</span><strong class="dc-code">${dcEsc(data.minute.organization_code)}</strong></div>`
+              : '<p class="sub">Your organization code will appear here once your agreements are complete.</p>'}`);
+        }
+      }
+
+      const e = data.earnings;
+      parts.push(`<h4 class="dc-h4">Program earnings</h4>
+        <div class="dc-grid">
+          <div class="dc-stat"><span>Accepted hours</span><strong>${dcEsc(e.accepted_hours.toFixed(2))}</strong></div>
+          <div class="dc-stat"><span>Estimated earnings</span><strong>${dcMoney(e.estimated_earnings_cents)}</strong></div>
+          <div class="dc-stat"><span>Payment status</span><strong>${dcEsc(DC_PAYMENT_TEXT[e.payment_status] || e.payment_status)}</strong></div>
+          <div class="dc-stat"><span>Paid</span><strong>${dcMoney(e.paid_cents)}</strong></div>
+          <div class="dc-stat"><span>Hours under review</span><strong>${dcEsc(e.pending_hours.toFixed(2))}</strong></div>
+        </div>
+        <p class="sub">Proposed rate: ${dcMoney(data.driver_rate_cents_per_hour)} per accepted recording hour. Estimates include accepted hours not yet paid; payments are made manually by Harvey Taxi, never automatically, and equipment costs are not deducted here.</p>
+        ${(data.hours || []).length
+          ? `<ul class="dc-list">${data.hours.map((h) =>
+              `<li><span>${dcEsc(h.session_date)} · ${dcEsc(h.hours.toFixed(2))} h</span><span>${dcMoney(h.driver_amount_cents)} ${dcPill(h.status)}</span></li>`).join("")}</ul>`
+          : ""}`);
+
+      body.innerHTML = parts.join("");
+
+      const form = document.getElementById("dcForm");
+      if (form) form.addEventListener("submit", submitDataCollectionApplication);
+      const withdraw = document.getElementById("dcWithdrawBtn");
+      if (withdraw) withdraw.addEventListener("click", withdrawDataCollectionApplication);
+    }
+
+    function applicationFormHtml() {
+      return `<form id="dcForm" novalidate>
+        <div class="row">
+          <div class="field"><label for="dcPhone">Phone model</label>
+            <input class="input" id="dcPhone" maxlength="80" required placeholder="e.g. iPhone 15" /></div>
+          <div class="field"><label for="dcCountry">Country</label>
+            <select class="select" id="dcCountry"><option value="US">United States</option></select></div>
+        </div>
+        <div class="row">
+          <div class="field"><label for="dcLocation">Proposed commercial location</label>
+            <input class="input" id="dcLocation" maxlength="300" required placeholder="Business name and address" /></div>
+          <div class="field"><label for="dcState">State</label>
+            <select class="select" id="dcState">${DC_STATES.map((st) => `<option value="${st}"${st === "TN" ? " selected" : ""}>${st}</option>`).join("")}</select></div>
+        </div>
+        <div class="field"><label for="dcTasks">Proposed tasks (one per line, up to 5)</label>
+          <textarea id="dcTasks" maxlength="1100" required placeholder="e.g. Restocking shelves"></textarea></div>
+        <label class="dc-check"><input type="checkbox" id="dcAck" />
+          <span>I understand that driving, seated tasks, and repetitive tasks are ineligible, and that I must never record while driving.</span></label>
+        <button class="btn btn-primary" type="submit" id="dcSubmitBtn">Apply to the program</button>
+      </form>`;
+    }
+
+    async function submitDataCollectionApplication(event) {
+      event.preventDefault();
+      const btn = document.getElementById("dcSubmitBtn");
+      const payload = {
+        phone_model: document.getElementById("dcPhone").value,
+        country: document.getElementById("dcCountry").value,
+        proposed_location: document.getElementById("dcLocation").value,
+        location_state: document.getElementById("dcState").value,
+        proposed_tasks: document.getElementById("dcTasks").value.split("\n").map((t) => t.trim()).filter(Boolean),
+        ineligible_tasks_acknowledged: document.getElementById("dcAck").checked
+      };
+      btn.disabled = true;
+      try {
+        await apiPost("/api/driver/data-collection/application", payload);
+        dcMsg("Application submitted. Harvey Taxi will review it.", "ok");
+        await loadDataCollection();
+      } catch (err) {
+        dcMsg(err.message || "Could not submit the application.", "err");
+        btn.disabled = false;
+      }
+    }
+
+    async function withdrawDataCollectionApplication() {
+      if (!window.confirm("Withdraw your Data Collection application?")) return;
+      try {
+        await apiPost("/api/driver/data-collection/application/withdraw", {});
+        dcMsg("Application withdrawn.", "ok");
+        await loadDataCollection();
+      } catch (err) {
+        dcMsg(err.message || "Could not withdraw the application.", "err");
+      }
+    }
+  </script>
 </body>
 </html>

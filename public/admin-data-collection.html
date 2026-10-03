@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Harvey Taxi — Admin · Data Collection Program</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#07111f" />
+  <style>
+    :root {
+      --bg1: #040814; --bg2: #091126; --bg3: #101935;
+      --panel: rgba(10, 17, 38, 0.94);
+      --line: rgba(122, 162, 255, 0.16); --line-strong: rgba(122, 162, 255, 0.30);
+      --text: #f4f7ff; --muted: #aab8de;
+      --blue: #5ea0ff; --cyan: #63f5ff; --green: #6dffb3;
+      --danger: #ff7e97; --gold: #ffd76a; --ink: #07121f;
+      --radius: 20px; --max: 1240px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { background: var(--bg1); }
+    body {
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      color: var(--text); min-height: 100vh; overflow-x: hidden;
+      padding: calc(20px + env(safe-area-inset-top)) 16px calc(40px + env(safe-area-inset-bottom));
+      background: linear-gradient(160deg, var(--bg1), var(--bg2) 50%, var(--bg3));
+    }
+    a { color: inherit; }
+    button, input, select, textarea { font: inherit; }
+    .shell { max-width: var(--max); margin: auto; display: grid; gap: 16px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+      padding: 14px 18px; border: 1px solid var(--line); border-radius: 999px; background: rgba(7,12,28,.78); }
+    .brand strong { font-size: 14px; font-weight: 900; letter-spacing: .12em; }
+    .brand span { display: block; color: var(--muted); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+    .chip { padding: 9px 14px; border-radius: 999px; border: 1px solid var(--line); background: rgba(255,255,255,.04); color: var(--text); font-weight: 800; font-size: .82rem; cursor: pointer; text-decoration: none; }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; min-width: 0; }
+    .card h2 { font-size: 1.1rem; margin-bottom: 6px; }
+    .sub { color: var(--muted); line-height: 1.55; font-size: .9rem; margin-bottom: 12px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+    .stat { padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,.03); border: 1px solid var(--line); }
+    .stat > span { display: block; color: var(--muted); font-size: .7rem; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
+    .stat strong { display: block; font-size: 1.15rem; margin-top: 4px; overflow-wrap: anywhere; }
+    .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: .74rem; font-weight: 900; border: 1px solid var(--line); white-space: nowrap; }
+    .on { color: var(--green); border-color: rgba(109,255,179,.35); }
+    .off { color: var(--danger); border-color: rgba(255,126,151,.35); }
+    .warn { color: var(--gold); border-color: rgba(255,215,106,.35); }
+    .btn { min-height: 40px; padding: 0 14px; border-radius: 12px; font-weight: 800; font-size: .84rem; cursor: pointer;
+      border: 1px solid var(--line); background: rgba(255,255,255,.05); color: var(--text); }
+    .btn.primary { background: linear-gradient(135deg, var(--cyan), var(--blue)); color: var(--ink); border-color: transparent; }
+    .btn.danger { background: rgba(255,77,109,.14); border-color: rgba(255,77,109,.4); color: #ffc7d1; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 10px; }
+    .row label { display: grid; gap: 4px; color: var(--muted); font-size: .76rem; font-weight: 800; flex: 1 1 160px; }
+    input, select, textarea { min-height: 40px; border-radius: 10px; border: 1px solid var(--line); background: rgba(4,8,20,.6); color: var(--text); padding: 8px 10px; width: 100%; }
+    textarea { min-height: 120px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .8rem; }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; }
+    table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+    th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { color: var(--muted); font-size: .7rem; letter-spacing: .05em; text-transform: uppercase; }
+    .app-card { border: 1px solid var(--line); border-radius: 16px; padding: 14px; display: grid; gap: 10px; margin-bottom: 12px; }
+    .app-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
+    select[data-equip] { width: auto; min-height: 32px; padding: 4px 8px; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .notice { display: none; padding: 12px 14px; border-radius: 12px; font-weight: 700; line-height: 1.5; }
+    .notice.show { display: block; }
+    .notice.success { color: var(--green); background: rgba(109,255,179,.09); }
+    .notice.error { color: #ffc7d1; background: rgba(255,77,109,.10); }
+    .notice.info { color: var(--cyan); background: rgba(99,245,255,.08); }
+    .flag-list { color: var(--gold); font-size: .82rem; }
+    .muted { color: var(--muted); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .8rem; overflow-wrap: anywhere; }
+    @media (max-width: 620px) { .topbar { border-radius: 20px; } }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand"><strong>HARVEY TAXI</strong><span>Admin · Data Collection Program</span></div>
+      <div class="actions">
+        <a class="chip" href="/admin-dashboard.html">← Admin Dashboard</a>
+        <button class="chip" type="button" id="refreshBtn">↻ Refresh</button>
+      </div>
+    </header>
+
+    <div id="notice" class="notice" role="status" aria-live="polite"></div>
+
+    <section class="card" aria-labelledby="statusTitle">
+      <h2 id="statusTitle">Program status</h2>
+      <p class="sub">Managed by Harvey Taxi Service LLC. Switches are <span class="mono">system_flags</span> rows and are not changed from this page. Enrollment and collection stay off until the contributor model, contract and insurance questions are resolved.</p>
+      <div class="grid" id="statusGrid"><div class="stat"><span>Loading</span><strong>…</strong></div></div>
+    </section>
+
+    <section class="card" aria-labelledby="totalsTitle">
+      <h2 id="totalsTitle">Hours and earnings</h2>
+      <p class="sub">Driver rate $10.00 and company rate $15.00 per accepted recording hour; the difference is gross margin before expenses. Separate from ride earnings. Nothing here sends payments or deducts equipment costs.</p>
+      <div class="grid" id="totalsGrid"></div>
+    </section>
+
+    <section class="card" aria-labelledby="appsTitle">
+      <h2 id="appsTitle">Applications</h2>
+      <p class="sub">Program approval is separate from driver approval. Task flags are keyword hints (driving, seated, repetitive) for you to review.</p>
+      <div class="row">
+        <label>Status
+          <select id="appFilter">
+            <option value="">All</option><option value="submitted" selected>Submitted</option><option value="approved">Approved</option>
+            <option value="suspended">Suspended</option><option value="rejected">Rejected</option><option value="withdrawn">Withdrawn</option>
+          </select>
+        </label>
+      </div>
+      <div id="appList" class="muted">Loading…</div>
+    </section>
+
+    <section class="card" aria-labelledby="importTitle">
+      <h2 id="importTitle">Import Minute session hours</h2>
+      <p class="sub">No Minute export format is assumed: choose a CSV, then map its own columns. Preview validates every row and saves nothing; duplicates are rejected, unmatched contributors are flagged, and invalid rows block the import.</p>
+      <div class="row">
+        <label>CSV file<input type="file" id="importFile" accept=".csv,text/csv" /></label>
+      </div>
+      <div id="mappingBox" hidden>
+        <div class="row">
+          <label>Contributor id column<select id="mapContributor"></select></label>
+          <label>Session id column<select id="mapSession"></select></label>
+          <label>Session date column (YYYY-MM-DD)<select id="mapDate"></select></label>
+          <label>Duration column<select id="mapDuration"></select></label>
+          <label>Duration unit
+            <select id="mapUnit"><option value="seconds">Seconds</option><option value="minutes">Minutes</option><option value="hours">Hours (decimal)</option><option value="hms">H:MM:SS</option></select>
+          </label>
+        </div>
+        <div class="actions"><button class="btn primary" type="button" id="previewBtn">Preview</button></div>
+      </div>
+      <div id="previewBox"></div>
+    </section>
+
+    <section class="card" aria-labelledby="manualTitle">
+      <h2 id="manualTitle">Manual hours entry</h2>
+      <p class="sub">For use until a sample Minute export is available. Copy the session id from Minute so a later import of the same session is rejected as a duplicate. Every entry is audited.</p>
+      <div class="row">
+        <label>Participant<select id="manualApp"></select></label>
+        <label>Minute session id<input id="manualSession" maxlength="200" /></label>
+        <label>Session date<input id="manualDate" type="date" /></label>
+        <label>Duration (H:MM:SS)<input id="manualDuration" placeholder="1:30:00" /></label>
+      </div>
+      <div class="row"><label>Source / reason<input id="manualReason" maxlength="500" placeholder="Where this figure came from" /></label></div>
+      <button class="btn primary" type="button" id="manualBtn">Record hours</button>
+    </section>
+
+    <section class="card" aria-labelledby="hoursTitle">
+      <h2 id="hoursTitle">Hour records</h2>
+      <div class="row">
+        <label>Status
+          <select id="hoursFilter">
+            <option value="pending" selected>Pending</option><option value="accepted">Accepted</option><option value="payable">Payable</option>
+            <option value="paid">Paid</option><option value="rejected">Rejected</option>
+          </select>
+        </label>
+      </div>
+      <div class="actions" id="hoursActions" style="margin-bottom:10px"></div>
+      <div id="hoursList" class="muted">Loading…</div>
+    </section>
+
+    <section class="card" aria-labelledby="excTitle">
+      <h2 id="excTitle">Open import exceptions</h2>
+      <p class="sub">Sessions whose contributor isn't linked to a participant, or whose participant isn't active. Link the contributor id, then re-import the file to save them.</p>
+      <div id="excList" class="muted">Loading…</div>
+    </section>
+
+    <section class="card" aria-labelledby="auditTitle">
+      <h2 id="auditTitle">Audit log (latest 200)</h2>
+      <div id="auditList" class="muted">Loading…</div>
+    </section>
+  </div>
+
+  <script>
+    const API = (window.location.origin && window.location.origin.startsWith("http")) ? window.location.origin : "https://harveytaxiservice.com";
+    const BASE = "/api/admin/data-collection";
+    const $ = (id) => document.getElementById(id);
+    const state = { overview: null, applications: [], hours: [], csvText: "", filename: "", preview: null };
+
+    function esc(v) {
+      return String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+    function money(cents) {
+      const n = Number(cents) || 0;
+      const a = Math.abs(n);
+      return `${n < 0 ? "-" : ""}$${Math.floor(a / 100)}.${String(a % 100).padStart(2, "0")}`;
+    }
+    const hours = (s) => (Math.round((Number(s) || 0) / 36) / 100).toFixed(2);
+    function notice(text, kind = "info") {
+      const n = $("notice");
+      n.textContent = text;
+      n.className = `notice show ${kind}`;
+    }
+
+    // Uses the admin session cookie set by the admin login page.
+    async function api(path, { method = "GET", body } = {}) {
+      const res = await fetch(API + path, {
+        method,
+        credentials: "include",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: body === undefined ? undefined : JSON.stringify(body)
+      });
+      let data = {};
+      try { data = await res.json(); } catch {}
+      if (res.status === 401) throw new Error("Admin sign-in required. Sign in from the admin login page, then refresh.");
+      if (!res.ok || data.ok === false) {
+        const err = new Error(data.error || `Request failed (HTTP ${res.status})`);
+        err.data = data;
+        err.status = res.status;
+        throw err;
+      }
+      return data;
+    }
+
+    function pill(on, yes = "On", no = "Off") {
+      return `<span class="pill ${on ? "on" : "off"}">${on ? yes : no}</span>`;
+    }
+
+    async function loadOverview() {
+      const o = await api(`${BASE}/overview`);
+      state.overview = o;
+      const c = o.configuration;
+      $("statusGrid").innerHTML = `
+        <div class="stat"><span>Program</span><strong>${pill(o.gates.program)}</strong><div class="mono muted">${esc(o.flags.program)}</div></div>
+        <div class="stat"><span>Enrollment</span><strong>${pill(o.gates.enrollment)}</strong><div class="mono muted">${esc(o.flags.enrollment)}</div></div>
+        <div class="stat"><span>Collection</span><strong>${pill(o.gates.collection)}</strong><div class="mono muted">${esc(o.flags.collection)}</div></div>
+        <div class="stat"><span>Organization code</span><strong>${pill(c.organization_code_configured, "Configured", "Not set")}</strong></div>
+        <div class="stat"><span>Download links</span><strong>${pill(c.ios_download_link_configured, "iOS set", "iOS not set")} ${pill(c.android_download_link_configured, "Android set", "Android not set")}</strong></div>
+        <div class="stat"><span>Applications</span><strong>${Object.entries(o.application_counts).map(([k, v]) => `${esc(k)}: ${v}`).join("<br>")}</strong></div>`;
+      const h = o.hours;
+      $("totalsGrid").innerHTML = `
+        <div class="stat"><span>Accepted hours</span><strong>${esc(hours(h.accepted_seconds))}</strong></div>
+        <div class="stat"><span>Driver earnings (accepted+)</span><strong>${money(h.estimated_earnings_cents)}</strong></div>
+        <div class="stat"><span>Company revenue</span><strong>${money(h.company_revenue_cents)}</strong></div>
+        <div class="stat"><span>Gross margin (before expenses)</span><strong>${money(h.gross_margin_cents)}</strong></div>
+        <div class="stat"><span>Pending review</span><strong>${esc(hours(h.by_status.pending.seconds))} h</strong></div>
+        <div class="stat"><span>Payable</span><strong>${money(h.payable_cents)}</strong></div>
+        <div class="stat"><span>Paid</span><strong>${money(h.paid_cents)}</strong></div>
+        <div class="stat"><span>Rejected</span><strong>${esc(hours(h.by_status.rejected.seconds))} h</strong></div>
+        <div class="stat"><span>Open exceptions</span><strong>${o.open_exceptions}</strong></div>`;
+    }
+
+    function appCard(a) {
+      const flags = (a.task_review_flags || []).map((f) => `task ${f.task_index + 1}: ${f.category}`).join(", ");
+      const actions = [];
+      if (a.status === "submitted") actions.push(["approved", "Approve", "primary"], ["rejected", "Reject", "danger"]);
+      if (a.status === "approved") actions.push(["suspended", "Suspend", "danger"]);
+      if (a.status === "suspended") actions.push(["approved", "Reinstate", "primary"], ["rejected", "Reject", "danger"]);
+      const participant = a.status === "approved" || a.status === "suspended";
+      return `<div class="app-card" data-id="${esc(a.id)}">
+        <div class="app-head">
+          <div><strong>${esc(a.driver.name || a.driver.id)}</strong> <span class="muted">${esc(a.driver.email || "")}</span><br>
+            <span class="muted">Driver approval: ${esc(a.driver.approval_status || "unknown")}${a.driver.eligibility.eligible ? "" : ` (not eligible: ${esc(a.driver.eligibility.reasons.join(", "))})`}</span></div>
+          <span class="pill ${a.status === "approved" ? "on" : a.status === "submitted" ? "warn" : "off"}">${esc(a.status)}</span>
+        </div>
+        <div class="grid">
+          <div class="stat"><span>Phone</span><strong>${esc(a.phone_model)}</strong></div>
+          <div class="stat"><span>Location</span><strong>${esc(a.proposed_location)}, ${esc(a.location_state)}, ${esc(a.country)}</strong></div>
+          <div class="stat"><span>Minute contributor id</span><strong class="mono">${esc(a.minute_contributor_id || "not linked")}</strong></div>
+          <div class="stat"><span>Hours accepted / paid</span><strong>${esc(hours(a.hours.accepted_seconds))} h · ${money(a.hours.paid_cents)}</strong></div>
+        </div>
+        <div><span class="muted">Tasks:</span> ${(a.proposed_tasks || []).map(esc).join("; ")}${flags ? `<div class="flag-list">Review flags: ${esc(flags)}</div>` : ""}</div>
+        <div><span class="muted">Agreements:</span> ${a.agreements.map((g) => `${esc(g.label)} <span class="pill ${g.status === "signed" ? "on" : "off"}">${esc(g.status)}</span>`).join(" · ")}</div>
+        <div><span class="muted">Equipment:</span> ${a.equipment.length ? a.equipment.map((e) =>
+          `${esc(e.item)}${e.asset_tag ? ` (${esc(e.asset_tag)})` : ""} <select data-equip="${esc(e.id)}" aria-label="Equipment status">${["assigned", "returned", "lost", "damaged"].map((s) => `<option${s === e.status ? " selected" : ""}>${s}</option>`).join("")}</select>`).join(" · ") : "none"}</div>
+        ${a.status_reason ? `<div class="muted">Note: ${esc(a.status_reason)}</div>` : ""}
+        <div class="actions">
+          ${actions.map(([to, label, cls]) => `<button class="btn ${cls}" type="button" data-status="${to}">${label}</button>`).join("")}
+          ${participant ? `<button class="btn" type="button" data-act="contributor">Link contributor id</button>
+            <button class="btn" type="button" data-act="agreement">Record agreement</button>
+            <button class="btn" type="button" data-act="equipment">Assign equipment</button>` : ""}
+        </div>
+      </div>`;
+    }
+
+    async function loadApplications() {
+      const status = $("appFilter").value;
+      const data = await api(`${BASE}/applications${status ? `?status=${encodeURIComponent(status)}` : ""}`);
+      state.applications = data.applications;
+      $("appList").innerHTML = data.applications.length ? data.applications.map(appCard).join("") : "No applications.";
+      // Manual entry needs every participant, not only the filtered list.
+      const all = status ? (await api(`${BASE}/applications`)).applications : data.applications;
+      const participants = all.filter((a) => a.status === "approved" || a.status === "suspended");
+      $("manualApp").innerHTML = participants.length
+        ? participants.map((a) => `<option value="${esc(a.id)}">${esc(a.driver.name || a.driver.id)} (${esc(a.status)})</option>`).join("")
+        : '<option value="">No program-approved participants</option>';
+    }
+
+    async function onAppClick(event) {
+      const btn = event.target.closest("button");
+      const card = event.target.closest(".app-card");
+      if (!btn || !card) return;
+      const id = card.dataset.id;
+      try {
+        if (btn.dataset.status) {
+          const to = btn.dataset.status;
+          let reason = "";
+          if (to === "rejected" || to === "suspended") {
+            reason = window.prompt(`Reason to ${to === "rejected" ? "reject" : "suspend"} (required):`) || "";
+            if (!reason.trim()) return;
+          } else if (!window.confirm(`${btn.textContent} this application?`)) return;
+          await api(`${BASE}/applications/${id}/status`, { method: "POST", body: { status: to, reason } });
+          notice(`Application ${to}.`, "success");
+        } else if (btn.dataset.act === "contributor") {
+          const value = window.prompt("Minute contributor id for this participant (leave empty to unlink):");
+          if (value === null) return;
+          await api(`${BASE}/applications/${id}/contributor`, { method: "POST", body: { minute_contributor_id: value } });
+          notice("Contributor id saved.", "success");
+        } else if (btn.dataset.act === "agreement") {
+          const type = window.prompt("Agreement type: contributor_agreement or recording_consent");
+          if (!type) return;
+          const status = window.prompt("Status: signed, pending or revoked", "signed");
+          if (!status) return;
+          let version = "";
+          let signedAt = "";
+          if (status === "signed") {
+            version = window.prompt("Document version signed:") || "";
+            signedAt = window.prompt("Date signed (YYYY-MM-DD):", new Date().toISOString().slice(0, 10)) || "";
+          }
+          await api(`${BASE}/applications/${id}/agreements`, {
+            method: "POST",
+            body: { agreement_type: type.trim(), status: status.trim(), document_version: version, signed_at: signedAt }
+          });
+          notice("Agreement recorded.", "success");
+        } else if (btn.dataset.act === "equipment") {
+          const item = window.prompt("Equipment item:");
+          if (!item) return;
+          const tag = window.prompt("Asset tag (optional):") || "";
+          await api(`${BASE}/applications/${id}/equipment`, { method: "POST", body: { item, asset_tag: tag } });
+          notice("Equipment assigned.", "success");
+        }
+        await refresh();
+      } catch (err) {
+        notice(err.message, "error");
+      }
+    }
+
+    async function onEquipmentChange(event) {
+      const sel = event.target.closest("select[data-equip]");
+      if (!sel) return;
+      try {
+        await api(`${BASE}/equipment/${sel.dataset.equip}`, { method: "PATCH", body: { status: sel.value } });
+        notice("Equipment status updated.", "success");
+        await refresh();
+      } catch (err) {
+        notice(err.message, "error");
+      }
+    }
+
+    const NEXT = { pending: ["accepted", "rejected"], accepted: ["payable", "rejected"], payable: ["paid", "accepted"], rejected: ["pending"], paid: [] };
+
+    async function loadHours() {
+      const status = $("hoursFilter").value;
+      const data = await api(`${BASE}/hours?status=${encodeURIComponent(status)}`);
+      state.hours = data.hours;
+      $("hoursActions").innerHTML = NEXT[status].map((to) => `<button class="btn ${to === "rejected" ? "danger" : "primary"}" type="button" data-to="${to}">Mark selected ${to}</button>`).join("");
+      $("hoursList").innerHTML = data.hours.length
+        ? `<div class="table-wrap"><table><thead><tr><th><input type="checkbox" id="hoursAll" aria-label="Select all" /></th><th>Date</th><th>Driver</th><th>Session</th><th>Hours</th><th>Driver</th><th>Company</th><th>Margin</th><th>Source</th><th>Note</th></tr></thead><tbody>
+          ${data.hours.map((h) => `<tr><td><input type="checkbox" data-hour="${esc(h.id)}" aria-label="Select" /></td><td>${esc(h.session_date)}</td><td class="mono">${esc(h.driver_id)}</td><td class="mono">${esc(h.external_session_id)}</td><td>${esc(hours(h.duration_seconds))}</td><td>${money(h.driver_amount_cents)}</td><td>${money(h.company_amount_cents)}</td><td>${money(h.company_amount_cents - h.driver_amount_cents)}</td><td>${esc(h.source)}</td><td>${esc(h.payout_reference || h.status_reason || "")}</td></tr>`).join("")}
+          </tbody></table></div><p class="sub" style="margin-top:8px">${data.total} record(s); ${esc(hours(data.summary.by_status[status].seconds))} h; driver ${money(data.summary.by_status[status].driver_cents)}.</p>`
+        : "No records with this status.";
+      const all = $("hoursAll");
+      if (all) all.addEventListener("change", () => document.querySelectorAll("[data-hour]").forEach((c) => { c.checked = all.checked; }));
+    }
+
+    async function onHoursAction(event) {
+      const btn = event.target.closest("button[data-to]");
+      if (!btn) return;
+      const ids = [...document.querySelectorAll("[data-hour]:checked")].map((c) => c.dataset.hour);
+      if (!ids.length) { notice("Select at least one record.", "error"); return; }
+      const from = $("hoursFilter").value;
+      const to = btn.dataset.to;
+      const body = { ids, from, to };
+      if (to === "rejected") {
+        body.reason = window.prompt("Reason for rejecting (required):") || "";
+        if (!body.reason.trim()) return;
+      }
+      if (to === "paid") {
+        body.payout_reference = window.prompt("Payout reference for the payment you already made (required). This page does not send money.") || "";
+        if (!body.payout_reference.trim()) return;
+      }
+      if (!window.confirm(`Move ${ids.length} record(s) from ${from} to ${to}?`)) return;
+      try {
+        const r = await api(`${BASE}/hours/status`, { method: "POST", body });
+        notice(`${r.updated} record(s) moved to ${to}.`, "success");
+        await refresh();
+      } catch (err) {
+        notice(err.message, "error");
+      }
+    }
+
+    function mappingBody() {
+      return {
+        filename: state.filename,
+        csv_text: state.csvText,
+        mapping: {
+          contributor_id: $("mapContributor").value,
+          session_id: $("mapSession").value,
+          session_date: $("mapDate").value,
+          duration: $("mapDuration").value,
+          duration_unit: $("mapUnit").value
+        }
+      };
+    }
+
+    async function onFileChosen() {
+      const file = $("importFile").files[0];
+      $("previewBox").innerHTML = "";
+      state.preview = null;
+      if (!file) return;
+      state.filename = file.name;
+      state.csvText = await file.text();
+      // Ask the server for the header row (an empty mapping is refused with the headers).
+      try {
+        await api(`${BASE}/imports/preview`, { method: "POST", body: { filename: file.name, csv_text: state.csvText, mapping: {} } });
+      } catch (err) {
+        const headers = err.data && err.data.headers;
+        if (!headers) { notice(err.message, "error"); return; }
+        const opts = headers.map((h) => `<option>${esc(h)}</option>`).join("");
+        ["mapContributor", "mapSession", "mapDate", "mapDuration"].forEach((id) => { $(id).innerHTML = opts; });
+        $("mappingBox").hidden = false;
+        notice("Map the file's columns, then preview.", "info");
+      }
+    }
+
+    async function onPreview() {
+      try {
+        const p = await api(`${BASE}/imports/preview`, { method: "POST", body: mappingBody() });
+        state.preview = p;
+        const s = p.summary;
+        const again = p.previously_imported.length
+          ? `<label class="row" style="align-items:center"><input type="checkbox" id="ackReimport" style="width:auto;min-height:0" /> This exact file was imported before (${p.previously_imported.map((b) => esc(b.created_at)).join(", ")}). Import it again anyway.</label>` : "";
+        $("previewBox").innerHTML = `
+          <div class="grid" style="margin:12px 0">
+            <div class="stat"><span>Ready</span><strong>${s.ready}</strong></div>
+            <div class="stat"><span>Duplicates (rejected)</span><strong>${s.duplicate_existing + s.duplicate_in_file}</strong></div>
+            <div class="stat"><span>Unmatched / inactive</span><strong>${s.unmatched_contributor + s.inactive_participant}</strong></div>
+            <div class="stat"><span>Invalid</span><strong>${s.invalid}</strong></div>
+            <div class="stat"><span>Ready hours</span><strong>${esc(hours(s.ready_seconds))}</strong></div>
+            <div class="stat"><span>Driver / company / margin</span><strong>${money(s.ready_driver_cents)} / ${money(s.ready_company_cents)} / ${money(s.ready_margin_cents)}</strong></div>
+          </div>
+          <div class="table-wrap"><table><thead><tr><th>Row</th><th>Outcome</th><th>Contributor</th><th>Session</th><th>Date</th><th>Hours</th><th>Detail</th></tr></thead><tbody>
+            ${p.rows.map((r) => `<tr><td>${r.row_number}</td><td><span class="pill ${r.outcome === "ready" ? "on" : r.outcome === "invalid" ? "off" : "warn"}">${esc(r.outcome)}</span></td><td class="mono">${esc(r.contributor_id)}</td><td class="mono">${esc(r.session_id)}</td><td>${esc(r.session_date || "")}</td><td>${r.duration_seconds ? esc(hours(r.duration_seconds)) : ""}</td><td>${esc(r.detail || "")}</td></tr>`).join("")}
+          </tbody></table></div>
+          ${again}
+          <div class="actions" style="margin-top:10px">
+            <button class="btn primary" type="button" id="commitBtn" ${p.can_commit && p.collection_open ? "" : "disabled"}>Import ${s.ready} session(s)</button>
+            ${!p.collection_open ? '<span class="muted">Collection is off: preview only.</span>' : !p.can_commit ? '<span class="muted">Fix invalid rows (or nothing new to save).</span>' : ""}
+          </div>`;
+        const commit = $("commitBtn");
+        if (commit) commit.addEventListener("click", onCommit);
+      } catch (err) {
+        notice(err.message, "error");
+      }
+    }
+
+    async function onCommit() {
+      const p = state.preview;
+      if (!p || !window.confirm(`Save ${p.summary.ready} session(s) as pending and ${p.summary.unmatched_contributor + p.summary.inactive_participant} exception(s)?`)) return;
+      const ack = $("ackReimport");
+      try {
+        const r = await api(`${BASE}/imports/commit`, {
+          method: "POST",
+          body: { ...mappingBody(), preview_digest: p.preview_digest, confirm: true, acknowledge_previous_import: Boolean(ack && ack.checked) }
+        });
+        notice(`Imported ${r.result.inserted} session(s); ${r.result.exceptions} exception(s) flagged.`, "success");
+        $("previewBox").innerHTML = "";
+        await refresh();
+      } catch (err) {
+        notice(err.message, "error");
+      }
+    }
+
+    async function onManual() {
+      const body = {
+        application_id: $("manualApp").value,
+        external_session_id: $("manualSession").value,
+        session_date: $("manualDate").value,
+        duration: $("manualDuration").value,
+        duration_unit: "hms",
+        reason: $("manualReason").value
+      };
+      if (!window.confirm("Record these hours as pending? This is audited.")) return;
+      try {
+        const r = await api(`${BASE}/hours/manual`, { method: "POST", body });
+        notice(`Recorded: driver ${money(r.amounts.driver_amount_cents)}, company ${money(r.amounts.company_amount_cents)}.`, "success");
+        ["manualSession", "manualDuration", "manualReason"].forEach((id) => { $(id).value = ""; });
+        await refresh();
+      } catch (err) {
+        notice(err.message, "error");
+      }
+    }
+
+    async function loadExceptions() {
+      const { exceptions } = await api(`${BASE}/exceptions`);
+      $("excList").innerHTML = exceptions.length
+        ? `<div class="table-wrap"><table><thead><tr><th>Flagged</th><th>Reason</th><th>Contributor</th><th>Session</th><th>Date</th><th>Hours</th></tr></thead><tbody>
+          ${exceptions.map((e) => `<tr><td>${esc(e.created_at)}</td><td>${esc(e.reason)}</td><td class="mono">${esc(e.external_contributor_id)}</td><td class="mono">${esc(e.external_session_id)}</td><td>${esc(e.session_date)}</td><td>${esc(hours(e.duration_seconds))}</td></tr>`).join("")}
+          </tbody></table></div>`
+        : "None.";
+    }
+
+    async function loadAudit() {
+      const { entries } = await api(`${BASE}/audit-log`);
+      $("auditList").innerHTML = entries.length
+        ? `<div class="table-wrap"><table><thead><tr><th>When</th><th>Who</th><th>Action</th><th>Entity</th></tr></thead><tbody>
+          ${entries.map((e) => `<tr><td>${esc(e.created_at)}</td><td class="mono">${esc(e.actor)}</td><td>${esc(e.action)}</td><td class="mono">${esc(e.entity_type)} ${esc(e.entity_id || "")}</td></tr>`).join("")}
+          </tbody></table></div>`
+        : "No entries.";
+    }
+
+    async function refresh() {
+      try {
+        await loadOverview();
+        await Promise.all([loadApplications(), loadHours(), loadExceptions(), loadAudit()]);
+      } catch (err) {
+        notice(err.message, "error");
+      }
+    }
+
+    $("refreshBtn").addEventListener("click", refresh);
+    $("appFilter").addEventListener("change", () => loadApplications().catch((e) => notice(e.message, "error")));
+    $("hoursFilter").addEventListener("change", () => loadHours().catch((e) => notice(e.message, "error")));
+    $("appList").addEventListener("click", onAppClick);
+    $("appList").addEventListener("change", onEquipmentChange);
+    $("hoursActions").addEventListener("click", onHoursAction);
+    $("importFile").addEventListener("change", onFileChosen);
+    $("previewBtn").addEventListener("click", onPreview);
+    $("manualBtn").addEventListener("click", onManual);
+    refresh();
+  </script>
+</body>
+</html>

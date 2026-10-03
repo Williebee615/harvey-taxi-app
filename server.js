@@ -3548,6 +3548,8 @@ const {
   buildFlagDiagnosticLogEvent
 } = require("./lib/reviewAccounts");
 
+const { registerDataCollectionRoutes } = require("./lib/dataCollectionRoutes");
+
 const {
   DELETION_STATUS,
   DELETION_MODE,
@@ -24215,6 +24217,21 @@ app.post(
     return ok(res, { dry_run: true, scheduled_reconciliation_enabled: reconciliationEnabled, reconciliation: summary });
   })
 );
+
+/* =========================================================
+   DATA COLLECTION PROGRAM (optional; behind system flags, all off by
+   default). Routes and rules: lib/dataCollectionRoutes.js and
+   lib/dataCollection.js; design: docs/data-collection-program.md.
+========================================================= */
+registerDataCollectionRoutes(app, {
+  supabase,
+  requireAdmin,
+  requireDriverSelf,
+  getSystemFlag,
+  asyncRoute,
+  ok,
+  fail
+});
 
 /* =========================================================
    API 404 HANDLER
