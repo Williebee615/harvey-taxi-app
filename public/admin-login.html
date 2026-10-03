@@ -195,6 +195,19 @@
     const adminForm = document.getElementById("adminLoginForm");
     const adminStatus = document.getElementById("statusMessage");
 
+    // Where to go after signing in: a same-site admin page named in ?next=,
+    // otherwise the admin dashboard. Only plain same-origin paths are
+    // accepted, so this can never redirect off-site.
+    function nextPath() {
+      const next = new URLSearchParams(window.location.search).get("next") || "";
+      return /^\/admin[\w-]*\.html$/.test(next) ? next : "/admin-dashboard.html";
+    }
+
+    function showStatus(message) {
+      adminStatus.className = "status show error";
+      adminStatus.textContent = message;
+    }
+
     adminForm.addEventListener("submit", async (e) => {
       e.preventDefault();
 
@@ -204,24 +217,26 @@
       };
 
       try {
-        const res = await fetch("/api/admin-login", {
+        // Same endpoint the dashboard's Sign In uses: sets the HttpOnly
+        // admin session cookie. Nothing is stored in the browser.
+        const res = await fetch("/api/admin/login", {
           method: "POST",
+          credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
 
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
+        document.getElementById("password").value = "";
 
-        if (data.redirectUrl) {
-          window.location.href = data.redirectUrl;
+        if (res.ok && data.ok !== false) {
+          window.location.href = nextPath();
           return;
         }
 
-        adminStatus.className = "status show error";
-        adminStatus.textContent = data.message || "Login response received, but no redirect destination was provided.";
+        showStatus(data.error || data.message || "Sign-in failed. Check your email and password.");
       } catch (error) {
-        adminStatus.className = "status show error";
-        adminStatus.textContent = "Unable to log in right now. Please try again.";
+        showStatus("Unable to sign in right now. Please try again.");
       }
     });
   </script>
