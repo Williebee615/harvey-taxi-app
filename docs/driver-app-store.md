@@ -87,6 +87,7 @@ tracking**:
 | User ID | App functionality | Driver id |
 | Device ID | App functionality | Push token |
 | Other financial info | App functionality | Earnings history shown to the driver |
+| Customer support | App functionality | Harvey Assistant questions are answered and not stored. If one triggers a safety, payment or account escalation, a redacted excerpt (160 characters, with phone, email, card and token patterns removed) is kept in the human-review case. Only applies once the assistant is switched on. |
 
 Not collected by this app: contacts, photos, health, browsing history, search
 history, diagnostics or crash data (no analytics or crash SDK), advertising

@@ -11,6 +11,8 @@
 // writes it.
 
 const LIVE_COLUMNS = {
+  // Checked 2026-10-03: no latitude/longitude columns.
+  emergency_alerts: "id,ride_id,rider_id,driver_id,alert_type,message,status,created_at,updated_at".split(","),
   rides: (
     "id,rider_id,rider_name,rider_phone,driver_id,driver_name,driver_phone,driver_vehicle," +
     "pickup_address,dropoff_address,pickup_lat,pickup_lng,dropoff_lat,dropoff_lng,ride_type," +
