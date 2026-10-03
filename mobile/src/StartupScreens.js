@@ -49,6 +49,40 @@ export function ErrorScreen({ kind, onRetry }) {
   );
 }
 
+// Shown instead of a driving-operations page (see isDriverOperationsUrl):
+// riders and drivers use separate apps. Sign-up and account deletion stay
+// available in this app.
+export function DriverAppHandoffScreen({ onOpenDriverApp, onDeleteDriverAccount, onBack }) {
+  return (
+    <View style={styles.overlay} testID="driver-app-handoff" accessibilityViewIsModal>
+      <View style={styles.card}>
+        <Image source={logo} style={styles.logoSmall} accessibilityIgnoresInvertColors />
+        <Text style={styles.title} accessibilityRole="header">
+          Drive with Harvey Taxi Driver
+        </Text>
+        <Text style={styles.message}>
+          Going online, ride requests, trips, earnings and your driver application status are in the Harvey Taxi Driver app. Sign in there with
+          the phone number on your driver account.
+        </Text>
+        <Pressable
+          testID="handoff-open-driver-app"
+          accessibilityRole="button"
+          onPress={onOpenDriverApp}
+          style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
+        >
+          <Text style={styles.buttonText}>Open Harvey Taxi Driver</Text>
+        </Pressable>
+        <Pressable testID="handoff-delete-driver" accessibilityRole="button" onPress={onDeleteDriverAccount} style={({ pressed }) => [styles.linkButton, pressed && styles.buttonPressed]}>
+          <Text style={styles.linkText}>Delete a driver account</Text>
+        </Pressable>
+        <Pressable testID="handoff-back" accessibilityRole="button" onPress={onBack} style={({ pressed }) => [styles.linkButton, pressed && styles.buttonPressed]}>
+          <Text style={styles.linkText}>Back</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
@@ -81,5 +115,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center'
   },
   buttonPressed: { opacity: 0.8 },
-  buttonText: { color: COLORS.accentText, fontSize: 17, fontWeight: '800' }
+  buttonText: { color: COLORS.accentText, fontSize: 17, fontWeight: '800' },
+  linkButton: { marginTop: 14, minHeight: 44, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
+  linkText: { color: COLORS.text, fontSize: 16, fontWeight: '700', textDecorationLine: 'underline' }
 });

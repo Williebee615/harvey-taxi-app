@@ -709,8 +709,9 @@
               <textarea id="deletionReason" placeholder="Help us understand why you're leaving (optional)"></textarea>
             </div>
             <!-- How the request proves who you are: a signed-in session when
-                 there is one, otherwise (riders only) a code texted to the
-                 account's phone number. Filled in by refreshDeletionIdentity(). -->
+                 there is one, otherwise a code texted to the account's
+                 phone number (riders: /api/verify/sms; drivers: the driver
+                 app's phone sign-in). Filled in by refreshDeletionIdentity(). -->
             <p id="deletionIdentity" class="deletion-identity">Checking whether you're signed in…</p>
             <div id="deletionSmsFields" hidden>
               <div class="field">
@@ -1206,8 +1207,9 @@
        but had no actual UI or logic anywhere in the page)
        ============================================================ */
     // Who is deleting: a signed-in rider (session cookie), a signed-in
-    // driver (driver token from the driver dashboard), or -- riders only
-    // -- nobody yet, in which case a texted code proves the phone number.
+    // driver (driver token from the driver dashboard), or nobody yet, in
+    // which case a texted code proves the phone number (riders and drivers;
+    // drivers use the Harvey Taxi Driver app's phone sign-in).
     // The server resolves the account from that proof, never from an id
     // sent by this page.
     const DRIVER_TOKEN_KEY = "harvey_driver_token";
@@ -1262,9 +1264,15 @@
       let text;
       let smsVisible = false;
       if (type === "driver") {
-        text = deletionIdentity.driverToken
-          ? "You're signed in as a driver. Type DELETE below to request deletion of this driver account."
-          : "Sign in on the Driver Dashboard first, then return here (or use Delete Account there) to delete your driver account.";
+        if (deletionIdentity.driverToken) {
+          text = "You're signed in as a driver. Type DELETE below to request deletion of this driver account.";
+        } else {
+          // No driver session in this browser (for example inside the
+          // Harvey Taxi rider app): prove the phone number instead, with the
+          // same texted code the Harvey Taxi Driver app signs in with.
+          text = "You're not signed in as a driver here. We'll text a code to the phone number on your driver account to confirm it's you.";
+          smsVisible = true;
+        }
       } else if (deletionIdentity.rider) {
         text = "You're signed in. Type DELETE below to delete this rider account.";
       } else {
@@ -1277,6 +1285,7 @@
       }
       els.deletionIdentity.textContent = text;
       if (els.deletionSmsFields) els.deletionSmsFields.hidden = !smsVisible;
+      if (els.deletionPhone) els.deletionPhone.placeholder = type === "driver" ? "Phone number on your driver account" : "Phone number on your rider account";
       const banner = document.getElementById("settingsReviewBanner");
       if (banner) banner.hidden = !(deletionIdentity.riderReview || deletionIdentity.driverReview);
     }
@@ -1285,6 +1294,23 @@
       const phone = els.deletionPhone?.value?.trim() || "";
       if (!phone) {
         dispatchNotice(els.deletionNotice, "Enter the phone number on your account first.", "error");
+        return;
+      }
+      if (selectedAccountType() === "driver") {
+        try {
+          dispatchNotice(els.deletionNotice, "Sending verification code...", "info");
+          const response = await fetch(`${HARVEY_API_BASE}/api/driver/session/phone/start`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ phone })
+          });
+          if (!response.ok) throw new Error(`Request failed (HTTP ${response.status})`);
+          dispatchNotice(els.deletionNotice, "If that number is on a driver account, a code is on its way. Enter it below.", "success");
+          trackSettingsEvent("account_deletion_code_sent", { account_type: "driver" });
+        } catch (err) {
+          dispatchNotice(els.deletionNotice, "Unable to send a verification code right now. Please try again shortly or contact support.", "error");
+          trackSettingsEvent("account_deletion_code_failed", { message: err.message });
+        }
         return;
       }
       try {
@@ -1318,12 +1344,36 @@
       let body = { reason: reason || null, confirm: "DELETE" };
 
       if (type === "driver") {
-        if (!deletionIdentity.driverToken) {
-          dispatchNotice(els.deletionNotice, "Sign in on the Driver Dashboard first, then request deletion.", "error");
-          return;
+        let driverToken = deletionIdentity.driverToken;
+        if (!driverToken) {
+          const phone = els.deletionPhone?.value?.trim() || "";
+          const code = els.deletionCode?.value?.trim() || "";
+          if (!phone || !code) {
+            dispatchNotice(els.deletionNotice, "Enter your driver account's phone number and the code we texted you.", "error");
+            return;
+          }
+          // The code proves the phone number; the server resolves the driver
+          // account from it. The session is kept in memory for this request
+          // only, never stored in the browser.
+          try {
+            const verify = await fetch(`${HARVEY_API_BASE}/api/driver/session/phone/verify`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ phone, code })
+            });
+            const verified = await verify.json().catch(() => ({}));
+            if (!verify.ok || verified.ok === false || !verified.driver_token) {
+              throw new Error(verified.error || "That code didn't work. Check it, or send a new one.");
+            }
+            driverToken = verified.driver_token;
+          } catch (err) {
+            dispatchNotice(els.deletionNotice, err.message || "That code didn't work. Check it, or send a new one.", "error");
+            trackSettingsEvent("account_deletion_failed", { message: "driver_code" });
+            return;
+          }
         }
         path = "/api/account/driver/delete-request";
-        headers = { "Content-Type": "application/json", "x-driver-token": deletionIdentity.driverToken };
+        headers = { "Content-Type": "application/json", "x-driver-token": driverToken };
       } else {
         path = "/api/account/rider/delete";
         if (!deletionIdentity.rider) {

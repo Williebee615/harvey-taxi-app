@@ -245,3 +245,18 @@ test('account deletion from the Account tab', async () => {
   expect(mockStore.harvey_driver_token).toBeUndefined();
   await act(async () => tree.unmount());
 });
+
+test('signed out: "Apply to drive" opens driver sign-up on the website', async () => {
+  delete mockStore.harvey_driver_token;
+  delete mockStore.harvey_driver_id;
+  const WebBrowser = require('expo-web-browser');
+  WebBrowser.openBrowserAsync.mockClear();
+  let tree;
+  await act(async () => {
+    tree = renderer.create(<App />);
+  });
+  await flush();
+  await press(tree, 'apply-to-drive');
+  expect(WebBrowser.openBrowserAsync).toHaveBeenCalledWith('https://harveytaxiservice.com/driver-signup.html');
+  await act(async () => tree.unmount());
+});
