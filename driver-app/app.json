@@ -1,0 +1,76 @@
+{
+  "expo": {
+    "name": "Harvey Taxi Driver",
+    "slug": "harvey-taxi-driver",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "icon": "./assets/icon.png",
+    "scheme": "harveytaxidriver",
+    "backgroundColor": "#050816",
+    "owner": "williebee615",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#050816"
+    },
+    "ios": {
+      "bundleIdentifier": "com.harveytaxiservice.driver",
+      "supportsTablet": false,
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Harvey Taxi Driver uses your location while you are online or on a trip to send you nearby ride requests, show riders where you are, and calculate arrival times.",
+        "UIBackgroundModes": [
+          "location"
+        ]
+      }
+    },
+    "android": {
+      "package": "com.harveytaxi.driver",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#050816"
+      },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
+        "POST_NOTIFICATIONS",
+        "VIBRATE"
+      ],
+      "blockedPermissions": [
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "plugins": [
+      "./plugins/withDriverLocationPrivacy",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Harvey Taxi Driver uses your location while you are online or on a trip to send you nearby ride requests, show riders where you are, and calculate arrival times.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": false,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#0B1730"
+        }
+      ],
+      "expo-secure-store",
+      "expo-web-browser"
+    ],
+    "extra": {
+      "eas": {}
+    }
+  }
+}
