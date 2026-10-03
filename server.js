@@ -20262,6 +20262,33 @@ async function anonymizeAccount({
 
   };
 
+  // Drivers: also remove location, photo, addresses and license/plate
+  // numbers, and take the driver offline. Clearing current_lat/lng also
+  // clears geog (trigger drivers_sync_geog). Ride and earnings rows stay
+  // for operational/financial records, without the name and phone.
+  if (table === "drivers") {
+    Object.assign(scrub, {
+      online: false,
+      current_lat: null,
+      current_lng: null,
+      latitude: null,
+      longitude: null,
+      heading: null,
+      speed: null,
+      location_accuracy_meters: null,
+      last_location_at: null,
+      photo_url: null,
+      home_address: null,
+      current_address: null,
+      last_known_address: null,
+      zipcode: null,
+      license_plate: null,
+      vehicle_plate: null,
+      drivers_license_number: null,
+      license_number: null
+    });
+  }
+
   const { error } =
 
     await supabase
@@ -20303,8 +20330,10 @@ async function anonymizeAccount({
   }
 
   // Same for drivers: rides keeps its own driver_name/driver_phone
-  // snapshot, separate from the drivers row scrubbed above.
+  // snapshot, separate from the drivers row scrubbed above. Their app's
+  // push tokens go too, so the device gets nothing more.
   if (table === "drivers") {
+    await supabase.from("driver_push_tokens").delete().eq("driver_id", id);
     await supabase
       .from("rides")
       .update({

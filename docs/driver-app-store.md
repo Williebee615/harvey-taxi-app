@@ -146,40 +146,53 @@ Sizes: iPhone 6.9" (1320×2868) and 6.5"; Android phone 1080×1920 or larger.
 The app runs portrait-only on phones; `supportsTablet` is off, so no iPad
 screenshots are required.
 
-## Privacy policy changes needed before submission (draft for legal review)
+## Privacy policy
 
-The live policy (`public/privacy-policy.html`) currently:
-- shows template instructions to the public ("If you later add a public
-  support email … you should update this page", and the "Important Note"
-  section);
-- has no privacy contact (email or address);
-- describes location only generally;
-- doesn't describe account deletion.
+Updated on this branch in `public/privacy-policy.html` (live only after the
+production deploy). It now covers:
+- driver location while online or on a trip, including in the background;
+  only the latest position is stored;
+- notification tokens and support messages;
+- what riders and drivers see about each other, and before acceptance;
+- named service providers: Persona, Checkr, Stripe, Twilio, SendGrid, Mapbox,
+  Expo/Apple/Google push, OpenAI (support assistant), plus hosting and
+  database providers; and that we don't sell personal information;
+- retention: trip, payment and earnings records kept without name and phone
+  after deletion; location removed on deletion;
+- how to delete an account (in the app, on the website, by email) and
+  exactly what deletion removes.
 
-Proposed additions (owner and legal to approve):
+The public template instructions ("If you later add…", "Important Note") are
+removed. **Pending:** owner confirmation of the privacy contact
+`support@harveytaxiservice.com` (already published on the home page).
 
-> **Driver location.** If you use the Harvey Taxi Driver app, we collect your
-> device's precise location while you are online or on a trip, including when
-> the app is closed or your screen is locked. We use it to offer you nearby
-> ride requests, show the rider your location and arrival time during their
-> trip, and for safety and fraud prevention. We stop collecting it when you
-> go offline. Riders see your location only during their trip.
->
-> **Push notifications.** With your permission we send ride requests and trip
-> updates as notifications, using a device token we store with your account.
->
-> **Deleting your account.** You can request deletion in the Harvey Taxi
-> Driver app (Account → Delete account) or at
-> harveytaxiservice.com/settings.html. Your access ends immediately. We then
-> remove your personal information from your account, except records we must
-> keep, for example for payments, tax or legal claims, which we keep only as
-> long as required.
->
-> **Contact.** Privacy questions: **[owner: privacy email]**, Harvey Taxi
-> Service LLC, **[owner: mailing address]**.
+The deletion text matches the code. This branch extends driver deletion to
+remove location, photo, addresses, license and plate numbers and push tokens
+(`anonymizeAccount` in `server.js`, covered by
+`test/server.account-deletion.test.js`).
 
-Remove the two template paragraphs at the end of the page.
+## App Store Connect: other answers
 
-"Riders see your location only during their trip" depends on the ride
-tracking access fix on this branch (`lib/rideAccess.js`); publish that
-sentence only after it is deployed.
+| Question | Answer | Why |
+|---|---|---|
+| Export compliance (uses encryption) | No non-exempt encryption | HTTPS only; `ITSAppUsesNonExemptEncryption` = false |
+| Sign-in required | Yes; provide the test driver account | — |
+| Content rights | No third-party content | — |
+| Age rating | 4+: every content question "None"; Unrestricted Web Access "No" | Policy pages open in an in-app browser, limited to our site |
+| Kids category | No | — |
+| Advertising identifier (IDFA) | Not used | No ad SDK |
+
+## Play Console: App content answers
+
+| Section | Answer |
+|---|---|
+| Ads | No ads |
+| Target audience | 18 and over |
+| News app | No |
+| Government app | No |
+| Financial features | None |
+| Health | No |
+| Data safety | As above |
+| App access | Restricted: provide the test driver account and the steps above |
+| Foreground service permissions | Location, with the text above and the video link |
+| Content rating (IARC) | Category "Utility/Productivity/Communication/Other"; no violence, sexuality, language, drugs or gambling; users interact (rider and driver see each other's details during a trip); shares location with other users: yes |
