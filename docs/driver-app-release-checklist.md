@@ -3,15 +3,49 @@
 Work through these in order. Each step says where to click or what to run.
 Never paste tokens, keys or passwords into chat or commit them.
 
-**Current state (2026-10-03).** Nothing below has been done yet.
+**Current state (2026-10-03, verified against EAS).**
 
-| Item | State |
-|---|---|
-| EAS project | Not registered; only configured locally (`app.json` has no `projectId`) |
-| Builds | None |
-| Uploads (TestFlight, Play) | None |
-| Device tests | None |
-| Store submissions | None |
+| Item | State | Evidence |
+|---|---|---|
+| Expo authentication from this environment | Works (proxy-injected credential; the CLI needs a placeholder `EXPO_TOKEN=proxy-injected`, which the proxy replaces) | `eas whoami` → `williebee615` |
+| Driver EAS project | **Registered**: `@williebee615/harvey-taxi-driver`, ID `0a1de77e-7850-4378-b46c-9c21ba80a094` | `eas init`; `eas project:info` |
+| Apple team in EAS | `AYF633JM4W`, Harvey Taxi Service LLC (Mobile), organization | EAS account query |
+| App Store Connect API key in EAS | None | EAS account query |
+| Google service-account key in EAS | None | EAS account query |
+| Android upload keystore (driver) | Created by EAS, stored on Expo servers | build `66c932ef-…` log |
+| Android production build (AAB) | See `docs/driver-app.md` → Release evidence | EAS build page |
+| iOS build | **Blocked**: "Credentials are not set up. Run this command again in interactive mode." | `eas build -p ios --non-interactive` |
+| Uploads, device tests, submissions | None | — |
+
+**Rider App Store Connect IDs (from EAS submission records, not changed):**
+EAS uploads that Apple accepted show two App Store Connect apps under team
+`AYF633JM4W`: `6761441561` for bundle `com.harveytaxiservice.app` (builds
+2, 6, 9 and 10, latest from commit `03b00fe`) and `6761548295` for bundle
+`com.harveytaxi.app` (build 10, commit `3e57b81`). `mobile/app.json` uses
+`com.harveytaxiservice.app`, so `mobile/eas.json`'s `6761441561` matches it;
+`mobile/RELEASE.md`'s `6761548295` is the other record. Confirm in App Store
+Connect which record is the live/in-review Harvey Taxi app before anything
+in `mobile/` is changed.
+
+## A0. iOS signing (the current iOS blocker): one interactive step on your Mac
+
+```sh
+git fetch origin claude/driver-app && git checkout claude/driver-app
+cd driver-app && npm ci
+npx eas-cli login                       # your Expo account (williebee615)
+npx eas-cli credentials -p ios          # choose "production"
+#   -> sign in with your Apple ID (team AYF633JM4W)
+#   -> "Build Credentials: set up all" : registers com.harveytaxiservice.driver,
+#      reuses or creates the distribution certificate, creates the provisioning profile
+#   -> "Push Notifications: set up" : creates or reuses the APNs key
+```
+
+If Apple says `com.harveytaxiservice.driver` is unavailable, stop and tell
+me; that is the availability check. After this, I can run iOS builds from
+here. For uploads to TestFlight from here, also add an App Store Connect API
+key to EAS: https://appstoreconnect.apple.com/access/integrations/api →
+**+** (role **App Manager**), download the `.p8`, then
+`npx eas-cli credentials -p ios` → **App Store Connect: Manage your API Key** → add.
 
 ## A. Give this environment access (or run the EAS steps on your own computer)
 
