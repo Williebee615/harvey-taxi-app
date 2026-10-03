@@ -16,9 +16,13 @@ import {
   shouldAutoRetryOnForeground,
   startupReducer
 } from './src/startup';
-import { COLORS, ErrorScreen, LoadingScreen } from './src/StartupScreens';
+import { COLORS, DriverAppHandoffScreen, ErrorScreen, LoadingScreen } from './src/StartupScreens';
 import {
   CLOSE_WIZARD_SCRIPT,
+  DRIVER_APP_SCHEME_URL,
+  DRIVER_APP_STORE_URLS,
+  DRIVER_DELETION_URL,
+  isDriverOperationsUrl,
   LAUNCH_CHECK_TIMEOUT_MS,
   PAGE_STATE_SCRIPT,
   decideAndroidBack,
@@ -45,10 +49,16 @@ export function HarveyTaxiShell() {
   const webViewRef = useRef(null);
   const pageRef = useRef(null);
   const canGoBackRef = useRef(false);
+  const [driverHandoff, setDriverHandoff] = useState(false);
 
   // Opens a link (cold start or while running) in the WebView. An explicit
   // booking/tracking/dashboard link always wins over the launch redirect.
   const openLink = useCallback((rawUrl) => {
+    if (isDriverOperationsUrl(rawUrl)) {
+      setLaunch(LAUNCH.DONE);
+      setDriverHandoff(true);
+      return;
+    }
     const target = resolveIncomingLink(rawUrl);
     if (!target) return;
     setLaunch(LAUNCH.DONE);
@@ -150,6 +160,12 @@ export function HarveyTaxiShell() {
 
   const retry = useCallback(() => dispatch({ type: 'RETRY' }), []);
 
+  // Opens Harvey Taxi Driver if it is installed, otherwise its store page.
+  const openDriverApp = useCallback(() => {
+    const store = Platform.OS === 'ios' ? DRIVER_APP_STORE_URLS.ios : DRIVER_APP_STORE_URLS.android;
+    Linking.openURL(DRIVER_APP_SCHEME_URL).catch(() => Linking.openURL(store).catch(() => {}));
+  }, []);
+
   const onLoad = useCallback(() => {
     dispatch({ type: 'LOADED' });
     // The dashboard the launch check redirected to has loaded.
@@ -181,6 +197,11 @@ export function HarveyTaxiShell() {
   }, []);
 
   const onShouldStartLoadWithRequest = useCallback((request) => {
+    // Driving operations belong to Harvey Taxi Driver: never load them here.
+    if (isDriverOperationsUrl(request.url)) {
+      setDriverHandoff(true);
+      return false;
+    }
     const decision = navigationDecision(request.url, { isTopFrame: request.isTopFrame !== false });
     if (decision === 'external') {
       Linking.openURL(request.url).catch(() => {});
@@ -223,6 +244,16 @@ export function HarveyTaxiShell() {
           <LoadingScreen slow={state.slow} />
         )}
         {state.phase === PHASE.ERROR && <ErrorScreen kind={state.errorKind} onRetry={retry} />}
+        {driverHandoff && (
+          <DriverAppHandoffScreen
+            onOpenDriverApp={openDriverApp}
+            onDeleteDriverAccount={() => {
+              setDriverHandoff(false);
+              openLink(DRIVER_DELETION_URL);
+            }}
+            onBack={() => setDriverHandoff(false)}
+          />
+        )}
       </View>
     </SafeAreaView>
   );

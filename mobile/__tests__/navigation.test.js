@@ -83,3 +83,22 @@ describe('page messages', () => {
     expect(PAGE_STATE_SCRIPT).toContain("fetch('/api/rider/session'");
   });
 });
+
+describe('isDriverOperationsUrl', () => {
+  const { isDriverOperationsUrl } = require('../src/navigation');
+  test.each([
+    ['https://harveytaxiservice.com/driver-dashboard.html', true],
+    ['https://www.harveytaxiservice.com/Driver-Dashboard.html', true],
+    ['https://harveytaxiservice.com/driver-dashboard', true],
+    ['https://harveytaxiservice.com/driver.html', true],
+    ['https://harveytaxiservice.com/driver-wallet.html', true],
+    ['https://harveytaxiservice.com/driver-signup.html', false],
+    ['https://harveytaxiservice.com/settings.html?account=driver#account-deletion', false],
+    ['https://harveytaxiservice.com/rider-dashboard.html', false],
+    ['https://evil.example/driver-dashboard.html', false],
+    ['http://harveytaxiservice.com/driver-dashboard.html', false],
+    ['not a url', false]
+  ])('%s -> %s', (url, expected) => {
+    expect(isDriverOperationsUrl(url)).toBe(expected);
+  });
+});

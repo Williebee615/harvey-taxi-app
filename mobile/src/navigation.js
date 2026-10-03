@@ -11,6 +11,8 @@
 //   - Links: harveytaxi:// links and https links to the Harvey Taxi site
 //     open the matching screen; explicit booking and tracking links are
 //     kept exactly and never replaced by the launch redirect.
+//   - Driver pages: driving operations open in Harvey Taxi Driver, not
+//     here (isDriverOperationsUrl); sign-up and account deletion stay.
 //   - Android Back: booking or tracking -> rider dashboard (the same
 //     action as the page's own "Back to Dashboard"); other site pages ->
 //     previous page; dashboard or home -> leave the app, the standard
@@ -26,6 +28,38 @@ export const APP_SCHEME = 'harveytaxi';
 export const LAUNCH_CHECK_TIMEOUT_MS = 4000;
 
 const SITE_HOSTS = new Set(['harveytaxiservice.com', 'www.harveytaxiservice.com']);
+
+// Rider and driver apps are separate. Driving operations (the driver
+// dashboard, the old driver console, the driver wallet) live in the Harvey
+// Taxi Driver app, so this app never opens those pages: it shows a
+// hand-off screen instead. Driver sign-up (/driver-signup.html) and
+// account deletion (/settings.html?account=driver) stay available here.
+const DRIVER_OPERATIONS_PATHS = new Set([
+  '/driver-dashboard.html',
+  '/driver-dashboard',
+  '/driver.html',
+  '/driver',
+  '/driver-wallet.html',
+  '/driver-wallet'
+]);
+export const DRIVER_APP_SCHEME_URL = 'harveytaxidriver://';
+export const DRIVER_APP_STORE_URLS = Object.freeze({
+  ios: 'https://apps.apple.com/app/id6818705885',
+  android: 'https://play.google.com/store/apps/details?id=com.harveytaxi.driver'
+});
+export const DRIVER_DELETION_URL = `${APP_ORIGIN}/settings.html?account=driver#account-deletion`;
+
+// True for an https link to a driving-operations page on our site.
+export function isDriverOperationsUrl(rawUrl) {
+  let url;
+  try {
+    url = new URL(String(rawUrl));
+  } catch {
+    return false;
+  }
+  if (url.protocol !== 'https:' || !SITE_HOSTS.has(url.hostname.toLowerCase())) return false;
+  return DRIVER_OPERATIONS_PATHS.has(url.pathname.toLowerCase());
+}
 // The booking modes the rider dashboard's wizard defines.
 const BOOKING_MODES = new Set(['driver', 'airport', 'autonomous', 'food', 'grocery']);
 const RIDE_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;

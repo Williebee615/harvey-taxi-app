@@ -175,3 +175,70 @@ describe('Android Back', () => {
     expect(pressBack()).toBe(false);
   });
 });
+
+describe('rider and driver apps are separate', () => {
+  async function ready() {
+    const tree = await render();
+    load();
+    send({ type: 'launch', result: 'stay' });
+    return tree;
+  }
+  const start = (url) => {
+    let allowed;
+    act(() => {
+      allowed = latest().onShouldStartLoadWithRequest({ url, isTopFrame: true });
+    });
+    return allowed;
+  };
+
+  test.each([
+    'https://harveytaxiservice.com/driver-dashboard.html',
+    'https://www.harveytaxiservice.com/driver-dashboard.html?tab=earnings',
+    'https://harveytaxiservice.com/driver.html',
+    'https://harveytaxiservice.com/driver-wallet.html'
+  ])('%s never loads here; the Harvey Taxi Driver hand-off shows instead', async (url) => {
+    const tree = await ready();
+    expect(start(url)).toBe(false);
+    expect(has(tree, 'driver-app-handoff')).toBe(true);
+  });
+
+  test('driver sign-up and driver account deletion stay in this app', async () => {
+    const tree = await ready();
+    expect(start('https://harveytaxiservice.com/driver-signup.html')).toBe(true);
+    expect(start('https://harveytaxiservice.com/settings.html?account=driver#account-deletion')).toBe(true);
+    expect(has(tree, 'driver-app-handoff')).toBe(false);
+  });
+
+  test('a driver dashboard link that opens the app shows the hand-off, not the page', async () => {
+    initialUrl = 'https://harveytaxiservice.com/driver-dashboard.html';
+    const tree = await render();
+    expect(latest().source).toEqual({ uri: START_URL });
+    expect(has(tree, 'driver-app-handoff')).toBe(true);
+  });
+
+  test('hand-off: opens the driver app, or its store page when it is not installed', async () => {
+    const tree = await ready();
+    start('https://harveytaxiservice.com/driver-dashboard.html');
+    Linking.openURL.mockRejectedValueOnce(new Error('not installed'));
+    await act(async () => {
+      tree.root.findAll((n) => n.props.testID === 'handoff-open-driver-app' && n.props.onPress)[0].props.onPress();
+    });
+    expect(Linking.openURL).toHaveBeenNthCalledWith(1, 'harveytaxidriver://');
+    expect(Linking.openURL).toHaveBeenNthCalledWith(2, 'https://play.google.com/store/apps/details?id=com.harveytaxi.driver');
+  });
+
+  test('hand-off: "Delete a driver account" opens the deletion page here; Back closes it', async () => {
+    const tree = await ready();
+    start('https://harveytaxiservice.com/driver-dashboard.html');
+    act(() => {
+      tree.root.findAll((n) => n.props.testID === 'handoff-delete-driver' && n.props.onPress)[0].props.onPress();
+    });
+    expect(has(tree, 'driver-app-handoff')).toBe(false);
+    expect(mockInjected.pop()).toContain('settings.html?account=driver#account-deletion');
+    start('https://harveytaxiservice.com/driver.html');
+    act(() => {
+      tree.root.findAll((n) => n.props.testID === 'handoff-back' && n.props.onPress)[0].props.onPress();
+    });
+    expect(has(tree, 'driver-app-handoff')).toBe(false);
+  });
+});

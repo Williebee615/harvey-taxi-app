@@ -89,7 +89,7 @@ export default function SignInScreen({ app }) {
         <Card>
           <H>New to Harvey Taxi?</H>
           <P muted>Apply on our website. Identity and background checks run there; once you're approved, sign in here.</P>
-          <Button title="Apply to drive" kind="ghost" onPress={() => WebBrowser.openBrowserAsync(LINKS.driverSignup)} />
+          <Button testID="apply-to-drive" title="Apply to drive" kind="ghost" onPress={() => WebBrowser.openBrowserAsync(LINKS.driverSignup)} />
         </Card>
 
         {mode !== 'review' && <Button title="Test account sign-in" kind="ghost" onPress={() => setMode('review')} style={{ marginBottom: 24 }} />}
