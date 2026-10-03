@@ -161,3 +161,14 @@ describe('api client', () => {
     await expect(api.get('/x')).rejects.toMatchObject({ status: 0, message: expect.stringMatching(/connection/) });
   });
 });
+
+describe('API base', () => {
+  const { resolveApiBase, PRODUCTION_API_BASE } = require('../src/config');
+  test('defaults to production; accepts only an https origin override', () => {
+    expect(resolveApiBase(undefined)).toBe(PRODUCTION_API_BASE);
+    expect(resolveApiBase('https://staging.harveytaxiservice.com/')).toBe('https://staging.harveytaxiservice.com');
+    expect(resolveApiBase('http://staging.example.com')).toBe(PRODUCTION_API_BASE);
+    expect(resolveApiBase('https://evil.example.com/path')).toBe(PRODUCTION_API_BASE);
+    expect(resolveApiBase('javascript:alert(1)')).toBe(PRODUCTION_API_BASE);
+  });
+});

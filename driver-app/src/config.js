@@ -1,6 +1,16 @@
 // Harvey Taxi Driver: fixed endpoints. The app talks only to the existing
 // Harvey Taxi backend; there is no separate driver backend.
-export const API_BASE = 'https://harveytaxiservice.com';
+export const PRODUCTION_API_BASE = 'https://harveytaxiservice.com';
+
+// A test build can point at a staging server by building with
+// EXPO_PUBLIC_API_BASE=https://… (EAS profile env). Only https is accepted;
+// anything else falls back to production.
+export function resolveApiBase(value) {
+  const text = String(value || '').trim().replace(/\/+$/, '');
+  return /^https:\/\/[a-z0-9.-]+(:\d+)?$/i.test(text) ? text : PRODUCTION_API_BASE;
+}
+
+export const API_BASE = resolveApiBase(process.env.EXPO_PUBLIC_API_BASE);
 
 export const LINKS = Object.freeze({
   // Onboarding (application, identity and background checks) stays on the
