@@ -23243,6 +23243,10 @@ const AGENT_UNAVAILABLE_REPLY = {
   actions: [{ type: "call_911", label: "Call 911", href: "tel:911" }]
 };
 
+// Only the driver app asks for in-app actions; anything else gets the web
+// dashboard's answers and links.
+const AGENT_CLIENTS = new Set(["web", "driver_app"]);
+
 async function runAgentAssist(req, res, { role, actor }) {
   const state = await loadAgentState();
   if (!state.mode.assist_enabled) {
@@ -23257,7 +23261,8 @@ async function runAgentAssist(req, res, { role, actor }) {
     actor,
     message,
     tools: agentTools,
-    llm: agentLlmConfig.configured ? agentLlm : null
+    llm: agentLlmConfig.configured ? agentLlm : null,
+    client: role === "driver" && AGENT_CLIENTS.has(req.body?.client) ? req.body.client : "web"
   });
   let caseId = null;
   if (result.escalation) {

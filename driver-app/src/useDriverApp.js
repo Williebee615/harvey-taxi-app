@@ -227,6 +227,19 @@ export function useDriverApp() {
         await signOut(res && res.simulated ? 'user' : 'deleted');
         return res;
       }),
+    // Harvey Assistant (src/assistant.js). These don't use run(): the
+    // assistant shows its own answers and errors, not the screen notice.
+    assistantStatus: () => api.get('/api/agent/status'),
+    askAssistant: async (message) => {
+      try {
+        return await api.post('/api/agent/driver/assist', { message, client: 'driver_app' });
+      } catch (err) {
+        // Off or killed: the server still sends a safe reply to show.
+        if (err instanceof ApiError && err.data && err.data.reply) return { ...err.data, unavailable: true };
+        throw err;
+      }
+    },
+    sendSafetyAlert: (rideId) => api.post('/api/safety/911', { ride_id: rideId || null, message: 'Raised from Harvey Assistant (driver app)' }),
     dismissNotice: () => setNotice(null)
   };
 
