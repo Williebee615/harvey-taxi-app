@@ -87,6 +87,7 @@ tracking**:
 | User ID | App functionality | Driver id |
 | Device ID | App functionality | Push token |
 | Other financial info | App functionality | Earnings history shown to the driver |
+| Customer support | App functionality | Harvey Assistant questions are answered and not stored. If one triggers a safety, payment or account escalation, a redacted excerpt (160 characters, with phone, email, card and token patterns removed) is kept in the human-review case. Only applies once the assistant is switched on. |
 
 Not collected by this app: contacts, photos, health, browsing history, search
 history, diagnostics or crash data (no analytics or crash SDK), advertising
@@ -132,7 +133,7 @@ Persona and Checkr, not in this app.
 
 ## Screenshots
 
-**Blocked until builds exist.** Use real builds (iOS simulator build or
+Use real builds where possible (iOS simulator build or
 TestFlight; Android internal-testing build), signed in as the test driver:
 
 1. Drive screen, online
@@ -142,9 +143,14 @@ TestFlight; Android internal-testing build), signed in as the test driver:
 5. Trip history
 6. Account (support, delete account)
 
-Sizes: iPhone 6.9" (1320×2868) and 6.5"; Android phone 1080×1920 or larger.
-The app runs portrait-only on phones; `supportsTablet` is off, so no iPad
-screenshots are required.
+Sizes: iPhone 6.5" (1242×2688), iPad 13" (2048×2732); Android phone
+1080×1920 or larger. The app is portrait-only. iPad is supported
+(`supportsTablet` on, `requireFullScreen` on, so portrait-only is allowed on
+iPad); screens keep a 680-point centred column there instead of stretching.
+
+Prepared (rendered from the app's real screens with test data, no personal
+information): `store-screenshots/ios-6.5/` and `store-screenshots/ipad-13/`.
+iPad support needs a new iOS build before those screenshots match a build.
 
 ## Privacy policy
 

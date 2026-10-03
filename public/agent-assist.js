@@ -187,8 +187,16 @@
         b.addEventListener("click", function () {
           if (!window.confirm("Alert the Harvey Taxi safety team about your ride? If anyone is in danger, call 911 first.")) return;
           b.disabled = true;
+          // The server attaches the alert to the ride only if this caller is
+          // on it: the rider's session or the ride's tracking token (rider
+          // page), or the assigned driver's session (driver dashboard).
           var params = new URLSearchParams(window.location.search);
-          fetch(a.endpoint, { method: "POST", credentials: "same-origin", headers: headers(), body: JSON.stringify({ ride_id: params.get("ride_id") || null, message: "Raised from Harvey Assistant" }) })
+          var rideId = params.get("ride_id") || null;
+          var alertHeaders = headers();
+          var tracking = window.HarveyRideTracking;
+          var trackingToken = rideId && tracking && typeof tracking.get === "function" ? tracking.get(rideId) : "";
+          if (trackingToken) alertHeaders["x-ride-tracking-token"] = trackingToken;
+          fetch(a.endpoint, { method: "POST", credentials: "same-origin", headers: alertHeaders, body: JSON.stringify({ ride_id: rideId, message: "Raised from Harvey Assistant" }) })
             .then(function (r) { addMessage(r.ok ? "The safety team has been alerted. If anyone is in danger, call 911." : "The alert could not be sent. Call 911 if anyone is in danger.", "bot", { urgent: true }); })
             .catch(function () { addMessage("The alert could not be sent. Call 911 if anyone is in danger.", "bot", { urgent: true }); });
         });

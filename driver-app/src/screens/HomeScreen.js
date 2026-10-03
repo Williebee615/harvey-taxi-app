@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Linking, Platform, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 
 import { EMERGENCY_NUMBER, LINKS } from '../config';
@@ -127,7 +127,7 @@ function LocationDisclosure({ app, onDone }) {
   );
 }
 
-export default function HomeScreen({ app }) {
+export default function HomeScreen({ app, onOpenAssistant }) {
   const { snapshot, stream, tracking, push, busy, notice, actions } = app;
   const [showDisclosure, setShowDisclosure] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -177,6 +177,19 @@ export default function HomeScreen({ app }) {
         </P>
         {tracking.tracking && <Pill text="Sharing location" tone="info" />}
       </View>
+      {onOpenAssistant && (
+        <Pressable
+          testID="open-assistant"
+          accessibilityRole="button"
+          accessibilityLabel="Open Harvey Assistant"
+          onPress={onOpenAssistant}
+          style={({ pressed }) => [st.assistant, pressed && { opacity: 0.7 }]}
+        >
+          <View style={st.assistantDot} />
+          <Text style={st.assistantText}>Harvey Assistant</Text>
+          <Text style={st.assistantHint}>{ride ? 'Hands-free' : 'Ask anything'}</Text>
+        </Pressable>
+      )}
 
       <Notice text={notice} onClose={actions.dismissNotice} />
       {driver.is_review_account && <Notice tone="info" text="Test account: rides are simulated and no one is charged." />}
@@ -228,6 +241,21 @@ const st = StyleSheet.create({
   wrap: { padding: 16 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   hello: { color: C.text, fontSize: 24, fontWeight: '900' },
+  assistant: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    minHeight: 48,
+    marginBottom: 14,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(99,245,255,0.45)',
+    backgroundColor: 'rgba(99,245,255,0.08)'
+  },
+  assistantDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: C.cyan },
+  assistantText: { color: C.cyan, fontWeight: '900', fontSize: 16, flex: 1 },
+  assistantHint: { color: C.muted, fontSize: 13, fontWeight: '700' },
   between: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
   two: { flexDirection: 'row', gap: 10 },
   flex: { flex: 1 }

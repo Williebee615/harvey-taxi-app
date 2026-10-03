@@ -16,7 +16,8 @@
     },
     "ios": {
       "bundleIdentifier": "com.harveytaxiservice.driver",
-      "supportsTablet": false,
+      "supportsTablet": true,
+      "requireFullScreen": true,
       "config": {
         "usesNonExemptEncryption": false
       },
