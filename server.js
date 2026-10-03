@@ -1173,6 +1173,9 @@ function getClientIp(req) {
 // phone number, or one shared IP (an office, a NAT) targeting many
 // different destinations, need their own dimension.
 const { computeRetryAfterSeconds, buildRateLimitExceededLogEvent } = require("./lib/rateLimit");
+const { registerDriverAppRoutes, createDriverRealtime } = require("./lib/driverAppRoutes");
+const { locationPolicy: driverAppLocationPolicy, pushKindForTitle: driverAppPushKind } = require("./lib/driverApp");
+
 
 // Emits the exact sanitized event a rejected request produces (see
 // buildRateLimitExceededLogEvent, lib/rateLimit.js) and sets both the
@@ -3221,7 +3224,21 @@ const RIDE_STAGE_MESSAGES = {
 // Best-effort browser push. Never throws — same resilience contract as
 // sendSms()/sendEmail(). Cleans up subscriptions the push service reports
 // as gone (404/410) so a stale endpoint doesn't get retried forever.
+// Harvey Taxi Driver app (lib/driverAppRoutes.js): every driver
+// notification also nudges the driver's open app stream to re-read its
+// state, and goes out as a native push when driver_native_push_enabled is
+// on. Assigned where the routes are registered, below.
+const driverAppRealtime = createDriverRealtime();
+let driverAppNativePush = null;
+
 async function sendPushNotification({ ownerType, ownerId, title, body, url }) {
+
+  if (ownerType === "driver" && ownerId) {
+    driverAppRealtime.notifyDriver(ownerId, "sync", { reason: driverAppPushKind(title) });
+    if (driverAppNativePush) {
+      driverAppNativePush(ownerId, { title, body, kind: driverAppPushKind(title) }).catch(() => {});
+    }
+  }
 
   if (!pushEnabled || !ownerId) return;
 
@@ -10869,6 +10886,10 @@ async function claimExpiredOffer(offerId) {
 
   if (error) throw error;
 
+  if (data && data.driver_id) {
+    driverAppRealtime.notifyDriver(data.driver_id, "sync", { reason: "offer_expired" });
+  }
+
   return data || null;
 }
 
@@ -16180,6 +16201,28 @@ app.post(
       .maybeSingle();
 
     if (!activeRide) {
+
+      // Online with no trip: store the position so dispatch
+      // (nearest_drivers, via the drivers.geog trigger) offers rides
+      // from where the driver actually is. Offline with no trip is still
+      // refused: nothing should be tracking then.
+      if (driverAppLocationPolicy({ driver: req.driver, activeRide: null }) === "online_idle") {
+        const idleAccuracy = Number(req.body.accuracy);
+        await supabase
+          .from("drivers")
+          .update({
+            current_lat: lat,
+            current_lng: lng,
+            heading: Number(req.body.heading || 0),
+            speed: Number(req.body.speed || 0),
+            location_accuracy_meters: Number.isFinite(idleAccuracy) ? idleAccuracy : null,
+            last_location_at: nowIso(),
+            last_seen_at: nowIso(),
+            updated_at: nowIso()
+          })
+          .eq("id", driverId);
+        return ok(res, { updated: true, tracking_ride_id: null, mode: "online_idle" });
+      }
 
       return fail(
 
@@ -24215,6 +24258,31 @@ app.post(
     return ok(res, { dry_run: true, scheduled_reconciliation_enabled: reconciliationEnabled, reconciliation: summary });
   })
 );
+
+/* =========================================================
+   HARVEY TAXI DRIVER APP (lib/driverAppRoutes.js, docs/driver-app.md)
+   Additive routes for the native driver app; the web dashboard's routes
+   are unchanged.
+========================================================= */
+({ sendDriverNativePush: driverAppNativePush } = registerDriverAppRoutes(app, {
+  supabase,
+  requireDriverSelf,
+  rateLimit,
+  asyncRoute,
+  ok,
+  fail,
+  getSystemFlag,
+  getTwilioClient: () => twilioClient,
+  twilioVerifyServiceSid: TWILIO_VERIFY_SERVICE_SID,
+  toE164,
+  signDriverSession,
+  driverSessionTtlHours: DRIVER_SESSION_TTL_HOURS,
+  computeDriverReadiness,
+  enablePersona: ENABLE_PERSONA,
+  enableCheckr: ENABLE_CHECKR,
+  auditLog,
+  realtime: driverAppRealtime
+}));
 
 /* =========================================================
    API 404 HANDLER
