@@ -93,10 +93,16 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
+// The rider's per-ride tracking token, as POST /api/rides/request issues it
+// (lib/rideAccess.js); the ride stream requires it.
+const { signRideTrackingToken, deriveTrackingSecret } = require("../lib/rideAccess");
+const rideTrackingQuery = (rideId) =>
+  `?t=${encodeURIComponent(signRideTrackingToken(rideId, deriveTrackingSecret({ trackingSecret: process.env.RIDE_TRACKING_SECRET, quoteSecret: process.env.RIDE_QUOTE_SECRET })))}`;
+
 function subscribeRideStream(rideId) {
   return new Promise((resolve, reject) => {
     const events = [];
-    const req = http.get(`${baseUrl}/api/rides/${rideId}/stream`, (res) => {
+    const req = http.get(`${baseUrl}/api/rides/${rideId}/stream${rideTrackingQuery(rideId)}`, (res) => {
       res.setEncoding("utf8");
       res.on("data", (chunk) => {
         for (const match of chunk.matchAll(/^event: (\S+)$/gm)) events.push(match[1]);

@@ -3443,6 +3443,59 @@ const {
 // sign quotes with a guessed or shared secret.
 const RIDE_QUOTE_SECRET = env("RIDE_QUOTE_SECRET", "");
 
+// Ride tracking access (lib/rideAccess.js): who may read a ride's live
+// status and location.
+const {
+  signRideTrackingToken,
+  verifyRideTrackingToken,
+  deriveTrackingSecret,
+  decideRideViewer,
+  shapeStatusForViewer
+} = require("./lib/rideAccess");
+const RIDE_TRACKING_SECRET = deriveTrackingSecret({
+  trackingSecret: env("RIDE_TRACKING_SECRET", ""),
+  quoteSecret: RIDE_QUOTE_SECRET
+});
+
+function rideTrackingTokenFor(rideId) {
+  return signRideTrackingToken(rideId, RIDE_TRACKING_SECRET);
+}
+
+// Resolves who is asking about this ride, from verified credentials only:
+// admin credentials, a rider session that owns the ride, the ride's
+// tracking token (x-ride-tracking-token header, or ?t= for EventSource,
+// which can't send headers), or the assigned driver's session. Returns
+// "admin" | "rider" | "driver" | null.
+async function resolveRideViewer(req, ride) {
+  if (!ride) return null;
+  const isAdmin = isAdminRequest(req);
+  const rider = isAdmin ? null : await resolveVerifiedRiderSession(req);
+  const rawToken = req.headers["x-ride-tracking-token"] || req.query?.t;
+  const trackingTokenValid = verifyRideTrackingToken(ride.id, typeof rawToken === "string" ? rawToken : "", RIDE_TRACKING_SECRET);
+
+  let sessionDriverId = null;
+  const driverToken = req.headers["x-driver-token"];
+  if (!isAdmin && driverToken && ride.driver_id) {
+    const session = verifyDriverSession(driverToken);
+    if (session && String(session.driver_id) === String(ride.driver_id)) {
+      const { data: driverRow } = await supabase
+        .from("drivers")
+        .select("id, access_revoked")
+        .eq("id", session.driver_id)
+        .maybeSingle();
+      if (driverRow && driverRow.access_revoked !== true) sessionDriverId = driverRow.id;
+    }
+  }
+
+  return decideRideViewer({
+    ride,
+    isAdmin,
+    sessionRiderId: rider ? rider.id : null,
+    trackingTokenValid,
+    sessionDriverId
+  });
+}
+
 // Short-lived on purpose: long enough for a rider to review pricing and
 // authorize payment in one sitting, short enough that a leaked/observed
 // token is useless for pricing a *different*, later trip.
@@ -12400,7 +12453,8 @@ app.post(
             return ok(res, {
               ride: existingRide,
               dispatch: null,
-              replay: true
+              replay: true,
+              tracking_token: rideTrackingTokenFor(existingRide.id)
             });
 
           }
@@ -12510,6 +12564,9 @@ app.post(
           data,
         estimate,
         dispatch,
+        // Lets this rider (and only whoever received this response) read
+        // the ride's live status and location; see lib/rideAccess.js.
+        tracking_token: rideTrackingTokenFor(data.id),
         ...(reviewRideState.simulated
           ? {
               review_mode: true,
@@ -12937,7 +12994,7 @@ app.get(
 
         "id, status, ride_type, pickup_address, dropoff_address, " +
 
-        "pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, " +
+        "pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, rider_id, " +
 
         "driver_id, driver_name, driver_vehicle, driver_phone, " +
 
@@ -12958,9 +13015,14 @@ app.get(
       .maybeSingle();
 
     if (error || !ride) {
-
       return fail(res, "Ride not found.", 404);
+    }
 
+    // Same answer as a missing ride, so the route doesn't confirm that a
+    // guessed id exists.
+    const viewer = await resolveRideViewer(req, ride);
+    if (!viewer) {
+      return fail(res, "Ride not found.", 404);
     }
 
     let driverPhotoUrl = null;
@@ -13087,8 +13149,7 @@ app.get(
 
     }
 
-    return ok(res, {
-
+    return ok(res, shapeStatusForViewer({
       id: ride.id,
 
       status: ride.status,
@@ -13166,12 +13227,9 @@ app.get(
             tip_amount: ride.tip_amount,
 
             proof_url: ride.delivery_proof_url
-
           }
-
         : null
-
-    });
+    }, viewer));
 
   })
 
@@ -17067,19 +17125,15 @@ app.get(
     const rideId = cleanString(req.params.id, 100);
 
     const { data: ride } = await supabase
-
       .from("rides")
-
-      .select("id")
-
+      .select("id, rider_id, driver_id")
       .eq("id", rideId)
-
       .maybeSingle();
 
-    if (!ride) {
-
+    // Live location: only the ride's rider, its assigned driver or an
+    // admin (lib/rideAccess.js). Everyone else sees "not found".
+    if (!ride || !(await resolveRideViewer(req, ride))) {
       return fail(res, "Ride not found.", 404);
-
     }
 
     const clientId = makeId("RIDESSE");

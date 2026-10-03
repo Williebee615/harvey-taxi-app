@@ -180,6 +180,6 @@ Proposed additions (owner and legal to approve):
 
 Remove the two template paragraphs at the end of the page.
 
-Before publishing "Riders see your location only during their trip", fix the
-unauthenticated ride stream (`GET /api/rides/:id/stream`, see
-`docs/driver-app.md` §1). Today anyone who knows a ride id can follow it.
+"Riders see your location only during their trip" depends on the ride
+tracking access fix on this branch (`lib/rideAccess.js`); publish that
+sentence only after it is deployed.

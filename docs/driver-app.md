@@ -40,10 +40,15 @@ dispatch engine and payment logic. There is no second backend.
      refuses updates while offline.
   4. Push was Web Push only (0 subscriptions in production) → Expo native push.
   5. History capped at 100 and earnings unpaginated → paged endpoints.
-- **Pre-existing finding, not changed:** `GET /api/rides/:id/stream` has no
-  authentication; anyone who knows a ride id can follow its live location.
-  The driver app does not use it. Fix it separately (it would affect the
-  rider site).
+- **Pre-existing finding, now fixed:** `GET /api/rides/:id/stream` and
+  `GET /api/rides/:id/status` had no authentication. Anyone who knew a ride
+  id could read the driver's live location and phone number, the addresses
+  and the delivery PIN. Both now require the ride's rider (an owning session,
+  or the per-ride tracking token issued only to the request that created the
+  ride, since production riders have no session yet), the assigned driver,
+  or an admin; anyone else gets "not found". Drivers never receive the
+  delivery PIN. See `lib/rideAccess.js`, `test/server.ride-tracking-access.test.js`
+  and `test/rider-tracking-token.browser.test.js`.
 
 ## 2. Server changes (all additive)
 
