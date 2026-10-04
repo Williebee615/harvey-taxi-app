@@ -23,6 +23,8 @@
 //   - failUpdate: (table, patch) => error|null -- inject a failure for a
 //     specific update.
 //   - failSelect: (table) => error|null -- inject a failure for a read.
+//   - failInsert: (table, rows) => error|null -- inject a failure for an
+//     insert.
 // `_log` records every executed operation as { table, op, patch }.
 
 // `options.uniqueColumns`, e.g. { driver_earnings: ["ride_id"], rides:
@@ -88,7 +90,10 @@ function createFakeSupabase(seed = {}, options = {}) {
       log.push({ table, op, patch: pendingUpdatePatch });
 
       if (pendingInsertRows) {
-        const insertError = pendingInsertRows.map(unknownColumnError).find(Boolean);
+        const insertError =
+          pendingInsertRows.map(unknownColumnError).find(Boolean) ||
+          (options.failInsert && options.failInsert(table, pendingInsertRows)) ||
+          null;
         if (insertError) return { data: null, error: insertError };
       }
 

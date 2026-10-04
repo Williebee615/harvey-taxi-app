@@ -59,7 +59,7 @@ import * as Speech from 'expo-speech';
 global.XMLHttpRequest = function XHR() {};
 global.XMLHttpRequest.prototype = { open() {}, setRequestHeader() {}, send() {}, abort() {} };
 
-const server = { calls: [], bodies: [], assist: true, online: true, offers: [], ride: null, nextAssist: null };
+const server = { calls: [], bodies: [], assist: true, online: true, offers: [], ride: null, nextAssist: null, handoffBodies: [], handoffReply: null };
 const snapshot = () => ({
   ok: true,
   server_time: new Date().toISOString(),
@@ -84,6 +84,14 @@ global.fetch = jest.fn(async (url, init = {}) => {
   if (path === '/api/agent/driver/assist') {
     server.bodies.push(body);
     return reply({ ok: true, agent_available: true, source: 'rules', escalation: null, ...server.nextAssist });
+  }
+  if (path === '/api/agent/driver/handoff/draft') {
+    return reply({ ok: true, signed_in: true, draft: 'I need help from Harvey Taxi support.\n\nWhat I asked the assistant:\n- I need to contact support\n\nMore details: ' });
+  }
+  if (path === '/api/agent/driver/handoff') {
+    server.handoffBodies.push(body);
+    const r = server.handoffReply || { status: 200, data: { ok: true, sent: true, reference: 'HT-SUP-20261004-ABC234', message: 'Sent to Harvey Taxi support. Your reference is HT-SUP-20261004-ABC234.' } };
+    return reply(r.data, r.status);
   }
   if (path === '/api/driver/status') {
     server.online = body.online;
@@ -141,7 +149,7 @@ beforeEach(() => {
   clearAllChats();
   mockStore.harvey_driver_token = 'TOKEN_A';
   mockStore.harvey_driver_id = 'DRIVER_A';
-  Object.assign(server, { calls: [], bodies: [], assist: true, online: true, offers: [], ride: null, nextAssist: null });
+  Object.assign(server, { calls: [], bodies: [], assist: true, online: true, offers: [], ride: null, nextAssist: null, handoffBodies: [], handoffReply: null });
   Speech.speak.mockClear();
 });
 afterEach(() => jest.restoreAllMocks());
@@ -288,4 +296,76 @@ test('follow-up sends the earlier turns; Clear chat starts over; reopening keeps
   expect(text).not.toContain('You have been online 2 h');
   expect(tree.root.findAll((n) => n.props && n.props.testID === 'assistant-reply' && n.type === 'View')).toHaveLength(1); // greeting only
   await act(async () => tree.unmount());
+});
+
+describe('support handoff (phase 4)', () => {
+  const HANDOFF_ACTIONS = [
+    { type: 'support_handoff', label: 'Send a request to support', requires_confirmation: true },
+    { type: 'open_support', label: 'Contact support' }
+  ];
+  const text = (tree) => JSON.stringify(tree.toJSON());
+  const askSupport = async (tree) => {
+    server.nextAssist = { reply: 'Harvey Taxi support can help.', intent: 'driver_support', actions: HANDOFF_ACTIONS };
+    await press(tree, 'open-assistant');
+    const input = tree.root.findAll((n) => n.props && n.props.testID === 'assistant-input' && n.props.onChangeText)[0];
+    await act(async () => input.props.onChangeText('I need to contact support'));
+    await press(tree, 'assistant-send');
+  };
+  const typeSummary = async (tree, value) => {
+    const area = tree.root.findAll((n) => n.props && n.props.testID === 'assistant-handoff-text' && n.props.onChangeText)[0];
+    await act(async () => area.props.onChangeText(value));
+  };
+
+  test('review and edit, then send: only the approved text; reference shown after the server confirms', async () => {
+    const tree = await start();
+    await askSupport(tree);
+    await press(tree, 'assistant-action-handoff');
+    expect(has(tree, 'assistant-handoff')).toBe(true);
+    expect(text(tree)).toContain('- I need to contact support');
+    expect(server.calls).not.toContain('POST /api/agent/driver/handoff'); // nothing sent yet
+    await typeSummary(tree, 'Please check my payout for last week. (test fixture)');
+    await press(tree, 'assistant-handoff-send');
+    expect(server.handoffBodies).toEqual([{ summary: 'Please check my payout for last week. (test fixture)', approved: true, client: 'driver_app', platform: Platform.OS }]);
+    expect(has(tree, 'assistant-handoff')).toBe(false);
+    expect(text(tree)).toContain('Your reference is HT-SUP-20261004-ABC234');
+    await act(async () => tree.unmount());
+  });
+
+  test('a failed send says not sent and keeps the text; no reference', async () => {
+    server.handoffReply = { status: 503, data: { ok: false, sent: false, error: 'Your request was not sent. Please try again, or use the Support page to contact Harvey Taxi. In an emergency, call 911.' } };
+    const tree = await start();
+    await askSupport(tree);
+    await press(tree, 'assistant-action-handoff');
+    await typeSummary(tree, 'Please check my payout for last week.');
+    await press(tree, 'assistant-handoff-send');
+    expect(has(tree, 'assistant-handoff')).toBe(true);
+    expect(text(tree)).toContain('Your request was not sent');
+    expect(text(tree)).not.toContain('Your reference is');
+    await act(async () => tree.unmount());
+  });
+
+  test('cancel sends nothing', async () => {
+    const tree = await start();
+    await askSupport(tree);
+    await press(tree, 'assistant-action-handoff');
+    await press(tree, 'assistant-handoff-cancel');
+    expect(server.handoffBodies).toEqual([]);
+    expect(text(tree)).toContain('Not sent. Nothing was shared with support.');
+    await act(async () => tree.unmount());
+  });
+
+  test('during a trip the editor does not open (no typing while driving)', async () => {
+    server.ride = { ride_id: 'RIDE_1', status: 'driver_enroute', pickup_address: '1 Broadway', dropoff_address: 'BNA', pickup_lat: 36.16, pickup_lng: -86.78 };
+    server.nextAssist = { reply: 'Harvey Taxi support can help.', intent: 'driver_support', actions: HANDOFF_ACTIONS };
+    const tree = await start();
+    await press(tree, 'open-assistant');
+    const quick = tree.root.findAll((n) => n.props && typeof n.props.testID === 'string' && n.props.testID.startsWith('assistant-quick-') && n.props.onPress)[0];
+    await act(async () => quick.props.onPress());
+    await flush();
+    await press(tree, 'assistant-action-handoff');
+    expect(has(tree, 'assistant-handoff')).toBe(false);
+    expect(server.calls).not.toContain('POST /api/agent/driver/handoff/draft');
+    expect(text(tree)).toContain("once you're not on a trip");
+    await act(async () => tree.unmount());
+  });
 });
