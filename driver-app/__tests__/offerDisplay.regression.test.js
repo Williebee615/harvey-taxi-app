@@ -40,6 +40,7 @@ jest.mock('expo-task-manager', () => ({ isTaskDefined: () => false, defineTask: 
 jest.mock('expo-notifications', () => ({
   setNotificationHandler: jest.fn(),
   setNotificationChannelAsync: jest.fn(),
+  scheduleNotificationAsync: jest.fn(async () => 'local-id'),
   getPermissionsAsync: jest.fn(async () => ({ status: 'granted' })),
   requestPermissionsAsync: jest.fn(async () => ({ status: 'granted' })),
   getExpoPushTokenAsync: jest.fn(async () => ({ data: 'ExponentPushToken[testtesttest12]' })),
@@ -145,6 +146,7 @@ const text = (tree) => tree.root.findAll((n) => typeof n.type === 'string' && n.
 const has = (tree, id) => tree.root.findAll((n) => n.props && n.props.testID === id).length > 0;
 
 test('review ride offer appears on the Drive screen after a stream "sync" event', async () => {
+  const vibrate = jest.spyOn(require('react-native').Vibration, 'vibrate').mockImplementation(() => {});
   mockStore.harvey_driver_token = 'TOKEN_REVIEW';
   mockStore.harvey_driver_id = 'DRIVER_GPLAY_REVIEWER';
   let tree;
@@ -177,6 +179,20 @@ test('review ride offer appears on the Drive screen after a stream "sync" event'
   expect(shown).toMatch(/\$27\.08/);
   expect(shown).toMatch(/Test ride · no charge/);
   expect(shown).toMatch(/\b(29|30)s\b/);
+
+  // Foreground alert: one vibration and one sound-only notification.
+  const Notifications = require('expo-notifications');
+  expect(vibrate).toHaveBeenCalledTimes(1);
+  expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(1);
+  expect(Notifications.scheduleNotificationAsync.mock.calls[0][0].content).toMatchObject({ sound: 'default', data: { kind: 'offer_alert' } });
+
+  // A later refresh with the same offer does not alert again.
+  await act(async () => {
+    stream.push('event: sync\ndata: {"reason":"reconcile"}\n\n');
+  });
+  await flush();
+  expect(vibrate).toHaveBeenCalledTimes(1);
+  expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(1);
 
   await act(async () => tree.unmount());
 });

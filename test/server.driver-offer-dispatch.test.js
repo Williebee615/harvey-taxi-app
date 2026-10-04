@@ -781,6 +781,48 @@ describe("offer-expiry sweep (runOfferExpirySweep)", () => {
     expect(ride(fake).status).toBe("awaiting_driver_acceptance");
   });
 
+  test("a review ride's expired offer is re-offered to the review driver with a 45-second window", async () => {
+    const REVIEW_DRIVER = { ...DRIVER, id: "DRIVER_GPLAY_REVIEWER", email: "review@example.test", is_review_account: true };
+    const seed = fixture({ sweepEnabled: true, dispatchAttempts: 1, rideOverrides: { is_review_ride: true }, offerOverrides: { ...expired, driver_id: REVIEW_DRIVER.id } });
+    seed.drivers = [REVIEW_DRIVER, OTHER_DRIVER];
+    const fake = useFake(seed);
+    const before = Date.now();
+
+    const result = await runOfferExpirySweep();
+
+    expect(result.redispatched).toEqual([RIDE_ID]);
+    expect(offer(fake).status).toBe("expired");
+    expect(offerInserts(fake)).toHaveLength(1);
+    const reoffer = fake._state.driver_offers.filter((o) => o.id !== OFFER_ID);
+    expect(reoffer).toHaveLength(1);
+    // Review rides only ever reach the review driver, never a real one.
+    expect(reoffer[0]).toMatchObject({ ride_id: RIDE_ID, driver_id: REVIEW_DRIVER.id, status: "pending" });
+    const window = (Date.parse(reoffer[0].expires_at) - before) / 1000;
+    expect(window).toBeGreaterThanOrEqual(44);
+    expect(window).toBeLessThanOrEqual(46);
+    expect(ride(fake).dispatch_attempts).toBe(2);
+    expectNoNonexistentColumnWrites(fake);
+  });
+
+  test("after the last attempt the ride is closed as failed instead of waiting forever", async () => {
+    const fake = useFake(fixture({ sweepEnabled: true, dispatchAttempts: 5, offerOverrides: expired }));
+
+    const result = await runOfferExpirySweep();
+
+    expect(result.maxedOut).toEqual([RIDE_ID]);
+    expect(offer(fake).status).toBe("expired");
+    expect(ride(fake)).toMatchObject({ status: "failed", dispatch_status: "max_attempts_reached" });
+    expect(offerInserts(fake)).toHaveLength(0);
+  });
+
+  test("switched off (production today): nothing is touched", async () => {
+    const fake = useFake(fixture({ sweepEnabled: false, offerOverrides: expired }));
+
+    expect(await runOfferExpirySweep()).toBeNull();
+    expect(offer(fake).status).toBe("pending");
+    expect(ride(fake).dispatch_status).toBe("offer_sent");
+  });
+
   test("a failed ride lookup is recorded as failed, not silently skipped", async () => {
     useFake(fixture({ sweepEnabled: true, offerOverrides: expired }), {
       failSelect: (table) => (table === "rides" ? DB_ERROR : null)
