@@ -418,11 +418,13 @@
         (m.configured ? "Connected to Anthropic. " : "Not connected: no API key is set on the server, so every answer is rules-based. ") +
         `Mode: ${m.mode}${m.stored_mode !== m.mode ? ` (saved as ${m.stored_mode}; real users stay on rules until the privacy disclosure is approved)` : ""}. ` +
         "Any problem, timeout or reached budget falls back to the rules-based answer.";
+      const usd = (v, d = 4) => (v === null || v === undefined ? "—" : `$${Number(v).toFixed(d)}`);
       $("modelBudget").innerHTML = [
-        ["Spent this month (UTC)", `$${b.spent_usd.toFixed(4)}`],
-        ["Monthly budget", `$${b.budget_usd.toFixed(2)}`],
-        ["Remaining", `$${b.remaining_usd.toFixed(4)}`],
-        ["Reserved per answer", `$${b.reserve_per_turn_usd.toFixed(4)}`],
+        ["Spent this month (UTC)", usd(b.spent_usd)],
+        ["Held by answers in progress", usd(b.held_usd)],
+        ["Monthly budget", usd(b.budget_usd, 2)],
+        ["Remaining", usd(b.remaining_usd)],
+        ["Reserved per answer", usd(b.reserve_per_turn_usd)],
         ["Provider limit hit", b.provider_spend_limit_hit ? "Yes" : "No"]
       ].map(([k, v]) => `<div class="stat"><span class="muted">${esc(k)}</span><b>${esc(v)}</b></div>`).join("") +
         (b.loaded ? "" : `<div class="notice bad">Spending couldn't be loaded, so the model is off until it can.</div>`);

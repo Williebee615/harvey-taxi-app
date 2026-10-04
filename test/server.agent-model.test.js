@@ -44,6 +44,7 @@ const Anthropic = require("@anthropic-ai/sdk").default;
 const { createFakeSupabase } = require("./fakeSupabase");
 const { signTestDriverToken, driverAuthHeaders, signTestRiderToken, riderAuthHeaders, makeRider, makeDriver, makeRide } = require("./rideTestHelpers");
 const { usageMonth } = require("../lib/agent/modelBudget");
+const { modelBudgetRpc } = require("./agentModelBudgetFake");
 
 let currentFake;
 let mockSupabaseClient;
@@ -62,7 +63,12 @@ const ADMIN = { "x-admin-token": process.env.ADMIN_API_TOKEN };
 const TEST_RIDER = "TEST-SYNTH-R1";
 const TEST_DRIVER = "TEST-SYNTH-D1";
 
+// Each test calls from its own address, so the per-IP request limit (20
+// a minute, shared by the whole file otherwise) doesn't leak between tests.
+let testIp = 0;
+
 function useFake({ mode = "test_accounts", spent = 0, failLedger = false } = {}) {
+  testIp += 1;
   currentFake = createFakeSupabase(
     {
       riders: [makeRider(), makeRider({ id: TEST_RIDER, phone: "+16155550411", email: "synthetic-rider@example.test" })],
@@ -80,7 +86,14 @@ function useFake({ mode = "test_accounts", spent = 0, failLedger = false } = {})
         { key: "agent_model_test_accounts", value: JSON.stringify([`rider:${TEST_RIDER}`, `driver:${TEST_DRIVER}`]) }
       ]
     },
-    failLedger ? { failSelect: (table) => (table === "agent_model_usage" ? { message: "ledger unavailable" } : null) } : {}
+    {
+      rpc: failLedger
+        ? {
+            agent_model_reserve: () => ({ data: null, error: { message: "ledger unavailable" } }),
+            agent_model_month_totals: () => ({ data: null, error: { message: "ledger unavailable" } })
+          }
+        : modelBudgetRpc()
+    }
   );
   return currentFake;
 }
@@ -96,7 +109,8 @@ beforeEach(() => mockCreate.mockReset());
 const msg = (stop_reason, content, usage = { input_tokens: 1500, output_tokens: 60 }) => ({ stop_reason, content, usage });
 const toolUse = (name, input = {}, id = `tu_${name}`) => msg("tool_use", [{ type: "tool_use", id, name, input }]);
 const say = (text) => msg("end_turn", [{ type: "text", text }], { input_tokens: 1800, output_tokens: 40 });
-const riderAsk = (message, id = TEST_RIDER) => request(app).post("/api/agent/rider/assist").set(riderAuthHeaders(signTestRiderToken(id))).send({ message });
+const post = (path) => request(app).post(path).set("X-Forwarded-For", `198.51.100.${testIp}`);
+const riderAsk = (message, id = TEST_RIDER) => post("/api/agent/rider/assist").set(riderAuthHeaders(signTestRiderToken(id))).send({ message });
 const ledger = () => currentFake._state.agent_model_usage;
 const decisions = () => currentFake._state.audit_logs.filter((a) => a.action === "agent.decision");
 const refreshBudget = () => request(app).get("/api/admin/agent/model").set(ADMIN);
@@ -112,7 +126,7 @@ test("off by default: with the mode off, nobody gets the model", async () => {
 test("test_accounts mode: real (unlisted) accounts and signed-out visitors keep the rules", async () => {
   useFake();
   expect((await riderAsk("Where is my driver?", "RIDER_1")).body.source).not.toBe("model");
-  expect((await request(app).post("/api/agent/rider/assist").send({ message: "How long do you keep my data?" })).body.source).not.toBe("model");
+  expect((await post("/api/agent/rider/assist").send({ message: "How long do you keep my data?" })).body.source).not.toBe("model");
   expect(mockCreate).not.toHaveBeenCalled();
 });
 
@@ -140,6 +154,7 @@ test("listed test rider: natural reply from the ride-status tool; buttons come f
 
   // Spending ledger: 3,300 input + 100 output tokens at $1 / $5 per million.
   expect(ledger()).toHaveLength(1);
+  expect(currentFake._state.agent_model_reservations).toEqual([expect.objectContaining({ amount_usd: 0.1035, settled_at: expect.any(String) })]);
   expect(ledger()[0]).toMatchObject({ role: "rider", actor_id: TEST_RIDER, model: "claude-haiku-4-5", calls: 2, input_tokens: 3300, output_tokens: 100, cost_usd: 0.0038, outcome: "answered" });
   expect(decisions().at(-1).metadata).toMatchObject({ answer_source: "model", model: { used: true, calls: 2, cost_usd: 0.0038, fallback_reason: null } });
 });
@@ -199,8 +214,7 @@ test("safety boundaries never reach the model", async () => {
 test("driver test account: hours tool; found item adds the lost-item support button", async () => {
   useFake();
   mockCreate.mockResolvedValueOnce(toolUse("prepare_support_request", { kind: "lost_item" })).mockResolvedValueOnce(say("Tap Report a found item to send support the details; nothing goes until you confirm."));
-  const res = await request(app)
-    .post("/api/agent/driver/assist")
+  const res = await post("/api/agent/driver/assist")
     .set(driverAuthHeaders(signTestDriverToken(TEST_DRIVER)))
     .send({ message: "a rider left a bag in my car", client: "driver_app", platform: "ios" });
   expect(res.body.source).toBe("model");
@@ -214,8 +228,7 @@ test("driver test account: hours tool; found item adds the lost-item support but
 test("follow-ups: the device's recent turns are sent as conversation", async () => {
   useFake();
   mockCreate.mockResolvedValueOnce(say("Yes, the same applies to drivers."));
-  await request(app)
-    .post("/api/agent/rider/assist")
+  await post("/api/agent/rider/assist")
     .set(riderAuthHeaders(signTestRiderToken(TEST_RIDER)))
     .send({ message: "and for drivers?", context: [{ role: "user", text: "Do you share my data?" }, { role: "assistant", text: "Only as our Privacy Policy describes." }] });
   expect(mockCreate.mock.calls[0][0].messages).toEqual([
@@ -238,19 +251,60 @@ test("errors and timeouts fall back to the rules answer", async () => {
 test("budget: when this month's recorded spending leaves less than one turn's maximum, the model isn't called", async () => {
   useFake({ spent: 9.97 });
   const status = await refreshBudget();
-  expect(status.body.budget).toMatchObject({ budget_usd: 10, ceiling_usd: 10, spent_usd: 9.97, reserve_per_turn_usd: 0.0525 });
+  expect(status.body.budget).toMatchObject({ budget_usd: 10, ceiling_usd: 10, spent_usd: 9.97, held_usd: 0, reserve_per_turn_usd: 0.1035 });
   const res = await riderAsk("where is my driver?");
   expect(res.body.source).not.toBe("model");
   expect(mockCreate).not.toHaveBeenCalled();
   expect(decisions().at(-1).metadata.model).toMatchObject({ used: false, fallback_reason: "monthly_budget_reached" });
 });
 
-test("budget: if the ledger can't be read, the model stays off (fail closed)", async () => {
+test("budget: if the database can't reserve, the model stays off (fail closed)", async () => {
   useFake({ failLedger: true });
-  // Force a fresh load in a new month window: a failed load after a good
-  // one keeps the last total, so check status reports the error.
+  const res = await riderAsk("where is my driver?");
+  expect(res.body.source).not.toBe("model");
+  expect(mockCreate).not.toHaveBeenCalled();
+  expect(decisions().at(-1).metadata.model).toMatchObject({ used: false, fallback_reason: "budget_unknown" });
   const status = await refreshBudget();
   expect(status.body.budget.last_error).toMatch(/ledger unavailable/);
+});
+
+test("budget: simultaneous requests can't overshoot; each answer reserves its worst case first", async () => {
+  // $10 - $9.80 spent leaves room for exactly one $0.1035 reservation.
+  useFake({ spent: 9.8 });
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  mockCreate.mockImplementation(async () => { await gate; return say("Your driver is on the way."); });
+  const asks = Promise.all([1, 2, 3, 4, 5].map((i) => riderAsk(`where is my driver? (${i})`)));
+  await new Promise((r) => setTimeout(r, 100));
+  release();
+  const results = await asks;
+  expect(results.filter((r) => r.body.source === "model")).toHaveLength(1);
+  expect(mockCreate).toHaveBeenCalledTimes(1);
+  const reasons = decisions().map((d) => d.metadata.model && d.metadata.model.fallback_reason).filter(Boolean);
+  expect(reasons.filter((x) => x === "monthly_budget_reached")).toHaveLength(4);
+});
+
+test("cost: a timed-out call is charged at its worst case (it may have been billed); a rejected one at $0", async () => {
+  useFake();
+  mockCreate.mockResolvedValueOnce(toolUse("get_my_ride_status")).mockRejectedValueOnce(new Anthropic.APIConnectionTimeoutError(undefined, "timed out"));
+  await riderAsk("where's my driver?");
+  // First call: 1,500 in + 60 out = $0.0018; second call unknown: $0.0345.
+  expect(ledger().at(-1)).toMatchObject({ calls: 2, cost_usd: 0.0363, outcome: "fallback_timeout" });
+  expect(decisions().at(-1).metadata.model).toMatchObject({ uncertain_calls: 1, cost_usd: 0.0363 });
+
+  mockCreate.mockRejectedValueOnce(new Anthropic.AuthenticationError(401, "invalid x-api-key"));
+  await riderAsk("where's my driver now?");
+  expect(ledger().at(-1)).toMatchObject({ calls: 1, cost_usd: 0, outcome: "fallback_auth" });
+});
+
+test("requests never carry billable extras (caching, server tools, thinking) and stay under the hard input ceiling", async () => {
+  useFake();
+  mockCreate.mockResolvedValueOnce(say("Hello!"));
+  await riderAsk("hello there");
+  const req = mockCreate.mock.calls[0][0];
+  expect(Object.keys(req).sort()).toEqual(["max_tokens", "messages", "model", "system", "tools"]);
+  expect(req.tools.every((t) => !t.type && t.input_schema)).toBe(true);
+  expect(Buffer.byteLength(JSON.stringify(req)) + 1000).toBeLessThan(16000);
 });
 
 test("admin: settings validated; 'all' refused before the privacy approval; Try only for listed test accounts", async () => {
