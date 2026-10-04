@@ -13597,11 +13597,111 @@ async function reconcileCancellationPayment(ride, req = null) {
   return { outcome: finalStatus, ride: updatedRide || ride };
 }
 
+/* =========================================================
+   CANCELLATION AND NO-SHOW RECORDS (lib/cancellationRecords.js,
+   docs/policy-cancellation-noshow-draft.md)
+   Owner instruction (2026-10-04): build and test the controls and
+   records first, keeping every cancellation free. These record what the
+   draft policy needs; none of them charges anything, and the database
+   refuses any cancellation fee other than $0.
+   Every write here is best effort and separate from the ride's own
+   status change, so a ride is never held up by a record (including
+   before migration 20261005030000 is applied).
+========================================================= */
+const cancellationRecords = require("./lib/cancellationRecords");
+
+async function updateRideRecords(rideId, patch, label) {
+  try {
+    const { error } = await supabase.from("rides").update(patch).eq("id", rideId);
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.warn(`⚠️ Ride record (${label}) not saved:`, err && err.message ? err.message : err);
+    return false;
+  }
+}
+
+// The pickup estimate shown when the driver accepted, kept for the
+// "5 minutes late" check; also resets this ride's pickup records.
+async function recordPickupEstimateAtAccept(rideId) {
+  const { data: ride, error } = await supabase
+    .from("rides")
+    .select("id, accepted_at, driver_eta_to_pickup_minutes")
+    .eq("id", rideId)
+    .maybeSingle();
+  if (error || !ride) return false;
+  return updateRideRecords(
+    rideId,
+    cancellationRecords.estimateAtAcceptPatch({ acceptedAt: ride.accepted_at, etaMinutes: ride.driver_eta_to_pickup_minutes }),
+    "estimate_at_accept"
+  );
+}
+
+// Driver progress toward the pickup, from location updates before
+// pickup. At most one record per ride every 10 seconds.
+const PICKUP_PROGRESS_MIN_INTERVAL_MS = 10_000;
+const pickupProgressLastAt = new Map();
+async function recordPickupProgress(rideId, fix) {
+  const now = Date.now();
+  const last = pickupProgressLastAt.get(rideId) || 0;
+  if (now - last < PICKUP_PROGRESS_MIN_INTERVAL_MS) return false;
+  pickupProgressLastAt.set(rideId, now);
+  if (pickupProgressLastAt.size > 5000) {
+    for (const [id, at] of pickupProgressLastAt) if (now - at > 10 * 60_000) pickupProgressLastAt.delete(id);
+  }
+  const { data: ride, error } = await supabase
+    .from("rides")
+    .select("id, status, pickup_lat, pickup_lng, pickup_start_distance_m, pickup_last_distance_m")
+    .eq("id", rideId)
+    .maybeSingle();
+  if (error || !ride) return false;
+  const patch = cancellationRecords.progressPatch(ride, fix);
+  return patch ? updateRideRecords(rideId, patch, "pickup_progress") : false;
+}
+
+// When the driver taps Arrived: a location sent with the tap (if any),
+// else the latest fix before pickup. Recorded, never blocking.
+async function recordArrivalCheck(ride, body = {}) {
+  const lat = Number(body && body.latitude);
+  const lng = Number(body && body.longitude);
+  const sentFix =
+    Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180
+      ? { lat, lng, accuracy: Number.isFinite(Number(body.accuracy)) ? Number(body.accuracy) : null, at: nowIso() }
+      : null;
+  const check = cancellationRecords.arrivalCheck(ride, { fix: sentFix });
+  await updateRideRecords(ride.id, check, "arrival_check");
+  return { arrival_verified: check.arrival_verified, arrival_check: check.arrival_check };
+}
+
+// After a cancellation commits: why, what the draft policy would have
+// decided, and the fee shown and charged (always $0 for now).
+async function recordCancellation(rideId, { category, assessment, feeShownCents }) {
+  return updateRideRecords(
+    rideId,
+    {
+      cancellation_category: category,
+      cancellation_assessment: assessment,
+      cancellation_fee_cents: 0,
+      cancellation_fee_shown_cents: feeShownCents === undefined ? null : feeShownCents
+    },
+    "cancellation"
+  );
+}
+
 // Shared by the rider-cancel route (and available for an admin
 // incident-resolution "cancel" outcome later) -- driver *withdrawal* is
 // a separate, much simpler flow below that never calls this, since it
 // doesn't cancel the ride or touch payment at all.
-async function handleRideCancellation({ req, res, ride, actorType, actorId, reason }) {
+async function handleRideCancellation({
+  req,
+  res,
+  ride,
+  actorType,
+  actorId,
+  reason,
+  category = cancellationRecords.CANCELLATION_CATEGORY.RIDER,
+  feeShownCents
+}) {
   // Idempotent path: already cancelled. Resume payment reconciliation if
   // it's still pending/failed rather than silently abandoning it -- a
   // repeated cancel request must not look like success while leaving an
@@ -13634,6 +13734,9 @@ async function handleRideCancellation({ req, res, ride, actorType, actorId, reas
   }
 
   const driverWasAssigned = hasAssignedDriver(ride.status);
+  // What the draft policy would decide, from the ride as it was when
+  // cancelled. A record only: the fee is always $0.
+  const assessment = cancellationRecords.assessCancellation(ride, { category });
 
   const claim = await claimRideTransition({
     supabase,
@@ -13683,7 +13786,10 @@ async function handleRideCancellation({ req, res, ride, actorType, actorId, reas
 
   const reconciled = await reconcileCancellationPayment(cancelledRide, req);
 
-  if (driverWasAssigned && cancelledRide.driver_id) {
+  await recordCancellation(ride.id, { category, assessment, feeShownCents });
+
+  // A driver who marked the no-show already knows; anyone else is told.
+  if (driverWasAssigned && cancelledRide.driver_id && actorType !== "driver") {
     sendPushNotification({
       ownerType: "driver",
       ownerId: cancelledRide.driver_id,
@@ -13706,7 +13812,11 @@ async function handleRideCancellation({ req, res, ride, actorType, actorId, reas
     metadata: {
       reason: reason || null,
       cancellation_payment_status: reconciled.outcome,
-      had_assigned_driver: driverWasAssigned
+      had_assigned_driver: driverWasAssigned,
+      cancellation_category: category,
+      policy_waivers: assessment.waivers,
+      policy_fee_eligible: assessment.policy_fee_eligible,
+      fee_cents: 0
     },
     req
   }).catch(() => {});
@@ -13714,7 +13824,10 @@ async function handleRideCancellation({ req, res, ride, actorType, actorId, reas
   return ok(res, {
     ride_id: ride.id,
     status: RIDE_STATUS.CANCELLED,
-    cancellation_payment_status: reconciled.outcome
+    cancellation_payment_status: reconciled.outcome,
+    cancellation_category: category,
+    cancellation_fee_cents: 0,
+    cancellation_fee_display: "$0.00"
   });
 }
 
@@ -13863,13 +13976,197 @@ app.post(
       return fail(res, "You are not authorized to cancel this ride.", 403);
     }
 
+    // The rider must have been shown the exact fee before confirming. A
+    // client that sends the fee it showed is checked against the fee now;
+    // a cancellation that would cost anything is refused without it.
+    // Today every fee is $0, so older clients that send nothing still work.
+    const preview = cancellationRecords.cancelPreview(ride);
+    const shownRaw = req.body && req.body.expected_fee_cents;
+    const shown = shownRaw === undefined || shownRaw === null || shownRaw === "" ? null : Number(shownRaw);
+    if (shown !== null && (!Number.isInteger(shown) || shown !== preview.fee_cents)) {
+      return fail(res, "The cancellation fee has changed. Please review it and confirm again.", 409, {
+        code: "cancellation_fee_changed",
+        fee_cents: preview.fee_cents,
+        fee_display: preview.fee_display
+      });
+    }
+    if (shown === null && preview.fee_cents > 0) {
+      return fail(res, "Please review the cancellation fee before confirming.", 409, {
+        code: "cancellation_fee_not_shown",
+        fee_cents: preview.fee_cents,
+        fee_display: preview.fee_display
+      });
+    }
+
     return handleRideCancellation({
       req,
       res,
       ride,
       actorType: "rider",
       actorId: req.rider.id,
-      reason
+      reason,
+      feeShownCents: shown === null ? undefined : shown
+    });
+  })
+);
+
+// What cancelling would cost right now, shown before the rider confirms.
+// Today it is always free ($0.00); the draft policy's assessment is
+// recorded at cancellation, not shown here.
+app.get(
+  "/api/rides/:id/cancel-preview",
+  requireRider,
+  rateLimit({ windowMs: 60_000, max: 30, keyPrefix: "ride_cancel_preview" }),
+  asyncRoute(async (req, res) => {
+    const rideId = cleanString(req.params.id, 100);
+    let ride;
+    try {
+      ride = await getRideOrFail(rideId);
+    } catch (err) {
+      return fail(res, "Ride not found.", 404);
+    }
+    if (String(ride.rider_id || "") !== String(req.rider.id || "")) {
+      return fail(res, "Ride not found.", 404);
+    }
+    if (!isCancellable(ride.status)) {
+      return ok(res, {
+        ride_id: ride.id,
+        cancellable: false,
+        status: ride.status,
+        message:
+          ride.status === RIDE_STATUS.IN_PROGRESS
+            ? "Your trip is already underway, so it can't be cancelled in the app. If you feel unsafe, call 911."
+            : "This ride can't be cancelled now."
+      });
+    }
+    const preview = cancellationRecords.cancelPreview(ride);
+    return ok(res, {
+      ride_id: ride.id,
+      cancellable: true,
+      status: ride.status,
+      fee_cents: preview.fee_cents,
+      fee_display: preview.fee_display,
+      free: preview.free,
+      message: preview.message
+    });
+  })
+);
+
+/* -------- DRIVER CONTACT ATTEMPT: the driver tried to reach the rider
+   in the app (call or message). Recorded for no-show eligibility and
+   support review. Never blocks the call itself. -------- */
+app.post(
+  "/api/driver/rides/:rideId/contact-attempt",
+  requireDriver,
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "driver_contact_attempt" }),
+  asyncRoute(async (req, res) => {
+    const rideId = cleanString(req.params.rideId, 100);
+    const driverId = req.driver.id;
+    const method = cancellationRecords.CONTACT_METHODS.includes(req.body && req.body.method) ? req.body.method : null;
+    if (!method) return fail(res, "method must be call or message.", 400);
+    let ride;
+    try {
+      ride = await getRideOrFail(rideId);
+    } catch (err) {
+      return fail(res, "Ride not found.", 404);
+    }
+    try {
+      await ensureAssignedDriver(ride, driverId);
+    } catch (err) {
+      return fail(res, err.message || "Driver is not assigned to this ride.", 403);
+    }
+    if (!hasAssignedDriver(ride.status)) {
+      return fail(res, "Contact attempts are recorded only before pickup.", 409, { current_status: ride.status });
+    }
+    const at = nowIso();
+    let recorded = false;
+    try {
+      const { error: insertError } = await supabase
+        .from("ride_contact_attempts")
+        .insert({ ride_id: ride.id, driver_id: String(driverId), method, ride_status: ride.status, created_at: at });
+      if (insertError) throw insertError;
+      recorded = await updateRideRecords(
+        ride.id,
+        { contact_attempt_count: (Number(ride.contact_attempt_count) || 0) + 1, last_contact_attempt_at: at },
+        "contact_attempt"
+      );
+    } catch (err) {
+      console.warn("⚠️ Contact attempt not recorded:", err && err.message ? err.message : err);
+    }
+    auditLog({
+      actor_type: "driver",
+      actor_id: driverId,
+      action: "driver_contact_attempt",
+      entity_type: "ride",
+      entity_id: ride.id,
+      metadata: { method, ride_status: ride.status, recorded },
+      req
+    }).catch(() => {});
+    return ok(res, { ride_id: ride.id, recorded, method, at });
+  })
+);
+
+// Whether this driver may mark the rider as a no-show now, and what's
+// still missing (for the driver app's timer and button).
+app.get(
+  "/api/driver/rides/:rideId/no-show",
+  requireDriver,
+  asyncRoute(async (req, res) => {
+    const rideId = cleanString(req.params.rideId, 100);
+    let ride;
+    try {
+      ride = await getRideOrFail(rideId);
+    } catch (err) {
+      return fail(res, "Ride not found.", 404);
+    }
+    try {
+      await ensureAssignedDriver(ride, req.driver.id);
+    } catch (err) {
+      return fail(res, err.message || "Driver is not assigned to this ride.", 403);
+    }
+    const enabled = (await getSystemFlag("driver_no_show_enabled", "false")) === "true";
+    return ok(res, { ride_id: ride.id, enabled, ...cancellationRecords.noShowEligibility(ride) });
+  })
+);
+
+/* -------- DRIVER NO-SHOW: the rider didn't come out. Allowed only
+   after a verified arrival, 7 minutes of waiting and a recorded contact
+   attempt. Cancels the ride for free (no fee in this phase), releases
+   the card hold, and records the reason. Off until
+   system_flags.driver_no_show_enabled = "true". -------- */
+app.post(
+  "/api/driver/rides/:rideId/no-show",
+  requireDriver,
+  rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "driver_no_show" }),
+  asyncRoute(async (req, res) => {
+    const rideId = cleanString(req.params.rideId, 100);
+    const driverId = req.driver.id;
+    if ((await getSystemFlag("driver_no_show_enabled", "false")) !== "true") {
+      return fail(res, "Marking a no-show isn't available yet. Contact support if the rider doesn't come out.", 403, { code: "no_show_disabled" });
+    }
+    let ride;
+    try {
+      ride = await getRideOrFail(rideId);
+    } catch (err) {
+      return fail(res, "Ride not found.", 404);
+    }
+    try {
+      await ensureAssignedDriver(ride, driverId);
+    } catch (err) {
+      return fail(res, err.message || "Driver is not assigned to this ride.", 403);
+    }
+    const eligibility = cancellationRecords.noShowEligibility(ride);
+    if (!eligibility.eligible) {
+      return fail(res, "A no-show can't be marked yet.", 409, { code: "no_show_not_eligible", ...eligibility });
+    }
+    return handleRideCancellation({
+      req,
+      res,
+      ride,
+      actorType: "driver",
+      actorId: driverId,
+      reason: "rider_no_show",
+      category: cancellationRecords.CANCELLATION_CATEGORY.DRIVER_NO_SHOW
     });
   })
 );
@@ -14799,6 +15096,7 @@ app.post(
     // rider-contact fields below are used server-side for the notification
     // only and never appear in the HTTP response.
     if (outcome === "accepted") {
+      recordPickupEstimateAtAccept(result.ride_id).catch(() => {});
 
       const driverFields = {
         driver_name: result.driver_name,
@@ -15301,7 +15599,10 @@ async function performDriverRideTransition({
   deliveryStage,
   notifyStageKey,
   notifyStageKeyDelivery,
-  auditAction
+  auditAction,
+  // Optional, best effort: runs after the transition commits (for example
+  // the arrival check), and its result is added to the response.
+  afterTransition = null
 }) {
   let ride;
 
@@ -15372,9 +15673,12 @@ async function performDriverRideTransition({
     req
   }).catch(() => {});
 
+  const extra = afterTransition ? await afterTransition(ride).catch(() => null) : null;
+
   return ok(res, {
     ride_id: rideId,
-    status: toStatus
+    status: toStatus,
+    ...(extra || {})
   });
 }
 
@@ -15459,7 +15763,9 @@ app.post(
       deliveryStage: DELIVERY_STAGE.ARRIVED_STORE,
       notifyStageKey: "arrived_pickup",
       notifyStageKeyDelivery: "arrived_store",
-      auditAction: "driver_arrived"
+      auditAction: "driver_arrived",
+      // Records whether the driver was at the pickup (never blocks arrival).
+      afterTransition: (ride) => recordArrivalCheck(ride, req.body)
     });
 
   })
@@ -16644,6 +16950,8 @@ app.post(
         pickupLat: activeRide.pickup_lat,
         pickupLng: activeRide.pickup_lng
       }).catch(() => {});
+
+      recordPickupProgress(activeRide.id, { lat, lng, accuracy, at: nowIso() }).catch(() => {});
     }
 
     broadcastRideSse(activeRide.id, "location", {
@@ -18509,6 +18817,18 @@ app.post(
       return fail(res, "resolution must be one of: " + INCIDENT_RESOLUTIONS.join(", "), 400);
     }
 
+    // Cancellations are free in this phase (owner instruction 2026-10-04),
+    // and a cancelled ride must never also be charged the trip fare. A
+    // trip that really happened is resolved as completed_by_incident.
+    if (resolution === "cancelled_by_incident" && paymentAction === "capture") {
+      return fail(
+        res,
+        "A cancelled ride can't be charged. Release the hold (void), or use force_completed_by_incident if the trip took place.",
+        400,
+        { code: "cancellation_charge_not_allowed" }
+      );
+    }
+    const serviceFailure = req.body && req.body.service_failure === true;
     if (!INCIDENT_PAYMENT_ACTIONS.includes(paymentAction)) {
       return fail(
         res,
@@ -18563,6 +18883,16 @@ app.post(
         409,
         { current_status: claim.currentStatus }
       );
+    }
+
+    if (toStatus === RIDE_STATUS.CANCELLED) {
+      const category = serviceFailure
+        ? cancellationRecords.CANCELLATION_CATEGORY.SERVICE_FAILURE
+        : cancellationRecords.CANCELLATION_CATEGORY.ADMIN_INCIDENT;
+      await recordCancellation(rideId, {
+        category,
+        assessment: cancellationRecords.assessCancellation(ride, { category })
+      });
     }
 
     let paymentOutcome = "leave_pending";
@@ -23874,7 +24204,7 @@ const HANDOFF_RIDE_DAYS = 14;
 
 // The account's own most recent trip in the last 14 days, for a lost-item
 // report. Riders by rider_id, drivers by driver_id; cancelled trips skipped.
-async function findHandoffRide(role, actorId) {
+async function findHandoffRide(role, actorId, { cancelled = false } = {}) {
   const since = new Date(Date.now() - HANDOFF_RIDE_DAYS * 24 * 60 * 60 * 1000).toISOString();
   const { data, error } = await supabase
     .from("rides")
@@ -23884,7 +24214,7 @@ async function findHandoffRide(role, actorId) {
     .order("created_at", { ascending: false })
     .limit(5);
   if (error) return null;
-  return (data || []).find((r) => !/cancel/i.test(String(r.status || ""))) || null;
+  return (data || []).find((r) => /cancel/i.test(String(r.status || "")) === cancelled) || null;
 }
 
 // A ride id sent with a report must be one of the account's own rides.
@@ -23898,7 +24228,18 @@ async function runHandoffDraft(req, res, { role, actor }) {
   const state = await loadAgentState();
   if (!state.mode.assist_enabled) return fail(res, "The assistant is not available right now.", 503);
   const kind = handoffKind(req.body?.kind);
-  const ride = kind === "lost_item" && actor ? await findHandoffRide(role, actor.id) : null;
+  // A lost item links the latest trip; a cancellation review the latest
+  // cancelled ride, or the one the ride card named if it's the account's own.
+  let ride = null;
+  if (actor && kind === "lost_item") ride = await findHandoffRide(role, actor.id);
+  if (actor && kind === "cancellation_review") {
+    const named = cleanString(req.body?.ride_id, 100);
+    if (named && (await ownsHandoffRide(role, actor.id, named))) {
+      const { data } = await supabase.from("rides").select(HANDOFF_RIDE_COLUMNS).eq("id", named).maybeSingle();
+      ride = data || null;
+    }
+    if (!ride) ride = await findHandoffRide(role, actor.id, { cancelled: true });
+  }
   return ok(res, {
     signed_in: Boolean(actor),
     kind,
@@ -23925,7 +24266,7 @@ async function saveHandoff(req, { role, actor, summary, kind, rideId, requestId 
     try {
       const mail = await sendEmail({
         to: HANDOFF_SUPPORT_EMAIL,
-        subject: `Harvey Taxi ${kind === "lost_item" ? (role === "driver" ? "found-item report" : "lost-item report") : "support request"} ${reference}`,
+        subject: `Harvey Taxi ${kind === "lost_item" ? (role === "driver" ? "found-item report" : "lost-item report") : kind === "cancellation_review" ? "cancellation review request" : "support request"} ${reference}`,
         text:
           `Case: ${reference}\nType: ${kind}\nFrom: ${role} ${actor.id}\nApp: ${appTarget}\n` +
           (rideId ? `Ride: ${rideId}\n` : "") +

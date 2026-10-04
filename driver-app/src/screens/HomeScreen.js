@@ -5,6 +5,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { EMERGENCY_NUMBER, LINKS } from '../config';
 import { directionsUrl, isDelivery, nextStep, STATUS_LABELS } from '../tripSteps';
 import { riderSharingText } from '../tripMap';
+import { formatWait, noShowText, waitingSeconds } from '../pickupWait';
 import { hoursText } from '../hours';
 import TripMapView from '../TripMapView';
 import { Button, C, Card, H, money, Notice, P, Pill, Row } from '../ui';
@@ -86,7 +87,20 @@ function ActiveRideCard({ ride, app, mapToken }) {
       ) : (
         <>
           {nav && <Button title={step && step.navigateTo === 'dropoff' ? 'Navigate to drop-off' : 'Navigate to pickup'} kind="ghost" onPress={() => Linking.openURL(nav)} />}
-          {ride.rider_phone && <Button title="Call rider" kind="ghost" onPress={() => Linking.openURL(`tel:${ride.rider_phone}`)} />}
+          {ride.rider_phone && (
+            <Button
+              testID="call-rider"
+              title="Call rider"
+              kind="ghost"
+              onPress={async () => {
+                // Recorded for support review and the no-show rules; the
+                // call opens either way.
+                await app.actions.recordContactAttempt(ride, 'call');
+                Linking.openURL(`tel:${ride.rider_phone}`);
+              }}
+            />
+          )}
+          {ride.status === 'arrived' && <PickupWait ride={ride} app={app} />}
           {step && (
             <Button
               testID={`step-${step.action}`}
@@ -106,8 +120,68 @@ function ActiveRideCard({ ride, app, mapToken }) {
           )}
         </>
       )}
+      {!isDelivery(ride) && ['driver_assigned', 'driver_enroute', 'arrived'].includes(ride.status) && (
+        <Button
+          testID="withdraw-ride"
+          title="I can't make this pickup"
+          kind="ghost"
+          busy={app.busy === 'withdraw'}
+          disabled={Boolean(app.busy)}
+          onPress={() =>
+            Alert.alert(
+              "Release this ride?",
+              'The ride goes back to dispatch so another driver can pick up the rider. The rider is not cancelled or charged.',
+              [
+                { text: 'Keep ride', style: 'cancel' },
+                { text: 'Release ride', style: 'destructive', onPress: () => app.actions.withdrawRide(ride) }
+              ]
+            )
+          }
+        />
+      )}
       <Button title="Emergency · call 911" kind="danger" onPress={callEmergency} />
     </Card>
+  );
+}
+
+// At the pickup: how long the driver has waited, and the no-show control
+// (off until the owner turns it on; the server decides eligibility).
+function PickupWait({ ride, app }) {
+  const [now, setNow] = useState(Date.now());
+  const [status, setStatus] = useState(null);
+  useEffect(() => {
+    const tick = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(tick);
+  }, []);
+  const contacts = ride.contact_attempt_count || 0;
+  const minuteMark = Math.floor(waitingSeconds(ride.arrived_at, now) / 60);
+  useEffect(() => {
+    let live = true;
+    app.actions.noShowStatus(ride).then((s) => live && setStatus(s)).catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [ride.ride_id, ride.arrived_at, contacts, minuteMark]);
+  return (
+    <View testID="pickup-wait" style={{ marginTop: 8 }}>
+      <Row label="Waiting" value={formatWait(waitingSeconds(ride.arrived_at, now))} />
+      <P muted>{noShowText(status)}</P>
+      {status && status.enabled && (
+        <Button
+          testID="mark-no-show"
+          title="Rider didn't come out"
+          kind="ghost"
+          disabled={!status.eligible || Boolean(app.busy)}
+          busy={app.busy === 'no_show'}
+          onPress={() =>
+            Alert.alert('Mark as a no-show?', 'The ride is cancelled at no charge to the rider.', [
+              { text: 'Keep waiting', style: 'cancel' },
+              { text: 'Mark no-show', style: 'destructive', onPress: () => app.actions.markNoShow(ride) }
+            ])
+          }
+        />
+      )}
+    </View>
   );
 }
 

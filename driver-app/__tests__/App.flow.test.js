@@ -28,6 +28,7 @@ jest.mock('expo-location', () => ({
     mockLocation.started = options;
     mockLocation.startCalls.push(options);
   }),
+  getLastKnownPositionAsync: jest.fn(async () => ({ coords: { latitude: 36.1601, longitude: -86.7801, accuracy: 9 } })),
   stopLocationUpdatesAsync: jest.fn(async () => {
     mockLocation.started = null;
     mockLocation.stopCalls += 1;
@@ -57,7 +58,7 @@ global.XMLHttpRequest = function XHR() {};
 global.XMLHttpRequest.prototype = { open() {}, setRequestHeader() {}, send() {}, abort() {} };
 
 // ---------------- fake backend ----------------
-const server = { calls: [], driver: { online: false }, offers: [], ride: null, validToken: 'TOKEN_A', deleted: false, map: { token: null }, stateDown: false, hours: null };
+const server = { calls: [], bodies: {}, noShow: { enabled: false, eligible: false, missing: ['wait_under_7_minutes'] }, driver: { online: false }, offers: [], ride: null, validToken: 'TOKEN_A', deleted: false, map: { token: null }, stateDown: false, hours: null };
 const snapshot = () => ({
   ok: true,
   server_time: new Date().toISOString(),
@@ -77,6 +78,7 @@ global.fetch = jest.fn(async (url, init = {}) => {
   const path = url.replace('https://harveytaxiservice.com', '');
   const body = init.body ? JSON.parse(init.body) : undefined;
   server.calls.push(`${init.method || 'GET'} ${path}`);
+  if (body !== undefined) server.bodies[`${init.method || 'GET'} ${path}`] = body;
   const reply = (data, status = 200) => ({ ok: status < 400, status, json: async () => data });
   if (path === '/api/driver/session/phone/start') return reply({ ok: true, sent: true, message: 'Code sent.' });
   if (path === '/api/driver/session/phone/verify') {
@@ -99,6 +101,15 @@ global.fetch = jest.fn(async (url, init = {}) => {
     server.offers = [];
     server.ride = { ride_id: 'RIDE_1', status: 'driver_assigned', pickup_address: '1 Broadway', dropoff_address: 'BNA', pickup_lat: 36.16, pickup_lng: -86.78, rider_first_name: 'Jamie', rider_phone: '+16155550101' };
     return reply({ ok: true });
+  }
+  if (path === '/api/driver/rides/RIDE_1/contact-attempt') {
+    server.ride = { ...server.ride, contact_attempt_count: (server.ride.contact_attempt_count || 0) + 1 };
+    return reply({ ok: true, recorded: true });
+  }
+  if (path === '/api/driver/rides/RIDE_1/no-show') return reply({ ok: true, ...server.noShow });
+  if (path === '/api/driver/rides/RIDE_1/withdraw') {
+    server.ride = null;
+    return reply({ ok: true, status: 'awaiting_driver_acceptance' });
   }
   const step = /^\/api\/driver\/rides\/RIDE_1\/(\w+)$/.exec(path);
   if (step) {
@@ -350,4 +361,65 @@ test('signed out: "Apply to drive" opens driver sign-up on the website', async (
   await press(tree, 'apply-to-drive');
   expect(WebBrowser.openBrowserAsync).toHaveBeenCalledWith('https://harveytaxiservice.com/driver-signup.html');
   await act(async () => tree.unmount());
+});
+
+test('at the pickup: Arrived sends the position; Call rider records the attempt; waiting timer; no-show off; releasing a ride', async () => {
+  let tree;
+  await act(async () => {
+    tree = renderer.create(<App />);
+  });
+  await flush();
+  if (has(tree, 'phone-input')) {
+    await type(tree, 'phone-input', '(615) 555-0201');
+    await press(tree, 'send-code');
+    await type(tree, 'code-input', '123456');
+    await press(tree, 'verify-code');
+  }
+  server.ride = { ride_id: 'RIDE_1', status: 'driver_enroute', pickup_address: '1 Broadway', dropoff_address: 'BNA', pickup_lat: 36.16, pickup_lng: -86.78, rider_first_name: 'Jamie', rider_phone: '+16155550101' };
+  await act(async () => {
+    tree.root.findAll((n) => n.props && n.props.refreshControl)[0].props.refreshControl.props.onRefresh();
+  });
+  await flush();
+
+  // Arrived carries the phone's current position for the arrival check.
+  await press(tree, 'step-arrived');
+  expect(server.bodies['POST /api/driver/rides/RIDE_1/arrived']).toEqual({ latitude: 36.1601, longitude: -86.7801, accuracy: 9 });
+  server.ride = { ...server.ride, arrived_at: new Date(Date.now() - 90 * 1000).toISOString() };
+  await act(async () => {
+    tree.root.findAll((n) => n.props && n.props.refreshControl)[0].props.refreshControl.props.onRefresh();
+  });
+  await flush();
+
+  // Waiting timer and no-show guidance (off: no button).
+  const text = tree.root
+    .findAll((n) => n.type === 'Text')
+    .map((n) => [].concat(n.props.children).filter((c) => typeof c === 'string' || typeof c === 'number').join(''))
+    .join(' | ');
+  expect(text).toMatch(/Waiting/);
+  expect(text).toMatch(/1:[23]\d/);
+  expect(server.calls).toContain('GET /api/driver/rides/RIDE_1/no-show');
+  expect(text).toMatch(/contact support if they still don't come out/);
+  expect(has(tree, 'mark-no-show')).toBe(false);
+
+  // Call rider: recorded first, then the dialer opens.
+  const { Linking, Alert } = require('react-native');
+  const open = jest.spyOn(Linking, 'openURL').mockImplementation(async () => true);
+  await press(tree, 'call-rider');
+  expect(server.bodies['POST /api/driver/rides/RIDE_1/contact-attempt']).toEqual({ method: 'call' });
+  expect(open).toHaveBeenCalledWith('tel:+16155550101');
+  open.mockRestore();
+
+  // Releasing the ride asks first, then returns it to dispatch.
+  const alert = jest.spyOn(Alert, 'alert').mockImplementation((t, m, buttons) => buttons[1].onPress());
+  await press(tree, 'withdraw-ride');
+  alert.mockRestore();
+  expect(server.bodies['POST /api/driver/rides/RIDE_1/withdraw']).toEqual({ reason: 'driver_withdrew_in_app' });
+  expect(has(tree, 'withdraw-ride')).toBe(false);
+});
+
+test('no-show, when the owner turns it on: the button follows the server\'s eligibility and says the rider isn\'t charged', async () => {
+  const { noShowText } = require('../src/pickupWait');
+  expect(noShowText({ enabled: true, eligible: false, missing: ['wait_under_7_minutes', 'no_contact_attempt_after_arrival'] })).toBe('Wait at least 7 minutes after arriving. Try calling the rider from this screen.');
+  expect(noShowText({ enabled: true, eligible: true, missing: [] })).toMatch(/no charge to the rider/);
+  expect(noShowText({ enabled: false })).not.toMatch(/fee|charge/i);
 });

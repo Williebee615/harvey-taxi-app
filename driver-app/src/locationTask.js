@@ -127,3 +127,19 @@ export async function stopTracking() {
   const running = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK).catch(() => false);
   if (running) await Location.stopLocationUpdatesAsync(LOCATION_TASK).catch(() => {});
 }
+
+// The phone's current position for a one-off record (the arrival check
+// when the driver taps Arrived). A recent known position is enough; never
+// throws, and returns null when location isn't available.
+export async function currentFix({ maxAgeMs = 60000 } = {}) {
+  try {
+    const known = typeof Location.getLastKnownPositionAsync === 'function' ? await Location.getLastKnownPositionAsync({ maxAge: maxAgeMs }) : null;
+    const pos = known || (typeof Location.getCurrentPositionAsync === 'function' ? await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }) : null);
+    if (!pos || !pos.coords) return null;
+    const { latitude, longitude, accuracy } = pos.coords;
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+    return { latitude, longitude, accuracy: Number.isFinite(accuracy) ? accuracy : null };
+  } catch (err) {
+    return null;
+  }
+}

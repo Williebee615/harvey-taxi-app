@@ -44,6 +44,7 @@ function useFake({ enabled = true, failAudit = false } = {}) {
       rides: [
         // Test fixtures: one recent completed trip each, plus another rider's.
         makeRide({ id: "TEST-RIDE-R1", rider_id: "RIDER_1", driver_id: "DRIVER_1", status: "completed", pickup_address: "TEST 1 Broadway", dropoff_address: "TEST BNA", created_at: new Date(Date.now() - 3 * 3600e3).toISOString(), completed_at: new Date(Date.now() - 2 * 3600e3).toISOString() }),
+        makeRide({ id: "TEST-RIDE-RC", rider_id: "RIDER_F", driver_id: "DRIVER_1", status: "cancelled", pickup_address: "TEST 2 Main St", dropoff_address: "TEST Airport", created_at: new Date(Date.now() - 1 * 3600e3).toISOString() }),
         makeRide({ id: "TEST-RIDE-RF", rider_id: "RIDER_F", driver_id: "DRIVER_1", status: "completed", pickup_address: "TEST 1 Broadway", dropoff_address: "TEST BNA", created_at: new Date(Date.now() - 3 * 3600e3).toISOString(), completed_at: new Date(Date.now() - 2 * 3600e3).toISOString() }),
         makeRide({ id: "TEST-RIDE-OTHER", rider_id: "RIDER_9", driver_id: "DRIVER_9", status: "completed", created_at: new Date(Date.now() - 3600e3).toISOString() })
       ],
@@ -244,6 +245,22 @@ describe("finishing touches: duplicates, email vs case, lost items", () => {
     expect(sent.status).toBe(200);
     expect(sent.body.message).toMatch(/Your report is in Harvey Taxi's support queue/);
     expect(cases()[0].metadata).toMatchObject({ category: "lost_item", ride_id: "TEST-RIDE-RF", reporter_id: "RIDER_F" });
+  });
+
+  test("cancellation review (rider): the draft names the rider's latest cancelled ride; sent as its own case category", async () => {
+    useFake();
+    const draft = await post("/api/agent/rider/handoff/draft").set(RIDER("RIDER_F")).send({ kind: "cancellation_review" });
+    expect(draft.body.kind).toBe("cancellation_review");
+    expect(draft.body.ride).toMatchObject({ id: "TEST-RIDE-RC" });
+    expect(draft.body.draft).toMatch(/^Please review this cancelled ride\.\n\nTrip: .+: TEST 2 Main St to TEST Airport\nReason \(safety concern \/ wrong pickup or arrival \/ fee charged in error \/ other\): /);
+    // The ride card can name the ride; another account's ride is ignored.
+    const named = await post("/api/agent/rider/handoff/draft").set(RIDER("RIDER_F")).send({ kind: "cancellation_review", ride_id: "TEST-RIDE-OTHER" });
+    expect(named.body.ride).toMatchObject({ id: "TEST-RIDE-RC" });
+    const sent = await post("/api/agent/rider/handoff")
+      .set(RIDER("RIDER_F"))
+      .send({ kind: "cancellation_review", ride_id: "TEST-RIDE-RC", approved: true, summary: draft.body.draft + "The driver never came to my pickup (test fixture)." });
+    expect(sent.status).toBe(200);
+    expect(cases()[0].metadata).toMatchObject({ category: "cancellation_review", ride_id: "TEST-RIDE-RC", reporter_id: "RIDER_F", approved_by_user: true });
   });
 
   test("lost item: another account's trip is refused; signed-out drafts get no trip", async () => {
