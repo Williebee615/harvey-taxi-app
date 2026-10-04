@@ -150,6 +150,16 @@
     </section>
   </div>
 
+  <section class="panel" id="usagePanel">
+    <h2>Assistant usage</h2>
+    <p class="muted" id="usageMeasured">Loading…</p>
+    <div class="stats" id="usageToday"></div>
+    <div class="table-wrap"><table><thead><tr><th>Day (UTC)</th><th>Requests</th><th>Riders</th><th>Drivers</th><th>Signed in</th><th>Answered from approved pages</th><th>Not covered</th><th>Safety escalations</th><th>Accounts at limit</th></tr></thead><tbody id="usageDaily"></tbody></table></div>
+    <h3>Questions approved pages don't cover yet</h3>
+    <p class="muted">Redacted excerpts. Each one is a policy to write and approve; the assistant won't answer until one exists.</p>
+    <ul id="usageGaps"></ul>
+  </section>
+
   <section class="panel">
     <h2>Decision log</h2>
     <p class="muted">Every recommendation, shadow decision, executed action and admin override. Raw messages and contact details are not stored.</p>
@@ -177,7 +187,10 @@
     stalled_ride_minutes: "Stalled after (minutes)",
     max_auto_redispatch_attempts: "Max automatic redispatch attempts",
     redispatch_cooldown_seconds: "Redispatch cooldown (seconds)",
-    max_location_age_minutes: "Driver location max age (minutes)"
+    max_location_age_minutes: "Driver location max age (minutes)",
+    assist_daily_limit_per_account: "Assistant requests per account per day",
+    assist_daily_limit_visitor: "Assistant requests per signed-out visitor per day",
+    assist_daily_limit_global: "Assistant requests in total per day"
   };
   const RECORD_BADGE = {
     recommendation: ["Recommendation", "b-rec"],
@@ -326,7 +339,32 @@
       : `<tr><td colspan="6" class="empty">No agent activity recorded yet.</td></tr>`;
   }
 
+  async function loadUsage() {
+    try {
+      const u = await api("/api/admin/agent/usage");
+      $("usageMeasured").textContent = u.measured + ` Limits: ${u.limits.per_account_daily} per account, ${u.limits.visitor_daily} per signed-out visitor, ${u.limits.global_daily} in total, per UTC day (counted in server memory; resets on restart).`;
+      const t = u.today_live;
+      $("usageToday").innerHTML = [
+        ["Requests today", t.requests_today],
+        ["Riders (signed in)", t.by_role.rider],
+        ["Drivers", t.by_role.driver],
+        ["Signed-out visitors", t.by_role.visitor],
+        ["Refused by a limit", t.blocked_today],
+        ["Model calls (7 days)", u.history.totals.model_calls]
+      ].map(([k, v]) => `<div class="stat"><span class="muted">${esc(k)}</span><b>${esc(v)}</b></div>`).join("");
+      $("usageDaily").innerHTML = u.history.daily.slice().reverse().map((d) =>
+        `<tr><td>${esc(d.day)}</td><td>${d.requests}</td><td>${d.rider}</td><td>${d.driver}</td><td>${d.signed_in}</td><td>${d.answered_from_knowledge}</td><td>${d.knowledge_gaps}</td><td>${d.escalations}</td><td>${d.limited_accounts}</td></tr>`
+      ).join("");
+      $("usageGaps").innerHTML = u.history.recent_gaps.length
+        ? u.history.recent_gaps.map((g) => `<li><span class="muted">${when(g.at)} · ${esc(g.role)}</span> ${esc(g.question)}</li>`).join("")
+        : `<li class="empty">None in the last 7 days.</li>`;
+    } catch (err) {
+      $("usageMeasured").textContent = "Usage is unavailable right now.";
+    }
+  }
+
   async function load() {
+    loadUsage();
     try {
       state = await api("/api/admin/agent/overview");
       $("authNotice").hidden = true;
