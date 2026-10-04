@@ -32,7 +32,7 @@ Anything not yet run says so.
 
 ## Changes made from these results
 
-Live since PR #174 (merge `caaeabe`, deployed to Render 2026-10-04): items 2, 4 and 5 below. Item 1 is in build 6. Item 3 is still switched off; see "Before switching on the clean-up".
+Live since PR #174 (merge `caaeabe`, deployed to Render 2026-10-04): items 2, 4 and 5 below. Item 1 is in build 6. Item 3 was switched on 2026-10-04, after the stale ride was cancelled.
 
 **1. In-app alert for new offers.** While the app is open, a vibration and the
 standard notification sound play once per new offer. The sound has no banner
@@ -93,9 +93,11 @@ An admin can no longer revive a failed ride whose hold was released. The rider b
 - **`driver_native_push_enabled` is on.** One device token is registered: the review driver's iPhone.
   - **Rollback:** set the flag's value to `'false'`.
 
+- **`RIDE-06D4C93EF9` cancelled.** Two earlier attempts timed out; the third applied. Audit entry: `stale_review_ride_cancelled`.
+- **`offer_expiry_sweep_enabled` is on.** No pending offers remained when it was switched on.
+  - **Rollback:** set the flag's value to `'false'`.
+
 ### Not done
-- **`RIDE-06D4C93EF9` is not cancelled.** It is still "Awaiting driver acceptance". Two production updates timed out without applying. Neither sweep will pick the ride up, because it has no pending offer and is not `redispatching`.
-- **`offer_expiry_sweep_enabled` is off.** It waits for that ride to be cancelled.
 - **45-second offer window: unverified.** No offer has been created since the deploy.
 - **Apple processing of build 6, and adding it to the internal testing group: unverified.** This session has no App Store Connect access.
 - **Android push is blocked.** There is no `google-services.json` and no FCM V1 key in EAS.
