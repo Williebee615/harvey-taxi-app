@@ -220,3 +220,13 @@ export const CLOSE_WIZARD_SCRIPT = `
 })();
 true;
 `;
+
+// Appended to the WebView's user agent (never replacing it) so the
+// Harvey Taxi server can count assistant requests per app: rider iOS app,
+// rider Android app, or the website (lib/agent/usage.js). A label for
+// reporting only; it grants nothing.
+export function riderAppUserAgentTag(platformOS, version) {
+  const os = platformOS === 'ios' || platformOS === 'android' ? platformOS : 'other';
+  const v = /^[\w.-]{1,20}$/.test(String(version || '')) ? String(version) : '0';
+  return `HarveyTaxiRider/${v} (${os})`;
+}

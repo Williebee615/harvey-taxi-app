@@ -521,7 +521,7 @@ const { recommendDrivers: recommendAgentDrivers, driverLabel: agentDriverLabel }
 const { readLlmConfig: readAgentLlmConfig, createLlmClient: createAgentLlmClient, describeLlmConfig: describeAgentLlmConfig } = require("./lib/agent/llmClient");
 const { createAgentTools } = require("./lib/agent/tools");
 const { handleAssist: handleAgentAssist } = require("./lib/agent/assistant");
-const { createUsageMeter: createAgentUsageMeter, usageKey: agentUsageKey, summarizeUsage: summarizeAgentUsage } = require("./lib/agent/usage");
+const { createUsageMeter: createAgentUsageMeter, usageKey: agentUsageKey, summarizeUsage: summarizeAgentUsage, appTarget: agentAppTarget } = require("./lib/agent/usage");
 const {
   AGENT_ACTIONS,
   RECORD_TYPES: AGENT_RECORD_TYPES,
@@ -23595,7 +23595,8 @@ async function runAgentAssist(req, res, { role, actor }) {
     }
     return res.status(429).json({ ok: false, agent_available: true, limited: true, reason: usage.reason, reply: AGENT_LIMITED_REPLY, source: "rules", actions: [] });
   }
-  agentUsage.record(usageKey);
+  const appTarget = agentAppTarget({ role, client: req.body?.client, platform: req.body?.platform, userAgent: req.get("user-agent") });
+  agentUsage.record(usageKey, appTarget);
   const result = await handleAgentAssist({
     role,
     actor,
@@ -23611,7 +23612,7 @@ async function runAgentAssist(req, res, { role, actor }) {
   if (result.escalation) {
     caseId = await openAgentCase({ role, actorId: actor ? actor.id : null, escalation: result.escalation, message, source: "assist" });
   }
-  agentAudit(agentAssistDecisionEntry({ role, actorId: actor ? actor.id : null, result, mode: state.mode.mode, message }), req);
+  agentAudit(agentAssistDecisionEntry({ role, actorId: actor ? actor.id : null, result, mode: state.mode.mode, message, appTarget }), req);
   return ok(res, {
     agent_available: true,
     reply: result.reply,

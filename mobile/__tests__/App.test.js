@@ -1,5 +1,5 @@
 import React from 'react';
-import { AppState, Linking } from 'react-native';
+import { AppState, Linking, Platform } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
 import App from '../App';
@@ -190,4 +190,16 @@ test('logs never contain URLs or error descriptions', () => {
   fire('onHttpError', { statusCode: 500, url: 'https://harveytaxiservice.com/?session=xyz' });
   const logged = JSON.stringify(warnSpy.mock.calls);
   expect(logged).not.toMatch(/https?:|token|session|secret detail/);
+});
+
+test('assistant support: the WebView user agent is tagged with the rider app and platform; assistant source links stay in the app', () => {
+  render();
+  const appConfig = require('../app.json');
+  expect(latest().applicationNameForUserAgent).toBe(`HarveyTaxiRider/${appConfig.expo.version} (${Platform.OS})`);
+  const decide = latest().onShouldStartLoadWithRequest;
+  for (const path of ['/policies.html#test-article', '/terms.html', '/privacy-policy.html', '/support.html']) {
+    expect(decide({ url: `https://harveytaxiservice.com${path}`, isTopFrame: true })).toBe(true);
+  }
+  expect(decide({ url: 'mailto:support@example.test', isTopFrame: true })).toBe(false);
+  expect(Linking.openURL).toHaveBeenCalledWith('mailto:support@example.test');
 });

@@ -10423,7 +10423,29 @@
       }
     }
 
+    // Harvey Assistant conversation memory (docs/ai-knowledge.md, phase
+    // 3): kept in this browser/app session only, per rider account, never
+    // on the server. The verified account is announced to the assistant
+    // panel; signing out deletes every saved conversation on this device.
+    function announceAssistantAccount(riderId) {
+      window.__harveyAssistantAccount = { role: "rider", id: String(riderId) };
+      window.dispatchEvent(new CustomEvent("harvey:assistant-account", { detail: window.__harveyAssistantAccount }));
+    }
+
+    function clearAssistantMemory() {
+      window.__harveyAssistantAccount = null;
+      try {
+        Object.keys(sessionStorage)
+          .filter((key) => key.indexOf("hta_chat:") === 0)
+          .forEach((key) => sessionStorage.removeItem(key));
+      } catch {
+        // Storage unavailable: nothing was saved.
+      }
+      window.dispatchEvent(new CustomEvent("harvey:signed-out"));
+    }
+
     function clearRiderSession() {
+      clearAssistantMemory();
       [
         CONFIG.STORAGE_KEYS.riderId,
         CONFIG.STORAGE_KEYS.riderEmail,
@@ -10819,6 +10841,7 @@
       }
 
       state.riderId = data.rider_id;
+      announceAssistantAccount(data.rider_id);
       state.riderProfile = {
         id: data.rider_id,
         first_name: data.first_name,

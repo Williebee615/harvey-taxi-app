@@ -95,9 +95,10 @@
     var panel = el("section", { id: "htaPanel", class: "hta-panel", role: "dialog", "aria-label": "Harvey Assistant" });
     var head = el("div", { class: "hta-head" });
     head.appendChild(el("strong", {}, "Harvey Assistant"));
-    // Clears this conversation. Memory lives only in this page (nothing is
-    // saved in the browser or on the server), so leaving the page or
-    // signing out also clears it.
+    // Clears this conversation. For a signed-in rider, recent turns are
+    // kept in this browser/app session only (sessionStorage, per account;
+    // never on the server) and deleted on sign-out. Otherwise they live
+    // only in this page.
     var clearBtn = el("button", { type: "button", class: "hta-clear", "data-testid": "hta-clear" }, "Clear chat");
     head.appendChild(clearBtn);
     var close = el("button", { type: "button", class: "hta-close", "aria-label": "Close assistant" }, "×");
@@ -155,11 +156,33 @@
     close.addEventListener("click", function () { toggle(false); });
 
     // Recent turns of this conversation, sent with a new question so a
-    // short follow-up ("what about drivers?") is understood. Page memory only.
+    // short follow-up ("what about drivers?") is understood.
     var history = [];
+    var MAX_TURNS = 12;
+    function accountKey() {
+      var a = window.__harveyAssistantAccount;
+      return a && a.role === role && a.id ? "hta_chat:" + role + ":" + a.id : null;
+    }
+    var storeKey = accountKey();
+    function save() {
+      if (!storeKey) return;
+      try { sessionStorage.setItem(storeKey, JSON.stringify(history)); } catch (e) { /* storage full or blocked: page memory only */ }
+    }
+    function loadSaved() {
+      if (!storeKey) return [];
+      try {
+        var saved = JSON.parse(sessionStorage.getItem(storeKey) || "[]");
+        if (!Array.isArray(saved)) return [];
+        return saved
+          .filter(function (t) { return t && (t.role === "user" || t.role === "assistant") && typeof t.text === "string"; })
+          .slice(-MAX_TURNS)
+          .map(function (t) { return { role: t.role, text: t.text.slice(0, 500) }; });
+      } catch (e) { return []; }
+    }
     function remember(text, who) {
       history.push({ role: who === "me" ? "user" : "assistant", text: String(text || "").slice(0, 500) });
-      if (history.length > 12) history.shift();
+      if (history.length > MAX_TURNS) history.shift();
+      save();
     }
 
     function addMessage(text, who, extra) {
@@ -262,12 +285,34 @@
       ? "Hi! I can check your ride offers, your active trip's next step, your earnings or your hours, and answer policy questions from our published pages. You stay in control of every offer and trip action."
       : "Hi! I can help you book, check your ride, explain your fare or cancel an open ride, and answer policy questions from our published pages. You confirm every change.", "bot");
     }
-    greet();
-    clearBtn.addEventListener("click", function () {
+    function reset() {
       history = [];
       while (log.firstChild) log.removeChild(log.firstChild);
       greet();
+    }
+    // Shows this account's saved turns as plain text. Buttons from earlier
+    // answers (cancel, open booking...) are not restored: ask again for a
+    // current one.
+    function restore() {
+      reset();
+      history = loadSaved();
+      history.forEach(function (t) { addMessage(t.text, t.role === "user" ? "me" : "bot"); });
+    }
+    restore();
+    clearBtn.addEventListener("click", function () {
+      if (storeKey) { try { sessionStorage.removeItem(storeKey); } catch (e) { /* nothing saved */ } }
+      reset();
       input.focus();
+    });
+    window.addEventListener("harvey:assistant-account", function () {
+      var next = accountKey();
+      if (next === storeKey) return;
+      storeKey = next;
+      restore();
+    });
+    window.addEventListener("harvey:signed-out", function () {
+      storeKey = null;
+      reset();
     });
   }
 

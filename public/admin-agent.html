@@ -154,6 +154,10 @@
     <h2>Assistant usage</h2>
     <p class="muted" id="usageMeasured">Loading…</p>
     <div class="stats" id="usageToday"></div>
+    <h3>By app</h3>
+    <div class="table-wrap"><table><thead><tr><th>App</th><th>Today</th><th>Last 7 days</th></tr></thead><tbody id="usageTargets"></tbody></table></div>
+    <p class="muted">Rider iOS and Android are counted when the rider app reports itself (app builds from this release on); older builds and browsers count as the website.</p>
+    <h3>By day</h3>
     <div class="table-wrap"><table><thead><tr><th>Day (UTC)</th><th>Requests</th><th>Riders</th><th>Drivers</th><th>Signed in</th><th>Answered from approved pages</th><th>Not covered</th><th>Safety escalations</th><th>Accounts at limit</th></tr></thead><tbody id="usageDaily"></tbody></table></div>
     <h3>Questions approved pages don't cover yet</h3>
     <p class="muted">Redacted excerpts. Each one is a policy to write and approve; the assistant won't answer until one exists.</p>
@@ -352,6 +356,19 @@
         ["Refused by a limit", t.blocked_today],
         ["Model calls (7 days)", u.history.totals.model_calls]
       ].map(([k, v]) => `<div class="stat"><span class="muted">${esc(k)}</span><b>${esc(v)}</b></div>`).join("");
+      const TARGET_LABELS = {
+        rider_ios_app: "Harvey Taxi (rider) iOS",
+        rider_android_app: "Harvey Taxi (rider) Android",
+        rider_web: "Rider website",
+        driver_ios_app: "Harvey Taxi Driver iOS",
+        driver_android_app: "Harvey Taxi Driver Android",
+        driver_web: "Driver website"
+      };
+      const live = t.by_target || {};
+      const week = u.history.totals.by_target || {};
+      $("usageTargets").innerHTML = Object.keys(TARGET_LABELS).map((k) =>
+        `<tr><td>${esc(TARGET_LABELS[k])}</td><td>${esc(live[k] ?? 0)}</td><td>${esc(week[k] ?? 0)}</td></tr>`
+      ).join("");
       $("usageDaily").innerHTML = u.history.daily.slice().reverse().map((d) =>
         `<tr><td>${esc(d.day)}</td><td>${d.requests}</td><td>${d.rider}</td><td>${d.driver}</td><td>${d.signed_in}</td><td>${d.answered_from_knowledge}</td><td>${d.knowledge_gaps}</td><td>${d.escalations}</td><td>${d.limited_accounts}</td></tr>`
       ).join("");
