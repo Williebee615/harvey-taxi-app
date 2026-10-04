@@ -417,7 +417,8 @@
       const m = await api("/api/admin/agent/model");
       const b = m.budget;
       $("claudeStatus").textContent =
-        (m.configured ? "Connected to Anthropic. " : "Not connected: no API key is set on the server, so every answer is rules-based. ") +
+        (m.configured ? `Connected to Anthropic${m.workspace_header ? " (workspace ID set)" : ""}. ` : "Not connected: no API key is set on the server, so every answer is rules-based. ") +
+        (m.problem && m.configured ? `${m.problem} ` : "") +
         `Mode: ${m.mode}${m.stored_mode !== m.mode ? ` (saved as ${m.stored_mode}; real users stay on rules until the privacy disclosure is approved)` : ""}. ` +
         "Any problem, timeout or reached budget falls back to the rules-based answer.";
       const usd = (v, d = 4) => (v === null || v === undefined ? "—" : `$${Number(v).toFixed(d)}`);
