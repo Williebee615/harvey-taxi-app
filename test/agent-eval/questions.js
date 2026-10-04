@@ -21,6 +21,11 @@ const RIDER = [
   { q: "How do I contact support?", intent: "general_help", source: "/support.html#Contact Harvey Taxi" },
   // Not covered by any approved page yet: must say so.
   { q: "What is your cancellation fee policy?", intent: "policy_question", gap: true, excludes: ["$"] },
+  // Added 2026-10-04: the Terms sentence "Harvey Taxi may ... cancel
+  // requests" is about Harvey refusing service, not a rider cancellation
+  // policy, and must never be quoted as one.
+  { q: "What is your cancellation policy?", intent: "policy_question", gap: true, excludes: ["$", "reject"] },
+  { q: "What's your cancellation policy?", intent: "policy_question", gap: true, excludes: ["$", "reject"] },
   { q: "Do you have wheelchair accessible vehicles?", intent: "policy_question", gap: true },
   { q: "What is your service area coverage?", intent: "policy_question", gap: true },
   { q: "Are pets allowed in the car?", intent: "policy_question", gap: true },
