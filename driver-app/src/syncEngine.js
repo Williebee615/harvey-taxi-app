@@ -16,6 +16,9 @@ export function createSyncEngine({
   onSnapshot,
   onStatus = () => {},
   onUnauthorized = () => {},
+  // Called with the error when a read fails, and with null once a read
+  // succeeds again, so the screen can say the server can't be reached.
+  onError = () => {},
   setTimer = (fn, ms) => setTimeout(fn, ms),
   clearTimer = (id) => clearTimeout(id),
   random = Math.random
@@ -27,6 +30,8 @@ export function createSyncEngine({
   let reconnectTimer = null;
   let pollTimer = null;
   let expiryTimer = null;
+  let retryTimer = null;
+  let failures = 0;
   let inFlight = null;
   let queued = false;
   let running = false;
@@ -111,9 +116,27 @@ export function createSyncEngine({
       try {
         const next = await fetchState(reason);
         snapshot = next;
+        retryTimer = clear(retryTimer);
+        if (failures) onError(null);
+        failures = 0;
         onSnapshot(next, reason);
       } catch (err) {
-        if (err && err.status === 401) onUnauthorized();
+        if (err && err.status === 401) {
+          onUnauthorized();
+        } else {
+          // Retry with backoff until a read succeeds. Without this, a
+          // failed first read left the app loading forever (no snapshot,
+          // so no stream and no poll), and an offline driver's screen
+          // would stay stale with nothing asking again.
+          failures += 1;
+          onError(err || new Error('Request failed'));
+          if (running && !retryTimer) {
+            retryTimer = setTimer(() => {
+              retryTimer = null;
+              refresh('retry');
+            }, backoffDelay(failures - 1, random));
+          }
+        }
       } finally {
         inFlight = null;
       }
@@ -136,6 +159,7 @@ export function createSyncEngine({
     stop() {
       running = false;
       closeStream();
+      retryTimer = clear(retryTimer);
       pollTimer = clear(pollTimer);
       expiryTimer = clear(expiryTimer);
       status();
