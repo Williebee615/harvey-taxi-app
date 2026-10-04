@@ -481,7 +481,13 @@ describe("POST /api/driver/offers/:offerId/accept", () => {
     expect(acceptCalls).toEqual([["accept_driver_offer_atomic", { p_offer_id: OFFER_ID, p_driver_id: DRIVER.id }]]);
     // No separate offer or ride write: the assignment commits inside the
     // one transaction, so there is no multi-step flow left to compensate.
-    expect(ridesUpdates(fake)).toHaveLength(0);
+    // The one other write is the pickup record (the estimate shown at
+    // acceptance, for the cancellation policy): record columns only, never
+    // status, assignment or payment.
+    const { PICKUP_RECORD_COLUMNS } = require("../lib/cancellationRecords");
+    const updates = ridesUpdates(fake);
+    expect(updates.length).toBeLessThanOrEqual(1);
+    for (const u of updates) expect(Object.keys(u.patch).every((k) => PICKUP_RECORD_COLUMNS.includes(k))).toBe(true);
     expect(fake._log.filter((e) => e.table === "driver_offers" && e.op === "update")).toHaveLength(0);
   });
 

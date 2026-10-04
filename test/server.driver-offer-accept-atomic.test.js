@@ -378,7 +378,12 @@ describe("POST /api/driver/offers/:offerId/accept (accept_driver_offer_atomic)",
     await accept();
     await settle();
 
-    expect(mockSupabaseClient._state.rides).toEqual(before.rides);
+    // Apart from the pickup record (the estimate shown at acceptance, for
+    // the cancellation policy), which holds no status, assignment or
+    // payment column.
+    const { PICKUP_RECORD_COLUMNS } = require("../lib/cancellationRecords");
+    const withoutRecords = (rows) => rows.map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => !PICKUP_RECORD_COLUMNS.includes(k))));
+    expect(withoutRecords(mockSupabaseClient._state.rides)).toEqual(withoutRecords(before.rides));
     expect(mockSupabaseClient._state.driver_offers).toEqual(before.driver_offers);
   });
 });
