@@ -61,6 +61,13 @@
     ".hta-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}" +
     ".hta-actions a,.hta-actions button{border:1px solid rgba(122,162,255,.35);background:#0a1228;color:#f4f7ff;border-radius:10px;padding:8px 10px;min-height:36px;font:600 13px Inter,Arial,sans-serif;text-decoration:none;cursor:pointer}" +
     ".hta-actions .hta-danger{background:#5a1426;border-color:#ff7e97}" +
+    ".hta-handoff{border:1px solid rgba(104,238,255,.35);background:#0a1228;border-radius:12px;padding:10px;display:grid;gap:8px}" +
+    ".hta-handoff textarea{width:100%;min-height:120px;resize:vertical;border-radius:10px;border:1px solid rgba(122,162,255,.35);background:#060b1a;color:#f4f7ff;padding:8px;font:14px/1.4 Inter,Arial,sans-serif;box-sizing:border-box}" +
+    ".hta-handoff .hta-note{font-size:12px;color:#aab8de}" +
+    ".hta-handoff .hta-err{font-size:13px;color:#ff9bb0}" +
+    ".hta-handoff .hta-row{display:flex;gap:8px;flex-wrap:wrap}" +
+    ".hta-handoff button{border:1px solid rgba(122,162,255,.35);background:#16244a;color:#f4f7ff;border-radius:10px;padding:8px 12px;min-height:40px;font:600 14px Inter,Arial,sans-serif;cursor:pointer}" +
+    ".hta-handoff .hta-primary{background:#1d4ed8;border-color:#1d4ed8}" +
     ".hta-form{display:flex;gap:6px;padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));border-top:1px solid rgba(122,162,255,.18)}" +
     ".hta-form input{flex:1;min-width:0;background:#0a1228;color:#f4f7ff;border:1px solid rgba(122,162,255,.25);border-radius:10px;padding:10px;font:16px Inter,Arial,sans-serif}" +
     ".hta-form button,.hta-close{background:#1d4ed8;color:#fff;border:0;border-radius:10px;padding:8px 14px;font:inherit;cursor:pointer;min-height:40px}" +
@@ -248,10 +255,86 @@
             .then(function (r) { addMessage(r.ok ? "The safety team has been alerted. If anyone is in danger, call 911." : "The alert could not be sent. Call 911 if anyone is in danger.", "bot", { urgent: true }); })
             .catch(function () { addMessage("The alert could not be sent. Call 911 if anyone is in danger.", "bot", { urgent: true }); });
         });
+      } else if (a.type === "support_handoff") {
+        b.addEventListener("click", function () { openHandoff(); });
       } else {
         b.disabled = true;
       }
       return b;
+    }
+
+    // Support handoff (phase 4): the user reviews and edits a draft made
+    // from their own questions; nothing is sent until "Send to support".
+    // "Sent" is shown only when the server returns a reference.
+    var handoffCard = null;
+    function openHandoff() {
+      if (handoffCard) { handoffCard.querySelector("textarea").focus(); return; }
+      var card = el("div", { class: "hta-handoff", "data-testid": "hta-handoff" });
+      handoffCard = card;
+      card.appendChild(el("strong", {}, "Send a request to Harvey Taxi support"));
+      var note = el("div", { class: "hta-note" }, "Preparing a summary…");
+      var area = el("textarea", { maxlength: "1500", "aria-label": "Summary for support", "data-testid": "hta-handoff-text" });
+      area.disabled = true;
+      var err = el("div", { class: "hta-err", role: "alert" });
+      var row = el("div", { class: "hta-row" });
+      var sendBtn = el("button", { type: "button", class: "hta-primary", "data-testid": "hta-handoff-send" }, "Send to support");
+      sendBtn.disabled = true;
+      var cancelBtn = el("button", { type: "button", "data-testid": "hta-handoff-cancel" }, "Cancel");
+      row.appendChild(sendBtn);
+      row.appendChild(cancelBtn);
+      card.appendChild(note);
+      card.appendChild(area);
+      card.appendChild(err);
+      card.appendChild(row);
+      log.appendChild(card);
+      card.scrollIntoView({ block: "nearest" });
+      function close() {
+        if (card.parentNode) card.parentNode.removeChild(card);
+        handoffCard = null;
+      }
+      cancelBtn.addEventListener("click", function () {
+        close();
+        addMessage("Not sent. Nothing was shared with support.", "bot");
+      });
+      fetch("/api/agent/" + role + "/handoff/draft", { method: "POST", credentials: "same-origin", headers: headers(), body: JSON.stringify({ context: history.slice(-6) }) })
+        .then(function (r) { return r.json().catch(function () { return {}; }).then(function (body) { return { ok: r.ok, body: body }; }); })
+        .then(function (res) {
+          if (!res.ok || typeof res.body.draft !== "string") throw new Error("draft");
+          area.value = res.body.draft;
+          note.textContent = res.body.signed_in
+            ? "Review and edit this. Nothing is sent until you tap Send to support. Support will see it with your account contact details."
+            : "Please sign in first so support can reply to your account. You can also use the Support page.";
+          area.disabled = false;
+          sendBtn.disabled = !res.body.signed_in;
+          area.focus();
+        })
+        .catch(function () {
+          note.textContent = "A request can't be prepared right now. Please use the Support page. In an emergency, call 911.";
+        });
+      sendBtn.addEventListener("click", function () {
+        err.textContent = "";
+        sendBtn.disabled = true;
+        area.disabled = true;
+        fetch("/api/agent/" + role + "/handoff", { method: "POST", credentials: "same-origin", headers: headers(), body: JSON.stringify({ summary: area.value, approved: true }) })
+          .then(function (r) { return r.json().catch(function () { return {}; }).then(function (body) { return { ok: r.ok, body: body }; }); })
+          .then(function (res) {
+            if (res.ok && res.body.sent === true && res.body.reference) {
+              close();
+              var msg = res.body.message || ("Sent to Harvey Taxi support. Your reference is " + res.body.reference + ".");
+              addMessage(msg, "bot");
+              remember(msg, "bot");
+              return;
+            }
+            err.textContent = res.body.error || "Your request was not sent. Please try again, or use the Support page.";
+            sendBtn.disabled = false;
+            area.disabled = false;
+          })
+          .catch(function () {
+            err.textContent = "Your request was not sent (no connection). Please try again, or use the Support page.";
+            sendBtn.disabled = false;
+            area.disabled = false;
+          });
+      });
     }
 
     form.addEventListener("submit", function (e) {
@@ -287,6 +370,7 @@
     }
     function reset() {
       history = [];
+      handoffCard = null;
       while (log.firstChild) log.removeChild(log.firstChild);
       greet();
     }

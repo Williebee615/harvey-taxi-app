@@ -36,7 +36,7 @@ Key:
 | Admin-approved articles, `/policies.html` (phase 2) | Server only; PR #182; no build needed | Same as #1 | Server only; no build needed | Same as #3 |
 | Signed-in live account and trip help (read-only) | Live: ride status, fare, cancel help | Same as #1 | In build 9: offers, trip step, earnings, hours | In versionCode 7 |
 | Follow-up context, memory per account, Clear chat, cleared on sign-out (phase 3) | This release; no build needed | Same as #1 | Merged (#180); **needs a new build** (not in build 9) | **Needs a new build** (not in versionCode 7) |
-| Support handoff with a summary the user approves (phase 4) | Not built; server and web work, no build | Same as #1 | Not built; **needs a build** | Not built; **needs a build** |
+| Support handoff with a summary the user approves (phase 4) | Built (assistant panel); no build needed | Same as #1 | Built (native editor; not while on a trip); **needs a new build** | Same as #3 |
 | Confirmed actions | Live: cancel ride (confirm), safety alert (confirm), open booking or tracking | Same as #1 | In build 9: respond to offer, trip step and navigate, each confirmed in the app | In versionCode 7 |
 | Usage limits and accounting | Live (server) | Live | Live | Live |
 | Usage counted per app | **Needs a new rider build** (user-agent tag); until then counted as rider website | Same as #1 | **Needs a new driver build** (sends platform); until then counted as driver website | Same as #3 |
@@ -77,6 +77,7 @@ Key:
 3. Signed in, ask about your ride (rider) or your offers or hours (driver). Expect only your own data.
 4. Ask a follow-up ("and what about my location?"). It is understood. Background and reopen the app; the conversation is still there. Tap Clear chat; it is gone.
 5. Sign out and sign in as a different account. The previous conversation is not shown.
-6. Ask "My driver is threatening me". Expect the 911 guidance with nothing else done automatically.
-7. With the admin kill switch on, the assistant says it is unavailable, and booking (rider) or going online (driver) still works.
-8. Admin dashboard: the request shows under the right app (after the new builds).
+6. Ask "What's the cancellation fee?", then tap **Send a request to support**. Edit the summary and send. A reference appears only after sending, and the request shows in the admin human-review queue with the right app. Tap Cancel on a second try: nothing is sent.
+7. Ask "My driver is threatening me". Expect the 911 guidance with nothing else done automatically.
+8. With the admin kill switch on, the assistant says it is unavailable, and booking (rider) or going online (driver) still works.
+9. Admin dashboard: the request shows under the right app (after the new builds).

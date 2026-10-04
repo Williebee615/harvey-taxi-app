@@ -131,6 +131,9 @@ export function planActions(serverActions, snapshot) {
           out.push({ key: `tab:${a.screen}`, label: a.label || 'Open', tone: 'ghost', confirm: null, run: { type: 'tab', tab: a.screen } });
         }
         break;
+      case 'support_handoff':
+        out.push({ key: 'handoff', label: 'Send a request to support', tone: 'ghost', confirm: null, run: { type: 'handoff' } });
+        break;
       case 'open_support':
         out.push({ key: 'support', label: 'Contact support', tone: 'ghost', confirm: null, run: { type: 'support' } });
         break;

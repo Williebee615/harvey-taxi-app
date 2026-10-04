@@ -522,6 +522,13 @@ const { readLlmConfig: readAgentLlmConfig, createLlmClient: createAgentLlmClient
 const { createAgentTools } = require("./lib/agent/tools");
 const { handleAssist: handleAgentAssist } = require("./lib/agent/assistant");
 const { createKnowledgeStore } = require("./lib/knowledge/store");
+const {
+  draftSummary: draftHandoffSummary,
+  cleanSummary: cleanHandoffSummary,
+  newHandoffReference,
+  handoffCaseEntry,
+  createHandoffLimiter
+} = require("./lib/agent/handoff");
 const { createUsageMeter: createAgentUsageMeter, usageKey: agentUsageKey, summarizeUsage: summarizeAgentUsage, appTarget: agentAppTarget } = require("./lib/agent/usage");
 const {
   AGENT_ACTIONS,
@@ -23679,6 +23686,104 @@ app.post(
   asyncRoute(async (req, res) => {
     return runAgentAssist(req, res, { role: "driver", actor: { role: "driver", id: String(req.driver.id) } });
   })
+);
+
+/* =========================================================
+   SUPPORT HANDOFF (docs/ai-knowledge.md, phase 4)
+   1. draft: the user's own recent questions, for them to edit;
+   2. send: only the text the user approved, only when signed in. The
+      request is recorded as a case in the human-review queue, and the
+      reference is returned only after that record is saved, so the app
+      never says "sent" for a request support can't see. Support is also
+      emailed when email is configured (best effort; the case is the
+      record).
+========================================================= */
+const handoffLimiter = createHandoffLimiter();
+const HANDOFF_NOT_SENT =
+  "Your request was not sent. Please try again, or use the Support page to contact Harvey Taxi. In an emergency, call 911.";
+
+async function runHandoffDraft(req, res, { actor }) {
+  const state = await loadAgentState();
+  if (!state.mode.assist_enabled) return fail(res, "The assistant is not available right now.", 503);
+  return ok(res, {
+    signed_in: Boolean(actor),
+    draft: draftHandoffSummary({ context: req.body?.context }),
+    note: "Review and edit this. Nothing is sent until you tap Send to support."
+  });
+}
+
+async function runHandoffSend(req, res, { role, actor }) {
+  if (!actor) {
+    return fail(res, "Please sign in to send a request, so support can reply to your account. You can also use the Support page.", 401);
+  }
+  const state = await loadAgentState();
+  if (!state.mode.assist_enabled) return res.status(503).json({ ok: false, sent: false, error: HANDOFF_NOT_SENT });
+  if (req.body?.approved !== true) {
+    return fail(res, "Review the summary and confirm before sending.", 400);
+  }
+  const summary = cleanHandoffSummary(req.body?.summary);
+  if (!summary.ok) return fail(res, summary.error, 400);
+  if (!handoffLimiter.allow(`${role}:${actor.id}`)) {
+    return res.status(429).json({ ok: false, sent: false, error: "You've sent several requests in the last hour. Support has them; please wait for a reply, or use the Support page." });
+  }
+  const reference = newHandoffReference();
+  const appTarget = agentAppTarget({ role, client: req.body?.client, platform: req.body?.platform, userAgent: req.get("user-agent") });
+  const saved = await auditLog({ ...handoffCaseEntry({ reference, role, actorId: actor.id, summary: summary.text, appTarget }), req });
+  if (!saved || saved.logged !== true) {
+    return res.status(503).json({ ok: false, sent: false, error: HANDOFF_NOT_SENT });
+  }
+  let emailed = false;
+  try {
+    const mail = await sendEmail({
+      to: SUPPORT_EMAIL,
+      subject: `Harvey Taxi support request ${reference}`,
+      text: `Reference: ${reference}\nFrom: ${role} ${actor.id}\nApp: ${appTarget}\n\n${summary.text}\n\nReview and close it in the Agent Command Center (human review cases).`
+    });
+    emailed = Boolean(mail && mail.sent);
+  } catch {
+    emailed = false;
+  }
+  return ok(res, {
+    sent: true,
+    reference,
+    received_at: nowIso(),
+    support_emailed: emailed,
+    message: `Sent to Harvey Taxi support. Your reference is ${reference}. Harvey Taxi support can see it with your account contact details.`
+  });
+}
+
+const handoffRateLimit = rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "agent_handoff" });
+
+app.post(
+  "/api/agent/rider/handoff/draft",
+  handoffRateLimit,
+  asyncRoute(async (req, res) => {
+    const rider = await resolveVerifiedRiderSession(req);
+    return runHandoffDraft(req, res, { actor: rider ? { id: String(rider.id) } : null });
+  })
+);
+
+app.post(
+  "/api/agent/rider/handoff",
+  handoffRateLimit,
+  asyncRoute(async (req, res) => {
+    const rider = await resolveVerifiedRiderSession(req);
+    return runHandoffSend(req, res, { role: "rider", actor: rider ? { id: String(rider.id) } : null });
+  })
+);
+
+app.post(
+  "/api/agent/driver/handoff/draft",
+  handoffRateLimit,
+  requireDriverSelf,
+  asyncRoute(async (req, res) => runHandoffDraft(req, res, { actor: { id: String(req.driver.id) } }))
+);
+
+app.post(
+  "/api/agent/driver/handoff",
+  handoffRateLimit,
+  requireDriverSelf,
+  asyncRoute(async (req, res) => runHandoffSend(req, res, { role: "driver", actor: { id: String(req.driver.id) } }))
 );
 
 const AGENT_ADMIN_ACTOR = Object.freeze({ role: "admin", id: "admin" });

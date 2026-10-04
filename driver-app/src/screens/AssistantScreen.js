@@ -22,6 +22,8 @@ export default function AssistantScreen({ app, onClose, onOpenTab }) {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [readAloud, setReadAloud] = useState(handsFree);
+  // Support handoff editor: null, or { text, loading, sending, error }.
+  const [handoff, setHandoff] = useState(null);
   const scroll = useRef(null);
   const nextId = useRef(Math.max(0, ...messages.map((m) => m.id)) + 1);
 
@@ -32,6 +34,7 @@ export default function AssistantScreen({ app, onClose, onOpenTab }) {
 
   const clear = () => {
     Speech.stop();
+    setHandoff(null);
     clearChat(accountId);
     nextId.current = 1;
     setMessages(greeting);
@@ -72,8 +75,46 @@ export default function AssistantScreen({ app, onClose, onOpenTab }) {
     }
   };
 
+  const openHandoff = async () => {
+    if (handsFree) {
+      add({ who: 'bot', text: "You can send a request to support once you're not on a trip. For an emergency, call 911." });
+      return;
+    }
+    setHandoff({ text: '', loading: true, sending: false, error: null });
+    try {
+      const res = await actions.draftSupportHandoff(contextFrom(messages));
+      setHandoff({ text: typeof res.draft === 'string' ? res.draft : '', loading: false, sending: false, error: null });
+    } catch {
+      setHandoff({ text: '', loading: false, sending: false, error: "A request can't be prepared right now. Use Contact support instead. In an emergency, call 911." });
+    }
+  };
+
+  const sendHandoff = async () => {
+    if (!handoff || handoff.sending) return;
+    setHandoff({ ...handoff, sending: true, error: null });
+    try {
+      const res = await actions.sendSupportHandoff(handoff.text);
+      if (res && res.sent === true && res.reference) {
+        setHandoff(null);
+        add({ who: 'bot', text: res.message || `Sent to Harvey Taxi support. Your reference is ${res.reference}.` });
+        return;
+      }
+      setHandoff({ ...handoff, sending: false, error: 'Your request was not sent. Please try again, or use Contact support.' });
+    } catch (err) {
+      const msg = err && err.data && err.data.error;
+      setHandoff({ ...handoff, sending: false, error: msg || 'Your request was not sent. Please try again, or use Contact support.' });
+    }
+  };
+
+  const cancelHandoff = () => {
+    setHandoff(null);
+    add({ who: 'bot', text: 'Not sent. Nothing was shared with support.' });
+  };
+
   const execute = async (run) => {
     switch (run.type) {
+      case 'handoff':
+        return openHandoff();
       case 'accept_offer':
         onClose();
         return actions.acceptOffer(run.offerId);
@@ -171,6 +212,37 @@ export default function AssistantScreen({ app, onClose, onOpenTab }) {
           </View>
         ))}
         {sending && <Text style={st.sub}>Checking…</Text>}
+        {handoff && (
+          <View style={st.handoff} testID="assistant-handoff">
+            <Text style={st.handoffTitle}>Send a request to Harvey Taxi support</Text>
+            <Text style={st.sub}>
+              {handoff.loading ? 'Preparing a summary…' : 'Review and edit this. Nothing is sent until you tap Send to support.'}
+            </Text>
+            {!handoff.loading && (
+              <TextInput
+                testID="assistant-handoff-text"
+                style={st.handoffInput}
+                value={handoff.text}
+                onChangeText={(t) => setHandoff({ ...handoff, text: t, error: null })}
+                multiline
+                maxLength={1500}
+                editable={!handoff.sending}
+                accessibilityLabel="Summary for support"
+              />
+            )}
+            {handoff.error ? <Text style={st.handoffError} accessibilityRole="alert">{handoff.error}</Text> : null}
+            <View style={st.handoffRow}>
+              <Button
+                testID="assistant-handoff-send"
+                title={handoff.sending ? 'Sending…' : 'Send to support'}
+                onPress={sendHandoff}
+                disabled={handoff.loading || handoff.sending || handoff.text.trim().length < 10}
+                style={st.handoffBtn}
+              />
+              <Button testID="assistant-handoff-cancel" title="Cancel" kind="ghost" onPress={cancelHandoff} disabled={handoff.sending} style={st.handoffBtn} />
+            </View>
+          </View>
+        )}
       </ScrollView>
 
       <View style={st.chips} accessibilityRole="menu">
@@ -256,5 +328,11 @@ const st = StyleSheet.create({
   toggleText: { color: C.muted, fontWeight: '700', fontSize: 14 },
   form: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   input: { flex: 1, minHeight: 48, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: 'rgba(4,8,20,0.6)', color: C.text, paddingHorizontal: 12, fontSize: 16 },
-  send: { marginTop: 0, minWidth: 80 }
+  send: { marginTop: 0, minWidth: 80 },
+  handoff: { padding: 12, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(99,245,255,0.35)', backgroundColor: '#0a1228', gap: 8 },
+  handoffTitle: { color: C.text, fontSize: 16, fontWeight: '800' },
+  handoffInput: { minHeight: 140, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: 'rgba(4,8,20,0.6)', color: C.text, padding: 10, fontSize: 15, textAlignVertical: 'top' },
+  handoffError: { color: '#ff9bb0', fontSize: 14 },
+  handoffRow: { flexDirection: 'row', gap: 8 },
+  handoffBtn: { flex: 1, marginTop: 0 }
 });

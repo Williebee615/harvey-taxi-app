@@ -74,7 +74,7 @@ test("policy question: quoted from the published page, with source and date", as
   expect(res.body.knowledge_gap).toBe(false);
   expect(res.body.reply).toMatch(/^From our Privacy Policy \("6\. Data Retention", October 2026\): /);
   expect(res.body.sources[0]).toEqual({ title: "Privacy Policy", section: "6. Data Retention", url: "/privacy-policy.html", updated: "October 2026" });
-  expect(res.body.actions).toEqual([{ type: "open_support", label: "Contact support", href: "/support.html" }]);
+  expect(res.body.actions).toEqual([{ type: "support_handoff", label: "Send a request to support", requires_confirmation: true }, { type: "open_support", label: "Contact support", href: "/support.html" }]);
   const [d] = decisions();
   expect(d.metadata).toMatchObject({ outcome: "answered_from_knowledge", knowledge_gap: false, question_excerpt: null });
   expect(d.metadata.knowledge_sources[0]).toBe("/privacy-policy.html#6. Data Retention");
@@ -108,7 +108,7 @@ test("driver policy question from the app links support in-app", async () => {
   useFake();
   const res = await driverAsk("How do I delete my driver account?");
   expect(res.body.sources[0]).toMatchObject({ title: "Privacy Policy", section: "7. Your Choices" });
-  expect(res.body.actions).toEqual([{ type: "open_support", label: "Contact support" }]);
+  expect(res.body.actions).toEqual([{ type: "support_handoff", label: "Send a request to support", requires_confirmation: true }, { type: "open_support", label: "Contact support" }]);
 });
 
 test("switched off: no answer and nothing logged", async () => {

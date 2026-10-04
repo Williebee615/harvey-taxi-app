@@ -28,7 +28,7 @@ What was missing: approved knowledge with sources, policy questions, driver hour
 | **1** | Policy questions from approved published pages (quoted, with source and date; gaps reported); read-only help: ride status, fare, offers, trip step, earnings, **hours**; evaluation set | None | **Deployed** (2026-10-04) |
 | 2 | Admin-managed knowledge: a `knowledge_articles` table (draft, approved, retired; approver and date), an admin page, conflict detection between approved articles, gap queue from `agent.decision` rows with `knowledge_gap` | None | **Built** (see "Admin-approved articles" below) |
 | 3 | Conversation context held **on the device only**, with Clear chat; no server-side history (see §5) | None | **Built** |
-| 4 | Support handoff: the assistant drafts a summary, the user edits and approves it, then it is sent to support; the user sees a reference | None | Planned |
+| 4 | Support handoff: the assistant drafts a summary, the user edits and approves it, then it is sent to support; the user sees a reference | None | **Built** (see §5a) |
 | 5 | Optional model wording and multi-step help, behind spending caps | **Yes** (needs your cost approval) | Not started |
 
 Every change to state (book, cancel, change destination, account changes) stays in the existing routes. The assistant only proposes them; the user confirms; the result shown is the server's response.
@@ -124,6 +124,27 @@ Revisit the framework question only if the evaluation shows multi-step model pla
   - Context is sanitized like any message. It is never stored or logged, and it never chooses an account, a tool or an action.
   - Emergency and other safety checks run on the new message alone.
 - **Saved preferences:** none stored yet. "Read answers aloud" stays a per-screen switch.
+
+## 5a. Support handoff (phase 4)
+
+The flow (`lib/agent/handoff.js`):
+
+1. **Offer.** When the assistant can't answer from approved sources, or someone asks for support, it offers **"Send a request to support"** alongside the usual "Contact support" link.
+2. **Draft.** A short summary is built from **the user's own recent questions only** (`POST /api/agent/{rider|driver}/handoff/draft`). It never includes the assistant's answers or any guessed description of the problem. No model is used.
+3. **Review.** The user edits the text. **Nothing is sent until they tap "Send to support"**; Cancel sends nothing.
+4. **Send.** `POST /api/agent/{rider|driver}/handoff` with `approved: true`. Rules:
+   - The user must be signed in, and the account comes from the session.
+   - The text is 10–1,500 characters. Card numbers, emails and phone numbers are masked.
+   - At most 5 requests per account per hour.
+5. **Record.** The request is saved as a `support_request` case in the existing human-review queue (Agent Command Center → Human review cases). The case shows the full approved text, the account and the app it came from.
+   - A reference (`HT-SUP-YYYYMMDD-XXXXXX`) is returned **only after that record is saved**. If saving fails, the app says "Your request was not sent".
+   - Support is also emailed at `SUPPORT_EMAIL` when email sending is configured. This is best effort; the case is the record.
+6. **Where it appears:**
+   - Rider apps and website: inside the assistant panel.
+   - Driver apps: an in-app editor. While on a trip it doesn't open (no typing while driving) and asks the driver to send it later.
+7. **Off switch.** When the assistant is off or the kill switch is on, nothing is sent.
+
+**Owner process (needed):** someone must watch the human-review queue and close each support request. The assistant only tells users that support can see the request; it promises no reply time.
 
 ## 6. Evaluation (`test/agent-eval/`)
 

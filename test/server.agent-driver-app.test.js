@@ -145,7 +145,7 @@ describe("driver app answers", () => {
     expect(earnings.body.actions).toEqual([{ type: "open_screen", screen: "earnings", label: "Open Earnings" }]);
     const support = await ask("I need to contact support");
     expect(support.body.intent).toBe("driver_support");
-    expect(support.body.actions).toEqual([{ type: "open_support", label: "Contact support" }]);
+    expect(support.body.actions).toEqual([{ type: "support_handoff", label: "Send a request to support", requires_confirmation: true }, { type: "open_support", label: "Contact support" }]);
   });
 
   test("emergencies still go to 911 and a human case first", async () => {
