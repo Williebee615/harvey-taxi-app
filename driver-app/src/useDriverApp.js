@@ -263,9 +263,17 @@ export function useDriverApp() {
     // Support handoff (phase 4): a draft from the driver's own questions,
     // then only the text the driver approved. A reference comes back only
     // once the server has recorded the request.
-    draftSupportHandoff: (context = []) => api.post('/api/agent/driver/handoff/draft', { context }),
-    sendSupportHandoff: (summary) =>
-      api.post('/api/agent/driver/handoff', { summary, approved: true, client: 'driver_app', platform: Platform.OS }),
+    draftSupportHandoff: (context = [], kind = 'general') => api.post('/api/agent/driver/handoff/draft', { context, kind }),
+    sendSupportHandoff: ({ summary, kind = 'general', rideId = null, requestId }) =>
+      api.post('/api/agent/driver/handoff', {
+        summary,
+        approved: true,
+        kind,
+        ride_id: rideId,
+        request_id: requestId,
+        client: 'driver_app',
+        platform: Platform.OS
+      }),
     sendSafetyAlert: (rideId) => api.post('/api/safety/911', { ride_id: rideId || null, message: 'Raised from Harvey Assistant (driver app)' }),
     dismissNotice: () => setNotice(null)
   };

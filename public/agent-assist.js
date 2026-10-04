@@ -256,7 +256,7 @@
             .catch(function () { addMessage("The alert could not be sent. Call 911 if anyone is in danger.", "bot", { urgent: true }); });
         });
       } else if (a.type === "support_handoff") {
-        b.addEventListener("click", function () { openHandoff(); });
+        b.addEventListener("click", function () { openHandoff(a.kind === "lost_item" ? "lost_item" : "general"); });
       } else {
         b.disabled = true;
       }
@@ -267,11 +267,20 @@
     // from their own questions; nothing is sent until "Send to support".
     // "Sent" is shown only when the server returns a reference.
     var handoffCard = null;
-    function openHandoff() {
+    // One id per review: a retry or double tap sends the same id, and the
+    // server returns the first case instead of creating another.
+    function newRequestId() {
+      try { if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID(); } catch (e) { /* fall through */ }
+      return "req-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 12);
+    }
+    function openHandoff(kind) {
       if (handoffCard) { handoffCard.querySelector("textarea").focus(); return; }
+      var lost = kind === "lost_item";
+      var requestId = newRequestId();
+      var rideId = null;
       var card = el("div", { class: "hta-handoff", "data-testid": "hta-handoff" });
       handoffCard = card;
-      card.appendChild(el("strong", {}, "Send a request to Harvey Taxi support"));
+      card.appendChild(el("strong", {}, lost ? (role === "driver" ? "Report a found item" : "Report a lost item") : "Send a request to Harvey Taxi support"));
       var note = el("div", { class: "hta-note" }, "Preparing a summary…");
       var area = el("textarea", { maxlength: "1500", "aria-label": "Summary for support", "data-testid": "hta-handoff-text" });
       area.disabled = true;
@@ -282,8 +291,13 @@
       var cancelBtn = el("button", { type: "button", "data-testid": "hta-handoff-cancel" }, "Cancel");
       row.appendChild(sendBtn);
       row.appendChild(cancelBtn);
+      // A lost-item report can be linked to the account's own recent trip.
+      var rideRow = el("label", { class: "hta-note", "data-testid": "hta-handoff-ride" });
+      var rideBox = el("input", { type: "checkbox" });
+      rideRow.hidden = true;
       card.appendChild(note);
       card.appendChild(area);
+      card.appendChild(rideRow);
       card.appendChild(err);
       card.appendChild(row);
       log.appendChild(card);
@@ -296,7 +310,7 @@
         close();
         addMessage("Not sent. Nothing was shared with support.", "bot");
       });
-      fetch("/api/agent/" + role + "/handoff/draft", { method: "POST", credentials: "same-origin", headers: headers(), body: JSON.stringify({ context: history.slice(-6) }) })
+      fetch("/api/agent/" + role + "/handoff/draft", { method: "POST", credentials: "same-origin", headers: headers(), body: JSON.stringify({ context: history.slice(-6), kind: kind }) })
         .then(function (r) { return r.json().catch(function () { return {}; }).then(function (body) { return { ok: r.ok, body: body }; }); })
         .then(function (res) {
           if (!res.ok || typeof res.body.draft !== "string") throw new Error("draft");
@@ -304,6 +318,13 @@
           note.textContent = res.body.signed_in
             ? "Review and edit this. Nothing is sent until you tap Send to support. Support will see it with your account contact details."
             : "Please sign in first so support can reply to your account. You can also use the Support page.";
+          if (res.body.ride && res.body.ride.id) {
+            rideId = res.body.ride.id;
+            rideBox.checked = true;
+            rideRow.appendChild(rideBox);
+            rideRow.appendChild(document.createTextNode(" Attach this trip for support: " + res.body.ride.label));
+            rideRow.hidden = false;
+          }
           area.disabled = false;
           sendBtn.disabled = !res.body.signed_in;
           area.focus();
@@ -315,12 +336,13 @@
         err.textContent = "";
         sendBtn.disabled = true;
         area.disabled = true;
-        fetch("/api/agent/" + role + "/handoff", { method: "POST", credentials: "same-origin", headers: headers(), body: JSON.stringify({ summary: area.value, approved: true }) })
+        fetch("/api/agent/" + role + "/handoff", { method: "POST", credentials: "same-origin", headers: headers(), body: JSON.stringify({ summary: area.value, approved: true, kind: kind, ride_id: rideId && rideBox.checked ? rideId : null, request_id: requestId }) })
           .then(function (r) { return r.json().catch(function () { return {}; }).then(function (body) { return { ok: r.ok, body: body }; }); })
           .then(function (res) {
-            if (res.ok && res.body.sent === true && res.body.reference) {
+            // Only a saved case (with its reference) counts as received.
+            if (res.ok && res.body.case_created === true && res.body.reference) {
               close();
-              var msg = res.body.message || ("Sent to Harvey Taxi support. Your reference is " + res.body.reference + ".");
+              var msg = res.body.message || ("Received. Your case reference is " + res.body.reference + ".");
               addMessage(msg, "bot");
               remember(msg, "bot");
               return;

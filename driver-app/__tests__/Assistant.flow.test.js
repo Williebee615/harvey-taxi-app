@@ -59,7 +59,7 @@ import * as Speech from 'expo-speech';
 global.XMLHttpRequest = function XHR() {};
 global.XMLHttpRequest.prototype = { open() {}, setRequestHeader() {}, send() {}, abort() {} };
 
-const server = { calls: [], bodies: [], assist: true, online: true, offers: [], ride: null, nextAssist: null, handoffBodies: [], handoffReply: null };
+const server = { calls: [], bodies: [], assist: true, online: true, offers: [], ride: null, nextAssist: null, handoffBodies: [], draftBodies: [], handoffReply: null };
 const snapshot = () => ({
   ok: true,
   server_time: new Date().toISOString(),
@@ -86,11 +86,15 @@ global.fetch = jest.fn(async (url, init = {}) => {
     return reply({ ok: true, agent_available: true, source: 'rules', escalation: null, ...server.nextAssist });
   }
   if (path === '/api/agent/driver/handoff/draft') {
-    return reply({ ok: true, signed_in: true, draft: 'I need help from Harvey Taxi support.\n\nWhat I asked the assistant:\n- I need to contact support\n\nMore details: ' });
+    server.draftBodies.push(body);
+    if (body.kind === 'lost_item') {
+      return reply({ ok: true, signed_in: true, kind: 'lost_item', ride: { id: 'TEST-RIDE-9', label: 'Sun, Oct 4, 1:23 PM: TEST 1 Broadway to TEST BNA' }, draft: 'Found item report (a rider left something in my car).\n\nTrip: Sun, Oct 4, 1:23 PM: TEST 1 Broadway to TEST BNA\nItem found: ' });
+    }
+    return reply({ ok: true, signed_in: true, kind: 'general', ride: null, draft: 'I need help from Harvey Taxi support.\n\nWhat I asked the assistant:\n- I need to contact support\n\nMore details: ' });
   }
   if (path === '/api/agent/driver/handoff') {
     server.handoffBodies.push(body);
-    const r = server.handoffReply || { status: 200, data: { ok: true, sent: true, reference: 'HT-SUP-20261004-ABC234', message: 'Sent to Harvey Taxi support. Your reference is HT-SUP-20261004-ABC234.' } };
+    const r = server.handoffReply || { status: 200, data: { ok: true, sent: true, case_created: true, duplicate: false, reference: 'HT-SUP-20261004-ABC234', email: { status: 'accepted' }, message: "Received. Your request is in Harvey Taxi's support queue as case HT-SUP-20261004-ABC234." } };
     return reply(r.data, r.status);
   }
   if (path === '/api/driver/status') {
@@ -149,7 +153,7 @@ beforeEach(() => {
   clearAllChats();
   mockStore.harvey_driver_token = 'TOKEN_A';
   mockStore.harvey_driver_id = 'DRIVER_A';
-  Object.assign(server, { calls: [], bodies: [], assist: true, online: true, offers: [], ride: null, nextAssist: null, handoffBodies: [], handoffReply: null });
+  Object.assign(server, { calls: [], bodies: [], assist: true, online: true, offers: [], ride: null, nextAssist: null, handoffBodies: [], draftBodies: [], handoffReply: null });
   Speech.speak.mockClear();
 });
 afterEach(() => jest.restoreAllMocks());
@@ -325,9 +329,11 @@ describe('support handoff (phase 4)', () => {
     expect(server.calls).not.toContain('POST /api/agent/driver/handoff'); // nothing sent yet
     await typeSummary(tree, 'Please check my payout for last week. (test fixture)');
     await press(tree, 'assistant-handoff-send');
-    expect(server.handoffBodies).toEqual([{ summary: 'Please check my payout for last week. (test fixture)', approved: true, client: 'driver_app', platform: Platform.OS }]);
+    expect(server.handoffBodies).toEqual([
+      { summary: 'Please check my payout for last week. (test fixture)', approved: true, kind: 'general', ride_id: null, request_id: expect.stringMatching(/^req-/), client: 'driver_app', platform: Platform.OS }
+    ]);
     expect(has(tree, 'assistant-handoff')).toBe(false);
-    expect(text(tree)).toContain('Your reference is HT-SUP-20261004-ABC234');
+    expect(text(tree)).toContain('support queue as case HT-SUP-20261004-ABC234');
     await act(async () => tree.unmount());
   });
 
@@ -340,7 +346,7 @@ describe('support handoff (phase 4)', () => {
     await press(tree, 'assistant-handoff-send');
     expect(has(tree, 'assistant-handoff')).toBe(true);
     expect(text(tree)).toContain('Your request was not sent');
-    expect(text(tree)).not.toContain('Your reference is');
+    expect(text(tree)).not.toContain('support queue as case');
     await act(async () => tree.unmount());
   });
 
@@ -368,4 +374,58 @@ describe('support handoff (phase 4)', () => {
     expect(text(tree)).toContain("once you're not on a trip");
     await act(async () => tree.unmount());
   });
+
+  test('found item: draft with the trip, trip attached by default and removable; a double tap sends once', async () => {
+    server.nextAssist = {
+      reply: 'If a rider left something in your car, you can send a found-item report.',
+      intent: 'lost_item',
+      actions: [{ type: 'support_handoff', kind: 'lost_item', label: 'Report a found item', requires_confirmation: true }, { type: 'open_support', label: 'Contact support' }]
+    };
+    const tree = await start();
+    await press(tree, 'open-assistant');
+    const input = tree.root.findAll((n) => n.props && n.props.testID === 'assistant-input' && n.props.onChangeText)[0];
+    await act(async () => input.props.onChangeText('A rider left a bag in my car'));
+    await press(tree, 'assistant-send');
+    await press(tree, 'assistant-action-handoff-lost');
+    expect(server.draftBodies[0].kind).toBe('lost_item');
+    expect(text(tree)).toContain('Report a found item');
+    expect(text(tree)).toContain('Attach this trip for support');
+    await typeSummary(tree, 'Found item report. Item found: blue umbrella (test fixture)');
+    // Two quick taps.
+    const btn = find(tree, 'assistant-handoff-send')[0];
+    await act(async () => {
+      btn.props.onPress();
+      btn.props.onPress();
+    });
+    await flush();
+    expect(server.handoffBodies).toHaveLength(1);
+    expect(server.handoffBodies[0]).toMatchObject({ kind: 'lost_item', ride_id: 'TEST-RIDE-9', approved: true });
+    await act(async () => tree.unmount());
+  });
+
+  test('found item: unticking the trip sends no ride id', async () => {
+    server.nextAssist = { reply: 'Found item.', intent: 'lost_item', actions: [{ type: 'support_handoff', kind: 'lost_item' }] };
+    const tree = await start();
+    await press(tree, 'open-assistant');
+    await press(tree, 'assistant-quick-earnings');
+    await press(tree, 'assistant-action-handoff-lost');
+    await press(tree, 'assistant-handoff-ride');
+    await typeSummary(tree, 'Found item report. Item found: keys (test fixture)');
+    await press(tree, 'assistant-handoff-send');
+    expect(server.handoffBodies[0].ride_id).toBeNull();
+    await act(async () => tree.unmount());
+  });
+});
+
+test('conversation memory lasts for the app session only: a fresh app start has none', () => {
+  const memory = require('../src/chatMemory');
+  memory.saveChat('DRIVER_A', [{ id: 1, who: 'me', text: 'How long do you keep my data?' }]);
+  expect(memory.loadChat('DRIVER_A')).toHaveLength(1);
+  // A cold start loads the app's JavaScript again; nothing was written to disk.
+  jest.isolateModules(() => {
+    const fresh = require('../src/chatMemory');
+    expect(fresh.loadChat('DRIVER_A')).toBeNull();
+  });
+  expect(mockStore).not.toHaveProperty('harvey_assistant_chat');
+  expect(Object.keys(mockStore).some((k) => /chat/i.test(k))).toBe(false);
 });

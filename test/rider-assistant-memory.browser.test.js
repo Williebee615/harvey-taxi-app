@@ -5,7 +5,8 @@
 // - Signed out: recent turns are sent with a follow-up; "Clear chat"
 //   empties the panel; nothing is written to browser storage.
 // - Signed in: turns are kept in sessionStorage for that account only,
-//   restored after a reload, removed by Clear chat and by signing out.
+//   restored after a reload, removed by Clear chat and by signing out, and
+//   NOT carried into a new session (closing and reopening the app).
 //
 // Needs Playwright and Chromium; skips without them (CI has no browser).
 process.env.NODE_ENV = "test";
@@ -134,6 +135,17 @@ describeWithBrowser("rider assistant: conversation memory and Clear chat", () =>
     expect(await page.textContent("#htaPanel .hta-log")).toContain("How long do you keep my data?");
     await ask("and what about my location?", 3);
     expect(bodies[bodies.length - 1].context[0]).toEqual({ role: "user", text: "How long do you keep my data?" });
+
+    // Closing and reopening the app (a new WebView session, still signed
+    // in): session memory does not carry over.
+    const reopened = await context.newPage();
+    await reopened.goto(`${base}/rider-dashboard.html`);
+    await reopened.waitForSelector("[data-testid=hta-launcher]", { timeout: 20000 });
+    await reopened.waitForFunction(() => window.__harveyAssistantAccount && window.__harveyAssistantAccount.id === "RIDER_1", null, { timeout: 20000 });
+    await reopened.click("[data-testid=hta-launcher]");
+    expect(await reopened.$$eval("#htaPanel .hta-msg", (els) => els.length)).toBe(1); // greeting only
+    expect(await reopened.evaluate(() => Object.keys(sessionStorage).filter((k) => k.indexOf("hta_chat:") === 0))).toEqual([]);
+    await reopened.close();
 
     // Another account on this device sees none of it.
     await page.evaluate(() => {

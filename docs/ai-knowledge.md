@@ -106,7 +106,9 @@ Local screenshots (test fixture data on a local test server, not production and 
 
 Revisit the framework question only if the evaluation shows multi-step model planning beating the rules on real questions.
 
-## 5. Conversation memory (phase 3, built: device only)
+## 5. Conversation memory (phase 3, built: device only, current app session)
+
+Memory lasts while the app (or browser tab) stays open. It is **not** kept after the app is closed and reopened. See the per-target table in `docs/ai-four-targets.md`.
 
 **No conversation history is stored on the server** (owner decision, 2026-10-04).
 
@@ -136,9 +138,23 @@ The flow (`lib/agent/handoff.js`):
    - The user must be signed in, and the account comes from the session.
    - The text is 10–1,500 characters. Card numbers, emails and phone numbers are masked.
    - At most 5 requests per account per hour.
-5. **Record.** The request is saved as a `support_request` case in the existing human-review queue (Agent Command Center → Human review cases). The case shows the full approved text, the account and the app it came from.
+   - **Duplicates:** the app sends one `request_id` per review, and the Send button is disabled while sending. A retry or double tap with the same id, or the same text from the same account within 15 minutes, returns the first case (`duplicate: true`). Simultaneous duplicates share one save. A failed save is forgotten, so the user can retry. These records live in server memory, so a server restart between two taps could still allow a second case.
+5. **Record.** The request is saved as a `support_request` (or `lost_item`) case in the existing human-review queue (Agent Command Center → Human review cases). The case shows the full approved text, the account and the app it came from.
    - A reference (`HT-SUP-YYYYMMDD-XXXXXX`) is returned **only after that record is saved**. If saving fails, the app says "Your request was not sent".
-   - Support is also emailed at `SUPPORT_EMAIL` when email sending is configured. This is best effort; the case is the record.
+   - **Email copy, reported separately from the case:** after the case is saved, a copy goes to **support@harveytaxiservice.com**, which `HANDOFF_SUPPORT_EMAIL` can override. The outcome is recorded on its own row (`agent.handoff_email`) and shown on the case:
+     - `accepted`: the email service took it; delivery is not confirmed;
+     - `not_configured`;
+     - `failed`;
+     - `pending`: still sending after 8 seconds; the outcome is recorded when it finishes.
+
+     A failed email never undoes the case. The user's message mentions only the case.
+   - **Lost and found items** (`kind: "lost_item"`):
+     - **Rider:** "I left my phone…" offers **Report a lost item**.
+     - **Driver:** "A rider left a bag…" offers **Report a found item**.
+     - **Draft:** a fill-in template with the account's own most recent trip from the last 14 days, cancelled trips excluded.
+     - **Trip link:** the user can untick it. A trip sent with the report must belong to that account, or it is refused.
+     - **Recorded as:** a `lost_item` case.
+     - **No promises:** the assistant says it can't promise the item will be found, and that no approved policy on returns or fees exists.
 6. **Where it appears:**
    - Rider apps and website: inside the assistant panel.
    - Driver apps: an in-app editor. While on a trip it doesn't open (no typing while driving) and asks the driver to send it later.
