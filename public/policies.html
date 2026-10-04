@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harvey Taxi — Policies and answers</title>
+  <meta name="description" content="Harvey Taxi policies and answers approved by Harvey Taxi, as quoted by the Harvey Taxi assistant." />
+  <style>
+    :root {
+      --bg-1: #06101f; --bg-2: #0a1830; --bg-3: #0e2244;
+      --panel: rgba(10, 20, 40, 0.88); --line: rgba(126, 174, 255, 0.16);
+      --text: #f5f8ff; --muted: #b4c0df; --blue: #6aa8ff; --cyan: #68eeff;
+      --radius: 18px; --max: 860px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh; font-family: Arial, Helvetica, sans-serif; color: var(--text); line-height: 1.55;
+      background: linear-gradient(180deg, var(--bg-1), var(--bg-2) 48%, var(--bg-3));
+    }
+    a { color: var(--blue); }
+    .shell { width: min(100%, var(--max)); margin: 0 auto; padding: 18px 16px 40px; }
+    header { padding: 8px 0 18px; }
+    h1 { font-size: 1.7rem; margin-bottom: 6px; }
+    h2 { font-size: 1.15rem; margin-bottom: 6px; scroll-margin-top: 16px; }
+    .muted { color: var(--muted); font-size: .92rem; }
+    nav { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; font-size: .92rem; }
+    article { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; margin-top: 14px; }
+    article:target { border-color: var(--cyan); }
+    .body { white-space: pre-line; margin-top: 8px; }
+    .meta { margin-top: 10px; font-size: .82rem; color: var(--muted); }
+    .empty { background: var(--panel); border: 1px dashed var(--line); border-radius: var(--radius); padding: 16px; margin-top: 14px; }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <h1>Policies and answers</h1>
+      <p class="muted">Answers approved by Harvey Taxi. The Harvey Taxi assistant quotes these, along with our Terms, Privacy Policy and Support pages, and links here as its source.</p>
+      <nav><a href="/">Home</a><a href="/terms.html">Terms</a><a href="/privacy-policy.html">Privacy Policy</a><a href="/support.html">Support</a></nav>
+    </header>
+    <main id="articles" aria-live="polite"><p class="muted">Loading…</p></main>
+  </div>
+  <script>
+  (() => {
+    const root = document.getElementById("articles");
+    const AUDIENCE = { rider: "Riders", driver: "Drivers" };
+    function date(iso) {
+      const d = new Date(iso);
+      return isNaN(d) ? "" : d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" });
+    }
+    function empty(text) {
+      root.innerHTML = "";
+      const p = document.createElement("p");
+      p.className = "empty";
+      p.textContent = text;
+      root.appendChild(p);
+    }
+    fetch("/api/knowledge/articles", { headers: { Accept: "application/json" } })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((data) => {
+        const list = (data && data.articles) || [];
+        if (!list.length) return empty("No additional answers have been published yet. Please see our Terms, Privacy Policy and Support pages, or contact Harvey Taxi support.");
+        root.innerHTML = "";
+        list.slice().sort((a, b) => String(a.title).localeCompare(String(b.title))).forEach((a) => {
+          const el = document.createElement("article");
+          el.id = a.slug;
+          const h = document.createElement("h2");
+          h.textContent = a.title;
+          const body = document.createElement("p");
+          body.className = "body";
+          body.textContent = a.body;
+          const meta = document.createElement("p");
+          meta.className = "meta";
+          const who = (a.audience || []).map((x) => AUDIENCE[x] || x).join(" and ");
+          meta.textContent = `For: ${who || "Riders and Drivers"} · Approved ${date(a.approved_at)} · Version ${a.version}`;
+          el.append(h, body, meta);
+          root.appendChild(el);
+        });
+        if (location.hash) {
+          const target = document.getElementById(decodeURIComponent(location.hash.slice(1)));
+          if (target) target.scrollIntoView();
+        }
+      })
+      .catch(() => empty("These answers can't be loaded right now. Please see our Terms, Privacy Policy and Support pages, or contact Harvey Taxi support."));
+  })();
+  </script>
+</body>
+</html>

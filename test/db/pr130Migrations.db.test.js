@@ -34,7 +34,9 @@ const EXPECTED_ORDER = [
   // Likewise; covered by test/db/riderLiveLocation.db.test.js.
   "20261004140000_add_rider_live_location.sql",
   // Likewise; covered by test/db/driverOnlineSessions.db.test.js.
-  "20261004160000_add_driver_online_sessions.sql"
+  "20261004160000_add_driver_online_sessions.sql",
+  // Likewise; covered by test/db/knowledgeArticles.db.test.js.
+  "20261004190000_add_knowledge_articles.sql"
 ];
 
 // Synthetic pre-existing row (no production data), inserted after the
