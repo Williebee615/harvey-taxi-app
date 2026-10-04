@@ -98,6 +98,7 @@ Every fallback is recorded with a reason (`fallback_reason`). When Anthropic ref
 | Variable | Purpose |
 |---|---|
 | `ANTHROPIC_API_KEY` | The Claude API key. The owner adds it in Render; it never goes in chat or GitHub. Unset means the model is off. |
+| `ANTHROPIC_WORKSPACE_ID` | Optional. The Claude Console workspace ID (`wrkspc_...`), sent as the `anthropic-workspace-id` header. Needed only when the key is an organization key not created inside a workspace; Anthropic refuses such requests with "This API key is not scoped to a workspace". Not a secret. |
 | `AGENT_MODEL_MONTHLY_BUDGET_USD` | Optional; lowers the budget below $10. |
 | `AGENT_MODEL_PUBLIC_APPROVED` | Set to `true` only after the owner approves the privacy disclosure. Allows mode `all`. |
 

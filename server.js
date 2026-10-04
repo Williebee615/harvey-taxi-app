@@ -24302,6 +24302,7 @@ function modelStatus(state) {
     provider: "anthropic",
     model: claudeConfig.model,
     configured: claudeConfig.configured,
+    workspace_header: Boolean(claudeConfig.workspaceId),
     problem: claudeConfig.problem,
     mode: state.model.mode,
     stored_mode: state.model.stored_mode,
