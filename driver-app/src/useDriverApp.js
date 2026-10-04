@@ -2,7 +2,7 @@
 // app lifecycle. Screens call these actions; every authorization decision
 // is the server's.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState, Vibration } from 'react-native';
+import { AppState, Platform, Vibration } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 
 import { API_BASE } from './config';
@@ -253,7 +253,7 @@ export function useDriverApp() {
     assistantStatus: () => api.get('/api/agent/status'),
     askAssistant: async (message, context = []) => {
       try {
-        return await api.post('/api/agent/driver/assist', { message, client: 'driver_app', context });
+        return await api.post('/api/agent/driver/assist', { message, client: 'driver_app', platform: Platform.OS, context });
       } catch (err) {
         // Off or killed: the server still sends a safe reply to show.
         if (err instanceof ApiError && err.data && err.data.reply) return { ...err.data, unavailable: true };

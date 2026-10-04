@@ -45,10 +45,28 @@ The existing per-IP rate limit (20 assistant requests a minute) still applies.
 - **Dashboard:** one query over the last 7 days of `audit_logs` (capped at 20,000 rows), only when an admin opens the page.
 - **Trade-off:** in-memory counters restart when the server restarts or deploys, and are per server instance. After a restart, an account can use up to one more day's allowance. A durable counter would add a database write per request, which phase 1 deliberately avoids after the 2026-10-04 database outage.
 
+## Counted per app
+
+Every request is labelled with the app it came from:
+- rider iOS app;
+- rider Android app;
+- rider website;
+- driver iOS app;
+- driver Android app;
+- driver website.
+
+It is stored in the audit row as `app_target` and shown on the dashboard under "By app".
+
+- **Rider apps:** recognised by the tag their WebView adds to its user agent (`HarveyTaxiRider/<version> (ios|android)`).
+- **Driver apps:** send their platform.
+- **Older builds** without these are counted as website.
+
+The label is reported by the app itself. It is used for reporting only and never for permissions: role and account always come from the verified session.
+
 ## Dashboard (`/admin-agent.html`)
 
 - **Today, live:**
-  - requests, split into signed-in riders, drivers and signed-out visitors;
+  - requests, split into signed-in riders, drivers and signed-out visitors, and by app;
   - requests refused by a limit;
   - model calls.
 - **Last 7 days:**

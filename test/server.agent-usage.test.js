@@ -105,3 +105,21 @@ test("limits are admin-editable through the existing rules, with bounds", async 
   const bad = await request(app).post("/api/admin/agent/rules").set(ADMIN).send({ rules: { assist_daily_limit_global: 0 } });
   expect(bad.status).toBe(400);
 });
+
+test("usage is counted per app: rider iOS/Android apps by user-agent tag, driver apps by platform, others as web", async () => {
+  useFake();
+  const ask = (path, ua, body = {}) => {
+    const r = request(app).post(path).set("User-Agent", ua);
+    return path.includes("driver") ? r.set(driverAuthHeaders(signTestDriverToken("DRIVER_1"))).send({ message: "How do I contact support?", ...body }) : r.send({ message: "How do I contact support?", ...body });
+  };
+  await ask("/api/agent/rider/assist", "Mozilla/5.0 (iPhone) Mobile/15E148 HarveyTaxiRider/1.0.2 (ios)");
+  await ask("/api/agent/rider/assist", "Mozilla/5.0 (Linux; Android 14; wv) HarveyTaxiRider/1.0.2 (android)");
+  await ask("/api/agent/rider/assist", "Mozilla/5.0 Safari", { client: "driver_app", platform: "ios" });
+  await ask("/api/agent/driver/assist", "okhttp", { client: "driver_app", platform: "android" });
+  await ask("/api/agent/driver/assist", "Expo", { client: "driver_app", platform: "ios" });
+  const targets = currentFake._state.audit_logs.filter((a) => a.action === "agent.decision").map((a) => a.metadata.app_target);
+  expect(targets).toEqual(["rider_ios_app", "rider_android_app", "rider_web", "driver_android_app", "driver_ios_app"]);
+  const res = await request(app).get("/api/admin/agent/usage").set(ADMIN);
+  expect(res.body.history.totals.by_target).toMatchObject({ rider_ios_app: 1, rider_android_app: 1, rider_web: 1, driver_android_app: 1, driver_ios_app: 1 });
+  expect(res.body.today_live.by_target.rider_ios_app).toBeGreaterThanOrEqual(1);
+});

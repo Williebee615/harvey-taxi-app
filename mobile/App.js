@@ -27,8 +27,12 @@ import {
   PAGE_STATE_SCRIPT,
   decideAndroidBack,
   parseShellMessage,
-  resolveIncomingLink
+  resolveIncomingLink,
+  riderAppUserAgentTag
 } from './src/navigation';
+import appConfig from './app.json';
+
+const USER_AGENT_TAG = riderAppUserAgentTag(Platform.OS, appConfig.expo.version);
 
 // Launch check (see src/navigation.js): 'pending' until the home page
 // reports whether a signed-in rider is being sent to the dashboard,
@@ -231,6 +235,7 @@ export function HarveyTaxiShell() {
           onContentProcessDidTerminate={onProcessGone}
           onRenderProcessGone={onProcessGone}
           javaScriptEnabled
+          applicationNameForUserAgent={USER_AGENT_TAG}
           // Location for the pickup point and, if the rider turns it on,
           // sharing with the driver until pickup (docs/live-map-tracking.md).
           // The page asks; Android's permission prompt comes from the WebView.

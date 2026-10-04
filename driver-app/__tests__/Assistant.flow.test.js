@@ -5,7 +5,7 @@
 // (no typing, answers read aloud). Native modules are mocked.
 import React from 'react';
 import renderer, { act } from 'react-test-renderer';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 
 const mockStore = {};
 jest.mock('expo-secure-store', () => ({
@@ -161,7 +161,7 @@ test('asks with the driver session and client "driver_app"; nothing changes with
   server.nextAssist = { intent: 'driver_availability', reply: 'You control your availability…', actions: [{ type: 'toggle_availability', requires_confirmation: true }] };
   await press(tree, 'assistant-quick-online');
   // First question: no earlier turns, so an empty context.
-  expect(server.bodies[0]).toEqual({ message: 'How do I go online?', client: 'driver_app', context: [] });
+  expect(server.bodies[0]).toEqual({ message: 'How do I go online?', client: 'driver_app', platform: Platform.OS, context: [] });
   expect(Speech.speak).not.toHaveBeenCalled(); // read-aloud is off unless driving or switched on
 
   // The driver is online, so the proposal becomes "Go offline". Cancelling

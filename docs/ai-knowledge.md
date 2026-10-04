@@ -113,9 +113,11 @@ Revisit the framework question only if the evaluation shows multi-step model pla
 - **Driver app** (`driver-app/src/chatMemory.js`):
   - Each signed-in account's conversation is kept in app memory, so leaving and reopening the assistant keeps it.
   - **Clear chat** empties it. Signing out clears every conversation, and an app restart clears memory. Nothing is written to disk.
-- **Rider website / rider app panel** (`public/agent-assist.js`):
-  - The conversation lives only in the open page; nothing is saved in browser storage.
-  - **Clear chat** empties it. Leaving the page or signing out (which reloads it) clears it.
+- **Rider apps (iOS and Android WebView) and rider website** (`public/agent-assist.js`):
+  - **Signed in:** each account's last 12 turns are kept in session storage (`hta_chat:rider:<id>`) for the current app or browser session, so the conversation survives a reload or moving around the dashboard. They are shown again as plain text; earlier action buttons are not restored.
+  - **Signed out:** the conversation lives only in the open page; nothing is saved.
+  - **Clear chat** deletes the saved turns. **Signing out** deletes every saved conversation on the device. Closing the app or browser session ends it.
+- **All four targets:** `docs/ai-four-targets.md`.
 - **Follow-ups** (`lib/agent/followUp.js`):
   - With each question the device sends its last 6 turns (text only, 500 characters each).
   - The server uses them for one thing: a short follow-up ("and what about my location?") is searched together with the previous question.

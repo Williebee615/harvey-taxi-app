@@ -102,3 +102,11 @@ describe('isDriverOperationsUrl', () => {
     expect(isDriverOperationsUrl(url)).toBe(expected);
   });
 });
+
+test('rider app user-agent tag: platform and version are constrained', () => {
+  const { riderAppUserAgentTag } = require('../src/navigation');
+  expect(riderAppUserAgentTag('ios', '1.0.3')).toBe('HarveyTaxiRider/1.0.3 (ios)');
+  expect(riderAppUserAgentTag('android', '1.0.3')).toBe('HarveyTaxiRider/1.0.3 (android)');
+  expect(riderAppUserAgentTag('web', '1.0.3')).toBe('HarveyTaxiRider/1.0.3 (other)');
+  expect(riderAppUserAgentTag('ios', 'bad version) x')).toBe('HarveyTaxiRider/0 (ios)');
+});

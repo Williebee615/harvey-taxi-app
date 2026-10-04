@@ -1,6 +1,11 @@
-// Browser check of the rider assistant's conversation memory (phase 3):
-// recent turns are sent with a follow-up; "Clear chat" empties the panel
-// and the memory; nothing is written to browser storage.
+// Browser check of the rider assistant's conversation memory (phase 3).
+// This same page runs inside the Harvey Taxi rider iOS and Android apps
+// (WebView shell in mobile/); this test is a desktop-Chromium stand-in,
+// not a device test.
+// - Signed out: recent turns are sent with a follow-up; "Clear chat"
+//   empties the panel; nothing is written to browser storage.
+// - Signed in: turns are kept in sessionStorage for that account only,
+//   restored after a reload, removed by Clear chat and by signing out.
 //
 // Needs Playwright and Chromium; skips without them (CI has no browser).
 process.env.NODE_ENV = "test";
@@ -15,7 +20,7 @@ delete process.env.FOUNDATION_HOST;
 delete process.env.AGENT_LLM_BASE_URL;
 
 const { createFakeSupabase } = require("./fakeSupabase");
-const { makeRider, makeDriver } = require("./rideTestHelpers");
+const { makeRider, makeDriver, signTestRiderToken } = require("./rideTestHelpers");
 
 let mockSupabaseClient;
 jest.mock("@supabase/supabase-js", () => ({ createClient: () => mockSupabaseClient }));
@@ -32,7 +37,7 @@ jest.setTimeout(90000);
 
 const HOST = "harveytaxiservice.test";
 
-describeWithBrowser("rider assistant: page-only memory and Clear chat", () => {
+describeWithBrowser("rider assistant: conversation memory and Clear chat", () => {
   let server;
   let browser;
   let base;
@@ -60,7 +65,7 @@ describeWithBrowser("rider assistant: page-only memory and Clear chat", () => {
     }
   });
 
-  test("follow-up carries context; Clear chat resets; no browser storage", async () => {
+  test("signed out: follow-up carries context; Clear chat resets; no browser storage", async () => {
     const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
     await context.route(/^https?:\/\/(?!harveytaxiservice\.test)/, (route) => route.abort());
     const page = await context.newPage();
@@ -91,6 +96,68 @@ describeWithBrowser("rider assistant: page-only memory and Clear chat", () => {
 
     const storageAfter = await page.evaluate(() => JSON.stringify(Object.keys(localStorage).concat(Object.keys(sessionStorage))));
     expect(storageAfter).toBe(storageBefore);
+    await context.close();
+  });
+
+  test("signed in: kept per account for the session, restored on reload, removed by Clear chat and sign-out", async () => {
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    await context.route(/^https?:\/\/(?!harveytaxiservice\.test)/, (route) => route.abort());
+    await context.addCookies([{ name: "harvey_rider_session", value: encodeURIComponent(signTestRiderToken("RIDER_1")), url: base }]);
+    const page = await context.newPage();
+    const errors = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    const bodies = [];
+    page.on("request", (r) => {
+      if (r.url().includes("/api/agent/rider/assist")) bodies.push(JSON.parse(r.postData() || "{}"));
+    });
+    const open = async () => {
+      await page.waitForSelector("[data-testid=hta-launcher]", { timeout: 20000 });
+      await page.waitForFunction(() => window.__harveyAssistantAccount && window.__harveyAssistantAccount.id === "RIDER_1", null, { timeout: 20000 });
+      await page.click("[data-testid=hta-launcher]");
+    };
+    const ask = async (q, n) => {
+      await page.fill("#htaPanel input[type=text]", q);
+      await page.press("#htaPanel input[type=text]", "Enter");
+      await page.waitForFunction((count) => document.querySelectorAll("#htaPanel .hta-bot").length >= count, n, { timeout: 15000 });
+    };
+    const saved = () => page.evaluate(() => Object.keys(sessionStorage).filter((k) => k.indexOf("hta_chat:") === 0));
+
+    await page.goto(`${base}/rider-dashboard.html`);
+    await open();
+    await ask("How long do you keep my data?", 2);
+    expect(await saved()).toEqual(["hta_chat:rider:RIDER_1"]);
+    expect(await page.evaluate(() => Object.keys(localStorage).some((k) => k.indexOf("hta_chat") === 0))).toBe(false);
+
+    // Reload: the conversation is restored and used for a follow-up.
+    await page.reload();
+    await open();
+    expect(await page.textContent("#htaPanel .hta-log")).toContain("How long do you keep my data?");
+    await ask("and what about my location?", 3);
+    expect(bodies[bodies.length - 1].context[0]).toEqual({ role: "user", text: "How long do you keep my data?" });
+
+    // Another account on this device sees none of it.
+    await page.evaluate(() => {
+      window.__harveyAssistantAccount = { role: "rider", id: "RIDER_OTHER" };
+      window.dispatchEvent(new CustomEvent("harvey:assistant-account"));
+    });
+    expect(await page.$$eval("#htaPanel .hta-msg", (els) => els.length)).toBe(1);
+    await page.evaluate(() => {
+      window.__harveyAssistantAccount = { role: "rider", id: "RIDER_1" };
+      window.dispatchEvent(new CustomEvent("harvey:assistant-account"));
+    });
+    expect(await page.textContent("#htaPanel .hta-log")).toContain("what about my location?");
+
+    // Clear chat removes this account's saved turns.
+    await page.click("[data-testid=hta-clear]");
+    expect(await saved()).toEqual([]);
+    await ask("How do I contact support?", 2);
+    expect(await saved()).toEqual(["hta_chat:rider:RIDER_1"]);
+
+    // Signing out deletes every saved conversation and empties the panel.
+    await page.evaluate(() => document.getElementById("riderLogoutBtn").click());
+    await page.waitForFunction(() => !Object.keys(sessionStorage).some((k) => k.indexOf("hta_chat:") === 0), null, { timeout: 10000 });
+    expect(await page.$$eval("#htaPanel .hta-msg", (els) => els.length)).toBe(1);
+    expect(errors).toEqual([]);
     await context.close();
   });
 });
