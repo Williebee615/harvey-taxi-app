@@ -3201,7 +3201,7 @@ const RIDE_STAGE_MESSAGES = {
 
   no_drivers_available: {
 
-    sms: () => `Harvey Taxi: We couldn't find an available driver for your request. It has been cancelled -- please try again.`,
+    sms: () => `Harvey Taxi: We couldn't find an available driver for your request, so it has been cancelled. You have not been charged. Please try again.`,
 
     subject: "No Drivers Available"
 
@@ -10493,6 +10493,7 @@ async function dispatchRide(ride) {
 
       .eq("id", ride.id);
 
+    releaseFailedRidePayment(ride.id).catch(() => {});
     notifyRideStage(ride, "no_drivers_available").catch(() => {});
 
     return {
@@ -10678,6 +10679,7 @@ async function dispatchRide(ride) {
 
       .eq("id", ride.id);
 
+    releaseFailedRidePayment(ride.id).catch(() => {});
     notifyRideStage(ride, "no_drivers_available").catch(() => {});
 
     return {
@@ -11009,6 +11011,9 @@ async function markRideMaxAttemptsReachedForExpiry(rideId) {
   if (error) throw error;
 
   if (!data) throw new Error(`Ride ${rideId} not found for max-attempts update.`);
+  await releaseFailedRidePayment(rideId);
+  const failedRide = await getRideForExpiredOffer(rideId).catch(() => null);
+  if (failedRide) notifyRideStage(failedRide, "no_drivers_available").catch(() => {});
 }
 
 async function runOfferExpirySweep() {
@@ -13286,6 +13291,32 @@ app.get(
 // reverses a PaymentIntent Stripe reports as already captured; that case
 // is marked cancel_failed with a reason pointing at the (not-yet-built)
 // refund/incident workflow, never auto-reversed.
+// A ride that ends as failed -- no driver found, out of dispatch attempts,
+// or marked failed by an admin -- must not leave the rider's card
+// authorized until the hold expires on its own. Reuses the cancellation
+// workflow: idempotent, resumable, records its outcome on the ride, never
+// reverses an already captured payment, and skips review rides and rides
+// with no payment. Never throws.
+async function releaseFailedRidePayment(rideId, req = null) {
+  try {
+    const { data: ride, error } = await supabase.from("rides").select("*").eq("id", rideId).maybeSingle();
+    if (error || !ride || ride.status !== RIDE_STATUS.FAILED) return null;
+    const result = await reconcileCancellationPayment(ride, req);
+    auditLog({
+      actor_type: "system",
+      action: "failed_ride_payment_released",
+      entity_type: "ride",
+      entity_id: rideId,
+      metadata: { outcome: result ? result.outcome : null, dispatch_status: ride.dispatch_status || null },
+      req
+    }).catch(() => {});
+    return result;
+  } catch (err) {
+    console.error("❌ Failed-ride payment release error:", rideId, err && err.message);
+    return null;
+  }
+}
+
 async function reconcileCancellationPayment(ride, req = null) {
   const decision = decideCancelPaymentAction({ ride });
 
@@ -14891,6 +14922,8 @@ app.post(
             return fail(res, "Offer declined, but the ride status could not be updated.", 500);
 
           }
+          releaseFailedRidePayment(ride.id, req).catch(() => {});
+          notifyRideStage(ride, "no_drivers_available").catch(() => {});
 
         }
 
@@ -17947,6 +17980,23 @@ app.patch(
       return fail(res, "Ride not found.", 404);
     }
 
+    // A failed ride whose card authorization was already released (see
+    // releaseFailedRidePayment) has nothing left to charge: reviving it
+    // would let a trip run unpaid. The rider books again instead.
+    if (
+      ride.status === RIDE_STATUS.FAILED &&
+      status === RIDE_STATUS.AWAITING_DRIVER &&
+      ride.is_review_ride !== true &&
+      ride.payment_id &&
+      [CANCELLATION_PAYMENT_STATUS.CANCEL_PENDING, CANCELLATION_PAYMENT_STATUS.CANCELLED].includes(ride.cancellation_payment_status)
+    ) {
+      return fail(
+        res,
+        "This ride's card authorization was released when it failed, so it can't be dispatched again. Ask the rider to book a new ride.",
+        409,
+        { current_status: ride.status, cancellation_payment_status: ride.cancellation_payment_status }
+      );
+    }
     const allowedTargets = ADMIN_STATUS_ALLOWED_TRANSITIONS[ride.status] || [];
 
     if (!allowedTargets.includes(status)) {
@@ -18039,6 +18089,9 @@ app.patch(
       req
 
     }).catch(() => {});
+    if (status === RIDE_STATUS.FAILED) {
+      await releaseFailedRidePayment(rideId, req);
+    }
 
     // Field-minimized response/broadcast, same as this route always
     // required (claimRideTransition's own return is the full row, since

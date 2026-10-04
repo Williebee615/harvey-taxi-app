@@ -48,6 +48,23 @@ off. It changes nothing until the switch is set. When an offer expires:
 - after `MAX_DISPATCH_ATTEMPTS` (default 5) the ride closes as failed instead
   of waiting forever.
 
+**4. Failed rides release the rider's card authorization** (`releaseFailedRidePayment`). It runs whenever a ride ends as failed:
+- no driver available;
+- out of dispatch attempts, through the clean-up or a decline;
+- an admin marks it failed.
+
+It reuses the existing cancellation release:
+- it is idempotent and resumable;
+- it is skipped for review rides and rides without a payment;
+- an already captured payment is flagged for a refund, never reversed.
+
+An admin can no longer revive a failed ride whose hold was released. The rider books again instead.
+
+**5. What the rider is told:**
+- the rider page shows "No driver available" with: *"No driver was available for this ride, so it was cancelled. You have not been charged. Please book again."*
+- the text/email message now also says "You have not been charged";
+- it is sent on every failure path; before, the max-attempt paths sent nothing.
+
 ### Before switching on the clean-up
 
 1. **Clear the only stale pending offer first.** On 2026-10-04 it is the one

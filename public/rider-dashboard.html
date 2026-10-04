@@ -8874,7 +8874,7 @@
         setBadge("Status Updated");
 
         setDispatchState(
-          state.ride.status || "Updated"
+          state.ride.status === "failed" ? "No driver available" : state.ride.status || "Updated"
         );
 
         setTimeline(
@@ -8886,10 +8886,20 @@
           `Current ride status: ${state.ride.status || "unknown"}`
         );
 
-        showNotice(
-          "Ride status refreshed successfully.",
-          "success"
-        );
+        // A ride ends as "failed" when no driver could be found (or every
+        // dispatch attempt went unanswered). The server releases the card
+        // authorization; the rider is never charged for it.
+        if (state.ride.status === "failed") {
+          showNotice(
+            "No driver was available for this ride, so it was cancelled. You have not been charged. Please book again.",
+            "warning"
+          );
+        } else {
+          showNotice(
+            "Ride status refreshed successfully.",
+            "success"
+          );
+        }
       } catch (error) {
         setBadge("Status Failed");
 
