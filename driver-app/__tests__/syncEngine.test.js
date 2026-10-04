@@ -5,6 +5,7 @@ function harness(snapshots) {
   const streams = [];
   const fetches = [];
   const statuses = [];
+  const errors = [];
   let unauthorized = 0;
   const queue = [...snapshots];
   const engine = createSyncEngine({
@@ -22,6 +23,7 @@ function harness(snapshots) {
     onSnapshot: () => {},
     onStatus: (s) => statuses.push(s.stream),
     onUnauthorized: () => (unauthorized += 1),
+    onError: (e) => errors.push(e ? e.message : null),
     setTimer: (fn, ms) => {
       const t = { fn, ms, cleared: false };
       timers.push(t);
@@ -39,7 +41,7 @@ function harness(snapshots) {
     await t.fn();
     await Promise.resolve();
   };
-  return { engine, timers, live, fire, streams, fetches, statuses, unauthorized: () => unauthorized };
+  return { engine, timers, live, fire, streams, fetches, statuses, errors, unauthorized: () => unauthorized };
 }
 
 const snap = (mode, extra = {}) => ({ mode, poll_ms: { offline: 0, online_idle: 30000, offer_pending: 5000, on_trip: 15000 }[mode], reconcile_ms: 60000, offers: [], ...extra });
@@ -126,4 +128,59 @@ test('stop clears every timer and the stream', async () => {
   h.engine.stop();
   expect(h.live()).toHaveLength(0);
   expect(h.streams[0].closed).toBe(true);
+});
+
+// Production, 2026-10-04: the database stopped answering, the first read
+// timed out, and the app sat on "Loading your driver status…" forever
+// because nothing asked again.
+test('a failed first read is retried with backoff and reported; success clears the error', async () => {
+  const down = new Error('The request timed out. Check your connection.');
+  const h = harness([down, down, snap('offline')]);
+  await h.engine.start();
+  expect(h.engine.getSnapshot()).toBeNull();
+  expect(h.errors).toEqual([down.message]);
+  expect(h.live().map((t) => t.ms)).toEqual([1000]);
+
+  await h.fire((t) => t.ms === 1000);
+  expect(h.fetches).toEqual(['start', 'retry']);
+  expect(h.live().map((t) => t.ms)).toEqual([2000]);
+
+  await h.fire((t) => t.ms === 2000);
+  expect(h.fetches).toEqual(['start', 'retry', 'retry']);
+  expect(h.engine.getSnapshot()).toMatchObject({ mode: 'offline' });
+  expect(h.errors).toEqual([down.message, down.message, null]);
+  expect(h.live()).toHaveLength(0);
+});
+
+test('a manual refresh during the outage does not stack retry timers; stop clears them', async () => {
+  const down = new Error('down');
+  const h = harness([down]);
+  await h.engine.start();
+  await h.engine.refresh('manual');
+  expect(h.live()).toHaveLength(1);
+  h.engine.stop();
+  expect(h.live()).toHaveLength(0);
+});
+
+test('a 401 signs out instead of retrying', async () => {
+  const unauth = Object.assign(new Error('auth'), { status: 401 });
+  const h = harness([unauth]);
+  await h.engine.start();
+  expect(h.unauthorized()).toBe(1);
+  expect(h.live()).toHaveLength(0);
+  expect(h.errors).toEqual([]);
+});
+
+test('after a snapshot, a failed read still retries and reports; recovery clears it', async () => {
+  const down = new Error('down');
+  const h = harness([snap('offline'), down, snap('offline')]);
+  await h.engine.start();
+  expect(h.live()).toHaveLength(0);
+  await h.engine.refresh('manual');
+  expect(h.errors).toEqual(['down']);
+  expect(h.engine.getSnapshot()).toMatchObject({ mode: 'offline' });
+  expect(h.live().map((t) => t.ms)).toEqual([1000]);
+  await h.fire((t) => t.ms === 1000);
+  expect(h.errors).toEqual(['down', null]);
+  expect(h.live()).toHaveLength(0);
 });

@@ -57,7 +57,7 @@ global.XMLHttpRequest = function XHR() {};
 global.XMLHttpRequest.prototype = { open() {}, setRequestHeader() {}, send() {}, abort() {} };
 
 // ---------------- fake backend ----------------
-const server = { calls: [], driver: { online: false }, offers: [], ride: null, validToken: 'TOKEN_A', deleted: false, map: { token: null } };
+const server = { calls: [], driver: { online: false }, offers: [], ride: null, validToken: 'TOKEN_A', deleted: false, map: { token: null }, stateDown: false };
 const snapshot = () => ({
   ok: true,
   server_time: new Date().toISOString(),
@@ -87,7 +87,7 @@ global.fetch = jest.fn(async (url, init = {}) => {
     return reply({ ok: true, request_id: 'DEL-1', status: 'pending' });
   }
   if (path === '/api/driver/location') return reply({ ok: true });
-  if (path === '/api/driver/state') return reply(snapshot());
+  if (path === '/api/driver/state') return server.stateDown ? reply({ ok: false, error: 'Database unavailable.' }, 504) : reply(snapshot());
   if (path === '/api/driver/push-token') return reply({ ok: true });
   if (path === '/api/driver/status') {
     server.driver.online = body.online;
@@ -244,6 +244,34 @@ test('trip map: shown with a map token, with the rider\'s shared position; absen
   expect([...new Set(annotations.map((n) => n.props.id))].sort()).toEqual(['trip-dropoff', 'trip-pickup', 'trip-rider']);
   await act(async () => tree.unmount());
   server.map = { token: null };
+});
+
+test('server down at launch: shows the error and a retry instead of loading forever; recovers', async () => {
+  server.ride = null;
+  server.stateDown = true;
+  let tree;
+  await act(async () => {
+    tree = renderer.create(<App />);
+  });
+  await flush();
+  expect(has(tree, 'load-error')).toBe(true);
+  const text = JSON.stringify(tree.toJSON());
+  expect(text).toContain('Database unavailable.');
+  server.stateDown = false;
+  await press(tree, 'load-retry');
+  expect(has(tree, 'load-error')).toBe(false);
+  expect(has(tree, 'stale-status')).toBe(false);
+
+  // Down again after the screen has loaded: the last status stays, with a warning.
+  server.stateDown = true;
+  await act(async () => {
+    await tree.root.findAll((n) => n.props && typeof n.props.onRefresh === 'function')[0].props.onRefresh();
+  });
+  await flush();
+  expect(has(tree, 'stale-status')).toBe(true);
+  expect(has(tree, 'load-error')).toBe(false);
+  server.stateDown = false;
+  await act(async () => tree.unmount());
 });
 
 test('a session the server no longer accepts signs the driver out and stops tracking', async () => {

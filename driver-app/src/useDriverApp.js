@@ -23,6 +23,7 @@ export function useDriverApp() {
   const [push, setPush] = useState(null);
   const [busy, setBusy] = useState(null);
   const [notice, setNotice] = useState(null);
+  const [loadError, setLoadError] = useState(null);
   const engineRef = useRef(null);
   const appStateRef = useRef(AppState.currentState);
   const signingOut = useRef(false);
@@ -76,6 +77,7 @@ export function useDriverApp() {
         applyTracking(snap);
       },
       onStatus: setStream,
+      onError: (err) => setLoadError(err ? err.message || "Can't reach Harvey Taxi." : null),
       onUnauthorized: () => signOutRef.current('expired')
     });
     engineRef.current = engine;
@@ -94,6 +96,7 @@ export function useDriverApp() {
         await clearSession();
       } finally {
         setSnapshot(null);
+        setLoadError(null);
         setTracking({ tracking: false });
         setPhase('signedOut');
         if (why === 'expired') setNotice('Your session ended. Please sign in again.');
@@ -258,5 +261,5 @@ export function useDriverApp() {
     dismissNotice: () => setNotice(null)
   };
 
-  return { phase, snapshot, stream, tracking, push, busy, notice, actions };
+  return { phase, snapshot, stream, tracking, push, busy, notice, loadError, actions };
 }
