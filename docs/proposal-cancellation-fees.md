@@ -3,10 +3,10 @@
 **For the owner's decision. Nothing here is active or promised.**
 
 - Every cancellation is free today, and the database refuses any non-zero fee.
-- The rules that would decide *whether* a fee applies are in `docs/policy-cancellation-noshow-draft.md` and are recorded (not charged) by PR #193.
+- The rules that would decide *whether* a fee applies are in `docs/policy-cancellation-noshow-draft.md` and are recorded (not charged) since PR #193 (live 2026-10-04).
 - This proposal covers the three things only the owner can decide: **fee amounts**, **driver compensation** and **scheduled-ride rules**.
 
-Prepared 2026-10-05.
+Prepared 2026-10-05. **No future fee activation is approved by this document;** each step below needs the owner's separate approval.
 
 ## Facts this is based on
 - **Fare rules** (`lib/pricing.js`): $5 base fare + $0.90 per mile + $0.35 per minute + a $2 booking fee, with an $8 minimum fare. Drivers receive 70% of the eligible fare.
@@ -30,7 +30,7 @@ Prepared 2026-10-05.
 | **D. Percentage** | 25% of the estimated fare | 35% | Scales with the trip | Small on short trips; less predictable |
 | **E. No fees yet** | $0 | $0 | No payment risk; collect records first | Drivers are not compensated for wasted trips |
 
-**Recommendation:** start with **E** for 30 days using the records from #193. Then move to **B** with amounts set from that data.
+**Recommendation:** start with **E** (no fees) for 30 days using the records from #193. Then move to **B** with amounts set from that data.
 - Report to review first: how many cancellations the draft rules would have charged, how many were waived and why, and how often arrival verification fails.
 - The amounts above are placeholders for discussion, not a recommendation of specific prices.
 
@@ -46,6 +46,7 @@ Prepared 2026-10-05.
 **Also to decide:**
 - whether a driver who releases rides often ("I can't make this pickup") is reviewed, and at what threshold;
 - whether no-show compensation is paid when the rider's fee is later refunded after a support review.
+- the no-show rule relies on a **dial attempt** (the driver tapped Call rider). That isn't proof the call connected; decide whether that's enough evidence for a fee, or whether in-app calling that confirms a connection is needed first (a paid service).
 
 ## Decision 3: scheduled rides
 

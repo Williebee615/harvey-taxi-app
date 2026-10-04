@@ -11,7 +11,7 @@
 - Applies to Harvey Taxi Service LLC's rider and driver apps on iPhone and Android, and to harveytaxiservice.com.
 - Recommend review by legal counsel; this draft is not legal advice.
 
-Updated 2026-10-05 to the owner's structure, against the controls built in PR #193.
+Updated 2026-10-05 to the owner's structure, against the controls in PR #193 (merged and deployed 2026-10-04; migration applied to production).
 
 ---
 
@@ -46,7 +46,7 @@ The cancel screen shows the exact amount you'll be charged, if any, before you c
 If you're not at your pickup, your driver can mark the ride as a no-show only after all three of these:
 1. the app has confirmed by location that the driver arrived at your pickup;
 2. the driver has waited at least 7 minutes; and
-3. the driver has tried to reach you through the app.
+3. the driver has tapped **Call rider** in the app to try to reach you. The app records that the driver started a call; it can't show whether the call connected or was answered.
 
 [OWNER DECISION: whether a no-show fee applies, and how much.]
 
@@ -62,19 +62,19 @@ After cancelling, tap **Ask support to review this ride**, or contact support@ha
 - the pickup location, arrival or driver details we recorded are wrong; or
 - you believe you were charged in error.
 
-You review and approve the request before it's sent, and we review the ride's records and reply.
-- [OWNER DECISION: target response time.]
+You review and approve the request before it's sent. Harvey Taxi support reviews requests using the ride's records. We can't promise a particular outcome or response time.
+- [OWNER DECISION: whether to publish a target response time. Until decided, no response time is promised.]
 - [NOT LIVE: refunding a fee, as no fees are charged.]
 
 **Scheduled rides** [OWNER DECISION]
 
 ### For drivers
 
-**Contacting the rider.** Use **Call rider** in the app. The app records that you tried to reach the rider; the call itself isn't recorded.
+**Contacting the rider.** Use **Call rider** in the app. Tapping it records a dial attempt (that you started a call from the app, and when). It is not proof that the call connected or that the rider answered, and the call itself isn't recorded or listened to.
 
 **Arriving.** When you tap **I've arrived at pickup**, the app records your location to confirm you're at the pickup. You can always mark arrival. A confirmed arrival is needed before a no-show.
 
-**Waiting and no-shows.** The app shows how long you've waited at the pickup. Marking a rider as a no-show [NOT LIVE] is available only after a confirmed arrival, 7 minutes of waiting and an in-app contact attempt. A no-show cancels the ride at no charge to the rider. [OWNER DECISION: no-show fee and driver compensation.]
+**Waiting and no-shows.** The app shows how long you've waited at the pickup. Marking a rider as a no-show [NOT LIVE] is available only after a confirmed arrival, 7 minutes of waiting and a recorded dial attempt from **Call rider** after you arrived. A no-show cancels the ride at no charge to the rider. [OWNER DECISION: no-show fee and driver compensation.]
 
 **If you can't make a pickup.** Tap **I can't make this pickup**. The ride goes back to dispatch for another driver, and the rider is not cancelled or charged. [OWNER DECISION: whether repeated releases affect a driver's standing.]
 
@@ -84,7 +84,7 @@ You review and approve the request before it's sent, and we review the ride's re
 
 ---
 
-## What is built and tested (PR #193, not merged)
+## What is built and tested (PR #193, merged and deployed)
 
 | Policy element | Control or record | Tested | Live? |
 |---|---|---|---|
@@ -93,13 +93,13 @@ You review and approve the request before it's sent, and we review the ride's re
 | Waived: no progress, 5+ min late, Harvey failure | `eta_at_accept_minutes` / `pickup_due_at`; categories `harvey_service_failure`, `admin_incident`; a missing record waives | Unit and server | Recorded only |
 | Exact fee before confirming | `GET /api/rides/:id/cancel-preview`; cancel checks `expected_fee_cents` (409 if changed) | Server and browser | Shows $0.00 |
 | Verified arrival | Arrival check on "Arrived" (≤150 m, fix ≤2 min old, accuracy ≤100 m) | Unit, server and driver app | Recorded only |
-| Recorded contact attempt | `ride_contact_attempts`; Call rider logs, then dials | Server and driver app | At merge, after a new driver app build |
+| Recorded contact attempt | `ride_contact_attempts`: a **dial attempt** logged when the driver taps Call rider, then the phone dials. Not proof the call connected or was answered. | Server and driver app | Server live; driver apps need the new build (iOS 12, Android 10) |
 | 7-minute wait and no-show control | Waiting timer; `POST /api/driver/rides/:id/no-show` | Server and driver app | **Off** (`driver_no_show_enabled`) |
-| Support dispute flow | `cancellation_review` request with the rider's cancelled ride attached; admin queue | Server and browser | At merge |
-| No duplicate charges | Admin "cancelled + capture" refused; a cancelled ride can't be completed or charged; the hold is released once; DB holds fees at $0 | Server and DB | At merge |
+| Support dispute flow | `cancellation_review` request with the rider's cancelled ride attached; admin queue. No response time is promised. | Server and browser | Live |
+| No duplicate charges | Admin "cancelled + capture" refused; a cancelled ride can't be completed or charged; the hold is released once; DB holds fees at $0 | Server and DB | Live |
 | Release a ride (driver) | "I can't make this pickup" → existing withdraw route | Driver app | After a new driver app build |
 
 **Not verified:**
 - **Devices:** nothing has been run on a real iPhone or Android device.
 - **Builds:** the driver apps need a new build.
-- **Database:** the migration hasn't been applied to production.
+- **Database:** applied to production and verified; existing rides unchanged.
