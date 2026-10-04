@@ -522,6 +522,10 @@ const { readLlmConfig: readAgentLlmConfig, createLlmClient: createAgentLlmClient
 const { createAgentTools } = require("./lib/agent/tools");
 const { handleAssist: handleAgentAssist } = require("./lib/agent/assistant");
 const { createKnowledgeStore } = require("./lib/knowledge/store");
+const { readClaudeConfig, createClaudeClient } = require("./lib/agent/claudeClient");
+const { createModelBudget, budgetFromEnv } = require("./lib/agent/modelBudget");
+const { handleModelAssist } = require("./lib/agent/modelAssistant");
+const { MODEL_FLAG_KEYS, resolveModelPolicy, modelEligibility, validateModelSettings } = require("./lib/agent/modelPolicy");
 const {
   draftSummary: draftHandoffSummary,
   cleanSummary: cleanHandoffSummary,
@@ -23519,6 +23523,26 @@ const knowledgeStore = createKnowledgeStore({
   log: (msg) => console.warn("⚠️ Knowledge articles could not be loaded:", msg)
 });
 const agentTools = createAgentTools({ supabase });
+// Claude Haiku (owner-approved, at most $10 a month across all apps;
+// docs/ai-model.md). Off unless ANTHROPIC_API_KEY is set AND the admin
+// model mode lets the account use it; the budget is checked before every
+// model turn and spending is recorded in agent_model_usage.
+const claudeConfig = readClaudeConfig();
+const claude = createClaudeClient({ config: claudeConfig });
+const modelBudget = createModelBudget({
+  budgetUsd: budgetFromEnv(),
+  model: claudeConfig.model,
+  loadMonthTotal: async (month) => {
+    const { data, error } = await supabase.from("agent_model_usage").select("cost_usd").eq("usage_month", month).limit(20000);
+    if (error) throw new Error(error.message || "agent_model_usage read failed");
+    return (data || []).reduce((sum, r) => sum + (Number(r.cost_usd) || 0), 0);
+  },
+  recordTurn: async (row) => {
+    const { error } = await supabase.from("agent_model_usage").insert(row);
+    return error ? { ok: false, error: error.message } : { ok: true };
+  },
+  log: (msg) => console.warn("⚠️ Assistant model budget:", msg)
+});
 // Assistant request accounting and daily limits (lib/agent/usage.js):
 // in memory, no database reads or writes per request.
 const agentUsage = createAgentUsageMeter();
@@ -23533,7 +23557,7 @@ const agentEscalatedRides = new Set();
 let agentSweepRunning = false;
 
 async function loadAgentState() {
-  const keys = [...AGENT_BOOLEAN_FLAG_KEYS, AGENT_FLAG_KEYS.RULES, "dispatch_paused"];
+  const keys = [...AGENT_BOOLEAN_FLAG_KEYS, AGENT_FLAG_KEYS.RULES, "dispatch_paused", MODEL_FLAG_KEYS.MODE, MODEL_FLAG_KEYS.TEST_ACCOUNTS];
   try {
     const { data, error } = await supabase
       .from("system_flags")
@@ -23549,7 +23573,8 @@ async function loadAgentState() {
       flags,
       dispatchPaused,
       rules: parseAgentRules(rulesRow ? rulesRow.value : null),
-      mode: resolveAgentMode(flags, { dispatchPaused })
+      mode: resolveAgentMode(flags, { dispatchPaused }),
+      model: resolveModelPolicy(rows)
     };
   } catch (err) {
     // Fail closed: if the flags can't be read, the agent is fully off and
@@ -23560,7 +23585,8 @@ async function loadAgentState() {
       flags,
       dispatchPaused: true,
       rules: parseAgentRules(null),
-      mode: resolveAgentMode(flags, { dispatchPaused: true })
+      mode: resolveAgentMode(flags, { dispatchPaused: true }),
+      model: resolveModelPolicy([])
     };
   }
 }
@@ -23590,6 +23616,78 @@ const AGENT_UNAVAILABLE_REPLY = {
 // Only the driver app asks for in-app actions; anything else gets the web
 // dashboard's answers and links.
 const AGENT_CLIENTS = new Set(["web", "driver_app"]);
+
+// One model-powered turn, if this account may use the model and the
+// monthly budget allows it. Returns { result } (the assistant result, or
+// null to use the rules-based answer) and { record } (what the audit log
+// keeps: tokens, cost, and why the rules answered, if they did).
+async function runModelTurn({ state, role, actor, message, client, context, appTarget }) {
+  const eligibility = modelEligibility(state.model, { role, actor });
+  if (!eligibility.eligible) return { result: null, record: null };
+  if (!claude) return { result: null, record: { used: false, fallback_reason: "not_configured" } };
+  const hold = await modelBudget.reserve();
+  if (!hold.ok) return { result: null, record: { used: false, fallback_reason: hold.reason } };
+  let out;
+  try {
+    out = await handleModelAssist({ role, actor, message, tools: agentTools, claude, client, knowledgeIndex: knowledgeStore.getIndex(), context });
+  } finally {
+    hold.release();
+  }
+  if (out.reason === "spend_limit") modelBudget.markProviderLimit();
+  if (out.calls > 0) {
+    await modelBudget.commit({
+      role,
+      actor_id: actor ? String(actor.id) : null,
+      app_target: appTarget,
+      model: claude.model,
+      calls: out.calls,
+      input_tokens: out.usage.input_tokens,
+      output_tokens: out.usage.output_tokens,
+      cache_creation_input_tokens: out.usage.cache_creation_input_tokens,
+      cache_read_input_tokens: out.usage.cache_read_input_tokens,
+      cost_usd: out.cost_usd,
+      outcome: out.ok ? "answered" : `fallback_${out.reason}`
+    });
+  }
+  const record = {
+    used: Boolean(out.ok),
+    model: claude.model,
+    calls: out.calls,
+    input_tokens: out.usage.input_tokens,
+    output_tokens: out.usage.output_tokens,
+    cache_read_input_tokens: out.usage.cache_read_input_tokens,
+    cache_creation_input_tokens: out.usage.cache_creation_input_tokens,
+    cost_usd: out.cost_usd,
+    fallback_reason: out.ok ? null : out.reason
+  };
+  if (!out.ok) return { result: null, record };
+  return {
+    record,
+    result: {
+      reply: out.reply,
+      source: "model",
+      intent: out.intent,
+      escalation: null,
+      actions: out.actions,
+      sources: out.sources,
+      knowledge_gap: out.knowledge_gap,
+      used_context: Array.isArray(context) && context.length > 0,
+      decision: {
+        kind: "assist",
+        policy: `model.${claude.model}`,
+        tool_calls: out.tools_used.map((name) => ({ tool: name, ok: true })),
+        outcome: out.knowledge_gap
+          ? "knowledge_gap"
+          : out.actions.some((a) => a.requires_confirmation)
+            ? "proposed_action_awaiting_confirmation"
+            : "answered",
+        executed: false,
+        model_used: true,
+        knowledge_sources: out.sources.map((src) => `${src.url}#${src.section}`)
+      }
+    }
+  };
+}
 
 async function runAgentAssist(req, res, { role, actor }) {
   const state = await loadAgentState();
@@ -23625,23 +23723,28 @@ async function runAgentAssist(req, res, { role, actor }) {
   }
   const appTarget = agentAppTarget({ role, client: req.body?.client, platform: req.body?.platform, userAgent: req.get("user-agent") });
   agentUsage.record(usageKey, appTarget);
-  const result = await handleAgentAssist({
-    role,
-    actor,
-    message,
-    tools: agentTools,
-    llm: agentLlmConfig.configured ? agentLlm : null,
-    client: role === "driver" && AGENT_CLIENTS.has(req.body?.client) ? req.body.client : "web",
-    // The device's own recent turns, for follow-up questions only. Not
-    // stored or logged (lib/agent/followUp.js).
-    context: Array.isArray(req.body?.context) ? req.body.context : [],
-    knowledgeIndex: knowledgeStore.getIndex()
-  });
+  const assistClient = role === "driver" && AGENT_CLIENTS.has(req.body?.client) ? req.body.client : "web";
+  // The device's own recent turns, for follow-up questions only. Not
+  // stored or logged (lib/agent/followUp.js).
+  const assistContext = Array.isArray(req.body?.context) ? req.body.context : [];
+  const model = await runModelTurn({ state, role, actor, message, client: assistClient, context: assistContext, appTarget });
+  const result =
+    model.result ||
+    (await handleAgentAssist({
+      role,
+      actor,
+      message,
+      tools: agentTools,
+      llm: agentLlmConfig.configured ? agentLlm : null,
+      client: assistClient,
+      context: assistContext,
+      knowledgeIndex: knowledgeStore.getIndex()
+    }));
   let caseId = null;
   if (result.escalation) {
     caseId = await openAgentCase({ role, actorId: actor ? actor.id : null, escalation: result.escalation, message, source: "assist" });
   }
-  agentAudit(agentAssistDecisionEntry({ role, actorId: actor ? actor.id : null, result, mode: state.mode.mode, message, appTarget }), req);
+  agentAudit(agentAssistDecisionEntry({ role, actorId: actor ? actor.id : null, result, mode: state.mode.mode, message, appTarget, model: model.record }), req);
   return ok(res, {
     agent_available: true,
     reply: result.reply,
@@ -23667,7 +23770,14 @@ app.get(
     const state = await loadAgentState();
     return ok(res, {
       assist_available: state.mode.assist_enabled,
-      answer_mode: agentLlmConfig.configured ? "self_hosted_model_with_rules_fallback" : "rules_only"
+      answer_mode:
+        claude && state.model.mode !== "off"
+          ? state.model.mode === "all"
+            ? "claude_haiku_with_rules_fallback"
+            : "rules_only_except_test_accounts"
+          : agentLlmConfig.configured
+            ? "self_hosted_model_with_rules_fallback"
+            : "rules_only"
     });
   })
 );
@@ -24119,7 +24229,8 @@ app.get(
       return fail(res, "Usage history is unavailable right now.", 503);
     }
     return ok(res, {
-      measured: "Assistant requests (questions sent to the rider or driver assistant). No AI model is called, so no model tokens are used or counted.",
+      measured: modelMeasuredText(state),
+      model: modelStatus(state),
       limits: {
         per_account_daily: state.rules.assist_daily_limit_per_account,
         visitor_daily: state.rules.assist_daily_limit_visitor,
@@ -24128,6 +24239,110 @@ app.get(
       today_live: agentUsage.snapshot(),
       history: summarizeAgentUsage(data || [], { days: 7 }),
       history_truncated: (data || []).length >= 20000
+    });
+  })
+);
+
+/* =========================================================
+   CLAUDE MODEL ADMIN (docs/ai-model.md)
+   Status, mode (off / test_accounts / all) and the synthetic test-account
+   list. "all" is refused until the owner approves the privacy disclosure
+   and sets AGENT_MODEL_PUBLIC_APPROVED=true. The admin "Try" console runs
+   one question as a listed test account, through the same budget.
+========================================================= */
+function modelStatus(state) {
+  return {
+    provider: "anthropic",
+    model: claudeConfig.model,
+    configured: claudeConfig.configured,
+    problem: claudeConfig.problem,
+    mode: state.model.mode,
+    stored_mode: state.model.stored_mode,
+    public_approved: state.model.public_approved,
+    test_accounts: state.model.test_accounts,
+    budget: modelBudget.status()
+  };
+}
+
+function modelMeasuredText(state) {
+  if (!claudeConfig.configured || state.model.mode === "off") {
+    return "Assistant requests (questions sent to the rider or driver assistant). The Claude model is off, so every answer is rules-based and no model tokens are used.";
+  }
+  return `Assistant requests, plus model tokens and cost for requests the Claude model handled (${state.model.mode === "all" ? "all signed-in riders and drivers" : "listed test accounts only"}). Tokens are reported by Anthropic per call; cost is computed by Harvey from the published price.`;
+}
+
+app.get(
+  "/api/admin/agent/model",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const state = await loadAgentState();
+    await modelBudget.refresh();
+    return ok(res, modelStatus(state));
+  })
+);
+
+app.post(
+  "/api/admin/agent/model",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const check = validateModelSettings({ mode: req.body?.mode, testAccounts: req.body?.test_accounts });
+    if (!check.ok) return fail(res, check.error, 400);
+    const rows = [];
+    if (check.value.mode !== undefined) rows.push({ key: MODEL_FLAG_KEYS.MODE, value: check.value.mode });
+    if (check.value.testAccounts !== undefined) rows.push({ key: MODEL_FLAG_KEYS.TEST_ACCOUNTS, value: JSON.stringify(check.value.testAccounts) });
+    if (!rows.length) return fail(res, "Nothing to change.", 400);
+    for (const row of rows) {
+      const { error } = await supabase.from("system_flags").upsert({ ...row, reason: "admin model settings", updated_at: nowIso() });
+      if (error) return fail(res, "The model settings could not be saved. Nothing else was changed.", 500);
+    }
+    await agentAudit(
+      {
+        actor_type: "admin",
+        actor_id: req.admin.email,
+        action: AGENT_ACTIONS.FLAG_CHANGED,
+        entity_type: "system_flag",
+        entity_id: rows.map((r) => r.key).join(","),
+        metadata: { record_type: AGENT_RECORD_TYPES.ADMIN, model_mode: check.value.mode ?? null, test_accounts: check.value.testAccounts ?? null }
+      },
+      req
+    );
+    const state = await loadAgentState();
+    return ok(res, modelStatus(state));
+  })
+);
+
+app.post(
+  "/api/admin/agent/model/try",
+  requireAdmin,
+  rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "agent_model_try" }),
+  asyncRoute(async (req, res) => {
+    const role = req.body?.role === "driver" ? "driver" : "rider";
+    const actorId = cleanString(req.body?.actor_id, 80);
+    const message = typeof req.body?.message === "string" ? req.body.message : "";
+    if (!actorId || !message.trim()) return fail(res, "role, actor_id and message are required.", 400);
+    const state = await loadAgentState();
+    if (!state.mode.assist_enabled) return fail(res, "The assistant is switched off.", 409);
+    if (!state.model.test_accounts.includes(`${role}:${actorId}`)) {
+      return fail(res, "Only accounts on the model test list can be tried here.", 403);
+    }
+    // Same path as the apps, with the model forced on for this listed test
+    // account even if the mode is off, and the same budget.
+    const tryState = { ...state, model: { ...state.model, mode: "test_accounts" } };
+    const client = role === "driver" && req.body?.client === "driver_app" ? "driver_app" : "web";
+    const actor = { role, id: actorId };
+    const model = await runModelTurn({ state: tryState, role, actor, message, client, context: Array.isArray(req.body?.context) ? req.body.context : [], appTarget: "admin_try" });
+    const result =
+      model.result ||
+      (await handleAgentAssist({ role, actor, message, tools: agentTools, llm: null, client, context: [], knowledgeIndex: knowledgeStore.getIndex() }));
+    agentAudit(agentAssistDecisionEntry({ role, actorId, result, mode: state.mode.mode, message, appTarget: "admin_try", model: model.record }), req);
+    return ok(res, {
+      reply: result.reply,
+      source: result.source,
+      intent: result.intent,
+      actions: result.actions,
+      sources: result.sources || [],
+      model: model.record,
+      budget: modelBudget.status()
     });
   })
 );

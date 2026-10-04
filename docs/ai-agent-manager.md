@@ -10,7 +10,7 @@ Status: **implemented, rules-only, off by default.** Every capability is behind 
 
 **What it is not:** it does not handle every rider or driver decision. It answers a fixed set of questions from live data, and proposes actions that the rider or driver confirms in the existing screens. It never changes prices, payments, eligibility or ride status itself; the only exception is the guarded redispatch, which uses the existing dispatch function.
 
-It has **no dependency on OpenAI or Anthropic** and needs no account or key from either provider. The release runs **in rules-only mode**: no model host is needed or purchased. Optional model phrasing is documented in sections 5 and 6 for later.
+It runs **in rules-only mode** by default. The self-hosted model path below still refuses hosted OpenAI and Anthropic endpoints. **Update 2026-10-04:** the owner approved one hosted integration, Anthropic Claude Haiku 4.5, capped at $10 a month and limited to synthetic test accounts until a privacy disclosure is approved. See `docs/ai-model.md`.
 
 ## 1. What was inspected and reused
 

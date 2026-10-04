@@ -103,6 +103,7 @@ Local screenshots (test fixture data on a local test server, not production and 
   - Use the provider's official SDK directly (`openai` is already a dependency).
   - Keep the existing guard: the model may only reword a rules or knowledge answer, and is discarded if it adds numbers, links or claims an action.
   - **This reverses an earlier decision.** `llmClient.js` refuses hosted OpenAI and Anthropic by design, and changing that needs your approval.
+  - **Update 2026-10-04:** approved for Anthropic Claude Haiku 4.5 only. It runs through `lib/agent/claudeClient.js`, not `llmClient.js`; see `docs/ai-model.md`.
 
 Revisit the framework question only if the evaluation shows multi-step model planning beating the rules on real questions.
 
