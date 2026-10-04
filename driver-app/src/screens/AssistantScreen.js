@@ -3,8 +3,8 @@ import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, Text
 import * as Speech from 'expo-speech';
 import * as WebBrowser from 'expo-web-browser';
 
-import { EMERGENCY_NUMBER, LINKS } from '../config';
-import { GREETING, isHandsFree, planActions, QUICK_PROMPTS, speakable, UNAVAILABLE_REPLY } from '../assistant';
+import { API_BASE, EMERGENCY_NUMBER, LINKS } from '../config';
+import { GREETING, isHandsFree, planActions, QUICK_PROMPTS, sourceLabel, speakable, UNAVAILABLE_REPLY } from '../assistant';
 import { directionsUrl } from '../tripSteps';
 import { Button, C } from '../ui';
 
@@ -38,15 +38,17 @@ export default function AssistantScreen({ app, onClose, onOpenTab }) {
     let reply = UNAVAILABLE_REPLY;
     let urgent = false;
     let proposed = [];
+    let sources = [];
     try {
       const res = await actions.askAssistant(clean);
       reply = res.reply || UNAVAILABLE_REPLY;
       urgent = Boolean(res.escalation && res.escalation.category === 'emergency');
       proposed = res.unavailable ? [] : res.actions || [];
+      sources = res.unavailable ? [] : (res.sources || []).filter((src) => src && typeof src.url === 'string' && src.url.startsWith('/'));
     } catch {
       reply = UNAVAILABLE_REPLY;
     }
-    add({ who: 'bot', text: reply, urgent, actions: planActions(proposed, snapshot) });
+    add({ who: 'bot', text: reply, urgent, actions: planActions(proposed, snapshot), sources });
     setSending(false);
     if (readAloud) {
       Speech.stop();
@@ -125,6 +127,21 @@ export default function AssistantScreen({ app, onClose, onOpenTab }) {
         {messages.map((m) => (
           <View key={m.id} style={[st.msg, m.who === 'me' ? st.me : st.bot, m.urgent && st.urgent]} testID={m.who === 'bot' ? 'assistant-reply' : undefined}>
             <Text style={st.msgText}>{m.text}</Text>
+            {m.sources && m.sources.length > 0 && (
+              <View style={st.sources} testID="assistant-sources">
+                <Text style={st.sourceHead}>Source</Text>
+                {m.sources.map((src) => (
+                  <Text
+                    key={`${src.url}#${src.section}`}
+                    style={st.sourceLink}
+                    accessibilityRole="link"
+                    onPress={() => WebBrowser.openBrowserAsync(`${API_BASE}${src.url}`)}
+                  >
+                    {sourceLabel(src)}
+                  </Text>
+                ))}
+              </View>
+            )}
             {m.actions && m.actions.length > 0 && (
               <View style={st.actions}>
                 {m.actions.map((a) => (
@@ -206,6 +223,9 @@ const st = StyleSheet.create({
   urgent: { backgroundColor: '#4a1220', borderColor: C.danger },
   msgText: { color: C.text, fontSize: 16, lineHeight: 22 },
   actions: { marginTop: 8, gap: 0 },
+  sources: { marginTop: 8, gap: 4 },
+  sourceHead: { color: C.muted, fontSize: 12, fontWeight: '800', textTransform: 'uppercase' },
+  sourceLink: { color: C.cyan, fontSize: 13, textDecorationLine: 'underline' },
   action: { marginTop: 8 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingTop: 8 },
   chip: { borderRadius: 999, borderWidth: 1, borderColor: 'rgba(99,245,255,0.45)', backgroundColor: 'rgba(99,245,255,0.08)', paddingHorizontal: 14, minHeight: 44, justifyContent: 'center' },

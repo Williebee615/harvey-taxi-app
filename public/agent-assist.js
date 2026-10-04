@@ -155,6 +155,17 @@
         extra.actions.forEach(function (a) { row.appendChild(renderAction(a)); });
         m.appendChild(row);
       }
+      // Approved pages this answer quotes, with the date each page states.
+      if (extra && extra.sources && extra.sources.length) {
+        var src = el("div", { class: "hta-src" }, "Source: ");
+        extra.sources.forEach(function (s, i) {
+          var label = (s.title || "Harvey Taxi") + (s.section ? " — " + s.section : "") + (s.updated ? " (" + s.updated + ")" : " (date not stated)");
+          var href = s.url && safeHref(s.url);
+          src.appendChild(href ? el("a", { href: href, target: "_blank", rel: "noopener" }, label) : el("span", {}, label));
+          if (i < extra.sources.length - 1) src.appendChild(document.createTextNode(" · "));
+        });
+        m.appendChild(src);
+      }
       if (extra && extra.caseId) m.appendChild(el("div", { class: "hta-src" }, "Reference: " + extra.caseId));
       log.appendChild(m);
       log.scrollTop = log.scrollHeight;
@@ -219,6 +230,7 @@
           addMessage(body.reply || "The assistant is unavailable. Booking and your dashboard still work. In an emergency, call 911.", "bot", {
             urgent: body.escalation && body.escalation.category === "emergency",
             actions: body.actions || [],
+            sources: body.sources || [],
             caseId: body.case_id
           });
         })
@@ -229,8 +241,8 @@
     });
 
     addMessage(role === "driver"
-      ? "Hi! I can check your ride offers, your active trip's next step, or your earnings. You stay in control of every offer and trip action."
-      : "Hi! I can help you book, check your ride, explain your fare or cancel an open ride. You confirm every change.", "bot");
+      ? "Hi! I can check your ride offers, your active trip's next step, your earnings or your hours, and answer policy questions from our published pages. You stay in control of every offer and trip action."
+      : "Hi! I can help you book, check your ride, explain your fare or cancel an open ride, and answer policy questions from our published pages. You confirm every change.", "bot");
   }
 
   fetch("/api/agent/status", { credentials: "same-origin", headers: { Accept: "application/json" } })
