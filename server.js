@@ -521,6 +521,7 @@ const { recommendDrivers: recommendAgentDrivers, driverLabel: agentDriverLabel }
 const { readLlmConfig: readAgentLlmConfig, createLlmClient: createAgentLlmClient, describeLlmConfig: describeAgentLlmConfig } = require("./lib/agent/llmClient");
 const { createAgentTools } = require("./lib/agent/tools");
 const { handleAssist: handleAgentAssist } = require("./lib/agent/assistant");
+const { createUsageMeter: createAgentUsageMeter, usageKey: agentUsageKey, summarizeUsage: summarizeAgentUsage } = require("./lib/agent/usage");
 const {
   AGENT_ACTIONS,
   RECORD_TYPES: AGENT_RECORD_TYPES,
@@ -23490,6 +23491,12 @@ app.get(
 const agentLlmConfig = readAgentLlmConfig();
 const agentLlm = createAgentLlmClient({ config: agentLlmConfig });
 const agentTools = createAgentTools({ supabase });
+// Assistant request accounting and daily limits (lib/agent/usage.js):
+// in memory, no database reads or writes per request.
+const agentUsage = createAgentUsageMeter();
+const AGENT_USAGE_SALT = crypto.randomBytes(16).toString("hex");
+const AGENT_LIMITED_REPLY =
+  "You've reached today's limit for the Harvey Taxi assistant. Booking, your trips and support still work as usual. In an emergency, call 911.";
 // In-process memory only: cooldowns and log de-duplication. Losing it on
 // restart is safe -- the ride-row claim below is what prevents duplicates.
 const agentRedispatchHistory = new Map();
@@ -23565,6 +23572,30 @@ async function runAgentAssist(req, res, { role, actor }) {
   if (!message.trim()) {
     return fail(res, "message required.", 400);
   }
+  const usageKey = agentUsageKey({ role, actorId: actor ? actor.id : null, ip: getClientIp(req), salt: AGENT_USAGE_SALT });
+  const usage = agentUsage.check(usageKey, {
+    per_account: state.rules.assist_daily_limit_per_account,
+    visitor: state.rules.assist_daily_limit_visitor,
+    global: state.rules.assist_daily_limit_global
+  });
+  if (!usage.allowed) {
+    // One record per account per day, not one per refused request.
+    if (usage.first_block_today) {
+      agentAudit(
+        {
+          actor_type: role === "driver" ? "driver" : "rider",
+          actor_id: actor ? actor.id : null,
+          action: AGENT_ACTIONS.USAGE_LIMITED,
+          entity_type: "agent_usage",
+          entity_id: usageKey.startsWith("visitor:") ? usageKey : null,
+          metadata: { reason: usage.reason }
+        },
+        req
+      );
+    }
+    return res.status(429).json({ ok: false, agent_available: true, limited: true, reason: usage.reason, reply: AGENT_LIMITED_REPLY, source: "rules", actions: [] });
+  }
+  agentUsage.record(usageKey);
   const result = await handleAgentAssist({
     role,
     actor,
@@ -23850,6 +23881,39 @@ app.post(
       req
     );
     return ok(res, { rules });
+  })
+);
+
+// Assistant usage for the admin dashboard (docs/ai-usage.md): today's
+// live counters plus a 7-day summary of the audit trail. One query, only
+// when an admin opens the page.
+app.get(
+  "/api/admin/agent/usage",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const state = await loadAgentState();
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const { data, error } = await supabase
+      .from("audit_logs")
+      .select("created_at, action, actor_type, actor_id, metadata")
+      .in("action", [AGENT_ACTIONS.DECISION, AGENT_ACTIONS.USAGE_LIMITED])
+      .gte("created_at", `${since}T00:00:00.000Z`)
+      .order("created_at", { ascending: false })
+      .limit(20000);
+    if (error) {
+      return fail(res, "Usage history is unavailable right now.", 503);
+    }
+    return ok(res, {
+      measured: "Assistant requests (questions sent to the rider or driver assistant). No AI model is called, so no model tokens are used or counted.",
+      limits: {
+        per_account_daily: state.rules.assist_daily_limit_per_account,
+        visitor_daily: state.rules.assist_daily_limit_visitor,
+        global_daily: state.rules.assist_daily_limit_global
+      },
+      today_live: agentUsage.snapshot(),
+      history: summarizeAgentUsage(data || [], { days: 7 }),
+      history_truncated: (data || []).length >= 20000
+    });
   })
 );
 
