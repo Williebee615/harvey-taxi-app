@@ -207,6 +207,37 @@ test("policy questions use approved pages with sources; nothing found is a gap w
   expect(gap.body.actions).toEqual([{ type: "support_handoff", kind: "general", label: "Send a request to support", requires_confirmation: true }]);
 });
 
+test("a policy answer must state what the approved text says; pointing at it falls back to the quoted rules answer", async () => {
+  useFake();
+  // The reply Claude gave in the owner's first production test (2026-10-04).
+  mockCreate
+    .mockResolvedValueOnce(toolUse("search_harvey_policies", { query: "cancellation policy" }))
+    .mockResolvedValueOnce(say("That's Harvey Taxi's cancellation policy from our perspective. If you have a ride booked and want to know if you can cancel it, I can check your specific ride status for you."));
+  const vague = await riderAsk("What's your cancellation policy?");
+  expect(vague.body.source).not.toBe("model");
+  // The rules answer for this question: no approved rider cancellation
+  // policy, logged as a gap for staff (test/agent-eval expects the same).
+  expect(vague.body.reply).toMatch(/don't have approved Harvey Taxi information/);
+  expect(vague.body.knowledge_gap).toBe(true);
+  expect(decisions().at(-1).metadata.model).toMatchObject({ fallback_reason: "guard_policy_not_stated", calls: 2 });
+  // Both calls really happened, so they are charged.
+  expect(ledger().at(-1).cost_usd).toBeGreaterThan(0);
+
+  mockCreate
+    .mockResolvedValueOnce(toolUse("search_harvey_policies", { query: "cancellation policy" }))
+    .mockResolvedValueOnce(say("Harvey Taxi hasn't published a rider cancellation policy. Our Terms of Service only say Harvey Taxi may cancel requests for reasons like safety, verification or driver availability. I can help you send a request to support."));
+  const stated = await riderAsk("What's your cancellation policy?");
+  expect(stated.body.source).toBe("model");
+  expect(stated.body.sources[0]).toMatchObject({ section: "Ride Requests and Availability" });
+});
+
+test("the policy instruction tells the model to state the text, and to say when it doesn't answer the question", () => {
+  const { systemPrompt } = require("../lib/agent/modelAssistant");
+  const p = systemPrompt("rider");
+  expect(p).toMatch(/say in your own words what that text actually says/);
+  expect(p).toMatch(/hasn't published an answer to exactly that/);
+});
+
 test("safety boundaries never reach the model", async () => {
   useFake();
   const res = await riderAsk("my driver is threatening me");

@@ -531,6 +531,7 @@
       $("modelTryOut").textContent =
         `${r.source === "model" ? "Claude answered" : `Rules answered${m.fallback_reason ? ` (model fell back: ${m.fallback_reason})` : ""}`}:\n${r.reply}\n` +
         (r.actions && r.actions.length ? `Buttons: ${r.actions.map((a) => a.label || a.type).join(", ")}\n` : "") +
+        (r.sources && r.sources.length ? `Sources: ${r.sources.map((x) => [x.title, x.section].filter(Boolean).join(" › ") || x.url).join("; ")}\n` : "") +
         (m.calls ? `Model calls: ${m.calls}, tokens in/out: ${m.input_tokens}/${m.output_tokens}, cost: $${Number(m.cost_usd).toFixed(4)}` : "") +
         (m.provider_error ? `\n${providerText(m.provider_error)}` : "");
     } catch (err) { $("modelTryOut").textContent = err.message; }
