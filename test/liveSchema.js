@@ -35,7 +35,9 @@ const LIVE_COLUMNS = {
     "delivered_at,delivery_handoff,delivery_proof_url,dispatch_claimed_at,autonomous_pilot," +
     "pilot_status,pilot_zone_id,pilot_provider,pilot_vehicle_id,remote_supervision_status," +
     "human_fallback_allowed,human_fallback_reason,pilot_consent_at,pilot_disclosure_version," +
-    "boarding_confirmed_at,is_review_ride"
+    "boarding_confirmed_at,is_review_ride," +
+    // Added 2026-10-04 (supabase/migrations/20261004140000_add_rider_live_location.sql).
+    "rider_live_lat,rider_live_lng,rider_live_accuracy_m,rider_live_at"
   ).split(","),
   driver_offers:
     "id,ride_id,driver_id,status,attempt,decline_reason,responded_at,expires_at,created_at,updated_at".split(

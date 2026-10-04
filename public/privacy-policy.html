@@ -435,6 +435,10 @@
               <li>Device, browser, usage, and technical information used to improve platform performance, security, troubleshooting, and support.</li>
               <li>Location-related information when needed to support ride functionality, dispatch, ETA, navigation, fraud prevention, and safety-related platform operations.</li>
               <li><strong>Driver location (Harvey Taxi Driver app and driver dashboard):</strong> while a driver is online or on a trip, we collect the device's precise location, including when the app is closed or the screen is locked. We store the driver's latest position, replacing it with each update; we do not keep a history of past positions. Collection stops when the driver goes offline.</li>
+              <li><strong>Rider location shared with the driver (optional):</strong> only if a rider turns on "Share my location with my driver"
+                for a ride, we collect the rider's device location while that ride's driver is on the way, and show it to that driver until
+                pickup. We keep only the latest position and delete it when the trip starts, the ride ends, the rider turns sharing off,
+                or after 10 minutes without an update.</li>
               <li><strong>Notifications:</strong> if you allow notifications in our apps, a device token that lets us send you ride requests and trip updates.</li>
               <li><strong>Support messages:</strong> what you send us through support, including the in-app assistant.</li>
             </ul>
@@ -456,7 +460,8 @@
             <h3>3. Sharing of Information</h3>
             <p>
               <strong>Between riders and drivers, during a trip:</strong> the rider sees the assigned driver's name, photo, vehicle,
-              phone number and live location; the driver sees the rider's name, phone number and pickup and drop-off locations.
+              phone number and live location on a map; the driver sees the rider's name, phone number and pickup and drop-off locations,
+              and, only if the rider chooses to share it, the rider's live location until pickup.
               Before a driver accepts a ride, they see only the pickup and drop-off addresses and the estimated fare.
             </p>
             <p style="margin-top:12px;">
@@ -496,7 +501,8 @@
               support legal compliance, resolve disputes, enforce agreements, improve services, and protect business operations.
             </p>
             <p style="margin-top:12px;">
-              A driver's location is kept only as their latest position and is removed when their account is deleted.
+              A driver's location is kept only as their latest position and is removed when their account is deleted. A location a rider
+              shares with their driver is deleted when the trip starts or ends, when the rider stops sharing, or after 10 minutes without an update.
               Trip, payment and earnings records are kept after an account is deleted for accounting, tax, safety and legal
               purposes, with the person's name and phone number removed. Information held by our identity-verification and
               background-screening providers is kept under their terms and applicable law.
@@ -510,7 +516,7 @@
               <li>You may choose not to provide certain information, although some features may not function properly without it.
                 For example, drivers must allow location access to go online.</li>
               <li>You can turn location access and notifications off at any time in your device's settings. Drivers can stop location
-                collection at any time by going offline.</li>
+                collection at any time by going offline. Riders can stop sharing their location with their driver at any time from the ride screen.</li>
               <li><strong>Deleting your account:</strong> in the Harvey Taxi Driver app (Account → Delete account), in your account settings at
                 <a href="/settings.html#account-deletion">harveytaxiservice.com/settings.html</a>, or by emailing us. Your access ends when you
                 request deletion. Rider accounts are deleted right away; driver deletion requests are reviewed first. Deletion removes your
