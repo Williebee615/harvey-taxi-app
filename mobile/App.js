@@ -231,6 +231,10 @@ export function HarveyTaxiShell() {
           onContentProcessDidTerminate={onProcessGone}
           onRenderProcessGone={onProcessGone}
           javaScriptEnabled
+          // Location for the pickup point and, if the rider turns it on,
+          // sharing with the driver until pickup (docs/live-map-tracking.md).
+          // The page asks; Android's permission prompt comes from the WebView.
+          geolocationEnabled
           domStorageEnabled
           sharedCookiesEnabled
           allowsBackForwardNavigationGestures

@@ -4,6 +4,8 @@ import * as WebBrowser from 'expo-web-browser';
 
 import { EMERGENCY_NUMBER, LINKS } from '../config';
 import { directionsUrl, isDelivery, nextStep, STATUS_LABELS } from '../tripSteps';
+import { riderSharingText } from '../tripMap';
+import TripMapView from '../TripMapView';
 import { Button, C, Card, H, money, Notice, P, Pill, Row } from '../ui';
 
 const CHECK_LABELS = {
@@ -56,7 +58,8 @@ function callEmergency() {
   ]);
 }
 
-function ActiveRideCard({ ride, app }) {
+function ActiveRideCard({ ride, app, mapToken }) {
+  const sharing = riderSharingText(ride);
   const step = nextStep(ride);
   const target = step && step.navigateTo === 'dropoff'
     ? { lat: ride.dropoff_lat, lng: ride.dropoff_lng, address: ride.dropoff_address }
@@ -72,6 +75,8 @@ function ActiveRideCard({ ride, app }) {
       <Row label="Pickup" value={ride.pickup_address || '—'} />
       <Row label="Drop-off" value={ride.dropoff_address || '—'} />
       {ride.notes && <Row label="Notes" value={ride.notes} />}
+      {sharing && <View testID="rider-sharing"><P muted>{sharing}</P></View>}
+      <TripMapView ride={ride} token={mapToken} />
       {isDelivery(ride) ? (
         <>
           <P muted style={{ marginTop: 8 }}>Deliveries aren't supported in this version of the app yet. Continue this delivery in the web driver dashboard.</P>
@@ -200,7 +205,7 @@ export default function HomeScreen({ app, onOpenAssistant }) {
         <OfferCard key={offer.offer_id} offer={offer} app={app} />
       ))}
 
-      {ride && <ActiveRideCard ride={ride} app={app} />}
+      {ride && <ActiveRideCard ride={ride} app={app} mapToken={snapshot.map && snapshot.map.token} />}
 
       {!readiness.ready && (
         <Card accent={C.gold}>

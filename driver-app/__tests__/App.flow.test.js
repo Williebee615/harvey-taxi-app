@@ -57,7 +57,7 @@ global.XMLHttpRequest = function XHR() {};
 global.XMLHttpRequest.prototype = { open() {}, setRequestHeader() {}, send() {}, abort() {} };
 
 // ---------------- fake backend ----------------
-const server = { calls: [], driver: { online: false }, offers: [], ride: null, validToken: 'TOKEN_A', deleted: false };
+const server = { calls: [], driver: { online: false }, offers: [], ride: null, validToken: 'TOKEN_A', deleted: false, map: { token: null } };
 const snapshot = () => ({
   ok: true,
   server_time: new Date().toISOString(),
@@ -68,7 +68,8 @@ const snapshot = () => ({
   active_ride: server.ride,
   poll_ms: 0,
   reconcile_ms: 60000,
-  native_push_enabled: false
+  native_push_enabled: false,
+  map: server.map
 });
 const NEXT = { enroute: 'driver_enroute', arrived: 'arrived', start: 'in_progress' };
 global.fetch = jest.fn(async (url, init = {}) => {
@@ -208,6 +209,41 @@ test('restart in the middle of a trip: the saved session resumes and tracking re
   expect(has(tree, 'step-arrived')).toBe(true);
   expect(mockLocation.started).toMatchObject({ timeInterval: 10000 });
   await act(async () => tree.unmount());
+});
+
+test('trip map: shown with a map token, with the rider\'s shared position; absent without a token', async () => {
+  server.ride = {
+    ride_id: 'RIDE_3',
+    status: 'driver_enroute',
+    pickup_address: '3 Broadway',
+    dropoff_address: 'BNA',
+    pickup_lat: 36.16,
+    pickup_lng: -86.78,
+    dropoff_lat: 36.12,
+    dropoff_lng: -86.68,
+    rider_location: { lat: 36.161, lng: -86.781, accuracy_meters: 10, age_seconds: 5 }
+  };
+  server.map = { token: null };
+  let tree;
+  await act(async () => {
+    tree = renderer.create(<App />);
+  });
+  await flush();
+  expect(has(tree, 'step-arrived')).toBe(true);
+  expect(has(tree, 'trip-map')).toBe(false);
+  expect(has(tree, 'rider-sharing')).toBe(true);
+  await act(async () => tree.unmount());
+
+  server.map = { token: 'pk.test-app-token' };
+  await act(async () => {
+    tree = renderer.create(<App />);
+  });
+  await flush();
+  expect(has(tree, 'trip-map')).toBe(true);
+  const annotations = tree.root.findAll((n) => n.props && typeof n.props.id === 'string' && n.props.id.startsWith('trip-') && n.props.coordinate);
+  expect([...new Set(annotations.map((n) => n.props.id))].sort()).toEqual(['trip-dropoff', 'trip-pickup', 'trip-rider']);
+  await act(async () => tree.unmount());
+  server.map = { token: null };
 });
 
 test('a session the server no longer accepts signs the driver out and stops tracking', async () => {

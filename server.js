@@ -3452,6 +3452,7 @@ const {
   decideRideViewer,
   shapeStatusForViewer
 } = require("./lib/rideAccess");
+const liveLocation = require("./lib/liveLocation");
 const RIDE_TRACKING_SECRET = deriveTrackingSecret({
   trackingSecret: env("RIDE_TRACKING_SECRET", ""),
   quoteSecret: RIDE_QUOTE_SECRET
@@ -13019,7 +13020,9 @@ app.get(
 
         "pickup_instructions, delivery_instructions, delivered_at, " +
 
-        "delivery_handoff, tip_amount, delivery_proof_url"
+        "delivery_handoff, tip_amount, delivery_proof_url, " +
+
+        "rider_live_lat, rider_live_lng, rider_live_accuracy_m, rider_live_at"
 
       )
 
@@ -13192,6 +13195,10 @@ app.get(
           : null,
 
       tracking,
+      // Whether the rider can share their own location with the driver
+      // right now (before pickup only), and whether it is being shared.
+      rider_location_sharing:
+        viewer === "rider" || viewer === "admin" ? liveLocation.riderSharingState(ride) : undefined,
 
       driver: ride.driver_id
 
@@ -13570,6 +13577,118 @@ async function handleRideCancellation({ req, res, ride, actorType, actorId, reas
     status: RIDE_STATUS.CANCELLED,
     cancellation_payment_status: reconciled.outcome
   });
+}
+
+/* =========================================================
+   LIVE MAP TRACKING (docs/live-map-tracking.md, lib/liveLocation.js)
+   Riders see their driver on a map; a rider may also share their own
+   phone location with the assigned driver until pickup.
+========================================================= */
+
+// Mapbox public token for the website's maps. In the Mapbox account it is
+// URL-restricted to the site. Only "pk." tokens are ever returned, so a
+// secret token put here by mistake is never sent to a browser. The
+// server-side MAPBOX_ACCESS_TOKEN (address search, routing) is separate
+// and never leaves the server.
+app.get("/api/maps/config", (req, res) => {
+  const token = String(process.env.MAPBOX_PUBLIC_TOKEN || "").trim();
+  const usable = token.startsWith("pk.");
+  res.setHeader("Cache-Control", "public, max-age=300");
+  return ok(res, { enabled: usable, token: usable ? token : null });
+});
+
+// Only the ride's rider (rider session or the rider's tracking token) may
+// share or stop sharing. Anyone else gets the same 404 as a missing ride.
+async function loadRideForRiderLocation(req, res) {
+  const rideId = cleanString(req.params.id, 100);
+  const { data: ride, error } = await supabase
+    .from("rides")
+    .select("id, status, rider_id, driver_id, rider_live_lat, rider_live_lng, rider_live_at")
+    .eq("id", rideId)
+    .maybeSingle();
+  if (error || !ride) {
+    fail(res, "Ride not found.", 404);
+    return null;
+  }
+  if ((await resolveRideViewer(req, ride)) !== "rider") {
+    fail(res, "Ride not found.", 404);
+    return null;
+  }
+  return ride;
+}
+
+async function clearRiderLocation(rideId) {
+  const { error } = await supabase.from("rides").update(liveLocation.RIDER_LOCATION_COLUMNS).eq("id", rideId);
+  if (error) throw error;
+}
+
+app.post(
+  "/api/rides/:id/rider-location",
+  rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "rider_location" }),
+  asyncRoute(async (req, res) => {
+    const ride = await loadRideForRiderLocation(req, res);
+    if (!ride) return;
+
+    if (!liveLocation.canShareRiderLocation(ride.status)) {
+      if (liveLocation.shouldPurgeRiderLocation(ride)) await clearRiderLocation(ride.id);
+      return fail(res, "Location sharing with your driver is only available until pickup.", 409, { sharing: false });
+    }
+
+    const parsed = liveLocation.parseLocationBody(req.body || {});
+    if (!parsed.ok) return fail(res, parsed.message, 400);
+
+    if (liveLocation.isTooSoon(ride)) return ok(res, { sharing: true, stored: false });
+
+    // The status filter closes the race with a trip starting between the
+    // read above and this write.
+    const { data: updated, error } = await supabase
+      .from("rides")
+      .update({
+        rider_live_lat: parsed.location.lat,
+        rider_live_lng: parsed.location.lng,
+        rider_live_accuracy_m: parsed.location.accuracy,
+        rider_live_at: nowIso()
+      })
+      .eq("id", ride.id)
+      .in("status", liveLocation.RIDER_SHARE_STATUSES)
+      .select("id");
+    if (error) throw error;
+    if (!updated || !updated.length) {
+      return fail(res, "Location sharing with your driver is only available until pickup.", 409, { sharing: false });
+    }
+
+    if (ride.driver_id) driverAppRealtime.notifyDriver(ride.driver_id, "sync", { reason: "rider_location" });
+    return ok(res, { sharing: true, stored: true });
+  })
+);
+
+app.delete(
+  "/api/rides/:id/rider-location",
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "rider_location_stop" }),
+  asyncRoute(async (req, res) => {
+    const ride = await loadRideForRiderLocation(req, res);
+    if (!ride) return;
+    await clearRiderLocation(ride.id);
+    if (ride.driver_id) driverAppRealtime.notifyDriver(ride.driver_id, "sync", { reason: "rider_location" });
+    return ok(res, { sharing: false });
+  })
+);
+
+// Deletes rider positions once the ride is past pickup or the rider
+// stopped sending. The driver never sees a position outside the window
+// anyway (riderLocationForDriver); this makes sure it isn't kept.
+async function purgeRiderLocations(nowMs = Date.now()) {
+  const { data: rows, error } = await supabase
+    .from("rides")
+    .select("id, status, rider_live_lat, rider_live_lng, rider_live_at")
+    .not("rider_live_at", "is", null)
+    .limit(500);
+  if (error) throw error;
+  const due = (rows || []).filter((r) => liveLocation.shouldPurgeRiderLocation(r, nowMs)).map((r) => r.id);
+  if (!due.length) return [];
+  const { error: clearErr } = await supabase.from("rides").update(liveLocation.RIDER_LOCATION_COLUMNS).in("id", due);
+  if (clearErr) throw clearErr;
+  return due;
 }
 
 // Protected by requireRider UNCONDITIONALLY -- not gated behind
@@ -24867,6 +24986,11 @@ async function startServer() {
       runStuckRedispatchRecovery();
       setInterval(runStuckRedispatchRecovery, 30_000);
 
+      // Deletes rider-shared locations past pickup (lib/liveLocation.js).
+      setInterval(() => {
+        purgeRiderLocations().catch((err) => console.error("⚠️ Rider location purge failed:", err && err.message));
+      }, 60_000);
+
       // Cancels uncaptured card holds that never became a ride. Off unless
       // the unused_hold_sweep_enabled system flag is "true".
       setInterval(() => {
@@ -24913,4 +25037,4 @@ if (require.main === module) {
 // runOfferExpirySweep is exported only so tests can drive the real
 // Supabase adapters for the offer-expiry sweep; production runs it on the
 // interval set up under require.main === module below.
-module.exports = { app, runOfferExpirySweep, runUnusedHoldSweep, runAgentCoordinationSweep, reconcileStripeHolds, runScheduledReconciliation };
+module.exports = { app, runOfferExpirySweep, runUnusedHoldSweep, runAgentCoordinationSweep, reconcileStripeHolds, runScheduledReconciliation, purgeRiderLocations };

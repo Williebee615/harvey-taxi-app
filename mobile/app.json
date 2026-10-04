@@ -16,6 +16,7 @@
       "bundleIdentifier": "com.harveytaxiservice.app",
       "buildNumber": "10",
       "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Harvey Taxi uses your location to set your pickup point and, only if you turn it on, to show your driver where you are until pickup.",
         "UISupportedInterfaceOrientations~ipad": [
           "UIInterfaceOrientationPortrait",
           "UIInterfaceOrientationPortraitUpsideDown",
@@ -26,6 +27,7 @@
     },
     "android": {
       "package": "com.harveytaxi.app",
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"],
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#050816"

@@ -2163,10 +2163,56 @@
       margin-bottom: 8px;
     }
 
+    #rideWizardOverlay .live-map-card {
+      margin-top: 12px;
+    }
+
+    #rideWizardOverlay .live-map-note,
+    #rideWizardOverlay .rider-share-text {
+      margin: 6px 0 0;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    #rideWizardOverlay .rider-share-row {
+      margin-top: 10px;
+    }
+
+    #rideWizardOverlay .rider-share-btn {
+      width: 100%;
+      min-height: 44px;
+      border-radius: 12px;
+      border: 1px solid rgba(77,255,164,0.45);
+      background: rgba(77,255,164,0.1);
+      color: var(--text, #fff);
+      font-weight: 700;
+      font-size: 0.95rem;
+      cursor: pointer;
+    }
+
+    #rideWizardOverlay .rider-share-btn.is-sharing {
+      border-color: rgba(255,126,151,0.5);
+      background: rgba(255,126,151,0.1);
+    }
+
+    #rideWizardOverlay .live-map-marker {
+      font-size: 22px;
+      line-height: 1;
+      filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6));
+    }
+
+    #rideWizardOverlay .live-map-marker.is-rider {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #3b82f6;
+      border: 3px solid #fff;
+    }
+
     #rideWizardOverlay .live-tracking-map {
       position: relative;
       width: 100%;
-      height: 200px;
+      height: 260px;
       border-radius: 14px;
       overflow: hidden;
       border: 1px solid var(--line);
@@ -4894,8 +4940,22 @@
 
               <div id="driverTracking" class="driver-tracking hidden">
                 <span id="driverTrackingText" class="driver-tracking-text">—</span>
-                <div id="liveTrackingMap" class="live-tracking-map hidden"></div>
               </div>
+            </div>
+
+            <!-- LIVE MAP (docs/live-map-tracking.md): the driver's position,
+                 pickup and destination, and the rider's own position while
+                 they share it. Hidden when maps aren't configured. -->
+            <div id="liveMapCard" class="live-map-card hidden">
+              <div id="liveTrackingMap" class="live-tracking-map" role="img" aria-label="Map showing your driver, pickup and destination"></div>
+              <p id="liveMapNote" class="live-map-note">🚗 Driver · 📍 Pickup · 🏁 Destination</p>
+            </div>
+
+            <!-- Rider location sharing: off until the rider turns it on for
+                 this ride; the server accepts it only until pickup. -->
+            <div id="riderShareRow" class="rider-share-row hidden">
+              <button type="button" id="riderShareBtn" class="rider-share-btn" aria-pressed="false">Share my location with my driver</button>
+              <p id="riderShareText" class="rider-share-text" aria-live="polite">Your driver sees where you are until pickup. You can stop at any time.</p>
             </div>
 
             <!-- DELIVERY ORDER DETAILS (food/grocery orders only) -->
@@ -5196,7 +5256,7 @@
         write(map);
       }
       function rideIdFromPath(path) {
-        var m = /\/api\/rides\/([^/?#]+)\/(status|stream)\b/.exec(String(path || ""));
+        var m = /\/api\/rides\/([^/?#]+)\/(status|stream|rider-location)\b/.exec(String(path || ""));
         return m ? decodeURIComponent(m[1]) : "";
       }
       return {
@@ -5972,20 +6032,339 @@
       }
     }
 
-    // Live tracking map: plots the driver's last-reported GPS position
-    // and the current leg's target (pickup or destination) once a driver
-    // is assigned and en route/in progress. Distinct from #pickupMap,
-    // which is only used to confirm the rider's own pickup point before
-    // a ride exists. Uses a straight dashed line between the two points
-    // rather than a routed path — that's an honest "as the crow flies"
-    // connector, not a claim about the driver's actual road route.
-    // No in-app map: Mapbox is used server-side for address search and
-    // routing only, so tracking shows the text status, not a map.
-    function updateLiveTrackingMap() {
-      if (els.liveTrackingMap) {
-        els.liveTrackingMap.classList.add("hidden");
+    // Live map (docs/live-map-tracking.md): the driver's last reported
+    // position, pickup and destination, plus the rider's own position while
+    // they share it. Mapbox GL JS loads only when a ride with a driver is on
+    // screen and the server returns a public map token
+    // (GET /api/maps/config); otherwise the text status above is all the
+    // rider sees. Markers are straight positions, not a routed path.
+    const MAPBOX_GL_JS = "https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js";
+    const MAPBOX_GL_CSS = "https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.css";
+    const MAPBOX_STYLE = "mapbox://styles/mapbox/dark-v11";
+    const LIVE_MAP_STATUSES = ["driver_assigned", "driver_enroute", "arrived", "in_progress"];
+    const RIDER_SHARE_STATUSES = ["driver_assigned", "driver_enroute", "arrived"];
+    const RIDER_SHARE_SEND_MS = 10000;
+    const MARKER_LOOK = {
+      driver: { text: "🚗", label: "Your driver" },
+      pickup: { text: "📍", label: "Pickup" },
+      destination: { text: "🏁", label: "Destination" },
+      rider: { text: "", label: "You", cls: "is-rider" }
+    };
+
+    const liveMap = {
+      config: null,
+      configPromise: null,
+      libPromise: null,
+      map: null,
+      markers: {},
+      userMoved: false,
+      rideId: null,
+      seq: 0,
+      lastData: null,
+      share: { watchId: null, rideId: null, lastSentAt: 0, position: null, sending: false, message: "" }
+    };
+
+    function loadMapConfig() {
+      if (!liveMap.configPromise) {
+        liveMap.configPromise = fetch(`${CONFIG.API_BASE}/api/maps/config`, { credentials: "same-origin" })
+          .then((res) => (res.ok ? res.json() : null))
+          .catch(() => null)
+          .then((cfg) => {
+            liveMap.config = cfg && cfg.enabled && typeof cfg.token === "string" && cfg.token.startsWith("pk.") ? cfg : null;
+            return liveMap.config;
+          });
+      }
+      return liveMap.configPromise;
+    }
+
+    function loadMapLibrary() {
+      if (window.mapboxgl) return Promise.resolve(window.mapboxgl);
+      if (!liveMap.libPromise) {
+        liveMap.libPromise = new Promise((resolve, reject) => {
+          const css = document.createElement("link");
+          css.rel = "stylesheet";
+          css.href = MAPBOX_GL_CSS;
+          document.head.appendChild(css);
+          const script = document.createElement("script");
+          script.src = MAPBOX_GL_JS;
+          script.async = true;
+          script.onload = () => (window.mapboxgl ? resolve(window.mapboxgl) : reject(new Error("map library unavailable")));
+          script.onerror = () => reject(new Error("map library unavailable"));
+          document.head.appendChild(script);
+        }).catch((err) => {
+          liveMap.libPromise = null;
+          throw err;
+        });
+      }
+      return liveMap.libPromise;
+    }
+
+    function mapPoint(p) {
+      if (!p) return null;
+      const lat = Number(p.lat);
+      const lng = Number(p.lng);
+      return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+    }
+
+    function liveMapPoints(data) {
+      const driverLocation = data.driver && data.driver.location;
+      const points = {
+        driver: driverLocation && !driverLocation.stale ? mapPoint(driverLocation) : null,
+        pickup: data.status === "in_progress" ? null : mapPoint(data.pickup_location),
+        destination: mapPoint(data.destination_location),
+        rider: liveMap.share.watchId !== null ? liveMap.share.position : null
+      };
+      Object.keys(points).forEach((key) => {
+        if (!points[key]) delete points[key];
+      });
+      return points;
+    }
+
+    function teardownLiveMap() {
+      if (liveMap.map) {
+        try {
+          liveMap.map.remove();
+        } catch (e) {
+          // already gone
+        }
+      }
+      liveMap.map = null;
+      liveMap.markers = {};
+      liveMap.userMoved = false;
+      liveMap.rideId = null;
+    }
+
+    function hideLiveMap() {
+      const card = document.getElementById("liveMapCard");
+      if (card) card.classList.add("hidden");
+      teardownLiveMap();
+    }
+
+    function fitLiveMap(points) {
+      const list = Object.values(points);
+      if (!liveMap.map || !list.length || liveMap.userMoved) return;
+      if (list.length === 1) {
+        liveMap.map.easeTo({ center: [list[0].lng, list[0].lat], zoom: 14, duration: 600 });
+        return;
+      }
+      const bounds = new window.mapboxgl.LngLatBounds();
+      list.forEach((p) => bounds.extend([p.lng, p.lat]));
+      liveMap.map.fitBounds(bounds, { padding: 48, maxZoom: 15, duration: 600 });
+    }
+
+    async function updateLiveTrackingMap(data) {
+      const seq = ++liveMap.seq;
+      liveMap.lastData = data || null;
+      updateRiderShare(data);
+
+      if (!data || !data.driver || !LIVE_MAP_STATUSES.includes(data.status)) {
+        hideLiveMap();
+        return;
+      }
+
+      const config = await loadMapConfig();
+      if (seq !== liveMap.seq) return;
+      if (!config) {
+        hideLiveMap();
+        return;
+      }
+
+      let mapboxgl;
+      try {
+        mapboxgl = await loadMapLibrary();
+      } catch (e) {
+        if (seq === liveMap.seq) hideLiveMap();
+        return;
+      }
+      if (seq !== liveMap.seq) return;
+
+      const card = document.getElementById("liveMapCard");
+      const container = document.getElementById("liveTrackingMap");
+      if (!card || !container) return;
+
+      const points = liveMapPoints(data);
+      const first = Object.values(points)[0];
+      if (!first) {
+        hideLiveMap();
+        return;
+      }
+
+      if (liveMap.map && liveMap.rideId !== data.id) teardownLiveMap();
+      card.classList.remove("hidden");
+
+      if (!liveMap.map) {
+        mapboxgl.accessToken = config.token;
+        liveMap.map = new mapboxgl.Map({
+          container,
+          style: MAPBOX_STYLE,
+          center: [first.lng, first.lat],
+          zoom: 13,
+          cooperativeGestures: true
+        });
+        liveMap.map.on("dragstart", () => {
+          liveMap.userMoved = true;
+        });
+        liveMap.rideId = data.id;
+      }
+
+      Object.keys(MARKER_LOOK).forEach((key) => {
+        const point = points[key];
+        const existing = liveMap.markers[key];
+        if (!point) {
+          if (existing) {
+            existing.remove();
+            delete liveMap.markers[key];
+          }
+          return;
+        }
+        if (existing) {
+          existing.setLngLat([point.lng, point.lat]);
+          return;
+        }
+        const look = MARKER_LOOK[key];
+        const node = document.createElement("div");
+        node.className = "live-map-marker" + (look.cls ? " " + look.cls : "");
+        node.textContent = look.text;
+        node.title = look.label;
+        node.setAttribute("aria-label", look.label);
+        liveMap.markers[key] = new mapboxgl.Marker({ element: node }).setLngLat([point.lng, point.lat]).addTo(liveMap.map);
+      });
+
+      const note = document.getElementById("liveMapNote");
+      if (note) {
+        const parts = [];
+        if (points.driver) parts.push("🚗 Driver");
+        else parts.push("🚗 Driver location not available yet");
+        if (points.pickup) parts.push("📍 Pickup");
+        if (points.destination) parts.push("🏁 Destination");
+        if (points.rider) parts.push("🔵 You");
+        note.textContent = parts.join(" · ");
+      }
+
+      fitLiveMap(points);
+    }
+
+    // ---- Rider location sharing (until pickup) ----
+
+    function shareElements() {
+      return {
+        row: document.getElementById("riderShareRow"),
+        btn: document.getElementById("riderShareBtn"),
+        text: document.getElementById("riderShareText")
+      };
+    }
+
+    function renderRiderShare() {
+      const { btn, text } = shareElements();
+      const sharing = liveMap.share.watchId !== null;
+      if (btn) {
+        btn.textContent = sharing ? "Stop sharing my location" : "Share my location with my driver";
+        btn.classList.toggle("is-sharing", sharing);
+        btn.setAttribute("aria-pressed", sharing ? "true" : "false");
+      }
+      if (text) {
+        text.textContent =
+          liveMap.share.message ||
+          (sharing
+            ? "Sharing your location with your driver. It stops automatically at pickup."
+            : "Your driver sees where you are until pickup. You can stop at any time.");
       }
     }
+
+    function updateRiderShare(data) {
+      const { row } = shareElements();
+      const allowed = Boolean(
+        data &&
+          data.rider_location_sharing &&
+          data.rider_location_sharing.allowed &&
+          RIDER_SHARE_STATUSES.includes(data.status) &&
+          navigator.geolocation
+      );
+      if (!allowed) {
+        if (liveMap.share.watchId !== null) stopRiderShare({ tellServer: false });
+        if (row) row.classList.add("hidden");
+        return;
+      }
+      if (liveMap.share.rideId && liveMap.share.rideId !== data.id && liveMap.share.watchId !== null) {
+        stopRiderShare({ tellServer: false });
+      }
+      liveMap.share.rideId = data.id;
+      if (row) row.classList.remove("hidden");
+      renderRiderShare();
+    }
+
+    async function sendRiderPosition(force) {
+      const share = liveMap.share;
+      if (!share.position || !share.rideId || share.sending) return;
+      if (!force && Date.now() - share.lastSentAt < RIDER_SHARE_SEND_MS) return;
+      share.sending = true;
+      share.lastSentAt = Date.now();
+      try {
+        await apiFetch(`/api/rides/${encodeURIComponent(share.rideId)}/rider-location`, {
+          method: "POST",
+          body: JSON.stringify({ latitude: share.position.lat, longitude: share.position.lng, accuracy: share.position.accuracy })
+        });
+        share.message = "";
+      } catch (err) {
+        if (err && err.status === 409) {
+          stopRiderShare({ tellServer: false });
+          share.message = "Location sharing ended at pickup.";
+        } else {
+          share.message = "Couldn't send your location. We'll keep trying.";
+        }
+      } finally {
+        share.sending = false;
+        renderRiderShare();
+      }
+    }
+
+    function startRiderShare() {
+      const share = liveMap.share;
+      if (!navigator.geolocation || share.watchId !== null || !share.rideId) return;
+      share.message = "Finding your location…";
+      share.watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          const first = !share.position;
+          share.position = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy };
+          if (share.message === "Finding your location…") share.message = "";
+          sendRiderPosition(first);
+          if (liveMap.lastData) updateLiveTrackingMap(liveMap.lastData);
+        },
+        (err) => {
+          stopRiderShare({ tellServer: false });
+          share.message =
+            err && err.code === 1
+              ? "Location permission is off. Allow location for this site (or the Harvey Taxi app) to share it."
+              : "Couldn't get your location. Try again.";
+          renderRiderShare();
+        },
+        { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 }
+      );
+      renderRiderShare();
+    }
+
+    function stopRiderShare({ tellServer = true } = {}) {
+      const share = liveMap.share;
+      if (share.watchId !== null && navigator.geolocation) navigator.geolocation.clearWatch(share.watchId);
+      share.watchId = null;
+      share.position = null;
+      share.lastSentAt = 0;
+      share.message = "";
+      if (tellServer && share.rideId) {
+        apiFetch(`/api/rides/${encodeURIComponent(share.rideId)}/rider-location`, { method: "DELETE" }).catch(() => {});
+      }
+      renderRiderShare();
+      if (liveMap.lastData) updateLiveTrackingMap(liveMap.lastData);
+    }
+
+    (function bindRiderShare() {
+      const { btn } = shareElements();
+      if (!btn) return;
+      btn.addEventListener("click", () => {
+        if (liveMap.share.watchId !== null) stopRiderShare();
+        else startRiderShare();
+      });
+    })();
 
     function updateDeliveryInfo(status, delivery) {
       if (!els.deliveryOrderCard) return;
