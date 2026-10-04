@@ -15,11 +15,12 @@ export const QUICK_PROMPTS = Object.freeze([
   { key: 'trip', label: 'Next trip step', message: "What's next on my current trip?" },
   { key: 'nav', label: 'Directions', message: 'Navigate to my next stop' },
   { key: 'earnings', label: 'Earnings', message: 'How much did I earn?' },
+  { key: 'hours', label: 'My hours', message: 'How many hours have I been online this shift?' },
   { key: 'support', label: 'Support', message: 'I need to contact support' }
 ]);
 
 export const GREETING =
-  'Hi! I can help with going online, ride offers, your next trip step, directions, earnings and support. You confirm every change.';
+  'Hi! I can help with going online, ride offers, your next trip step, directions, earnings, your hours and support, and answer policy questions from our published pages. You confirm every change.';
 
 export const UNAVAILABLE_REPLY =
   "The assistant isn't available right now. Everything on the Drive screen still works. In an emergency, call 911.";
@@ -158,4 +159,11 @@ export function planActions(serverActions, snapshot) {
     }
   }
   return out;
+}
+
+// "Terms of Service — Payments (April 5, 2026)" for an answer's sources.
+export function sourceLabel(src) {
+  if (!src) return '';
+  const date = src.updated ? ` (${src.updated})` : ' (date not stated)';
+  return `${src.title || 'Harvey Taxi'}${src.section ? ` — ${src.section}` : ''}${date}`;
 }

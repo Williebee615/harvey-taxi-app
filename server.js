@@ -23577,7 +23577,7 @@ async function runAgentAssist(req, res, { role, actor }) {
   if (result.escalation) {
     caseId = await openAgentCase({ role, actorId: actor ? actor.id : null, escalation: result.escalation, message, source: "assist" });
   }
-  agentAudit(agentAssistDecisionEntry({ role, actorId: actor ? actor.id : null, result, mode: state.mode.mode }), req);
+  agentAudit(agentAssistDecisionEntry({ role, actorId: actor ? actor.id : null, result, mode: state.mode.mode, message }), req);
   return ok(res, {
     agent_available: true,
     reply: result.reply,
@@ -23585,6 +23585,10 @@ async function runAgentAssist(req, res, { role, actor }) {
     intent: result.intent,
     escalation: result.escalation,
     actions: result.actions,
+    // Approved pages the answer quotes (title, section, url, date), and
+    // whether the question had no approved answer.
+    sources: result.sources || [],
+    knowledge_gap: result.knowledge_gap === true,
     case_id: caseId
   });
 }
