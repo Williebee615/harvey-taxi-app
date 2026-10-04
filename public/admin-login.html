@@ -120,6 +120,10 @@
     .status.error {
       background: rgba(255,126,144,0.12); border: 1px solid rgba(255,126,144,0.22);
     }
+    .status.success {
+      background: rgba(84,214,160,0.12); border: 1px solid rgba(84,214,160,0.22);
+    }
+    .btn:disabled { opacity: 0.6; cursor: wait; }
 
     .return-home {
       position: fixed; right: 16px; bottom: 16px; z-index: 60;
@@ -195,33 +199,62 @@
     const adminForm = document.getElementById("adminLoginForm");
     const adminStatus = document.getElementById("statusMessage");
 
+    // Where to go after sign-in: ?next=/some-admin-page.html, same site
+    // only (a path starting with one "/"), otherwise the admin dashboard.
+    function nextPage() {
+      const raw = new URLSearchParams(window.location.search).get("next") || "";
+      if (/^\/(?![\/\\])[A-Za-z0-9._\-\/]*(\?[A-Za-z0-9._\-=&%]*)?$/.test(raw)) return raw;
+      return "/admin-dashboard.html";
+    }
+
+    function showStatus(kind, text) {
+      adminStatus.className = "status show " + kind;
+      adminStatus.textContent = text;
+    }
+
+    // Already signed in (HttpOnly session cookie): go straight on.
+    fetch("/api/admin/session", { credentials: "same-origin", cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && data.authenticated) window.location.replace(nextPage());
+      })
+      .catch(() => {});
+
     adminForm.addEventListener("submit", async (e) => {
       e.preventDefault();
+      const button = adminForm.querySelector("button[type=submit]");
+      const passwordInput = document.getElementById("password");
 
       const payload = {
         email: document.getElementById("email").value.trim(),
-        password: document.getElementById("password").value
+        password: passwordInput.value
       };
 
+      button.disabled = true;
       try {
-        const res = await fetch("/api/admin-login", {
+        // Sets an HttpOnly session cookie; nothing is kept in browser storage.
+        const res = await fetch("/api/admin/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          cache: "no-store",
           body: JSON.stringify(payload)
         });
+        const data = await res.json().catch(() => ({}));
 
-        const data = await res.json();
-
-        if (data.redirectUrl) {
-          window.location.href = data.redirectUrl;
+        if (res.ok && data.ok) {
+          passwordInput.value = "";
+          showStatus("success", "Signed in. Opening the admin page...");
+          window.location.replace(nextPage());
           return;
         }
 
-        adminStatus.className = "status show error";
-        adminStatus.textContent = data.message || "Login response received, but no redirect destination was provided.";
+        passwordInput.value = "";
+        showStatus("error", data.message || "Sign-in failed. Please try again.");
       } catch (error) {
-        adminStatus.className = "status show error";
-        adminStatus.textContent = "Unable to log in right now. Please try again.";
+        showStatus("error", "Unable to sign in right now. Please try again.");
+      } finally {
+        button.disabled = false;
       }
     });
   </script>
