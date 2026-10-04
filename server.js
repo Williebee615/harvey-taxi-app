@@ -3453,6 +3453,7 @@ const {
   shapeStatusForViewer
 } = require("./lib/rideAccess");
 const liveLocation = require("./lib/liveLocation");
+const driverHours = require("./lib/driverHours");
 const RIDE_TRACKING_SECRET = deriveTrackingSecret({
   trackingSecret: env("RIDE_TRACKING_SECRET", ""),
   quoteSecret: RIDE_QUOTE_SECRET
@@ -10000,6 +10001,110 @@ app.get(
 
 ========================================================= */
 
+/* =========================================================
+   DRIVER HOURS LIMIT (docs/driver-hours.md, lib/driverHours.js)
+   Up to 12 hours online per shift, then 6 hours of rest.
+========================================================= */
+
+// driverIds: limit to these drivers, or null for every driver with recent
+// sessions. Returns Map(driverId -> shift). Drivers with no sessions in the
+// window are absent (nothing worked).
+async function loadDriverShifts(driverIds = null, nowMs = Date.now()) {
+  const limits = driverHours.limitsFromEnv();
+  const since = new Date(nowMs - driverHours.lookbackMs(limits)).toISOString();
+  let query = supabase
+    .from("driver_online_sessions")
+    .select("driver_id, started_at, ended_at")
+    .or(`ended_at.is.null,ended_at.gte.${since}`);
+  if (driverIds) {
+    const ids = [...new Set(driverIds.filter(Boolean).map(String))];
+    if (!ids.length) return new Map();
+    query = query.in("driver_id", ids);
+  }
+  const { data, error } = await query.limit(5000);
+  if (error) throw error;
+  const byDriver = new Map();
+  for (const row of data || []) {
+    const id = String(row.driver_id);
+    if (!byDriver.has(id)) byDriver.set(id, []);
+    byDriver.get(id).push(row);
+  }
+  const shifts = new Map();
+  for (const [id, rows] of byDriver) {
+    shifts.set(id, driverHours.computeShift(rows, { nowMs, ...limits }));
+  }
+  return shifts;
+}
+
+async function loadDriverShift(driverId, nowMs = Date.now()) {
+  const shifts = await loadDriverShifts([driverId], nowMs);
+  return shifts.get(String(driverId)) || driverHours.computeShift([], { nowMs, ...driverHours.limitsFromEnv() });
+}
+
+// Ids of drivers at or over the limit, for dispatch to skip. Callers pass
+// only non-review drivers: store reviewers can't be made to wait 6 hours.
+// Fails open, so dispatch doesn't stop because this lookup failed; going
+// online and the sweep still enforce the limit.
+async function driversOverHoursLimit(candidateIds) {
+  try {
+    const shifts = await loadDriverShifts(candidateIds);
+    return new Set([...shifts].filter(([, shift]) => shift.limit_reached).map(([id]) => id));
+  } catch (err) {
+    console.warn("⚠️ Driver hours lookup failed during dispatch:", err && err.message);
+    return new Set();
+  }
+}
+
+// Takes drivers offline when they reach the limit. A driver on a trip
+// finishes it first: they are taken offline on the first run after the
+// trip ends. Review accounts are exempt. Returns the ids taken offline.
+async function runDriverHoursSweep(nowMs = Date.now()) {
+  const shifts = await loadDriverShifts(null, nowMs);
+  const due = [...shifts].filter(([, shift]) => shift.online_now && shift.limit_reached).map(([id]) => id);
+  if (!due.length) return [];
+
+  const [{ data: drivers, error }, busyIds] = await Promise.all([
+    supabase.from("drivers").select("id, online, is_review_account").in("id", due),
+    getBusyDriverIds({ supabase })
+  ]);
+  if (error) throw error;
+  const busy = new Set((busyIds || []).map(String));
+
+  const takenOffline = [];
+  for (const driver of drivers || []) {
+    const id = String(driver.id);
+    if (driver.is_review_account === true || driver.online !== true || busy.has(id)) continue;
+    const { data: updated, error: updateError } = await supabase
+      .from("drivers")
+      .update({ online: false, updated_at: nowIso() })
+      .eq("id", driver.id)
+      .eq("online", true)
+      .select("id");
+    if (updateError) {
+      console.error("❌ Driver hours sweep could not take driver offline:", id, updateError.message);
+      continue;
+    }
+    if (!updated || !updated.length) continue;
+    takenOffline.push(id);
+    const shift = shifts.get(id);
+    auditLog({
+      actor_type: "system",
+      action: "driver_hours_limit_offline",
+      entity_type: "driver",
+      entity_id: id,
+      metadata: { worked_minutes: Math.floor(shift.worked_ms / 60000) }
+    }).catch(() => {});
+    sendPushNotification({
+      ownerType: "driver",
+      ownerId: id,
+      title: "You've reached your hours limit",
+      body: driverHours.restMessage(shift) + " You've been taken offline.",
+      url: "/driver-dashboard.html"
+    }).catch(() => {});
+  }
+  return takenOffline;
+}
+
 async function findAvailableDrivers({
 
   pickup_lat,
@@ -10061,12 +10166,13 @@ async function findAvailableDrivers({
         });
 
       if (!rpcError && Array.isArray(rpcData)) {
+        const overLimit = await driversOverHoursLimit(rpcData.filter((d) => d.is_review_account !== true).map((d) => d.id));
 
         return rpcData
 
           .filter(
 
-            (d) => !excludeSet.has(String(d.id))
+            (d) => !excludeSet.has(String(d.id)) && !overLimit.has(String(d.id))
 
           )
 
@@ -10138,9 +10244,11 @@ async function findAvailableDrivers({
 
   }
 
+  const overLimit = await driversOverHoursLimit((data || []).filter((d) => d.is_review_account !== true).map((d) => d.id));
+
   return excludeBusyDrivers(data || [], busyDriverIds)
 
-    .filter((driver) => !excludeSet.has(String(driver.id)))
+    .filter((driver) => !excludeSet.has(String(driver.id)) && !overLimit.has(String(driver.id)))
 
     .map((driver) => {
 
@@ -16938,6 +17046,27 @@ app.post(
 
         );
 
+      }
+
+      // Hours limit: up to 12 hours online per shift, then 6 hours of
+      // rest (lib/driverHours.js). Checked here, the only route that
+      // takes a driver online. Fails closed: if the hours can't be read,
+      // the driver can't go online.
+      if (driver.is_review_account !== true) {
+        let shift;
+        try {
+          shift = await loadDriverShift(driverId);
+        } catch (hoursErr) {
+          console.error("❌ Driver hours check failed:", driverId, hoursErr && hoursErr.message);
+          return fail(res, "We couldn't check your driving hours. Please try again in a moment.", 503);
+        }
+        if (!shift.can_go_online) {
+          return fail(res, driverHours.restMessage(shift), 409, {
+            code: "rest_required",
+            rest_until: shift.rest_until,
+            hours: driverHours.hoursForApp(shift)
+          });
+        }
       }
 
     }
@@ -24502,7 +24631,8 @@ app.post(
   enablePersona: ENABLE_PERSONA,
   enableCheckr: ENABLE_CHECKR,
   auditLog,
-  realtime: driverAppRealtime
+  realtime: driverAppRealtime,
+  loadDriverShift
 }));
 
 /* =========================================================
@@ -24986,6 +25116,11 @@ async function startServer() {
       runStuckRedispatchRecovery();
       setInterval(runStuckRedispatchRecovery, 30_000);
 
+      // Driver hours limit: offline at 12 hours online (lib/driverHours.js).
+      setInterval(() => {
+        runDriverHoursSweep().catch((err) => console.error("⚠️ Driver hours sweep failed:", err && err.message));
+      }, 60_000);
+
       // Deletes rider-shared locations past pickup (lib/liveLocation.js).
       setInterval(() => {
         purgeRiderLocations().catch((err) => console.error("⚠️ Rider location purge failed:", err && err.message));
@@ -25037,4 +25172,4 @@ if (require.main === module) {
 // runOfferExpirySweep is exported only so tests can drive the real
 // Supabase adapters for the offer-expiry sweep; production runs it on the
 // interval set up under require.main === module below.
-module.exports = { app, runOfferExpirySweep, runUnusedHoldSweep, runAgentCoordinationSweep, reconcileStripeHolds, runScheduledReconciliation, purgeRiderLocations };
+module.exports = { app, runOfferExpirySweep, runUnusedHoldSweep, runAgentCoordinationSweep, reconcileStripeHolds, runScheduledReconciliation, purgeRiderLocations, runDriverHoursSweep };
