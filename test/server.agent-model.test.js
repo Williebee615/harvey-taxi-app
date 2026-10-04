@@ -207,28 +207,55 @@ test("policy questions use approved pages with sources; nothing found is a gap w
   expect(gap.body.actions).toEqual([{ type: "support_handoff", kind: "general", label: "Send a request to support", requires_confirmation: true }]);
 });
 
-test("a policy answer must state what the approved text says; pointing at it falls back to the quoted rules answer", async () => {
+test("rider cancellation policy: nothing approved, so the answer says so plainly and offers support; Harvey cancelling requests is never quoted", async () => {
   useFake();
-  // The reply Claude gave in the owner's first production test (2026-10-04).
+  // The reply Claude gave in the owner's production test (2026-10-04).
   mockCreate
     .mockResolvedValueOnce(toolUse("search_harvey_policies", { query: "cancellation policy" }))
     .mockResolvedValueOnce(say("That's Harvey Taxi's cancellation policy from our perspective. If you have a ride booked and want to know if you can cancel it, I can check your specific ride status for you."));
   const vague = await riderAsk("What's your cancellation policy?");
+  // The search returns nothing (the Terms sentence about Harvey cancelling
+  // requests isn't a cancellation policy) ...
+  const toolResult = mockCreate.mock.calls[1][0].messages.at(-1).content[0];
+  expect(toolResult.content).toMatch(/Nothing found/);
+  // ... so the vague reply is replaced by the plain gap answer.
   expect(vague.body.source).not.toBe("model");
-  // The rules answer for this question: no approved rider cancellation
-  // policy, logged as a gap for staff (test/agent-eval expects the same).
   expect(vague.body.reply).toMatch(/don't have approved Harvey Taxi information/);
+  expect(vague.body.reply).not.toMatch(/limit, delay, reject/);
   expect(vague.body.knowledge_gap).toBe(true);
-  expect(decisions().at(-1).metadata.model).toMatchObject({ fallback_reason: "guard_policy_not_stated", calls: 2 });
-  // Both calls really happened, so they are charged.
+  expect(vague.body.actions.map((a) => a.type)).toContain("support_handoff");
+  expect(decisions().at(-1).metadata.model).toMatchObject({ fallback_reason: "guard_gap_not_stated", calls: 2 });
   expect(ledger().at(-1).cost_usd).toBeGreaterThan(0);
 
+  // A plain gap reply from Claude is kept, and gets the support button
+  // even when Claude didn't add it.
   mockCreate
-    .mockResolvedValueOnce(toolUse("search_harvey_policies", { query: "cancellation policy" }))
-    .mockResolvedValueOnce(say("Harvey Taxi hasn't published a rider cancellation policy. Our Terms of Service only say Harvey Taxi may cancel requests for reasons like safety, verification or driver availability. I can help you send a request to support."));
-  const stated = await riderAsk("What's your cancellation policy?");
-  expect(stated.body.source).toBe("model");
-  expect(stated.body.sources[0]).toMatchObject({ section: "Ride Requests and Availability" });
+    .mockResolvedValueOnce(toolUse("search_harvey_policies", { query: "rider cancellation fee policy" }))
+    .mockResolvedValueOnce(say("Harvey Taxi hasn't published an approved rider cancellation policy yet, so I can't tell you about fees or deadlines. You can send a request to support below."));
+  const plain = await riderAsk("What is your cancellation policy?");
+  expect(plain.body).toMatchObject({ source: "model", knowledge_gap: true });
+  expect(plain.body.actions.map((a) => a.type)).toContain("support_handoff");
+  expect(plain.body.sources).toEqual([]);
+});
+
+test("a policy question answered without searching falls back to the rules answer", async () => {
+  useFake();
+  mockCreate.mockResolvedValueOnce(say("Our cancellation policy lets you cancel free within five minutes."));
+  const res = await riderAsk("What is your cancellation policy?");
+  expect(res.body.source).not.toBe("model");
+  expect(res.body.reply).toMatch(/don't have approved Harvey Taxi information/);
+  expect(decisions().at(-1).metadata.model.fallback_reason).toBe("guard_policy_not_searched");
+});
+
+test("a policy answer must state what the approved text says; pointing at it falls back to the quoted rules answer", async () => {
+  useFake();
+  mockCreate
+    .mockResolvedValueOnce(toolUse("search_harvey_policies", { query: "data retention" }))
+    .mockResolvedValueOnce(say("That's covered by our Privacy Policy. Let me know if you have other questions."));
+  const vague = await riderAsk("How long do you keep my data?");
+  expect(vague.body.source).not.toBe("model");
+  expect(vague.body.sources[0]).toMatchObject({ title: "Privacy Policy" });
+  expect(decisions().at(-1).metadata.model.fallback_reason).toBe("guard_policy_not_stated");
 });
 
 test("the policy instruction tells the model to state the text, and to say when it doesn't answer the question", () => {
