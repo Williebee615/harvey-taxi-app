@@ -525,8 +525,12 @@ const { createKnowledgeStore } = require("./lib/knowledge/store");
 const {
   draftSummary: draftHandoffSummary,
   cleanSummary: cleanHandoffSummary,
+  handoffKind,
+  rideLabel,
   newHandoffReference,
   handoffCaseEntry,
+  handoffEmailEntry,
+  createHandoffDeduper,
   createHandoffLimiter
 } = require("./lib/agent/handoff");
 const { createUsageMeter: createAgentUsageMeter, usageKey: agentUsageKey, summarizeUsage: summarizeAgentUsage, appTarget: agentAppTarget } = require("./lib/agent/usage");
@@ -23694,22 +23698,115 @@ app.post(
    2. send: only the text the user approved, only when signed in. The
       request is recorded as a case in the human-review queue, and the
       reference is returned only after that record is saved, so the app
-      never says "sent" for a request support can't see. Support is also
-      emailed when email is configured (best effort; the case is the
-      record).
+      never says "sent" for a request support can't see. A copy is then
+      emailed to support@harveytaxiservice.com; its outcome is recorded
+      and reported separately from the case. Retries and double taps
+      return the first case instead of creating another.
+   Lost items (kind "lost_item") use the same flow, optionally linked to
+   one of the account's own recent trips.
 ========================================================= */
 const handoffLimiter = createHandoffLimiter();
+const handoffDeduper = createHandoffDeduper();
+// Where the email copy of each request goes (the case queue is the record).
+const HANDOFF_SUPPORT_EMAIL = env("HANDOFF_SUPPORT_EMAIL", "support@harveytaxiservice.com");
+const HANDOFF_EMAIL_WAIT_MS = 8000;
 const HANDOFF_NOT_SENT =
   "Your request was not sent. Please try again, or use the Support page to contact Harvey Taxi. In an emergency, call 911.";
+const HANDOFF_RIDE_COLUMNS = "id, rider_id, driver_id, status, pickup_address, dropoff_address, created_at, completed_at";
+const HANDOFF_RIDE_DAYS = 14;
 
-async function runHandoffDraft(req, res, { actor }) {
+// The account's own most recent trip in the last 14 days, for a lost-item
+// report. Riders by rider_id, drivers by driver_id; cancelled trips skipped.
+async function findHandoffRide(role, actorId) {
+  const since = new Date(Date.now() - HANDOFF_RIDE_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await supabase
+    .from("rides")
+    .select(HANDOFF_RIDE_COLUMNS)
+    .eq(role === "driver" ? "driver_id" : "rider_id", String(actorId))
+    .gte("created_at", since)
+    .order("created_at", { ascending: false })
+    .limit(5);
+  if (error) return null;
+  return (data || []).find((r) => !/cancel/i.test(String(r.status || ""))) || null;
+}
+
+// A ride id sent with a report must be one of the account's own rides.
+async function ownsHandoffRide(role, actorId, rideId) {
+  const { data, error } = await supabase.from("rides").select(HANDOFF_RIDE_COLUMNS).eq("id", String(rideId)).maybeSingle();
+  if (error || !data) return false;
+  return String(role === "driver" ? data.driver_id : data.rider_id) === String(actorId);
+}
+
+async function runHandoffDraft(req, res, { role, actor }) {
   const state = await loadAgentState();
   if (!state.mode.assist_enabled) return fail(res, "The assistant is not available right now.", 503);
+  const kind = handoffKind(req.body?.kind);
+  const ride = kind === "lost_item" && actor ? await findHandoffRide(role, actor.id) : null;
   return ok(res, {
     signed_in: Boolean(actor),
-    draft: draftHandoffSummary({ context: req.body?.context }),
+    kind,
+    draft: draftHandoffSummary({ context: req.body?.context, kind, role, ride }),
+    ride: ride ? { id: ride.id, label: rideLabel(ride) } : null,
     note: "Review and edit this. Nothing is sent until you tap Send to support."
   });
+}
+
+// Saves the case, then emails a copy. Resolves to { saved, ... }.
+async function saveHandoff(req, { role, actor, summary, kind, rideId, requestId }) {
+  const reference = newHandoffReference();
+  const appTarget = agentAppTarget({ role, client: req.body?.client, platform: req.body?.platform, userAgent: req.get("user-agent") });
+  const saved = await auditLog({
+    ...handoffCaseEntry({ reference, role, actorId: actor.id, summary, appTarget, kind, rideId, requestId }),
+    req
+  });
+  if (!saved || saved.logged !== true) return { saved: false };
+  const receivedAt = nowIso();
+  // Email copy: its outcome is recorded on its own row whenever it
+  // settles; the reply waits a few seconds for it, no longer.
+  const emailDone = (async () => {
+    let status;
+    try {
+      const mail = await sendEmail({
+        to: HANDOFF_SUPPORT_EMAIL,
+        subject: `Harvey Taxi ${kind === "lost_item" ? (role === "driver" ? "found-item report" : "lost-item report") : "support request"} ${reference}`,
+        text:
+          `Case: ${reference}\nType: ${kind}\nFrom: ${role} ${actor.id}\nApp: ${appTarget}\n` +
+          (rideId ? `Ride: ${rideId}\n` : "") +
+          `\n${summary}\n\nThe user reviewed and approved this text. Review and close the case in the Agent Command Center (human review cases).`
+      });
+      status = mail && mail.sent ? "accepted" : mail && mail.skipped ? "not_configured" : "failed";
+    } catch (err) {
+      status = "failed";
+      console.warn("⚠️ Support handoff email failed:", reference, err && err.message ? err.message : "unknown error");
+    }
+    await auditLog(handoffEmailEntry({ reference, status, to: HANDOFF_SUPPORT_EMAIL }));
+    return status;
+  })();
+  const email = await Promise.race([
+    emailDone,
+    new Promise((r) => {
+      const timer = setTimeout(() => r("pending"), HANDOFF_EMAIL_WAIT_MS);
+      if (timer.unref) timer.unref();
+    })
+  ]);
+  return { saved: true, reference, receivedAt, kind, email };
+}
+
+function handoffReply(result, { duplicate }) {
+  const lost = result.kind === "lost_item";
+  return {
+    sent: true,
+    case_created: true,
+    duplicate,
+    reference: result.reference,
+    kind: result.kind,
+    received_at: result.receivedAt,
+    // Separate from the case: "accepted" = the email service took it.
+    email: { status: result.email },
+    message:
+      `Received. Your ${lost ? "report" : "request"} is in Harvey Taxi's support queue as case ${result.reference}.` +
+      (duplicate ? " (This was already sent; no second case was created.)" : "")
+  };
 }
 
 async function runHandoffSend(req, res, { role, actor }) {
@@ -23723,33 +23820,27 @@ async function runHandoffSend(req, res, { role, actor }) {
   }
   const summary = cleanHandoffSummary(req.body?.summary);
   if (!summary.ok) return fail(res, summary.error, 400);
-  if (!handoffLimiter.allow(`${role}:${actor.id}`)) {
+  const kind = handoffKind(req.body?.kind);
+  const rideId = typeof req.body?.ride_id === "string" && req.body.ride_id.trim() ? req.body.ride_id.trim().slice(0, 80) : null;
+  if (rideId && !(await ownsHandoffRide(role, actor.id, rideId))) {
+    return fail(res, "That trip isn't on your account. Remove it or pick one of your own trips.", 400);
+  }
+  const requestId = typeof req.body?.request_id === "string" ? req.body.request_id : null;
+  const account = `${role}:${actor.id}`;
+
+  const earlier = handoffDeduper.find(account, requestId, summary.text);
+  if (earlier) {
+    const result = await earlier;
+    if (result && result.saved) return ok(res, handoffReply(result, { duplicate: true }));
+  }
+  if (!handoffLimiter.allow(account)) {
     return res.status(429).json({ ok: false, sent: false, error: "You've sent several requests in the last hour. Support has them; please wait for a reply, or use the Support page." });
   }
-  const reference = newHandoffReference();
-  const appTarget = agentAppTarget({ role, client: req.body?.client, platform: req.body?.platform, userAgent: req.get("user-agent") });
-  const saved = await auditLog({ ...handoffCaseEntry({ reference, role, actorId: actor.id, summary: summary.text, appTarget }), req });
-  if (!saved || saved.logged !== true) {
-    return res.status(503).json({ ok: false, sent: false, error: HANDOFF_NOT_SENT });
-  }
-  let emailed = false;
-  try {
-    const mail = await sendEmail({
-      to: SUPPORT_EMAIL,
-      subject: `Harvey Taxi support request ${reference}`,
-      text: `Reference: ${reference}\nFrom: ${role} ${actor.id}\nApp: ${appTarget}\n\n${summary.text}\n\nReview and close it in the Agent Command Center (human review cases).`
-    });
-    emailed = Boolean(mail && mail.sent);
-  } catch {
-    emailed = false;
-  }
-  return ok(res, {
-    sent: true,
-    reference,
-    received_at: nowIso(),
-    support_emailed: emailed,
-    message: `Sent to Harvey Taxi support. Your reference is ${reference}. Harvey Taxi support can see it with your account contact details.`
-  });
+  const pending = saveHandoff(req, { role, actor, summary: summary.text, kind, rideId, requestId });
+  handoffDeduper.track(account, requestId, summary.text, pending);
+  const result = await pending;
+  if (!result.saved) return res.status(503).json({ ok: false, sent: false, case_created: false, error: HANDOFF_NOT_SENT });
+  return ok(res, handoffReply(result, { duplicate: false }));
 }
 
 const handoffRateLimit = rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "agent_handoff" });
@@ -23759,7 +23850,7 @@ app.post(
   handoffRateLimit,
   asyncRoute(async (req, res) => {
     const rider = await resolveVerifiedRiderSession(req);
-    return runHandoffDraft(req, res, { actor: rider ? { id: String(rider.id) } : null });
+    return runHandoffDraft(req, res, { role: "rider", actor: rider ? { id: String(rider.id) } : null });
   })
 );
 
@@ -23776,7 +23867,7 @@ app.post(
   "/api/agent/driver/handoff/draft",
   handoffRateLimit,
   requireDriverSelf,
-  asyncRoute(async (req, res) => runHandoffDraft(req, res, { actor: { id: String(req.driver.id) } }))
+  asyncRoute(async (req, res) => runHandoffDraft(req, res, { role: "driver", actor: { id: String(req.driver.id) } }))
 );
 
 app.post(
@@ -23817,13 +23908,13 @@ app.get(
       supabase
         .from("audit_logs")
         .select("id,actor_type,actor_id,action,entity_type,entity_id,metadata,created_at")
-        .in("action", AGENT_LOG_ACTIONS.filter((a) => a !== AGENT_ACTIONS.CASE_OPENED && a !== AGENT_ACTIONS.CASE_RESOLVED))
+        .in("action", AGENT_LOG_ACTIONS.filter((a) => a !== AGENT_ACTIONS.CASE_OPENED && a !== AGENT_ACTIONS.CASE_RESOLVED && a !== AGENT_ACTIONS.HANDOFF_EMAIL))
         .order("created_at", { ascending: false })
         .limit(50),
       supabase
         .from("audit_logs")
         .select("id,actor_id,action,entity_id,metadata,created_at")
-        .in("action", [AGENT_ACTIONS.CASE_OPENED, AGENT_ACTIONS.CASE_RESOLVED])
+        .in("action", [AGENT_ACTIONS.CASE_OPENED, AGENT_ACTIONS.CASE_RESOLVED, AGENT_ACTIONS.HANDOFF_EMAIL])
         .order("created_at", { ascending: false })
         .limit(500)
     ]);

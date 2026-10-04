@@ -267,7 +267,7 @@
     $("cases").innerHTML = state.cases.length
       ? state.cases.slice(0, 50).map((c) => `<tr>
           <td>${esc(c.case_id)}${c.summary
-            ? `<div class="muted">Support request from ${esc(c.reporter_role)} ${esc(c.reporter_id)}${c.app_target ? ` · ${esc(c.app_target)}` : ""} (summary approved by the user)</div><div style="white-space:pre-line">${esc(c.summary)}</div>`
+            ? `<div class="muted">${c.category === "lost_item" ? "Lost/found item report" : "Support request"} from ${esc(c.reporter_role)} ${esc(c.reporter_id)}${c.app_target ? ` · ${esc(c.app_target)}` : ""}${c.ride_id ? ` · ride ${esc(c.ride_id)}` : ""} (text approved by the user)</div><div style="white-space:pre-line">${esc(c.summary)}</div><div class="muted">Case saved. Email copy to support: ${esc({ accepted: "accepted by the email service", not_configured: "not sent (email not configured)", failed: "failed", unknown: "not recorded yet" }[c.email_status] || c.email_status || "—")}</div>`
             : `<div class="muted">${esc(c.excerpt)}</div>`}</td>
           <td><span class="badge ${c.category === "emergency" ? "b-killed" : "b-case"}">${esc(c.category)}</span> <span class="muted">${esc(c.severity)}</span></td>
           <td>${when(c.opened_at)}</td>

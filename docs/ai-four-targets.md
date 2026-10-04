@@ -35,8 +35,10 @@ Key:
 | Approved knowledge with sources (phase 1) | Live (website panel inside the app); no build needed | Same as #1 | Built; in driver iOS build 9 | Built; in driver Android versionCode 7 |
 | Admin-approved articles, `/policies.html` (phase 2) | Server only; PR #182; no build needed | Same as #1 | Server only; no build needed | Same as #3 |
 | Signed-in live account and trip help (read-only) | Live: ride status, fare, cancel help | Same as #1 | In build 9: offers, trip step, earnings, hours | In versionCode 7 |
-| Follow-up context, memory per account, Clear chat, cleared on sign-out (phase 3) | This release; no build needed | Same as #1 | Merged (#180); **needs a new build** (not in build 9) | **Needs a new build** (not in versionCode 7) |
-| Support handoff with a summary the user approves (phase 4) | Built (assistant panel); no build needed | Same as #1 | Built (native editor; not while on a trip); **needs a new build** | Same as #3 |
+| Follow-up context and **session memory** per account; Clear chat; cleared on sign-out (phase 3) | Live (#183); no build needed | Same as #1 | Merged (#180); **needs the release build** | Same as #3 |
+| Support handoff: review, edit and approve; reference only after the case is saved; duplicate protection; case and email reported separately (phase 4) | Live (#184 and the handoff follow-up PR); no build needed | Same as #1 | Built (native editor; not while on a trip); **needs the release build** | Same as #3 |
+| Lost-item reports (rider) and found-item reports (driver), through the handoff, optionally linked to the account's own trip | Live with the follow-up PR; no build needed | Same as #1 | Built; **needs the release build** | Same as #3 |
+| Pickup or destination changes, other new ride-changing actions | **Not in this release** | Not in this release | Not in this release | Not in this release |
 | Confirmed actions | Live: cancel ride (confirm), safety alert (confirm), open booking or tracking | Same as #1 | In build 9: respond to offer, trip step and navigate, each confirmed in the app | In versionCode 7 |
 | Usage limits and accounting | Live (server) | Live | Live | Live |
 | Usage counted per app | **Needs a new rider build** (user-agent tag); until then counted as rider website | Same as #1 | **Needs a new driver build** (sends platform); until then counted as driver website | Same as #3 |
@@ -44,19 +46,31 @@ Key:
 | **Tested on a device** | **No** | **No** | **No** | **No** |
 
 **Builds on record** (EAS):
-- Rider iOS build 12 and Android versionCode 10: commit `8e8dac3`, from before the assistant work. Nothing assistant-related depends on them except the user-agent tag.
-- Driver iOS build 9 and Android versionCode 7: commit `b5163a6`, phase 1 only.
+- **Rider release builds:** iOS build 13 (`2254a1d3-4c14-4ee2-b1b4-0b201fa7e292`) and Android versionCode 11 (`79cdbcc3-4f94-4d48-95c9-171424a92b2f`), commit `fcf3fa0`. These contain the final rider shell, including the user-agent tag. Everything else reaches the rider apps from the server.
+- **Driver release builds:** made after the handoff follow-up PR merges, so they contain knowledge, memory, the handoff, lost items and per-app tracking.
+- **Superseded, do not upload:**
+  - Driver iOS build 9 and Android versionCode 7 (phase 1 only).
+  - Driver iOS build 10 and Android versionCode 8 (cancelled before finishing).
 
-**Store uploads:** not confirmed from this environment for any of these builds.
+**Store uploads:** none confirmed from this environment.
 
-## Memory, per target
+## Memory, per target: session memory, not saved across app restarts
 
-- **Where it's kept:** on the device only, for the current app session, per signed-in account, up to 12 turns. Clear chat removes it, and signing out deletes it for every account.
-  - Rider apps keep it in the WebView's session storage.
-  - Driver apps keep it in app memory.
-- **Never on the server.** Only the last 6 turns are sent with a question, to resolve short follow-ups, and they are not stored or logged.
+| | Rider iOS and Android (WebView) | Driver iOS and Android |
+|---|---|---|
+| Where | WebView session storage, per signed-in account | App memory, per signed-in account |
+| Survives leaving the assistant, moving around the app, backgrounding | Yes, while the app stays running | Yes, while the app stays running |
+| Survives **closing and reopening the app** | **No.** A new session starts empty. | **No.** Nothing is written to disk. |
+| May be lost if the phone's OS ends the app in the background | Yes | Yes |
+| Clear chat | Deletes it | Deletes it |
+| Sign-out | Deletes every saved conversation on the device | Deletes every saved conversation |
+| Another account on the same phone | Sees none of it | Sees none of it |
+| Server | Never stored; the last 6 turns are sent only to resolve a short follow-up, and are not stored or logged | Same |
+
 - **Signed-out riders:** the conversation stays on that page only.
-- **Restored conversations** show as plain text. Earlier action buttons (for example, cancel) are not restored, so a stale action can't be used.
+- **Restored conversations** (while the app stays running) show as plain text. Earlier action buttons (for example, cancel) are not restored, so a stale action can't be used.
+
+Keeping conversations after the app is closed would mean writing them to the phone's storage. That is a separate decision and not part of this release.
 
 ## Release plan (phased, all four targets)
 
@@ -75,9 +89,10 @@ Key:
 1. Open the assistant and ask "How long do you keep my data?". Expect a quote, a source and a date. Tap the source and confirm the page opens.
 2. Ask "What's the cancellation fee?". Expect the "I don't have approved Harvey Taxi information…" reply.
 3. Signed in, ask about your ride (rider) or your offers or hours (driver). Expect only your own data.
-4. Ask a follow-up ("and what about my location?"). It is understood. Background and reopen the app; the conversation is still there. Tap Clear chat; it is gone.
+4. Ask a follow-up ("and what about my location?"). It is understood. Switch to another app and back; the conversation is still there. Then **close the app completely and reopen it**; the conversation is gone (session memory). Ask again and tap Clear chat; it is gone.
 5. Sign out and sign in as a different account. The previous conversation is not shown.
-6. Ask "What's the cancellation fee?", then tap **Send a request to support**. Edit the summary and send. A reference appears only after sending, and the request shows in the admin human-review queue with the right app. Tap Cancel on a second try: nothing is sent.
-7. Ask "My driver is threatening me". Expect the 911 guidance with nothing else done automatically.
-8. With the admin kill switch on, the assistant says it is unavailable, and booking (rider) or going online (driver) still works.
-9. Admin dashboard: the request shows under the right app (after the new builds).
+6. Ask "What's the cancellation fee?", then tap **Send a request to support**. Edit the summary and tap Send twice quickly. One case reference appears, only after sending. The admin human-review queue shows one case with the right app and an email status. Tap Cancel on a second try: nothing is sent.
+7. Ask "I left my phone in the car" (rider) or "A rider left a bag in my car" (driver). Tap **Report a lost item** or **Report a found item**. The draft shows your own most recent trip. Fill in the item and send. The queue shows a lost-item case linked to that trip.
+8. Ask "My driver is threatening me". Expect the 911 guidance with nothing else done automatically.
+9. With the admin kill switch on, the assistant says it is unavailable, and booking (rider) or going online (driver) still works.
+10. Admin dashboard: the request shows under the right app (after the new builds).

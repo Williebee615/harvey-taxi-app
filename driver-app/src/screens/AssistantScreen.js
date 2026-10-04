@@ -22,7 +22,9 @@ export default function AssistantScreen({ app, onClose, onOpenTab }) {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [readAloud, setReadAloud] = useState(handsFree);
-  // Support handoff editor: null, or { text, loading, sending, error }.
+  // Support handoff editor: null, or { kind, requestId, text, ride,
+  // attachRide, loading, sending, error }. One requestId per review, so a
+  // retry can't create a second case.
   const [handoff, setHandoff] = useState(null);
   const scroll = useRef(null);
   const nextId = useRef(Math.max(0, ...messages.map((m) => m.id)) + 1);
@@ -75,34 +77,49 @@ export default function AssistantScreen({ app, onClose, onOpenTab }) {
     }
   };
 
-  const openHandoff = async () => {
+  const sendingRef = useRef(false);
+  const openHandoff = async (kind = 'general') => {
     if (handsFree) {
       add({ who: 'bot', text: "You can send a request to support once you're not on a trip. For an emergency, call 911." });
       return;
     }
-    setHandoff({ text: '', loading: true, sending: false, error: null });
+    const requestId = `req-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+    const base = { kind, requestId, text: '', ride: null, attachRide: false, loading: true, sending: false, error: null };
+    setHandoff(base);
     try {
-      const res = await actions.draftSupportHandoff(contextFrom(messages));
-      setHandoff({ text: typeof res.draft === 'string' ? res.draft : '', loading: false, sending: false, error: null });
+      const res = await actions.draftSupportHandoff(contextFrom(messages), kind);
+      const ride = res && res.ride && res.ride.id ? res.ride : null;
+      setHandoff({ ...base, text: typeof res.draft === 'string' ? res.draft : '', ride, attachRide: Boolean(ride), loading: false });
     } catch {
-      setHandoff({ text: '', loading: false, sending: false, error: "A request can't be prepared right now. Use Contact support instead. In an emergency, call 911." });
+      setHandoff({ ...base, loading: false, error: "A request can't be prepared right now. Use Contact support instead. In an emergency, call 911." });
     }
   };
 
   const sendHandoff = async () => {
-    if (!handoff || handoff.sending) return;
+    // A second tap while sending does nothing (and the server would return
+    // the same case for the same requestId anyway).
+    if (!handoff || handoff.sending || sendingRef.current) return;
+    sendingRef.current = true;
     setHandoff({ ...handoff, sending: true, error: null });
     try {
-      const res = await actions.sendSupportHandoff(handoff.text);
-      if (res && res.sent === true && res.reference) {
+      const res = await actions.sendSupportHandoff({
+        summary: handoff.text,
+        kind: handoff.kind,
+        rideId: handoff.ride && handoff.attachRide ? handoff.ride.id : null,
+        requestId: handoff.requestId
+      });
+      // Only a saved case (with its reference) counts as received.
+      if (res && res.case_created === true && res.reference) {
         setHandoff(null);
-        add({ who: 'bot', text: res.message || `Sent to Harvey Taxi support. Your reference is ${res.reference}.` });
+        add({ who: 'bot', text: res.message || `Received. Your case reference is ${res.reference}.` });
         return;
       }
       setHandoff({ ...handoff, sending: false, error: 'Your request was not sent. Please try again, or use Contact support.' });
     } catch (err) {
       const msg = err && err.data && err.data.error;
       setHandoff({ ...handoff, sending: false, error: msg || 'Your request was not sent. Please try again, or use Contact support.' });
+    } finally {
+      sendingRef.current = false;
     }
   };
 
@@ -114,7 +131,7 @@ export default function AssistantScreen({ app, onClose, onOpenTab }) {
   const execute = async (run) => {
     switch (run.type) {
       case 'handoff':
-        return openHandoff();
+        return openHandoff(run.kind);
       case 'accept_offer':
         onClose();
         return actions.acceptOffer(run.offerId);
@@ -214,7 +231,7 @@ export default function AssistantScreen({ app, onClose, onOpenTab }) {
         {sending && <Text style={st.sub}>Checking…</Text>}
         {handoff && (
           <View style={st.handoff} testID="assistant-handoff">
-            <Text style={st.handoffTitle}>Send a request to Harvey Taxi support</Text>
+            <Text style={st.handoffTitle}>{handoff.kind === 'lost_item' ? 'Report a found item' : 'Send a request to Harvey Taxi support'}</Text>
             <Text style={st.sub}>
               {handoff.loading ? 'Preparing a summary…' : 'Review and edit this. Nothing is sent until you tap Send to support.'}
             </Text>
@@ -230,6 +247,17 @@ export default function AssistantScreen({ app, onClose, onOpenTab }) {
                 accessibilityLabel="Summary for support"
               />
             )}
+            {handoff.ride ? (
+              <Pressable
+                testID="assistant-handoff-ride"
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: handoff.attachRide }}
+                onPress={() => setHandoff({ ...handoff, attachRide: !handoff.attachRide })}
+                style={st.rideRow}
+              >
+                <Text style={st.rideText}>{handoff.attachRide ? '☑' : '☐'} Attach this trip for support: {handoff.ride.label}</Text>
+              </Pressable>
+            ) : null}
             {handoff.error ? <Text style={st.handoffError} accessibilityRole="alert">{handoff.error}</Text> : null}
             <View style={st.handoffRow}>
               <Button
@@ -333,6 +361,8 @@ const st = StyleSheet.create({
   handoffTitle: { color: C.text, fontSize: 16, fontWeight: '800' },
   handoffInput: { minHeight: 140, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: 'rgba(4,8,20,0.6)', color: C.text, padding: 10, fontSize: 15, textAlignVertical: 'top' },
   handoffError: { color: '#ff9bb0', fontSize: 14 },
+  rideRow: { minHeight: 44, justifyContent: 'center' },
+  rideText: { color: C.text, fontSize: 14 },
   handoffRow: { flexDirection: 'row', gap: 8 },
   handoffBtn: { flex: 1, marginTop: 0 }
 });
