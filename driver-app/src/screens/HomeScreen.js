@@ -134,14 +134,24 @@ function LocationDisclosure({ app, onDone }) {
 }
 
 export default function HomeScreen({ app, onOpenAssistant }) {
-  const { snapshot, stream, tracking, push, busy, notice, actions } = app;
+  const { snapshot, stream, tracking, push, busy, notice, loadError, actions } = app;
   const [showDisclosure, setShowDisclosure] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   if (!snapshot) {
     return (
       <View style={st.center}>
-        <P muted>Loading your driver status…</P>
+        {loadError ? (
+          <View testID="load-error" style={{ alignItems: 'center', paddingHorizontal: 24 }}>
+            <H>Can't load your driver status</H>
+            <P muted style={{ textAlign: 'center', marginTop: 8 }}>
+              {loadError} We'll keep trying automatically. Ride requests can't reach you in the app until this loads.
+            </P>
+            <Button testID="load-retry" title="Try again" kind="ghost" onPress={() => actions.refresh()} />
+          </View>
+        ) : (
+          <P muted>Loading your driver status…</P>
+        )}
         <Notice text={notice} onClose={actions.dismissNotice} />
       </View>
     );
@@ -200,6 +210,11 @@ export default function HomeScreen({ app, onOpenAssistant }) {
       )}
 
       <Notice text={notice} onClose={actions.dismissNotice} />
+      {loadError && (
+        <View testID="stale-status">
+          <Notice text={`Can't reach Harvey Taxi right now, so this may be out of date. Retrying… (${loadError})`} />
+        </View>
+      )}
       {driver.is_review_account && <Notice tone="info" text="Test account: rides are simulated and no one is charged." />}
 
       {showDisclosure && <LocationDisclosure app={app} onDone={() => setShowDisclosure(false)} />}
