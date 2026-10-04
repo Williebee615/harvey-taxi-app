@@ -167,6 +167,8 @@
       </label>
       <div class="row"><button class="primary" type="submit">Save model settings</button></div>
     </form>
+    <div class="row" style="margin-top:10px"><button type="button" id="claudeCheckBtn">Check connection (free, nothing billed)</button></div>
+    <div id="claudeCheckOut" class="muted" style="margin-top:6px;white-space:pre-line"></div>
     <h3>Try the model as a test account</h3>
     <form id="modelTry" class="row">
       <select name="role"><option value="rider">Rider</option><option value="driver">Driver</option></select>
@@ -506,6 +508,18 @@
     catch (err) { toast(err.message); }
     loadModel();
   });
+  function providerText(p) {
+    return `Anthropic said: ${p.status ? `HTTP ${p.status} ` : ""}${p.type ? `${p.type}: ` : ""}${p.message || "no message"}${p.request_id ? ` (request ${p.request_id})` : ""}`;
+  }
+  $("claudeCheckBtn").addEventListener("click", async () => {
+    $("claudeCheckOut").textContent = "Checking…";
+    try {
+      const r = await api("/api/admin/agent/model/diagnose", { method: "POST", body: {} });
+      $("claudeCheckOut").textContent = !r.configured
+        ? "No API key is set on the server."
+        : r.checks.map((c) => `${c.role}: ${c.ok ? `request accepted (${c.input_tokens} input tokens; not billed)` : `refused (${c.reason}). ${c.provider_error ? providerText(c.provider_error) : ""}`}`).join("\n");
+    } catch (err) { $("claudeCheckOut").textContent = err.message; }
+  });
   $("modelTry").addEventListener("submit", async (e) => {
     e.preventDefault();
     const f = e.target;
@@ -516,7 +530,8 @@
       $("modelTryOut").textContent =
         `${r.source === "model" ? "Claude answered" : `Rules answered${m.fallback_reason ? ` (model fell back: ${m.fallback_reason})` : ""}`}:\n${r.reply}\n` +
         (r.actions && r.actions.length ? `Buttons: ${r.actions.map((a) => a.label || a.type).join(", ")}\n` : "") +
-        (m.calls ? `Model calls: ${m.calls}, tokens in/out: ${m.input_tokens}/${m.output_tokens}, cost: $${Number(m.cost_usd).toFixed(4)}` : "");
+        (m.calls ? `Model calls: ${m.calls}, tokens in/out: ${m.input_tokens}/${m.output_tokens}, cost: $${Number(m.cost_usd).toFixed(4)}` : "") +
+        (m.provider_error ? `\n${providerText(m.provider_error)}` : "");
     } catch (err) { $("modelTryOut").textContent = err.message; }
     loadModel();
   });

@@ -524,7 +524,7 @@ const { handleAssist: handleAgentAssist } = require("./lib/agent/assistant");
 const { createKnowledgeStore } = require("./lib/knowledge/store");
 const { readClaudeConfig, createClaudeClient } = require("./lib/agent/claudeClient");
 const { createModelBudget, budgetFromEnv } = require("./lib/agent/modelBudget");
-const { handleModelAssist } = require("./lib/agent/modelAssistant");
+const { handleModelAssist, firstRequest } = require("./lib/agent/modelAssistant");
 const { MODEL_FLAG_KEYS, resolveModelPolicy, modelEligibility, validateModelSettings } = require("./lib/agent/modelPolicy");
 const {
   draftSummary: draftHandoffSummary,
@@ -1032,6 +1032,12 @@ app.use(
     extensions: ["html"],
 
     maxAge: IS_PRODUCTION ? "1h" : 0,
+
+    // Pages are revalidated on every load (a cheap 304 when unchanged) so
+    // a deploy reaches open browsers at once; other files keep the hour.
+    setHeaders(res, filePath) {
+      if (filePath.endsWith(".html")) res.setHeader("Cache-Control", "no-cache");
+    },
 
   })
 
@@ -23697,7 +23703,9 @@ async function runModelTurn({ state, role, actor, message, client, context, appT
     cache_creation_input_tokens: out.usage.cache_creation_input_tokens,
     cost_usd: out.cost_usd,
     uncertain_calls: out.uncertain_calls || 0,
-    fallback_reason: out.ok ? null : out.reason
+    fallback_reason: out.ok ? null : out.reason,
+    // Anthropic's own sanitized error (status, type, message, request id).
+    provider_error: out.ok ? null : out.provider_error || null
   };
   if (!out.ok) return { result: null, record };
   return {
@@ -24384,6 +24392,26 @@ app.post(
       model: model.record,
       budget: modelBudget.status()
     });
+  })
+);
+
+// Free connection check: sends the exact first request a rider and a
+// driver answer would send to Anthropic's token-counting endpoint, which
+// checks the key and the request without generating text or billing.
+// A request that counts fine but is refused when answering points to the
+// account (for example no credit), not to Harvey's request.
+app.post(
+  "/api/admin/agent/model/diagnose",
+  requireAdmin,
+  rateLimit({ windowMs: 60_000, max: 5, keyPrefix: "agent_model_diagnose" }),
+  asyncRoute(async (req, res) => {
+    if (!claude) return ok(res, { configured: false, checks: [] });
+    const checks = [];
+    for (const [role, message] of [["rider", "Where is my ride?"], ["driver", "How many hours have I driven today?"]]) {
+      const out = await claude.countTokens(firstRequest(role, message));
+      checks.push(out.error ? { role, ok: false, reason: out.error, provider_error: out.provider || null } : { role, ok: true, input_tokens: out.input_tokens });
+    }
+    return ok(res, { configured: true, model: claude.model, billed: false, checks });
   })
 );
 

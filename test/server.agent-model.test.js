@@ -19,6 +19,7 @@ delete process.env.AGENT_MODEL_MONTHLY_BUDGET_USD;
 delete process.env.AGENT_LLM_BASE_URL;
 
 const mockCreate = jest.fn();
+const mockCountTokens = jest.fn();
 jest.mock("@anthropic-ai/sdk", () => {
   class APIError extends Error {
     constructor(status, message, error) {
@@ -33,7 +34,7 @@ jest.mock("@anthropic-ai/sdk", () => {
   class RateLimitError extends APIError {}
   class BadRequestError extends APIError {}
   function Anthropic() {
-    this.messages = { create: (...args) => mockCreate(...args) };
+    this.messages = { create: (...args) => mockCreate(...args), countTokens: (...args) => mockCountTokens(...args) };
   }
   Object.assign(Anthropic, { APIError, APIConnectionError, APIConnectionTimeoutError, AuthenticationError, RateLimitError, BadRequestError });
   return { __esModule: true, default: Anthropic };
@@ -104,7 +105,10 @@ beforeAll(() => {
   // eslint-disable-next-line global-require
   ({ app } = require("../server"));
 });
-beforeEach(() => mockCreate.mockReset());
+beforeEach(() => {
+  mockCreate.mockReset();
+  mockCountTokens.mockReset();
+});
 
 const msg = (stop_reason, content, usage = { input_tokens: 1500, output_tokens: 60 }) => ({ stop_reason, content, usage });
 const toolUse = (name, input = {}, id = `tu_${name}`) => msg("tool_use", [{ type: "tool_use", id, name, input }]);
@@ -335,6 +339,66 @@ test("usage dashboard reports model tokens and cost separately from requests", a
   expect(res.body.measured).toMatch(/model tokens and cost.*listed test accounts only/);
   expect(res.body.history.totals).toMatchObject({ model_calls: 1, model_turns: 1, model_tokens: { input: 1800, output: 40 }, model_cost_usd: 0.002 });
   expect(res.body.model).toMatchObject({ provider: "anthropic", mode: "test_accounts", public_approved: false });
+});
+
+// Anthropic's 400 body, as the SDK exposes it on err.error.
+function creditError() {
+  const err = new Anthropic.BadRequestError(400, '400 {"type":"error","error":{"type":"invalid_request_error","message":"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits."}}', {
+    type: "error",
+    error: { type: "invalid_request_error", message: "Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits." }
+  });
+  err.requestID = "req_test_0001";
+  return err;
+}
+
+test("a refused request keeps Anthropic's sanitized error: shown in Try, kept in the audit record, charged $0", async () => {
+  useFake();
+  mockCreate.mockRejectedValueOnce(creditError());
+  const tried = await request(app).post("/api/admin/agent/model/try").set(ADMIN).set("X-Forwarded-For", `10.9.0.${testIp}`).send({ role: "rider", actor_id: TEST_RIDER, message: "Where is my ride?" });
+  expect(tried.status).toBe(200);
+  expect(tried.body.source).not.toBe("model");
+  const providerError = {
+    status: 400,
+    type: "invalid_request_error",
+    message: "Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.",
+    request_id: "req_test_0001"
+  };
+  expect(tried.body.model).toMatchObject({ fallback_reason: "bad_request", calls: 1, cost_usd: 0, provider_error: providerError });
+  expect(decisions().at(-1).metadata.model.provider_error).toEqual(providerError);
+  expect(ledger().at(-1)).toMatchObject({ calls: 1, cost_usd: 0, outcome: "fallback_bad_request" });
+  expect(JSON.stringify(tried.body)).not.toContain(process.env.ANTHROPIC_API_KEY);
+});
+
+test("provider error text is masked: keys, emails, long numbers", () => {
+  const { providerErrorOf } = require("../lib/agent/claudeClient");
+  const err = new Anthropic.AuthenticationError(401, "401", { type: "error", error: { type: "authentication_error", message: "invalid x-api-key sk-ant-api03-abcdefghijklmnop for owner@example.test account 123456789012" } });
+  const p = providerErrorOf(err);
+  expect(p).toMatchObject({ status: 401, type: "authentication_error" });
+  expect(p.message).toBe("invalid x-api-key [key] for [email] account [number]");
+});
+
+test("free connection check: counts the real first request for each role, bills nothing, records nothing", async () => {
+  const fake = useFake();
+  mockCountTokens.mockResolvedValueOnce({ input_tokens: 1412 }).mockRejectedValueOnce(creditError());
+  const res = await request(app).post("/api/admin/agent/model/diagnose").set(ADMIN).set("X-Forwarded-For", `10.9.1.${testIp}`).send({});
+  expect(res.status).toBe(200);
+  expect(res.body).toMatchObject({ configured: true, billed: false });
+  expect(res.body.checks[0]).toEqual({ role: "rider", ok: true, input_tokens: 1412 });
+  expect(res.body.checks[1]).toMatchObject({ role: "driver", ok: false, reason: "bad_request", provider_error: { status: 400, request_id: "req_test_0001" } });
+  // Same request shape as an answer's first call (model, system, tools, messages, max_tokens).
+  const sent = mockCountTokens.mock.calls[0][0];
+  expect(Object.keys(sent).sort()).toEqual(["max_tokens", "messages", "model", "system", "tools"]);
+  expect(sent.messages).toEqual([{ role: "user", content: "Where is my ride?" }]);
+  expect(mockCountTokens.mock.calls[1][0].tools.map((t) => t.name)).toContain("get_my_hours");
+  expect(mockCreate).not.toHaveBeenCalled();
+  expect(fake._state.agent_model_usage || []).toEqual([]);
+  expect((await request(app).post("/api/admin/agent/model/diagnose").send({})).status).toBe(401);
+});
+
+test("pages are revalidated on every load so a deploy reaches open browsers", async () => {
+  const res = await request(app).get("/admin-agent.html");
+  expect(res.status).toBe(200);
+  expect(res.headers["cache-control"]).toBe("no-cache");
 });
 
 test("provider spending limit: falls back and stops calling the model for the rest of the month", async () => {

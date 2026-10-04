@@ -132,6 +132,10 @@ describeWithBrowser("admin sign-in", () => {
     expect(await page.evaluate(() => document.getElementById("modelModeAll").disabled)).toBe(true);
     expect(await page.inputValue("#modelAccounts")).toBe("rider:RIDER_GPLAY_REVIEWER\ndriver:DRIVER_GPLAY_REVIEWER");
 
+    // Free connection check is reachable from the panel (no key in this test server).
+    await page.click("#claudeCheckBtn");
+    await page.waitForFunction(() => /No API key is set/.test(document.getElementById("claudeCheckOut").textContent));
+
     // The session is an HttpOnly cookie, never browser storage.
     const cookie = (await context.cookies()).find((c) => c.name === "htaf_admin_session");
     expect(cookie.httpOnly).toBe(true);
