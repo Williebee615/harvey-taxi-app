@@ -136,3 +136,39 @@ Design: `docs/live-map-tracking.md`.
 | Rider app (WebView): map and location permission prompt, iOS and Android | Unverified |
 | Rider "Share my location", then the driver app shows the rider marker until pickup | Unverified |
 | Driver trip map with real Mapbox tiles, iOS and Android | Unverified |
+
+## Production outage and recovery, 2026-10-04
+
+- **Outage:** from about 07:15 UTC every database request failed with 504/522. Supabase still reported the project healthy. The cause was the Free-plan database instance running out of resources, not app traffic: about 15 requests a minute and a 24 MB database.
+- **Recovery:** the owner restarted the project at about 12:48 UTC.
+  - The API layer could not load its schema cache until about 12:51.
+  - Requests were slow until about 12:55.
+  - From 12:55 UTC: no errors; typical requests 107–253 ms; the slowest 5% under 750 ms in every 5-minute window since 13:00, apart from one 3.4 s request at about 13:00.
+- **Seen in the driver app (Android):** while the database was down, the Drive screen stayed on "Loading your driver status…" forever. The fix is merged (PR #177) but is not in any installed build yet.
+
+## Android retest, 2026-10-04 08:08–08:10 CDT (owner's Android phone, review accounts)
+
+Ride `RIDE-D45C58537C`, review ride, matched against production:
+
+| Step | Time (UTC) | Source |
+|---|---|---|
+| Requested | 13:07:38 | `rides.created_at`, audit `ride_requested` |
+| Offer `OFFER-A2C52319A1` | 13:07:38.8, expiring 13:08:23.8 | **window 45 s** (`expires_at - created_at`) |
+| Accepted | 13:07:50 (12 s after the offer) | `accepted_at`, audit `ride_offer_accepted` |
+| En route | 13:08:26 | `enroute_at`, audit |
+| Arrived | 13:08:50 | `arrived_at`, audit |
+| Started | 13:09:11 | `trip_started_at`, audit |
+| Completed | 13:09:40 | `completed_at`, audit; the rider website showed "Trip completed" |
+
+| Check | Result | Evidence |
+|---|---|---|
+| Drive screen loads (Android) | **Pass** | Owner's screenshots |
+| Offer sound in the open app | **Pass** (owner heard it) | The phone has no push token (Android push is not set up), so this was the in-app alert, not a push |
+| Offer vibration | **Unverified** | — |
+| Driver trip map with Mapbox tiles (Android) | **Pass** | Screenshot: own location, pickup, drop-off, rider marker |
+| Rider shares location; the driver sees it | **Pass** | Screenshot: "Rider is sharing their location (17s ago)". The position was deleted after the trip as designed (`rider_live_*` empty) |
+| Full trip steps to completion | **Pass** | Table above |
+| 45-second offer window | **Pass** | `OFFER-A2C52319A1`: 45.0 s |
+| Locked-screen push | **Unverified** | No Android push (no FCM), iOS push not yet tested |
+
+Still unverified: vibration, push (iOS and Android), locked screen, navigation hand-off, offline, deletion, iPad, the rider app's (WebView) map and location prompt.

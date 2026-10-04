@@ -9,6 +9,8 @@
 -- Server-only, like every recent table: RLS on, no policies, and no
 -- anon/authenticated privileges. driver_id is not a foreign key, matching
 -- driver_push_tokens: driver rows are anonymized, never deleted.
+--
+-- Status: applied to production 2026-10-04 13:17 UTC.
 
 create table if not exists public.driver_online_sessions (
   id bigint generated always as identity primary key,
@@ -52,8 +54,7 @@ $$;
 
 revoke all on function public.track_driver_online_session() from public, anon, authenticated;
 
-drop trigger if exists drivers_track_online_session on public.drivers;
-create trigger drivers_track_online_session
+create or replace trigger drivers_track_online_session
   after insert or update of online on public.drivers
   for each row execute function public.track_driver_online_session();
 
