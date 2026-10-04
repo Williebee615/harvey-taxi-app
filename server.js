@@ -24204,7 +24204,7 @@ const HANDOFF_RIDE_DAYS = 14;
 
 // The account's own most recent trip in the last 14 days, for a lost-item
 // report. Riders by rider_id, drivers by driver_id; cancelled trips skipped.
-async function findHandoffRide(role, actorId) {
+async function findHandoffRide(role, actorId, { cancelled = false } = {}) {
   const since = new Date(Date.now() - HANDOFF_RIDE_DAYS * 24 * 60 * 60 * 1000).toISOString();
   const { data, error } = await supabase
     .from("rides")
@@ -24214,7 +24214,7 @@ async function findHandoffRide(role, actorId) {
     .order("created_at", { ascending: false })
     .limit(5);
   if (error) return null;
-  return (data || []).find((r) => !/cancel/i.test(String(r.status || ""))) || null;
+  return (data || []).find((r) => /cancel/i.test(String(r.status || "")) === cancelled) || null;
 }
 
 // A ride id sent with a report must be one of the account's own rides.
@@ -24228,7 +24228,18 @@ async function runHandoffDraft(req, res, { role, actor }) {
   const state = await loadAgentState();
   if (!state.mode.assist_enabled) return fail(res, "The assistant is not available right now.", 503);
   const kind = handoffKind(req.body?.kind);
-  const ride = kind === "lost_item" && actor ? await findHandoffRide(role, actor.id) : null;
+  // A lost item links the latest trip; a cancellation review the latest
+  // cancelled ride, or the one the ride card named if it's the account's own.
+  let ride = null;
+  if (actor && kind === "lost_item") ride = await findHandoffRide(role, actor.id);
+  if (actor && kind === "cancellation_review") {
+    const named = cleanString(req.body?.ride_id, 100);
+    if (named && (await ownsHandoffRide(role, actor.id, named))) {
+      const { data } = await supabase.from("rides").select(HANDOFF_RIDE_COLUMNS).eq("id", named).maybeSingle();
+      ride = data || null;
+    }
+    if (!ride) ride = await findHandoffRide(role, actor.id, { cancelled: true });
+  }
   return ok(res, {
     signed_in: Boolean(actor),
     kind,
@@ -24255,7 +24266,7 @@ async function saveHandoff(req, { role, actor, summary, kind, rideId, requestId 
     try {
       const mail = await sendEmail({
         to: HANDOFF_SUPPORT_EMAIL,
-        subject: `Harvey Taxi ${kind === "lost_item" ? (role === "driver" ? "found-item report" : "lost-item report") : "support request"} ${reference}`,
+        subject: `Harvey Taxi ${kind === "lost_item" ? (role === "driver" ? "found-item report" : "lost-item report") : kind === "cancellation_review" ? "cancellation review request" : "support request"} ${reference}`,
         text:
           `Case: ${reference}\nType: ${kind}\nFrom: ${role} ${actor.id}\nApp: ${appTarget}\n` +
           (rideId ? `Ride: ${rideId}\n` : "") +

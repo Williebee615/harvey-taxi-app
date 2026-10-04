@@ -10,7 +10,7 @@ import { ApiError, createApi } from './api';
 import { clearSession, getToken, saveSession } from './session';
 import { createSyncEngine } from './syncEngine';
 import { openEventStream } from './sse';
-import { requestLocationPermission, locationPermission, setUnauthorizedHandler, stopTracking, syncTracking } from './locationTask';
+import { currentFix, requestLocationPermission, locationPermission, setUnauthorizedHandler, stopTracking, syncTracking } from './locationTask';
 import { OFFER_ALERT_KIND, onNotificationReceived, onNotificationTap, playOfferSound, registerForPush, unregisterPush } from './push';
 import { createOfferAlerter, OFFER_VIBRATION_PATTERN } from './offerAlert';
 import { stepPath } from './tripSteps';
@@ -234,9 +234,43 @@ export function useDriverApp() {
     advanceTrip: (ride, step) =>
       run(`step:${step.action}`, async () => {
         try {
-          await api.post(stepPath(ride, step), {});
+          // Arrived carries the phone's position so the server can record
+          // whether the driver was at the pickup (it never blocks arrival).
+          const body = step.action === 'arrived' ? (await currentFix()) || {} : {};
+          await api.post(stepPath(ride, step), body);
         } finally {
           const snap = await engineRef.current?.refresh(`step_${step.action}`);
+          await applyTracking(snap);
+        }
+      }),
+    // Records an in-app attempt to reach the rider (for support review and
+    // the no-show rules). Never blocks the call: errors are ignored.
+    recordContactAttempt: async (ride, method = 'call') => {
+      try {
+        await api.post(`/api/driver/rides/${encodeURIComponent(ride.ride_id)}/contact-attempt`, { method });
+        return true;
+      } catch (err) {
+        return false;
+      }
+    },
+    // Releases this driver from an accepted ride; the ride goes back to
+    // dispatch for another driver. The rider isn't cancelled or charged.
+    withdrawRide: (ride, reason = 'driver_withdrew_in_app') =>
+      run('withdraw', async () => {
+        try {
+          await api.post(`/api/driver/rides/${encodeURIComponent(ride.ride_id)}/withdraw`, { reason });
+        } finally {
+          const snap = await engineRef.current?.refresh('withdrawn');
+          await applyTracking(snap);
+        }
+      }),
+    noShowStatus: (ride) => api.get(`/api/driver/rides/${encodeURIComponent(ride.ride_id)}/no-show`),
+    markNoShow: (ride) =>
+      run('no_show', async () => {
+        try {
+          await api.post(`/api/driver/rides/${encodeURIComponent(ride.ride_id)}/no-show`, {});
+        } finally {
+          const snap = await engineRef.current?.refresh('no_show');
           await applyTracking(snap);
         }
       }),

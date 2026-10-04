@@ -230,12 +230,15 @@
       if (a.type === "cancel_ride" && /^\/api\/rides\/[^/]+\/cancel$/.test(a.endpoint || "")) {
         b.className = "hta-danger";
         b.addEventListener("click", function () {
-          if (!window.confirm(a.confirm_text || "Cancel this ride?")) return;
+          // Shows the exact fee from the server before confirming
+          // (public/ride-cancel.js); $0.00 while cancellations are free.
+          var rideId = decodeURIComponent(a.endpoint.split("/")[3] || "");
+          if (!window.HarveyCancelRide) { addMessage("Cancelling isn't available on this page. Please use your ride card.", "bot"); return; }
           b.disabled = true;
-          fetch(a.endpoint, { method: "POST", credentials: "same-origin", headers: headers(), body: JSON.stringify({ reason: "Rider cancelled via assistant" }) })
-            .then(function (r) { return r.json().then(function (body) { return { ok: r.ok, body: body }; }); })
-            .then(function (res) { addMessage(res.ok ? "Your ride was cancelled." : (res.body && (res.body.error || res.body.message)) || "The ride could not be cancelled.", "bot"); })
-            .catch(function () { addMessage("The ride could not be cancelled. Please try from your dashboard.", "bot"); });
+          window.HarveyCancelRide.cancelRide(rideId, { reason: "Rider cancelled via assistant" }).then(function (res) {
+            if (res.message) addMessage(res.message, "bot");
+            if (!res.cancelled) b.disabled = false;
+          });
         });
       } else if (a.type === "safety_alert" && a.endpoint === "/api/safety/911") {
         b.className = "hta-danger";
@@ -256,7 +259,7 @@
             .catch(function () { addMessage("The alert could not be sent. Call 911 if anyone is in danger.", "bot", { urgent: true }); });
         });
       } else if (a.type === "support_handoff") {
-        b.addEventListener("click", function () { openHandoff(a.kind === "lost_item" ? "lost_item" : "general"); });
+        b.addEventListener("click", function () { openHandoff(a.kind === "lost_item" || a.kind === "cancellation_review" ? a.kind : "general"); });
       } else {
         b.disabled = true;
       }
@@ -273,14 +276,16 @@
       try { if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID(); } catch (e) { /* fall through */ }
       return "req-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 12);
     }
-    function openHandoff(kind) {
+    function openHandoff(kind, opts) {
+      opts = opts || {};
       if (handoffCard) { handoffCard.querySelector("textarea").focus(); return; }
       var lost = kind === "lost_item";
+      var review = kind === "cancellation_review";
       var requestId = newRequestId();
       var rideId = null;
       var card = el("div", { class: "hta-handoff", "data-testid": "hta-handoff" });
       handoffCard = card;
-      card.appendChild(el("strong", {}, lost ? (role === "driver" ? "Report a found item" : "Report a lost item") : "Send a request to Harvey Taxi support"));
+      card.appendChild(el("strong", {}, lost ? (role === "driver" ? "Report a found item" : "Report a lost item") : review ? "Ask support to review a cancelled ride" : "Send a request to Harvey Taxi support"));
       var note = el("div", { class: "hta-note" }, "Preparing a summary…");
       var area = el("textarea", { maxlength: "1500", "aria-label": "Summary for support", "data-testid": "hta-handoff-text" });
       area.disabled = true;
@@ -310,7 +315,7 @@
         close();
         addMessage("Not sent. Nothing was shared with support.", "bot");
       });
-      fetch("/api/agent/" + role + "/handoff/draft", { method: "POST", credentials: "same-origin", headers: headers(), body: JSON.stringify({ context: history.slice(-6), kind: kind }) })
+      fetch("/api/agent/" + role + "/handoff/draft", { method: "POST", credentials: "same-origin", headers: headers(), body: JSON.stringify({ context: history.slice(-6), kind: kind, ride_id: opts.rideId || null }) })
         .then(function (r) { return r.json().catch(function () { return {}; }).then(function (body) { return { ok: r.ok, body: body }; }); })
         .then(function (res) {
           if (!res.ok || typeof res.body.draft !== "string") throw new Error("draft");
@@ -416,6 +421,15 @@
       storeKey = next;
       restore();
     });
+    // For page buttons (the ride card's "Ask support to review"): opens the
+    // assistant with a support request of this kind for the user to review.
+    window.HarveyAssistant = {
+      openHandoff: function (kind, opts) {
+        toggle(true);
+        openHandoff(kind === "lost_item" || kind === "cancellation_review" ? kind : "general", opts);
+      }
+    };
+
     window.addEventListener("harvey:signed-out", function () {
       storeKey = null;
       reset();

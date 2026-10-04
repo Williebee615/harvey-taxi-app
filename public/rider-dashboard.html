@@ -3153,9 +3153,23 @@
           <button class="btn primary" type="button" id="openLiveTrackingBtn">
             Open Live Tracking
           </button>
+          <button class="btn" type="button" id="cancelActiveRideBtn" hidden>
+            Cancel ride
+          </button>
         </div>
       </div>
     </section>
+
+    <!-- After a cancellation (the ride card itself clears): the result and a
+         support review request, reviewed by the rider before it's sent. -->
+    <div class="card" id="cancelledRideNotice" hidden>
+      <p id="cancelActiveRideNote" role="status" aria-live="polite"></p>
+      <div class="actions">
+        <button class="btn" type="button" id="reviewCancelledRideBtn" hidden>
+          Ask support to review this ride
+        </button>
+      </div>
+    </div>
 
     <!-- HERO -->
     <section class="hero">
@@ -10199,6 +10213,10 @@
       activeRequestDriver: document.getElementById("activeRequestDriver"),
       activeRequestIdText: document.getElementById("activeRequestIdText"),
       openLiveTrackingBtn: document.getElementById("openLiveTrackingBtn"),
+      cancelActiveRideBtn: document.getElementById("cancelActiveRideBtn"),
+      cancelActiveRideNote: document.getElementById("cancelActiveRideNote"),
+      reviewCancelledRideBtn: document.getElementById("reviewCancelledRideBtn"),
+      cancelledRideNotice: document.getElementById("cancelledRideNotice"),
       activeRequestDeliveryMeta: document.getElementById("activeRequestDeliveryMeta"),
       activeRequestDeliveryStage: document.getElementById("activeRequestDeliveryStage"),
       activeRequestDeliveryPin: document.getElementById("activeRequestDeliveryPin"),
@@ -11658,6 +11676,15 @@
       }
     }
 
+    // After a cancellation: a support review request (safety concern, wrong
+    // pickup or arrival record, or a disputed fee), reviewed and approved by
+    // the rider in Harvey Assistant before it's sent.
+    function showCancellationReview(rideId) {
+      if (!els.reviewCancelledRideBtn || !rideId || !window.HarveyAssistant) return;
+      els.reviewCancelledRideBtn.hidden = false;
+      els.reviewCancelledRideBtn.onclick = () => window.HarveyAssistant.openHandoff("cancellation_review", { rideId });
+    }
+
     function renderActiveRequest(data, mode) {
       state.activeRequest = data;
 
@@ -11698,6 +11725,26 @@
       if (els.openLiveTrackingBtn) {
         els.openLiveTrackingBtn.onclick = () => {
           window.HarveyRideWizard.open({ ride_id: data.id, mode: mode || "driver" });
+        };
+      }
+
+      // Cancel: the fee is fetched and shown before confirming
+      // (public/ride-cancel.js). Offered until the trip starts.
+      if (els.cancelActiveRideBtn) {
+        const cancellable = ["payment_required", "payment_authorized", "awaiting_driver_acceptance", "driver_assigned", "driver_enroute", "arrived", "failed"].includes(data.status);
+        els.cancelActiveRideBtn.hidden = !(cancellable && data.id && window.HarveyCancelRide);
+        els.cancelActiveRideBtn.onclick = async () => {
+          els.cancelActiveRideBtn.disabled = true;
+          const result = await window.HarveyCancelRide.cancelRide(data.id, { reason: "Rider cancelled from ride card" });
+          els.cancelActiveRideBtn.disabled = false;
+          if (els.cancelActiveRideNote && result.message) {
+            els.cancelActiveRideNote.textContent = result.message;
+            if (els.cancelledRideNotice) els.cancelledRideNotice.hidden = false;
+          }
+          if (result.cancelled) {
+            els.cancelActiveRideBtn.hidden = true;
+            showCancellationReview(data.id);
+          }
         };
       }
 
@@ -12592,6 +12639,7 @@
     document.addEventListener("DOMContentLoaded", boot);
   </script>
   <!-- Harvey Assistant (AI Agent Manager); renders nothing unless agent_assist_enabled is on. -->
+  <script src="/ride-cancel.js" defer></script>
   <script src="/agent-assist.js" data-role="rider" defer></script>
 </body>
 </html>
