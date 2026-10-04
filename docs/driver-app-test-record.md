@@ -108,3 +108,31 @@ An admin can no longer revive a failed ride whose hold was released. The rider b
 | Offer vibration and sound while the app is open | Unverified |
 | Push notification for an offer with the app backgrounded or locked (D11) | Unverified |
 | D1, D6 navigation, D7, D8, D9, D10, D12, D13, D14, iPad | Unverified |
+
+## Live map tracking (PR #176, merged `8e8dac3`, deployed 2026-10-04)
+
+Design: `docs/live-map-tracking.md`.
+
+### Done
+- **Database:** `rides.rider_live_*` columns added in production before the deploy.
+- **Deploy:** live. `GET /api/maps/config` answers, and the share route refuses requests without credentials.
+
+### Builds from `8e8dac3`
+| App | Platform | Build number | EAS build |
+|---|---|---|---|
+| Driver | iOS | 7 | `703e9272` |
+| Driver | Android | versionCode 5 | `716f6fe5` |
+| Rider | iOS | 12 | `c2a3d264` |
+| Rider | Android | versionCode 10 | `bf27bbde` |
+
+### Maps are off until both Mapbox public tokens are set on Render
+- `MAPBOX_PUBLIC_TOKEN` (website and rider app)
+- `MAPBOX_APP_TOKEN` (driver app)
+
+### Device checks (all unverified)
+| Check | Result |
+|---|---|
+| Rider map on the website: driver, pickup, destination | Unverified |
+| Rider app (WebView): map and location permission prompt, iOS and Android | Unverified |
+| Rider "Share my location", then the driver app shows the rider marker until pickup | Unverified |
+| Driver trip map with real Mapbox tiles, iOS and Android | Unverified |
