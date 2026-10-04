@@ -30,7 +30,9 @@ Anything not yet run says so.
 | D14 | Rider app regression | **Not run** | — |
 | iPad | Layout and the same flows on iPad | **Not confirmed** | — |
 
-## Changes prepared from these results (not live)
+## Changes made from these results
+
+Live since PR #174 (merge `caaeabe`, deployed to Render 2026-10-04): items 2, 4 and 5 below. Item 1 is in build 6. Item 3 is still switched off; see "Before switching on the clean-up".
 
 **1. In-app alert for new offers.** While the app is open, a vibration and the
 standard notification sound play once per new offer. The sound has no banner
@@ -78,3 +80,29 @@ An admin can no longer revive a failed ride whose hold was released. The rider b
    on conflict (key) do update set value = excluded.value, updated_at = now();
    ```
    **Rollback:** set the value back to `'false'`.
+
+## Status on 2026-10-04
+
+### Done and confirmed
+- **Server deploy (PR #174, `caaeabe`):** live on Render. The rider page serves the new failure message. Health check: database connected.
+- **Driver builds from `caaeabe`:**
+  - iOS 1.0.0 (6), EAS build `4d612aa0`. Uploaded to App Store Connect by the owner. EAS submission `daa4a659` finished with no error.
+  - Android versionCode 4, EAS build `d039bb28`. Built; not uploaded.
+- **Stale offer:** `OFFER-9E1375D173` set to `expired`. No pending offers remain.
+- **iOS push credentials:** an APNs key is stored in EAS.
+- **`driver_native_push_enabled` is on.** One device token is registered: the review driver's iPhone.
+  - **Rollback:** set the flag's value to `'false'`.
+
+### Not done
+- **`RIDE-06D4C93EF9` is not cancelled.** It is still "Awaiting driver acceptance". Two production updates timed out without applying. Neither sweep will pick the ride up, because it has no pending offer and is not `redispatching`.
+- **`offer_expiry_sweep_enabled` is off.** It waits for that ride to be cancelled.
+- **45-second offer window: unverified.** No offer has been created since the deploy.
+- **Apple processing of build 6, and adding it to the internal testing group: unverified.** This session has no App Store Connect access.
+- **Android push is blocked.** There is no `google-services.json` and no FCM V1 key in EAS.
+
+### Device checks for build 6 (all unverified)
+| Check | Result |
+|---|---|
+| Offer vibration and sound while the app is open | Unverified |
+| Push notification for an offer with the app backgrounded or locked (D11) | Unverified |
+| D1, D6 navigation, D7, D8, D9, D10, D12, D13, D14, iPad | Unverified |
