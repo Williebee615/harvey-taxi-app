@@ -1,47 +1,71 @@
 # DRAFT: Privacy Policy addition for the AI assistant (for owner approval)
 
-**Status:** draft only. Not published, and not in effect.
-- The model must not be enabled for real riders or drivers until the owner approves this text and it is published in `/privacy-policy.html`, with the "Last updated" date changed.
-- Recommend review by legal counsel before publishing; this draft is not legal advice.
+**Status:** draft for the owner's review. **Not published and not in effect.**
+- Model answers stay limited to synthetic test accounts until the owner approves this text, it is published in `/privacy-policy.html` with an updated "Last updated" date, and the owner sets `AGENT_MODEL_PUBLIC_APPROVED=true`.
+- Recommend review by legal counsel; this draft is not legal advice.
 
-**Facts the owner or counsel should confirm** before publishing are marked **[confirm]**.
+## Anthropic's terms this draft relies on (checked 2026-10-04)
+
+| Statement in the draft | Source | How it was checked |
+|---|---|---|
+| Not used to train models without express permission | Anthropic, "API and data retention" (platform.claude.com/docs/en/manage-claude/api-and-data-retention): "Retained data is never used for model training without your express permission." | Read directly |
+| Conversation content is not retained by default (Claude Haiku 4.5 is not a "Covered Model") | Same page: "Conversation content (your prompts and Claude's outputs) is not retained by default; the exception is Covered Models, which require 30-day retention." Covered Models listed: Claude Fable 5.1, Mythos 5.1, Fable 5, Mythos 5. | Read directly |
+| Deleted within 30 days | Anthropic Privacy Center, "How long do you store my organization's data?" (privacy.claude.com/en/articles/7996866): inputs and outputs are deleted within 30 days of receipt or generation, with exceptions. | Search summary of the official page; the page itself is blocked from this environment. **[owner to open the page and confirm]** |
+| Flagged content: up to 2 years (safety scores up to 7 years) | API data retention page: "if a chat or session is flagged, Anthropic may retain inputs and outputs for up to 2 years." Privacy Center: classification scores up to 7 years. | 2 years read directly; 7 years from search summary **[confirm]** |
+| Retention where required by law | API data retention page: "Anthropic may retain data where required by law…" | Read directly |
+| Anthropic acts as Harvey Taxi's data processor | API data retention page: on the Claude API "Anthropic is the data processor." | Read directly. **[Owner: accept Anthropic's Data Processing Addendum in the Console if offered; counsel to confirm.]** |
 
 ---
 
-## Proposed new section: "Harvey Assistant (AI)"
+## Proposed new Privacy Policy section
 
-The Harvey Taxi rider and driver apps include Harvey Assistant, an optional in-app assistant that answers questions about your rides, your account and our published policies.
+### Harvey Assistant (AI)
 
-**What the assistant processes.** When you use the assistant, we process:
+The Harvey Taxi rider and driver apps include Harvey Assistant, an optional in-app assistant that answers questions about your rides, your account and our published policies. Some answers are written by an artificial intelligence (AI) model.
+
+**What the assistant uses.** When you use the assistant, we use:
 - the message you type;
-- up to your last six messages in the current conversation (kept on your device, so the assistant can follow up);
-- account and trip details needed to answer. These are the same details shown to you in the app, such as your ride status, driver name and vehicle, pickup estimate and fare, or for drivers, ride offers, trip steps, earnings and hours.
+- up to your last six messages in the current conversation, which stay on your device, so the assistant can understand follow-up questions;
+- the account and trip details needed to answer. These are the same details the app already shows you:
+  - for riders: ride status, driver first name and vehicle, pickup estimate and fare;
+  - for drivers: ride offers, trip steps and addresses, earnings and hours online.
 
-**AI service provider.** To write its answers, the assistant uses Claude, an AI model provided by Anthropic, PBC. The information above is sent to Anthropic to generate each answer.
-- Anthropic processes it as our service provider under its commercial terms. **[confirm: data processing addendum accepted in the Anthropic Console]**
-- Anthropic does not use this information to train its models without our express permission. We have not given that permission.
-- Anthropic keeps data according to its commercial data retention policy **[confirm the current retention period at privacy.claude.com]**. It may keep data longer where required by law, or where its automated safety systems flag a conversation (up to 2 years, per Anthropic's published documentation).
+**Our AI service provider.** The assistant uses Claude, an AI model provided by Anthropic, PBC, to write its answers. The information above is sent to Anthropic, which processes it on our behalf as our service provider.
+- Anthropic does not use this information to train its AI models without our express permission. We have not given that permission.
+- Anthropic deletes this information within 30 days.
+- Anthropic may keep information longer where the law requires it, or if its automated safety systems flag a conversation as possibly violating its usage policy. In that case it may keep the conversation for up to 2 years, and its safety classification for up to 7 years.
 
 **What Harvey Taxi keeps.**
-- We do not store your assistant conversations on our servers. Your recent messages stay on your device for the current app session, and are deleted when you tap Clear chat, sign out, or close the app.
-- For security, quality and cost control, we keep a record of each assistant request: the time, your account, the topic, and the number of model tokens and cost. This record does not contain your message.
-- When the assistant can't answer a question from our approved information, we keep a short excerpt of the question, with phone numbers, emails and card numbers removed, so our team can add the answer.
-- If you choose to send a support request or lost-item report through the assistant, we keep the text you reviewed and approved, as described in "Support requests".
+- We don't store your assistant conversations on our servers. Your recent messages stay on your device for the current app session. They are deleted when you tap Clear chat, sign out, or close the app.
+- For each assistant request we keep a record for security, quality and cost control: the time, your account, the type of question, which app you used, and the amount of AI processing used and its cost. This record does not include your message.
+- When the assistant can't answer from our approved information, we keep a short excerpt of the question, with phone numbers, email addresses and card numbers removed, so our team can add an approved answer.
+- If you choose to send a support request or lost-item report through the assistant, we keep the text you reviewed and approved and send it to our support team, as described in "Support requests" below.
+
+**Support requests.** If you tap "Send a request to support" or "Report a lost item":
+- the assistant prepares a draft;
+- you can edit it, and nothing is sent until you tap Send;
+- we keep the text you approved, your account and, if you choose, the trip it relates to, in our support records, and email a copy to support@harveytaxiservice.com;
+- phone numbers, email addresses and card numbers you type are masked.
 
 **What the assistant cannot do.**
-- The assistant cannot change your rides or account on its own. Any change, such as cancelling a ride or accepting an offer, happens only after you confirm it in the app.
+- It cannot change your rides or your account on its own. Any change happens only after you confirm it in the app, for example cancelling a ride or accepting a ride offer.
+- AI answers can be wrong. Our policies and your app screens are the authoritative source.
 - The assistant is not an emergency service. In an emergency, call 911.
 
 **Your choices.**
-- Using the assistant is optional. Booking, your trips and support all work without it.
-- Please don't share sensitive information, such as payment card numbers or health details, in the assistant.
+- Using the assistant is optional. Booking, your trips and our support page all work without it.
+- Please don't share sensitive information in the assistant, such as payment card numbers, passwords or health details.
+- For questions about this section, contact support@harveytaxiservice.com.
 
 ---
 
-## Where it goes
+## Also update
 
-- Add the section to `public/privacy-policy.html`, after "3. Sharing of Information".
-- In "3. Sharing of Information", add Anthropic to the list of service providers (or add a sentence that refers to the new section).
-- Update the "Last updated" date.
-- The assistant then cites the new section like any other approved page.
-- If the app store privacy labels (Apple App Privacy, Google Play Data safety) list data shared with third parties, review them for "Other user content" or "Customer support" data sent to an AI provider **[confirm]**.
+1. **"3. Sharing of Information":** add "AI service providers (Anthropic, PBC) that help us answer your questions in Harvey Assistant, as described in 'Harvey Assistant (AI)'."
+2. **"Last updated" date** on the Privacy Policy.
+3. **App store privacy labels:**
+   - **Apple App Privacy:** confirm the data types now processed by a third party, such as "Other User Content" and "Customer Support".
+   - **Google Play Data safety:** declare data "shared" with a service provider. Data sent to a service provider acting on your behalf may be exempt as "not shared" under Google's definition. **[confirm with counsel]**
+4. **Terms of Service** (optional): a sentence that assistant answers are informational and may contain mistakes.
+
+The assistant quotes the published Privacy Policy as an approved source, so once this is published it can answer "Do you use AI?" with a source link.

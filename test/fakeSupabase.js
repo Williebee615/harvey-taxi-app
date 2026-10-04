@@ -381,7 +381,12 @@ function createFakeSupabase(seed = {}, options = {}) {
     // dispatch_ride_atomic's behavior (candidate loop, eligibility
     // decline, etc.) override this per-test by reassigning
     // mockSupabaseClient.rpc directly.
-    rpc: async (name) => {
+    rpc: async (name, args) => {
+      // options.rpc: { [functionName]: (args, state) => ({ data, error }) }
+      // lets a test supply a JS stand-in for a database function.
+      if (options.rpc && typeof options.rpc[name] === "function") {
+        return options.rpc[name](args || {}, state);
+      }
       if (name === "dispatch_ride_atomic") {
         return {
           data: null,

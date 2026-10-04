@@ -23529,17 +23529,47 @@ const agentTools = createAgentTools({ supabase });
 // model turn and spending is recorded in agent_model_usage.
 const claudeConfig = readClaudeConfig();
 const claude = createClaudeClient({ config: claudeConfig });
+// Atomic reservations and settlement run inside the database
+// (migration 20261005010000), so every server instance shares one total.
 const modelBudget = createModelBudget({
   budgetUsd: budgetFromEnv(),
   model: claudeConfig.model,
-  loadMonthTotal: async (month) => {
-    const { data, error } = await supabase.from("agent_model_usage").select("cost_usd").eq("usage_month", month).limit(20000);
-    if (error) throw new Error(error.message || "agent_model_usage read failed");
-    return (data || []).reduce((sum, r) => sum + (Number(r.cost_usd) || 0), 0);
-  },
-  recordTurn: async (row) => {
-    const { error } = await supabase.from("agent_model_usage").insert(row);
-    return error ? { ok: false, error: error.message } : { ok: true };
+  db: {
+    async reserve({ month, budgetUsd, amountUsd, role, actorId }) {
+      const { data, error } = await supabase.rpc("agent_model_reserve", {
+        p_month: month,
+        p_budget_usd: budgetUsd,
+        p_amount_usd: amountUsd,
+        p_role: role,
+        p_actor_id: actorId
+      });
+      if (error) throw new Error(error.message || "agent_model_reserve failed");
+      return data === null || data === undefined ? null : data;
+    },
+    async settle({ reservationId, costUsd, calls, inputTokens, outputTokens, cacheCreationInputTokens, cacheReadInputTokens, model, role, actorId, appTarget, outcome }) {
+      const { data, error } = await supabase.rpc("agent_model_settle", {
+        p_reservation_id: reservationId,
+        p_cost_usd: costUsd,
+        p_calls: calls,
+        p_input_tokens: inputTokens,
+        p_output_tokens: outputTokens,
+        p_cache_creation_input_tokens: cacheCreationInputTokens,
+        p_cache_read_input_tokens: cacheReadInputTokens,
+        p_model: model,
+        p_role: role,
+        p_actor_id: actorId,
+        p_app_target: appTarget,
+        p_outcome: outcome
+      });
+      if (error) throw new Error(error.message || "agent_model_settle failed");
+      return data === true;
+    },
+    async totals(month) {
+      const { data, error } = await supabase.rpc("agent_model_month_totals", { p_month: month });
+      if (error) throw new Error(error.message || "agent_model_month_totals failed");
+      const row = Array.isArray(data) ? data[0] : data;
+      return row || { committed_usd: 0, held_usd: 0 };
+    }
   },
   log: (msg) => console.warn("⚠️ Assistant model budget:", msg)
 });
@@ -23625,30 +23655,32 @@ async function runModelTurn({ state, role, actor, message, client, context, appT
   const eligibility = modelEligibility(state.model, { role, actor });
   if (!eligibility.eligible) return { result: null, record: null };
   if (!claude) return { result: null, record: { used: false, fallback_reason: "not_configured" } };
-  const hold = await modelBudget.reserve();
+  // One atomic reservation of this answer's worst case, in the database.
+  const hold = await modelBudget.reserve({ role, actorId: actor ? String(actor.id) : null });
   if (!hold.ok) return { result: null, record: { used: false, fallback_reason: hold.reason } };
   let out;
   try {
     out = await handleModelAssist({ role, actor, message, tools: agentTools, claude, client, knowledgeIndex: knowledgeStore.getIndex(), context });
-  } finally {
-    hold.release();
+  } catch (err) {
+    // Unexpected failure: treat every possible call as spent.
+    out = { ok: false, reason: "internal_error", calls: 0, uncertain_calls: 0, usage: { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }, cost_usd: modelBudget.status().reserve_per_turn_usd };
   }
   if (out.reason === "spend_limit") modelBudget.markProviderLimit();
-  if (out.calls > 0) {
-    await modelBudget.commit({
-      role,
-      actor_id: actor ? String(actor.id) : null,
-      app_target: appTarget,
-      model: claude.model,
-      calls: out.calls,
-      input_tokens: out.usage.input_tokens,
-      output_tokens: out.usage.output_tokens,
-      cache_creation_input_tokens: out.usage.cache_creation_input_tokens,
-      cache_read_input_tokens: out.usage.cache_read_input_tokens,
-      cost_usd: out.cost_usd,
-      outcome: out.ok ? "answered" : `fallback_${out.reason}`
-    });
-  }
+  // Always settle (with $0 if no call was made) so the reservation is
+  // released into its real cost.
+  await hold.settle({
+    costUsd: out.cost_usd,
+    calls: out.calls,
+    inputTokens: out.usage.input_tokens,
+    outputTokens: out.usage.output_tokens,
+    cacheCreationInputTokens: out.usage.cache_creation_input_tokens,
+    cacheReadInputTokens: out.usage.cache_read_input_tokens,
+    model: claude.model,
+    role,
+    actorId: actor ? String(actor.id) : null,
+    appTarget,
+    outcome: out.ok ? "answered" : `fallback_${out.reason}`
+  });
   const record = {
     used: Boolean(out.ok),
     model: claude.model,
@@ -23658,6 +23690,7 @@ async function runModelTurn({ state, role, actor, message, client, context, appT
     cache_read_input_tokens: out.usage.cache_read_input_tokens,
     cache_creation_input_tokens: out.usage.cache_creation_input_tokens,
     cost_usd: out.cost_usd,
+    uncertain_calls: out.uncertain_calls || 0,
     fallback_reason: out.ok ? null : out.reason
   };
   if (!out.ok) return { result: null, record };
@@ -24335,6 +24368,7 @@ app.post(
       model.result ||
       (await handleAgentAssist({ role, actor, message, tools: agentTools, llm: null, client, context: [], knowledgeIndex: knowledgeStore.getIndex() }));
     agentAudit(agentAssistDecisionEntry({ role, actorId, result, mode: state.mode.mode, message, appTarget: "admin_try", model: model.record }), req);
+    await modelBudget.refresh();
     return ok(res, {
       reply: result.reply,
       source: result.source,
