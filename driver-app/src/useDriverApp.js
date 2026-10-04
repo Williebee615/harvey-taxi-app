@@ -2,7 +2,7 @@
 // app lifecycle. Screens call these actions; every authorization decision
 // is the server's.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState } from 'react-native';
+import { AppState, Vibration } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 
 import { API_BASE } from './config';
@@ -11,7 +11,8 @@ import { clearSession, getToken, saveSession } from './session';
 import { createSyncEngine } from './syncEngine';
 import { openEventStream } from './sse';
 import { requestLocationPermission, locationPermission, setUnauthorizedHandler, stopTracking, syncTracking } from './locationTask';
-import { onNotificationReceived, onNotificationTap, registerForPush, unregisterPush } from './push';
+import { OFFER_ALERT_KIND, onNotificationReceived, onNotificationTap, playOfferSound, registerForPush, unregisterPush } from './push';
+import { createOfferAlerter, OFFER_VIBRATION_PATTERN } from './offerAlert';
 import { stepPath } from './tripSteps';
 
 export function useDriverApp() {
@@ -27,6 +28,15 @@ export function useDriverApp() {
   const signingOut = useRef(false);
 
   const signOutRef = useRef(() => {});
+  const offerAlerter = useMemo(
+    () =>
+      createOfferAlerter({
+        vibrate: () => Vibration.vibrate(OFFER_VIBRATION_PATTERN),
+        playSound: playOfferSound,
+        isForeground: () => appStateRef.current !== 'background'
+      }),
+    []
+  );
   const api = useMemo(() => createApi({ getToken, onUnauthorized: () => signOutRef.current('expired') }), []);
 
   const applyTracking = useCallback(async (snap) => {
@@ -61,6 +71,7 @@ export function useDriverApp() {
         };
       },
       onSnapshot: (snap) => {
+        offerAlerter.onSnapshot(snap);
         setSnapshot(snap);
         applyTracking(snap);
       },
@@ -69,7 +80,7 @@ export function useDriverApp() {
     });
     engineRef.current = engine;
     return engine.start();
-  }, [api, applyTracking]);
+  }, [api, applyTracking, offerAlerter]);
 
   const signOut = useCallback(
     async (why) => {
@@ -127,7 +138,11 @@ export function useDriverApp() {
       if (connected && !wasConnected) engineRef.current?.resume();
       wasConnected = connected;
     });
-    const offPush = onNotificationReceived(() => engineRef.current?.refresh('push'));
+    // The app's own offer sound (playOfferSound) is not a server push.
+    const offPush = onNotificationReceived((data) => {
+      if (data && data.kind === OFFER_ALERT_KIND) return;
+      engineRef.current?.refresh('push');
+    });
     const offTap = onNotificationTap(() => engineRef.current?.refresh('push_tap'));
     return () => {
       appSub.remove();

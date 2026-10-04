@@ -10245,6 +10245,14 @@ async function findAvailableDrivers({
 
 ========================================================= */
 
+
+// How long a driver has to accept a ride offer. 45 s (was 30 s): a
+// 30-second offer expired unseen during a two-device test (review ride
+// RIDE-06D4C93EF9, 2026-10-03). Render's
+// DISPATCH_TIMEOUT_SECONDS still overrides it. The driver app's countdown
+// reads seconds_left from the server, so it follows automatically.
+const DISPATCH_TIMEOUT_SECONDS = envNumber("DISPATCH_TIMEOUT_SECONDS", 45);
+
 async function createDriverOffer({
 
   ride_id,
@@ -10253,7 +10261,7 @@ async function createDriverOffer({
 
   attempt = 1,
 
-  expires_in_seconds = envNumber("DISPATCH_TIMEOUT_SECONDS", 30)
+  expires_in_seconds = DISPATCH_TIMEOUT_SECONDS
 
 }) {
 
@@ -10532,7 +10540,7 @@ async function dispatchRide(ride) {
 
           p_expires_seconds:
 
-            envNumber("DISPATCH_TIMEOUT_SECONDS", 30)
+            DISPATCH_TIMEOUT_SECONDS
 
         });
 

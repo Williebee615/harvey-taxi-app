@@ -7,14 +7,30 @@ import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import * as Application from 'expo-application';
 
+// The in-app offer alert (playOfferSound, below) is sound only: the
+// offer card is already on screen, so no banner or Notification Center
+// entry. Every other notification shows as usual.
+export const OFFER_ALERT_KIND = 'offer_alert';
+
+export function presentationFor(data) {
+  const soundOnly = Boolean(data && data.kind === OFFER_ALERT_KIND);
+  return { shouldShowBanner: !soundOnly, shouldShowList: !soundOnly, shouldPlaySound: true, shouldSetBadge: false };
+}
+
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false
-  })
+  handleNotification: async (n) => presentationFor(n && n.request && n.request.content && n.request.content.data)
 });
+
+// Plays the standard notification sound for a new offer while the app is
+// open. Uses the notification system the app already has (respects the
+// silent switch; no microphone-capable audio library). Without
+// notification permission it does nothing, and the vibration still runs.
+export async function playOfferSound() {
+  await Notifications.scheduleNotificationAsync({
+    content: { title: 'New ride request', sound: 'default', data: { kind: OFFER_ALERT_KIND } },
+    trigger: Platform.OS === 'android' ? { channelId: 'ride-offers' } : null
+  });
+}
 
 let registeredToken = null;
 
