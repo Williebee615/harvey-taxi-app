@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Harvey Taxi | Assistant Knowledge</title>
+  <style>
+    :root{
+      --bg:#060b1a; --panel:#0d1630; --panel2:#111d3d; --line:rgba(122,162,255,.18);
+      --text:#f4f7ff; --muted:#aab8de; --blue:#5ea0ff; --green:#6dffb3; --gold:#ffd76a;
+      --danger:#ff7e97; --radius:16px;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Inter,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.45;padding:16px}
+    main{max-width:1100px;margin:0 auto;display:grid;gap:16px}
+    h1{font-size:1.5rem} h2{font-size:1.05rem;margin-bottom:10px} h3{font-size:.95rem;margin:4px 0}
+    a{color:var(--blue)}
+    .muted{color:var(--muted);font-size:.88rem}
+    .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;min-width:0}
+    .notice{border-radius:12px;padding:12px 14px;border:1px solid var(--line);background:#101a36}
+    .notice.bad{border-color:rgba(255,126,151,.4);background:#2e1019}
+    .badge{display:inline-block;border-radius:999px;padding:2px 10px;font-size:.78rem;font-weight:700;border:1px solid var(--line);white-space:nowrap}
+    .s-draft{background:#3a3212;color:var(--gold)} .s-approved{background:#123a2c;color:var(--green)} .s-retired{background:#1b2440;color:var(--muted)}
+    button,input,textarea{font:inherit;color:inherit}
+    button{cursor:pointer;border-radius:10px;border:1px solid var(--line);background:#16244a;padding:8px 12px}
+    button:hover{border-color:var(--blue)}
+    button.primary{background:#1d4ed8;border-color:#1d4ed8}
+    button.danger{background:#5a1426;border-color:rgba(255,126,151,.5)}
+    input,textarea{background:#0a1228;border:1px solid var(--line);border-radius:10px;padding:8px 10px;width:100%;min-width:0}
+    textarea{min-height:140px;resize:vertical}
+    form{display:grid;gap:10px}
+    label{display:grid;gap:4px;font-size:.86rem;color:var(--muted)}
+    .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+    .checks{display:flex;gap:16px} .checks label{display:flex;gap:6px;align-items:center;color:var(--text)}
+    .checks input{width:auto}
+    .article{border-top:1px solid var(--line);padding:12px 0;display:grid;gap:6px}
+    .article:first-child{border-top:0}
+    .article .body{white-space:pre-line;font-size:.92rem}
+    ul{padding-left:18px} li{margin:3px 0}
+    .empty{color:var(--muted);font-size:.88rem;padding:6px 0}
+    #toast{position:fixed;bottom:16px;left:16px;right:16px;max-width:520px;margin:0 auto;padding:12px 14px;border-radius:12px;background:#1d2b55;border:1px solid var(--line);display:none;z-index:10}
+    [hidden]{display:none !important}
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Assistant knowledge</h1>
+    <p class="muted">Approved answers the Harvey Taxi assistant may quote, in addition to the Terms, Privacy Policy and Support pages. <a href="/admin-agent.html">Agent Command Center</a> · <a href="/policies.html" target="_blank" rel="noopener">Public page</a></p>
+  </header>
+
+  <div id="authNotice" class="notice bad" hidden>
+    Admin sign-in required. <a href="/admin-login.html">Sign in</a>, then return to this page.
+  </div>
+
+  <div class="notice">
+    The assistant quotes approved text word for word and links to it on the public Policies page. Drafts are never used. Any edit returns an article to draft until it is approved again. Write only what Harvey Taxi actually offers; the assistant will not fill gaps.
+  </div>
+
+  <section class="panel">
+    <h2 id="formTitle">New article</h2>
+    <form id="articleForm" autocomplete="off">
+      <label>Title (the question or topic riders and drivers will ask about)
+        <input name="title" maxlength="140" required data-testid="kb-title" />
+      </label>
+      <label>Link name (lowercase, dashes; can't be changed later)
+        <input name="slug" maxlength="80" pattern="[a-z0-9]+(-[a-z0-9]+)*" required data-testid="kb-slug" />
+      </label>
+      <label>Approved wording (20–4,000 characters; quoted exactly)
+        <textarea name="body" maxlength="4000" required data-testid="kb-body"></textarea>
+      </label>
+      <div class="checks" role="group" aria-label="Audience">
+        <label><input type="checkbox" name="audience" value="rider" checked /> Riders</label>
+        <label><input type="checkbox" name="audience" value="driver" checked /> Drivers</label>
+      </div>
+      <div class="row">
+        <button class="primary" type="submit" data-testid="kb-save">Save as draft</button>
+        <button type="button" id="cancelEdit" hidden>Cancel edit</button>
+      </div>
+      <p class="muted" id="formNote"></p>
+    </form>
+  </section>
+
+  <section class="panel">
+    <h2>Articles</h2>
+    <p class="muted" id="indexStatus"></p>
+    <div id="articles"><p class="empty">Loading…</p></div>
+  </section>
+
+  <section class="panel">
+    <h2>Policies still needed</h2>
+    <p class="muted">Topics riders and drivers are likely to ask about that no approved page covers yet. The assistant says it doesn't have approved information for these. Only the owner can supply this wording.</p>
+    <ul id="needed"></ul>
+    <h3>Recent questions not covered (last 7 days, redacted)</h3>
+    <ul id="gaps"><li class="empty">Loading…</li></ul>
+  </section>
+</main>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  // Kept in step with docs/ai-knowledge.md ("Policies still needed").
+  const NEEDED = [
+    "Cancellation fees and refunds for cancelled rides",
+    "Wait-time fees",
+    "Service area (cities and counties served)",
+    "Pricing rules beyond the fare estimate (surcharges, tolls, airport rates)",
+    "Wheelchair-accessible vehicles and accessibility services",
+    "Service animals and pets",
+    "Child car seats",
+    "Lost and found",
+    "Driver vehicle requirements (age, type, inspection)",
+    "Driver insurance requirements"
+  ];
+  let articles = [];
+  let editing = null;
+
+  function esc(v) {
+    return String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+  function toast(msg) {
+    const t = $("toast"); t.textContent = msg; t.style.display = "block";
+    clearTimeout(toast._t); toast._t = setTimeout(() => { t.style.display = "none"; }, 5000);
+  }
+  function when(iso) {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    return isNaN(d) ? "—" : d.toLocaleString([], { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  }
+  async function api(path, options = {}) {
+    const res = await fetch(path, {
+      method: options.method || "GET",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      credentials: "same-origin",
+      body: options.body ? JSON.stringify(options.body) : undefined
+    });
+    const body = await res.json().catch(() => ({}));
+    if (res.status === 401) $("authNotice").hidden = false;
+    if (!res.ok) throw Object.assign(new Error((body.errors && body.errors.join(" ")) || body.error || body.message || `Request failed (${res.status})`), { status: res.status, body });
+    return body;
+  }
+
+  function render() {
+    const order = { draft: 0, approved: 1, retired: 2 };
+    const list = articles.slice().sort((a, b) => order[a.status] - order[b.status] || String(a.title).localeCompare(String(b.title)));
+    $("articles").innerHTML = list.length ? list.map((a) => `
+      <div class="article" data-testid="kb-article-${esc(a.slug)}">
+        <div class="row"><span class="badge s-${esc(a.status)}">${esc(a.status)}</span><h3>${esc(a.title)}</h3></div>
+        <div class="muted">/policies.html#${esc(a.slug)} · for ${esc((a.audience || []).join(" and "))} · version ${a.version} · updated ${when(a.updated_at)} by ${esc(a.updated_by || a.created_by || "—")}${a.approved_at ? ` · approved ${when(a.approved_at)} by ${esc(a.approved_by)}` : ""}</div>
+        <div class="body">${esc(a.body)}</div>
+        <div class="row">
+          ${a.status === "draft" ? `<button class="primary" type="button" data-approve="${a.id}" data-version="${a.version}">Approve version ${a.version}</button>` : ""}
+          ${a.status !== "retired" ? `<button type="button" data-edit="${a.id}">Edit</button><button class="danger" type="button" data-retire="${a.id}">Retire</button>` : ""}
+        </div>
+      </div>`).join("") : `<p class="empty">No articles yet. Start with one of the policies still needed below.</p>`;
+    $("needed").innerHTML = NEEDED.map((n) => `<li>${esc(n)}</li>`).join("");
+  }
+
+  async function load() {
+    try {
+      const data = await api("/api/admin/knowledge");
+      $("authNotice").hidden = true;
+      articles = data.articles || [];
+      const ix = data.index || {};
+      $("indexStatus").textContent = `Assistant is using ${ix.approved_articles ?? 0} approved article(s) and ${ix.page_sections ?? 0} sections of published pages${ix.loaded_at ? `, refreshed ${when(ix.loaded_at)}` : ""}.${ix.last_error ? " The last refresh failed; it is still using the previous copy." : ""}`;
+      render();
+    } catch (err) {
+      if (err.status !== 401) $("articles").innerHTML = `<p class="empty">${esc(err.status === 503 ? "Articles are unavailable right now (has the knowledge_articles migration been applied?)." : err.message)}</p>`;
+    }
+    try {
+      const u = await api("/api/admin/agent/usage");
+      $("gaps").innerHTML = u.history.recent_gaps.length
+        ? u.history.recent_gaps.map((g) => `<li><span class="muted">${when(g.at)} · ${esc(g.role)}</span> ${esc(g.question)}</li>`).join("")
+        : `<li class="empty">None in the last 7 days.</li>`;
+    } catch { $("gaps").innerHTML = `<li class="empty">Unavailable right now.</li>`; }
+  }
+
+  function resetForm() {
+    editing = null;
+    $("articleForm").reset();
+    $("articleForm").slug.disabled = false;
+    $("formTitle").textContent = "New article";
+    $("cancelEdit").hidden = true;
+    $("formNote").textContent = "";
+  }
+
+  $("articleForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const f = e.target;
+    const body = {
+      title: f.title.value,
+      body: f.body.value,
+      audience: [...f.querySelectorAll("input[name=audience]:checked")].map((i) => i.value)
+    };
+    try {
+      if (editing) {
+        await api(`/api/admin/knowledge/${editing.id}`, { method: "PATCH", body });
+        toast(editing.status === "approved" ? "Saved as a new draft. The assistant stopped using this article until you approve it again." : "Draft saved.");
+      } else {
+        const r = await api("/api/admin/knowledge", { method: "POST", body: { ...body, slug: f.slug.value } });
+        toast(r.overlaps && r.overlaps.length ? `Draft saved. Check for overlap with: ${r.overlaps.map((o) => o.title).join(", ")}.` : "Draft saved. Review it, then approve.");
+      }
+      resetForm();
+    } catch (err) { toast(err.message); }
+    load();
+  });
+  $("cancelEdit").addEventListener("click", resetForm);
+
+  document.addEventListener("click", async (e) => {
+    const t = e.target.closest("button");
+    if (!t) return;
+    if (t.dataset.edit) {
+      const a = articles.find((x) => String(x.id) === t.dataset.edit);
+      if (!a) return;
+      editing = a;
+      const f = $("articleForm");
+      f.title.value = a.title; f.slug.value = a.slug; f.slug.disabled = true; f.body.value = a.body;
+      f.querySelectorAll("input[name=audience]").forEach((i) => { i.checked = (a.audience || []).includes(i.value); });
+      $("formTitle").textContent = `Edit: ${a.title}`;
+      $("formNote").textContent = a.status === "approved" ? "Saving puts this article back to draft; the assistant stops using it until it is approved again." : "";
+      $("cancelEdit").hidden = false;
+      f.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    if (t.dataset.approve) {
+      const a = articles.find((x) => String(x.id) === t.dataset.approve);
+      if (!a || !confirm(`Approve "${a.title}" (version ${a.version})?\n\nThe assistant will quote this wording exactly and it will appear on the public Policies page.`)) return;
+      try {
+        const r = await api(`/api/admin/knowledge/${a.id}/approve`, { method: "POST", body: { version: Number(t.dataset.version) } });
+        toast(r.overlaps && r.overlaps.length ? `Approved. It overlaps with: ${r.overlaps.map((o) => o.title).join(", ")}. If they disagree, the assistant tells people to confirm with support; consider retiring one.` : "Approved. The assistant can quote it now.");
+      } catch (err) { toast(err.message); }
+      return load();
+    }
+    if (t.dataset.retire) {
+      const a = articles.find((x) => String(x.id) === t.dataset.retire);
+      if (!a || !confirm(`Retire "${a.title}"? The assistant stops using it and it leaves the public page. It is kept for the record.`)) return;
+      try { await api(`/api/admin/knowledge/${a.id}/retire`, { method: "POST", body: {} }); toast("Retired."); }
+      catch (err) { toast(err.message); }
+      return load();
+    }
+  });
+
+  load();
+})();
+</script>
+</body>
+</html>

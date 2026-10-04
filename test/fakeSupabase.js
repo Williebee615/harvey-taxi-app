@@ -35,8 +35,13 @@
 // (and how the corresponding production constraints are declared as
 // partial/nullable-aware indexes). Optional and additive -- omitting it
 // keeps every existing test's behavior unchanged.
+//
+// `options.identity`, e.g. { knowledge_articles: "id" }, numbers inserted
+// rows in that column (1, 2, ...) like a generated identity column.
 function createFakeSupabase(seed = {}, options = {}) {
   const uniqueColumns = options.uniqueColumns || {};
+  const identity = options.identity || {};
+  const nextIdentity = {};
   const state = {};
   const log = [];
   const columns = options.columns || {};
@@ -142,6 +147,10 @@ function createFakeSupabase(seed = {}, options = {}) {
 
         const inserted = pendingInsertRows.map((record) => {
           const clean = { ...record };
+          if (identity[table] && clean[identity[table]] === undefined) {
+            nextIdentity[table] = (nextIdentity[table] || rows.length) + 1;
+            clean[identity[table]] = nextIdentity[table];
+          }
 
           if (isUpsert) {
             const idx = rows.findIndex((r) => r[keyField] === clean[keyField]);

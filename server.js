@@ -521,6 +521,7 @@ const { recommendDrivers: recommendAgentDrivers, driverLabel: agentDriverLabel }
 const { readLlmConfig: readAgentLlmConfig, createLlmClient: createAgentLlmClient, describeLlmConfig: describeAgentLlmConfig } = require("./lib/agent/llmClient");
 const { createAgentTools } = require("./lib/agent/tools");
 const { handleAssist: handleAgentAssist } = require("./lib/agent/assistant");
+const { createKnowledgeStore } = require("./lib/knowledge/store");
 const { createUsageMeter: createAgentUsageMeter, usageKey: agentUsageKey, summarizeUsage: summarizeAgentUsage } = require("./lib/agent/usage");
 const {
   AGENT_ACTIONS,
@@ -699,7 +700,9 @@ const FOUNDATION_REDIRECTS = new Map([
   // Harvey Taxi's own "how to review this app" page -- not linked from
   // any HTAF page, but exactly the kind of URL a reviewer evaluating
   // domain ownership might specifically look for.
-  ["/app-review.html", "/contact.html"]
+  ["/app-review.html", "/contact.html"],
+  // Harvey Taxi's approved assistant answers (docs/ai-knowledge.md).
+  ["/policies.html", "/contact.html"]
 ]);
 
 app.use((req, res, next) => {
@@ -23490,6 +23493,20 @@ app.get(
 ========================================================= */
 const agentLlmConfig = readAgentLlmConfig();
 const agentLlm = createAgentLlmClient({ config: agentLlmConfig });
+// Approved knowledge: published pages plus admin-approved articles,
+// cached in memory (lib/knowledge/store.js).
+const knowledgeStore = createKnowledgeStore({
+  loadApproved: async () => {
+    const { data, error } = await supabase
+      .from("knowledge_articles")
+      .select("slug, title, body, audience, status, version, approved_at")
+      .eq("status", "approved")
+      .limit(500);
+    if (error) throw error;
+    return data || [];
+  },
+  log: (msg) => console.warn("⚠️ Knowledge articles could not be loaded:", msg)
+});
 const agentTools = createAgentTools({ supabase });
 // Assistant request accounting and daily limits (lib/agent/usage.js):
 // in memory, no database reads or writes per request.
@@ -23605,7 +23622,8 @@ async function runAgentAssist(req, res, { role, actor }) {
     client: role === "driver" && AGENT_CLIENTS.has(req.body?.client) ? req.body.client : "web",
     // The device's own recent turns, for follow-up questions only. Not
     // stored or logged (lib/agent/followUp.js).
-    context: Array.isArray(req.body?.context) ? req.body.context : []
+    context: Array.isArray(req.body?.context) ? req.body.context : [],
+    knowledgeIndex: knowledgeStore.getIndex()
   });
   let caseId = null;
   if (result.escalation) {
@@ -23917,6 +23935,185 @@ app.get(
   })
 );
 
+/* =========================================================
+   KNOWLEDGE ARTICLES (docs/ai-knowledge.md, phase 2)
+   Admin-managed approved text the assistant may quote. Draft -> approved
+   by an admin; any edit returns it to draft. Approved articles are public
+   on /policies.html (the assistant's source link).
+========================================================= */
+const KNOWLEDGE_ARTICLE_COLUMNS = "id, slug, title, body, audience, status, version, created_by, updated_by, approved_by, approved_at, created_at, updated_at";
+
+function validateArticleInput(body, { partial = false } = {}) {
+  const errors = [];
+  const out = {};
+  if (!partial || body.slug !== undefined) {
+    const slug = String(body.slug || "").trim().toLowerCase();
+    if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug) || slug.length > 80) errors.push("slug: lowercase letters, numbers and dashes, up to 80.");
+    else out.slug = slug;
+  }
+  if (!partial || body.title !== undefined) {
+    const title = cleanString(body.title, 140);
+    if (!title || title.length < 3) errors.push("title: 3 to 140 characters.");
+    else out.title = title;
+  }
+  if (!partial || body.body !== undefined) {
+    const text = String(body.body || "").replace(/\r\n/g, "\n").trim();
+    if (text.length < 20 || text.length > 4000) errors.push("body: 20 to 4,000 characters.");
+    else out.body = text;
+  }
+  if (!partial || body.audience !== undefined) {
+    const audience = Array.isArray(body.audience) ? [...new Set(body.audience.map(String))] : [];
+    if (!audience.length || audience.some((a) => !["rider", "driver"].includes(a))) errors.push("audience: rider and/or driver.");
+    else out.audience = audience;
+  }
+  return { ok: errors.length === 0, errors, value: out };
+}
+
+// Approved articles whose titles share most words with this one: shown to
+// the admin as a possible duplicate or conflict before it goes live.
+function articleOverlaps(article, approved) {
+  const words = (t) => new Set(String(t).toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 2));
+  const mine = words(article.title);
+  return approved
+    .filter((a) => a.slug !== article.slug)
+    .filter((a) => {
+      const theirs = words(a.title);
+      const shared = [...mine].filter((w) => theirs.has(w)).length;
+      return mine.size && shared / Math.min(mine.size, theirs.size || 1) >= 0.5;
+    })
+    .map((a) => ({ slug: a.slug, title: a.title }));
+}
+
+function knowledgeAudit(req, action, article, metadata = {}) {
+  return auditLog({
+    actor_type: "admin",
+    actor_id: req.admin ? req.admin.email || req.admin.id : null,
+    action,
+    entity_type: "knowledge_article",
+    entity_id: article ? String(article.id) : null,
+    metadata: { slug: article ? article.slug : null, version: article ? article.version : null, ...metadata },
+    req
+  }).catch(() => {});
+}
+
+// Public: approved articles only (cached; no database read per request).
+app.get(
+  "/api/knowledge/articles",
+  rateLimit({ windowMs: 60_000, max: 60, keyPrefix: "knowledge_public" }),
+  (req, res) => {
+    res.setHeader("Cache-Control", "public, max-age=120");
+    return ok(res, { articles: knowledgeStore.approved() });
+  }
+);
+
+app.get(
+  "/api/admin/knowledge",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const { data, error } = await supabase.from("knowledge_articles").select(KNOWLEDGE_ARTICLE_COLUMNS).order("updated_at", { ascending: false }).limit(500);
+    if (error) return fail(res, "Knowledge articles are unavailable right now.", 503);
+    return ok(res, { articles: data || [], index: knowledgeStore.status() });
+  })
+);
+
+app.post(
+  "/api/admin/knowledge",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const check = validateArticleInput(req.body || {});
+    if (!check.ok) return res.status(400).json({ ok: false, error: "Invalid article.", errors: check.errors });
+    const who = req.admin.email || req.admin.id;
+    const { data, error } = await supabase
+      .from("knowledge_articles")
+      .insert({ ...check.value, status: "draft", version: 1, created_by: who, updated_by: who, approved_by: null, approved_at: null })
+      .select(KNOWLEDGE_ARTICLE_COLUMNS)
+      .single();
+    if (error) {
+      const dup = /duplicate|unique/i.test(error.message || "");
+      return fail(res, dup ? "An article with that slug already exists." : "The article could not be saved.", dup ? 409 : 500);
+    }
+    await knowledgeAudit(req, "knowledge.article_created", data);
+    return ok(res, { article: data, overlaps: articleOverlaps(data, knowledgeStore.approved()) }, 201);
+  })
+);
+
+async function loadArticle(rawId) {
+  const id = Number(rawId);
+  if (!Number.isSafeInteger(id) || id < 1) return null;
+  const { data, error } = await supabase.from("knowledge_articles").select(KNOWLEDGE_ARTICLE_COLUMNS).eq("id", id).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+app.patch(
+  "/api/admin/knowledge/:id",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const article = await loadArticle(req.params.id);
+    if (!article) return fail(res, "Article not found.", 404);
+    if (article.status === "retired") return fail(res, "Retired articles can't be edited. Create a new one.", 409);
+    const body = { ...(req.body || {}) };
+    delete body.slug;
+    const check = validateArticleInput(body, { partial: true });
+    if (!check.ok) return res.status(400).json({ ok: false, error: "Invalid article.", errors: check.errors });
+    // Any edit needs approval again before the assistant uses it.
+    const patch = { ...check.value, status: "draft", version: article.version + 1, approved_by: null, approved_at: null, updated_by: req.admin.email || req.admin.id, updated_at: nowIso() };
+    const wasApproved = article.status === "approved";
+    const { data, error } = await supabase.from("knowledge_articles").update(patch).eq("id", article.id).eq("version", article.version).select(KNOWLEDGE_ARTICLE_COLUMNS);
+    if (error) return fail(res, "The article could not be saved.", 500);
+    if (!data || !data.length) return fail(res, "The article changed while you were editing. Reload and try again.", 409);
+    await knowledgeAudit(req, "knowledge.article_edited", data[0], { was_approved: wasApproved });
+    if (wasApproved) await knowledgeStore.refresh();
+    return ok(res, { article: data[0] });
+  })
+);
+
+app.post(
+  "/api/admin/knowledge/:id/approve",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const article = await loadArticle(req.params.id);
+    if (!article) return fail(res, "Article not found.", 404);
+    if (article.status !== "draft") return fail(res, `Only drafts can be approved (this one is ${article.status}).`, 409);
+    if (Number(req.body?.version) !== article.version) {
+      return fail(res, "This article changed since you reviewed it. Reload, review and approve again.", 409, { current_version: article.version });
+    }
+    const { data, error } = await supabase
+      .from("knowledge_articles")
+      .update({ status: "approved", approved_by: req.admin.email || req.admin.id, approved_at: nowIso(), updated_at: nowIso() })
+      .eq("id", article.id)
+      .eq("version", article.version)
+      .eq("status", "draft")
+      .select(KNOWLEDGE_ARTICLE_COLUMNS);
+    if (error) return fail(res, "The article could not be approved.", 500);
+    if (!data || !data.length) return fail(res, "The article changed while you were approving it. Reload and try again.", 409);
+    const overlaps = articleOverlaps(data[0], knowledgeStore.approved());
+    await knowledgeAudit(req, "knowledge.article_approved", data[0], { overlaps: overlaps.map((o) => o.slug) });
+    await knowledgeStore.refresh();
+    return ok(res, { article: data[0], overlaps });
+  })
+);
+
+app.post(
+  "/api/admin/knowledge/:id/retire",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const article = await loadArticle(req.params.id);
+    if (!article) return fail(res, "Article not found.", 404);
+    if (article.status === "retired") return ok(res, { article });
+    const previousStatus = article.status;
+    const { data, error } = await supabase
+      .from("knowledge_articles")
+      .update({ status: "retired", updated_by: req.admin.email || req.admin.id, updated_at: nowIso() })
+      .eq("id", article.id)
+      .select(KNOWLEDGE_ARTICLE_COLUMNS);
+    if (error || !data || !data.length) return fail(res, "The article could not be retired.", 500);
+    await knowledgeAudit(req, "knowledge.article_retired", data[0], { was: previousStatus });
+    if (previousStatus === "approved") await knowledgeStore.refresh();
+    return ok(res, { article: data[0] });
+  })
+);
+
 const AGENT_CASE_RESOLUTIONS = Object.freeze(["resolved", "referred_to_support", "no_action_needed", "escalated_externally"]);
 
 app.post(
@@ -24192,6 +24389,11 @@ app.post(
 app.get(
   "/admin-agent",
   (req, res) => sendStaticPage(res, "admin-agent.html")
+);
+
+app.get(
+  "/admin-knowledge",
+  (req, res) => sendStaticPage(res, "admin-knowledge.html")
 );
 
 

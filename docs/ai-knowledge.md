@@ -25,8 +25,8 @@ What was missing: approved knowledge with sources, policy questions, driver hour
 
 | Phase | Scope | Paid service? | Status |
 |---|---|---|---|
-| **1** | Policy questions from approved published pages (quoted, with source and date; gaps reported); read-only help: ride status, fare, offers, trip step, earnings, **hours**; evaluation set | None | **This PR** |
-| 2 | Admin-managed knowledge: a `knowledge_articles` table (draft, approved, retired; approver and date), an admin page, conflict detection between approved articles, gap queue from `agent.decision` rows with `knowledge_gap` | None | Planned |
+| **1** | Policy questions from approved published pages (quoted, with source and date; gaps reported); read-only help: ride status, fare, offers, trip step, earnings, **hours**; evaluation set | None | **Deployed** (2026-10-04) |
+| 2 | Admin-managed knowledge: a `knowledge_articles` table (draft, approved, retired; approver and date), an admin page, conflict detection between approved articles, gap queue from `agent.decision` rows with `knowledge_gap` | None | **Built** (see "Admin-approved articles" below) |
 | 3 | Conversation context held **on the device only**, with Clear chat; no server-side history (see §5) | None | **Built** |
 | 4 | Support handoff: the assistant drafts a summary, the user edits and approves it, then it is sent to support; the user sees a reference | None | Planned |
 | 5 | Optional model wording and multi-step help, behind spending caps | **Yes** (needs your cost approval) | Not started |
@@ -50,15 +50,41 @@ Every change to state (book, cancel, change destination, account changes) stays 
    - This is the to-do list for adding approved answers.
 7. **Driver hours**: read from the signed-in driver's own `driver_online_sessions` rows, using the same rules the server enforces (`lib/driverHours.js`).
 
-**Not covered by any approved page yet** (the assistant reports a gap):
-- cancellation fees;
-- service area;
-- wheelchair-accessible vehicles;
-- pets and service animals;
-- pricing rules;
-- driver vehicle requirements.
+### Admin-approved articles (phase 2)
 
-Publishing approved text for these is the fastest way to make the assistant more useful.
+- **Where:** `/admin-knowledge.html` (admin sign-in). Stored in `knowledge_articles` (migration `20261004190000_add_knowledge_articles.sql`); server-only access, like every recent table.
+- **Workflow:**
+  1. An admin writes a **draft**: title, link name, the exact wording, and who it is for (riders, drivers or both).
+  2. An admin **approves** it. Approval must name the version that was reviewed; if the text changed in between, approval is refused.
+  3. The assistant can then quote it, and it appears on the public **`/policies.html`** page, which is the source link the assistant shows.
+  4. **Any edit** returns the article to draft (version + 1). The assistant stops using it until it is approved again.
+  5. **Retire** removes it from the assistant and the public page; the record is kept.
+- **Audit:** every create, edit, approval and retirement writes an `audit_logs` row (`knowledge.article_*`) with the admin, slug and version.
+- **Audience:** a rider-only article is never quoted to drivers, and the reverse.
+- **Conflicts:**
+  - On save and approval, the admin is warned about approved articles with overlapping titles.
+  - When two approved sources answer a question about equally well and quote different numbers, the assistant shows the best match and adds: "Another approved Harvey Taxi source may say something different… please confirm with Harvey Taxi support."
+- **Load:** approved articles are read from the database at most every 10 minutes, and right after an approval, edit or retirement. Answering a question never reads them from the database. If the read fails (for example, before the migration is applied), the assistant keeps answering from the published pages.
+- **Gap queue:** the admin knowledge page and the usage dashboard list recent redacted questions no approved source covers.
+
+### Policies still needed (owner to provide)
+
+No approved Harvey Taxi page covers these, so the assistant says it has no approved information. The wording must come from Harvey Taxi; none has been drafted on the owner's behalf.
+
+- Cancellation fees and refunds for cancelled rides
+- Wait-time fees
+- Service area (cities and counties served)
+- Pricing rules beyond the fare estimate (surcharges, tolls, airport rates)
+- Wheelchair-accessible vehicles and accessibility services
+- Service animals and pets
+- Child car seats
+- Lost and found
+- Driver vehicle requirements (age, type, inspection)
+- Driver insurance requirements
+
+Approving text for these is the fastest way to make the assistant more useful.
+
+Local screenshots (test fixture data on a local test server, not production and not a device): `docs/screenshots/ai-phase2/admin-knowledge-draft.png`, `docs/screenshots/ai-phase2/policies-page-mobile.png`.
 
 ## 4. Provider SDK or orchestration framework
 
@@ -125,7 +151,7 @@ There are two question sets, reported separately:
 
 **Cost wording:** phase 1 has **no model or API charges**. It is not zero total cost: it runs on the existing Render server and Supabase database.
 
-**Next improvement:** Phase 2 approved question-and-answer entries with alternative phrasings, then a **new** held-out set. These held-out questions must not be used to tune; when one is used to fix the matcher, it moves to the regression set and a fresh one replaces it.
+**Next improvement:** approved articles (phase 2, now built) for the missing policies, then a **new** held-out set. These held-out questions must not be used to tune; when one is used to fix the matcher, it moves to the regression set and a fresh one replaces it.
 
 ## 7. Reliability, load and cost
 
