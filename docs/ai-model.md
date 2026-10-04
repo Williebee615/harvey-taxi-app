@@ -87,6 +87,12 @@ Signed-out visitors never get the model. The admin "Try the model" console runs 
   - tokens and fallback reasons (`/api/admin/agent/usage` → `history.totals`).
 - **Audit trail:** each decision row records the model's calls, tokens, cost and, if the rules answered, why. Message text is never stored there; redacted gap excerpts follow the existing rules.
 
+## When the model falls back
+
+Every fallback is recorded with a reason (`fallback_reason`). When Anthropic refuses a request, the record also keeps Anthropic's own error, sanitized: HTTP status, error type, message and request id (keys, emails and long numbers masked; never the key or the request body). The admin Try console shows it as "Anthropic said: ...".
+
+**Check connection (free, nothing billed)** on the Claude model panel sends the exact first request a rider answer and a driver answer would send to Anthropic's token-counting endpoint, which checks the key and the request without generating anything. If the check accepts the request but answers are refused, the cause is on the Anthropic account (for example, no prepaid credit), not in Harvey's request.
+
 ## Configuration (Render)
 
 | Variable | Purpose |
