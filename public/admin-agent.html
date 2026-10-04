@@ -150,6 +150,33 @@
     </section>
   </div>
 
+  <section class="panel" id="modelPanel">
+    <h2>Claude model (Haiku 4.5)</h2>
+    <p class="muted" id="modelStatus">Loading…</p>
+    <div class="stats" id="modelBudget"></div>
+    <form id="modelForm" class="rules" style="margin-top:10px">
+      <label>Who gets model answers
+        <select name="mode" id="modelMode">
+          <option value="off">Off: rules-based answers for everyone</option>
+          <option value="test_accounts">Test accounts only</option>
+          <option value="all" id="modelModeAll">All signed-in riders and drivers</option>
+        </select>
+      </label>
+      <label>Test accounts (one per line, rider:ID or driver:ID; synthetic accounts only)
+        <textarea id="modelAccounts" rows="3" style="background:#0a1228;border:1px solid var(--line);border-radius:10px;padding:7px 10px;color:inherit;font:inherit"></textarea>
+      </label>
+      <div class="row"><button class="primary" type="submit">Save model settings</button></div>
+    </form>
+    <h3>Try the model as a test account</h3>
+    <form id="modelTry" class="row">
+      <select name="role"><option value="rider">Rider</option><option value="driver">Driver</option></select>
+      <input name="actor_id" placeholder="Test account ID" />
+      <input name="message" placeholder="Question" style="flex:1;min-width:200px" />
+      <button type="submit">Ask</button>
+    </form>
+    <div id="modelTryOut" class="muted" style="margin-top:8px;white-space:pre-line"></div>
+  </section>
+
   <section class="panel" id="usagePanel">
     <h2>Assistant usage</h2>
     <p class="muted" id="usageMeasured">Loading…</p>
@@ -356,7 +383,8 @@
         ["Drivers", t.by_role.driver],
         ["Signed-out visitors", t.by_role.visitor],
         ["Refused by a limit", t.blocked_today],
-        ["Model calls (7 days)", u.history.totals.model_calls]
+        ["Model answers (7 days)", u.history.totals.model_calls],
+        ["Model cost (7 days)", `$${Number(u.history.totals.model_cost_usd || 0).toFixed(4)}`]
       ].map(([k, v]) => `<div class="stat"><span class="muted">${esc(k)}</span><b>${esc(v)}</b></div>`).join("");
       const TARGET_LABELS = {
         rider_ios_app: "Harvey Taxi (rider) iOS",
@@ -382,8 +410,33 @@
     }
   }
 
+  async function loadModel() {
+    try {
+      const m = await api("/api/admin/agent/model");
+      const b = m.budget;
+      $("modelStatus").textContent =
+        (m.configured ? "Connected to Anthropic. " : "Not connected: no API key is set on the server, so every answer is rules-based. ") +
+        `Mode: ${m.mode}${m.stored_mode !== m.mode ? ` (saved as ${m.stored_mode}; real users stay on rules until the privacy disclosure is approved)` : ""}. ` +
+        "Any problem, timeout or reached budget falls back to the rules-based answer.";
+      $("modelBudget").innerHTML = [
+        ["Spent this month (UTC)", `$${b.spent_usd.toFixed(4)}`],
+        ["Monthly budget", `$${b.budget_usd.toFixed(2)}`],
+        ["Remaining", `$${b.remaining_usd.toFixed(4)}`],
+        ["Reserved per answer", `$${b.reserve_per_turn_usd.toFixed(4)}`],
+        ["Provider limit hit", b.provider_spend_limit_hit ? "Yes" : "No"]
+      ].map(([k, v]) => `<div class="stat"><span class="muted">${esc(k)}</span><b>${esc(v)}</b></div>`).join("") +
+        (b.loaded ? "" : `<div class="notice bad">Spending couldn't be loaded, so the model is off until it can.</div>`);
+      $("modelMode").value = m.stored_mode;
+      $("modelModeAll").disabled = !m.public_approved;
+      if (document.activeElement !== $("modelAccounts")) $("modelAccounts").value = (m.test_accounts || []).join("\n");
+    } catch (err) {
+      $("modelStatus").textContent = "Model status is unavailable right now.";
+    }
+  }
+
   async function load() {
     loadUsage();
+    loadModel();
     try {
       state = await api("/api/admin/agent/overview");
       $("authNotice").hidden = true;
@@ -443,6 +496,27 @@
       catch (err) { toast(err.message); }
       return load();
     }
+  });
+  $("modelForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const accounts = $("modelAccounts").value.split(/\n/).map((x) => x.trim()).filter(Boolean);
+    try { await api("/api/admin/agent/model", { method: "POST", body: { mode: $("modelMode").value, test_accounts: accounts } }); toast("Model settings saved."); }
+    catch (err) { toast(err.message); }
+    loadModel();
+  });
+  $("modelTry").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const f = e.target;
+    $("modelTryOut").textContent = "Asking…";
+    try {
+      const r = await api("/api/admin/agent/model/try", { method: "POST", body: { role: f.role.value, actor_id: f.actor_id.value.trim(), message: f.message.value, client: f.role.value === "driver" ? "driver_app" : "web" } });
+      const m = r.model || {};
+      $("modelTryOut").textContent =
+        `${r.source === "model" ? "Claude answered" : `Rules answered${m.fallback_reason ? ` (model fell back: ${m.fallback_reason})` : ""}`}:\n${r.reply}\n` +
+        (r.actions && r.actions.length ? `Buttons: ${r.actions.map((a) => a.label || a.type).join(", ")}\n` : "") +
+        (m.calls ? `Model calls: ${m.calls}, tokens in/out: ${m.input_tokens}/${m.output_tokens}, cost: $${Number(m.cost_usd).toFixed(4)}` : "");
+    } catch (err) { $("modelTryOut").textContent = err.message; }
+    loadModel();
   });
   $("killBtn").addEventListener("click", () => setFlag("agent_kill_switch", true));
   $("refreshBtn").addEventListener("click", load);

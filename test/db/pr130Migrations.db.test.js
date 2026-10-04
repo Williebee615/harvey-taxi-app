@@ -36,7 +36,9 @@ const EXPECTED_ORDER = [
   // Likewise; covered by test/db/driverOnlineSessions.db.test.js.
   "20261004160000_add_driver_online_sessions.sql",
   // Likewise; covered by test/db/knowledgeArticles.db.test.js.
-  "20261004190000_add_knowledge_articles.sql"
+  "20261004190000_add_knowledge_articles.sql",
+  // Likewise; covered by test/db/agentModelUsage.db.test.js.
+  "20261004230000_add_agent_model_usage.sql"
 ];
 
 // Synthetic pre-existing row (no production data), inserted after the

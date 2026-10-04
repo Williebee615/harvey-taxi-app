@@ -81,7 +81,7 @@ test("admin usage: live counters, 7-day summary, limits; requests not called tok
   await request(app).post("/api/agent/rider/assist").send({ message: "What is the cancellation fee?" });
   const res = await request(app).get("/api/admin/agent/usage").set(ADMIN);
   expect(res.status).toBe(200);
-  expect(res.body.measured).toMatch(/Assistant requests.*No AI model is called, so no model tokens/);
+  expect(res.body.measured).toMatch(/Assistant requests.*Claude model is off, so every answer is rules-based and no model tokens are used/);
   expect(res.body.limits.per_account_daily).toBe(2);
   expect(res.body.today_live.requests_today).toBeGreaterThanOrEqual(2);
   expect(res.body.history.unit).toBe("assistant_requests");
