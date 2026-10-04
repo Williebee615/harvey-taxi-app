@@ -30,7 +30,9 @@ Anything not yet run says so.
 | D14 | Rider app regression | **Not run** | — |
 | iPad | Layout and the same flows on iPad | **Not confirmed** | — |
 
-## Changes prepared from these results (not live)
+## Changes made from these results
+
+Live since PR #174 (merge `caaeabe`, deployed to Render 2026-10-04): items 2, 4 and 5 below. Item 1 is in build 6. Item 3 was switched on 2026-10-04, after the stale ride was cancelled.
 
 **1. In-app alert for new offers.** While the app is open, a vibration and the
 standard notification sound play once per new offer. The sound has no banner
@@ -78,3 +80,59 @@ An admin can no longer revive a failed ride whose hold was released. The rider b
    on conflict (key) do update set value = excluded.value, updated_at = now();
    ```
    **Rollback:** set the value back to `'false'`.
+
+## Status on 2026-10-04
+
+### Done and confirmed
+- **Server deploy (PR #174, `caaeabe`):** live on Render. The rider page serves the new failure message. Health check: database connected.
+- **Driver builds from `caaeabe`:**
+  - iOS 1.0.0 (6), EAS build `4d612aa0`. Uploaded to App Store Connect by the owner. EAS submission `daa4a659` finished with no error.
+  - Android versionCode 4, EAS build `d039bb28`. Built; not uploaded.
+- **Stale offer:** `OFFER-9E1375D173` set to `expired`. No pending offers remain.
+- **iOS push credentials:** an APNs key is stored in EAS.
+- **`driver_native_push_enabled` is on.** One device token is registered: the review driver's iPhone.
+  - **Rollback:** set the flag's value to `'false'`.
+
+- **`RIDE-06D4C93EF9` cancelled.** Two earlier attempts timed out; the third applied. Audit entry: `stale_review_ride_cancelled`.
+- **`offer_expiry_sweep_enabled` is on.** No pending offers remained when it was switched on.
+  - **Rollback:** set the flag's value to `'false'`.
+
+### Not done
+- **45-second offer window: unverified.** No offer has been created since the deploy.
+- **Apple processing of build 6, and adding it to the internal testing group: unverified.** This session has no App Store Connect access.
+- **Android push is blocked.** There is no `google-services.json` and no FCM V1 key in EAS.
+
+### Device checks for build 6 (all unverified)
+| Check | Result |
+|---|---|
+| Offer vibration and sound while the app is open | Unverified |
+| Push notification for an offer with the app backgrounded or locked (D11) | Unverified |
+| D1, D6 navigation, D7, D8, D9, D10, D12, D13, D14, iPad | Unverified |
+
+## Live map tracking (PR #176, merged `8e8dac3`, deployed 2026-10-04)
+
+Design: `docs/live-map-tracking.md`.
+
+### Done
+- **Database:** `rides.rider_live_*` columns added in production before the deploy.
+- **Deploy:** live. `GET /api/maps/config` answers, and the share route refuses requests without credentials.
+
+### Builds from `8e8dac3`
+| App | Platform | Build number | EAS build |
+|---|---|---|---|
+| Driver | iOS | 7 | `703e9272` |
+| Driver | Android | versionCode 5 | `716f6fe5` |
+| Rider | iOS | 12 | `c2a3d264` |
+| Rider | Android | versionCode 10 | `bf27bbde` |
+
+### Maps are off until both Mapbox public tokens are set on Render
+- `MAPBOX_PUBLIC_TOKEN` (website and rider app)
+- `MAPBOX_APP_TOKEN` (driver app)
+
+### Device checks (all unverified)
+| Check | Result |
+|---|---|
+| Rider map on the website: driver, pickup, destination | Unverified |
+| Rider app (WebView): map and location permission prompt, iOS and Android | Unverified |
+| Rider "Share my location", then the driver app shows the rider marker until pickup | Unverified |
+| Driver trip map with real Mapbox tiles, iOS and Android | Unverified |
