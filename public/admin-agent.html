@@ -71,7 +71,7 @@
   </header>
 
   <div id="authNotice" class="notice bad" hidden>
-    Admin sign-in required. <a href="/admin-login.html">Sign in</a>, then return to this page.
+    Admin sign-in required. <a href="/admin-login.html?next=/admin-agent.html">Sign in</a>, then return to this page.
   </div>
 
   <div id="safetyNotice" class="notice">
@@ -152,7 +152,7 @@
 
   <section class="panel" id="modelPanel">
     <h2>Claude model (Haiku 4.5)</h2>
-    <p class="muted" id="modelStatus">Loading…</p>
+    <p class="muted" id="claudeStatus" data-testid="claude-status">Loading…</p>
     <div class="stats" id="modelBudget"></div>
     <form id="modelForm" class="rules" style="margin-top:10px">
       <label>Who gets model answers
@@ -414,7 +414,7 @@
     try {
       const m = await api("/api/admin/agent/model");
       const b = m.budget;
-      $("modelStatus").textContent =
+      $("claudeStatus").textContent =
         (m.configured ? "Connected to Anthropic. " : "Not connected: no API key is set on the server, so every answer is rules-based. ") +
         `Mode: ${m.mode}${m.stored_mode !== m.mode ? ` (saved as ${m.stored_mode}; real users stay on rules until the privacy disclosure is approved)` : ""}. ` +
         "Any problem, timeout or reached budget falls back to the rules-based answer.";
@@ -432,7 +432,7 @@
       $("modelModeAll").disabled = !m.public_approved;
       if (document.activeElement !== $("modelAccounts")) $("modelAccounts").value = (m.test_accounts || []).join("\n");
     } catch (err) {
-      $("modelStatus").textContent = "Model status is unavailable right now.";
+      $("claudeStatus").textContent = "Model status is unavailable right now.";
     }
   }
 

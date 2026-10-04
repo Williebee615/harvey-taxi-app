@@ -5017,6 +5017,12 @@ app.post(
 
   "/api/admin/login",
 
+  // Brute-force limits, on top of the general API limit: 10 sign-in
+  // attempts per IP per 15 minutes, and 30 from all IPs together (the IP
+  // comes from X-Forwarded-For, which a caller can vary).
+  rateLimit({ windowMs: 15 * 60_000, max: 10, keyPrefix: "admin_login" }),
+  rateLimit({ windowMs: 15 * 60_000, max: 30, keyPrefix: "admin_login_all", keyFn: () => "all" }),
+
   asyncRoute(async (req, res) => {
 
     if (!ADMIN_SESSION_SECRET) {
