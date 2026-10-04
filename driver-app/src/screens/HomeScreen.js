@@ -5,6 +5,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { EMERGENCY_NUMBER, LINKS } from '../config';
 import { directionsUrl, isDelivery, nextStep, STATUS_LABELS } from '../tripSteps';
 import { riderSharingText } from '../tripMap';
+import { hoursText } from '../hours';
 import TripMapView from '../TripMapView';
 import { Button, C, Card, H, money, Notice, P, Pill, Row } from '../ui';
 
@@ -147,6 +148,8 @@ export default function HomeScreen({ app, onOpenAssistant }) {
   }
 
   const { driver, readiness, offers, active_ride: ride } = snapshot;
+  const hours = hoursText(snapshot.hours);
+  const restRequired = Boolean(snapshot.hours && snapshot.hours.can_go_online === false);
   const online = driver.online;
 
   const goOnline = async () => {
@@ -223,13 +226,23 @@ export default function HomeScreen({ app, onOpenAssistant }) {
         <Card>
           <H>{online ? "You're online" : "You're offline"}</H>
           <P muted>{online ? 'Ride requests near you will appear here.' : 'Go online to start receiving ride requests.'}</P>
+          {hours && <View testID="hours-usage"><P muted>{hours.usage}</P></View>}
+          {hours && hours.rest && <View testID="hours-rest"><P>{hours.rest}</P></View>}
           {online ? (
             <Button testID="go-offline" title="Go offline" kind="ghost" onPress={actions.goOffline} busy={busy === 'offline'} />
           ) : (
-            <Button testID="go-online" title="Go online" kind="go" onPress={goOnline} busy={busy === 'online'} disabled={!readiness.ready} />
+            <Button
+              testID="go-online"
+              title="Go online"
+              kind="go"
+              onPress={goOnline}
+              busy={busy === 'online'}
+              disabled={!readiness.ready || restRequired}
+            />
           )}
         </Card>
       )}
+      {ride && hours && hours.rest && <View testID="hours-rest"><P muted>{hours.rest}</P></View>}
       {ride && online && <Button title="Go offline after this trip" kind="ghost" onPress={actions.goOffline} busy={busy === 'offline'} />}
 
       {tracking.needsPermission && (

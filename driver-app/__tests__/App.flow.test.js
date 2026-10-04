@@ -69,7 +69,8 @@ const snapshot = () => ({
   poll_ms: 0,
   reconcile_ms: 60000,
   native_push_enabled: false,
-  map: server.map
+  map: server.map,
+  hours: server.hours
 });
 const NEXT = { enroute: 'driver_enroute', arrived: 'arrived', start: 'in_progress' };
 global.fetch = jest.fn(async (url, init = {}) => {
@@ -244,6 +245,32 @@ test('trip map: shown with a map token, with the rider\'s shared position; absen
   expect([...new Set(annotations.map((n) => n.props.id))].sort()).toEqual(['trip-dropoff', 'trip-pickup', 'trip-rider']);
   await act(async () => tree.unmount());
   server.map = { token: null };
+});
+
+test('hours limit: usage shown; Go online disabled while rest is required', async () => {
+  server.ride = null;
+  server.driver.online = false;
+  server.hours = { worked_minutes: 300, limit_minutes: 720, remaining_minutes: 420, rest_hours: 6, limit_reached: false, rest_until: null, can_go_online: true };
+  let tree;
+  await act(async () => {
+    tree = renderer.create(<App />);
+  });
+  await flush();
+  expect(has(tree, 'hours-usage')).toBe(true);
+  expect(has(tree, 'hours-rest')).toBe(false);
+  expect(byId(tree, 'go-online').props.disabled).toBeFalsy();
+  await act(async () => tree.unmount());
+
+  server.hours = { worked_minutes: 720, limit_minutes: 720, remaining_minutes: 0, rest_hours: 6, limit_reached: true, rest_until: new Date(Date.now() + 3600e3).toISOString(), can_go_online: false };
+  await act(async () => {
+    tree = renderer.create(<App />);
+  });
+  await flush();
+  expect(has(tree, 'hours-rest')).toBe(true);
+  const goOnline = tree.root.findAll((n) => n.props && n.props.testID === 'go-online' && n.props.accessibilityState);
+  expect(goOnline[0].props.accessibilityState.disabled).toBe(true);
+  await act(async () => tree.unmount());
+  server.hours = null;
 });
 
 test('a session the server no longer accepts signs the driver out and stops tracking', async () => {

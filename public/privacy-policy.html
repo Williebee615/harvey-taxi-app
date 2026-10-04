@@ -435,6 +435,8 @@
               <li>Device, browser, usage, and technical information used to improve platform performance, security, troubleshooting, and support.</li>
               <li>Location-related information when needed to support ride functionality, dispatch, ETA, navigation, fraud prevention, and safety-related platform operations.</li>
               <li><strong>Driver location (Harvey Taxi Driver app and driver dashboard):</strong> while a driver is online or on a trip, we collect the device's precise location, including when the app is closed or the screen is locked. We store the driver's latest position, replacing it with each update; we do not keep a history of past positions. Collection stops when the driver goes offline.</li>
+              <li><strong>Driver online hours:</strong> we record when a driver goes online and offline, to enforce driving-hour limits
+                (up to 12 hours online, then 6 hours of rest) for safety.</li>
               <li><strong>Rider location shared with the driver (optional):</strong> only if a rider turns on "Share my location with my driver"
                 for a ride, we collect the rider's device location while that ride's driver is on the way, and show it to that driver until
                 pickup. We keep only the latest position and delete it when the trip starts, the ride ends, the rider turns sharing off,

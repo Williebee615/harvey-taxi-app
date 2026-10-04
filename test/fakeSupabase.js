@@ -286,6 +286,10 @@ function createFakeSupabase(seed = {}, options = {}) {
             const list = listOf(op.slice(7));
             return (row) => value(row) !== null && !list.includes(String(value(row)));
           }
+          if (op.startsWith("gte.")) {
+            const bound = op.slice(4);
+            return (row) => value(row) !== null && String(value(row)) >= bound;
+          }
           if (op.startsWith("in.")) {
             const list = listOf(op.slice(3));
             return (row) => value(row) !== null && list.includes(String(value(row)));

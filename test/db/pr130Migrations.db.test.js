@@ -32,7 +32,9 @@ const EXPECTED_ORDER = [
   // Likewise; covered by test/db/driverPushTokens.db.test.js.
   "20261004120000_add_driver_push_tokens.sql",
   // Likewise; covered by test/db/riderLiveLocation.db.test.js.
-  "20261004140000_add_rider_live_location.sql"
+  "20261004140000_add_rider_live_location.sql",
+  // Likewise; covered by test/db/driverOnlineSessions.db.test.js.
+  "20261004160000_add_driver_online_sessions.sql"
 ];
 
 // Synthetic pre-existing row (no production data), inserted after the

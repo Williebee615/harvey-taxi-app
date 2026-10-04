@@ -2206,6 +2206,7 @@
         return showMessage(el.availMsg, "No driver loaded.", "err");
       }
       const targetStatus = el.availStatus.value;
+      const previousStatus = state.driver.status;
       state.driver.status = targetStatus;
       state.driver.mode = el.availMode.value;
       state.driver.lastKnownAddress = el.driverAddress.value.trim() || "";
@@ -2217,6 +2218,9 @@
         });
         showMessage(el.availMsg, "Availability saved.", "ok");
       } catch (err) {
+        // Refused (for example, rest required after 12 hours online): show
+        // the status the server kept, not the one that was asked for.
+        state.driver.status = previousStatus;
         showMessage(el.availMsg, "Could not save availability: " + err.message, "err");
       }
       syncStateToDOM();
@@ -2225,6 +2229,7 @@
       if (!state.driver) {
         return showMessage(el.globalMsg, "Load profile first.", "err");
       }
+      const previousStatus = state.driver.status;
       state.driver.status = targetStatus;
       el.availStatus.value = targetStatus;
       try {
@@ -2234,6 +2239,8 @@
         });
         showMessage(el.globalMsg, `Status: ${targetStatus.toUpperCase()}`, "ok");
       } catch (err) {
+        state.driver.status = previousStatus;
+        el.availStatus.value = previousStatus;
         showMessage(el.globalMsg, "Status update failed: " + err.message, "err");
       }
       syncStateToDOM();
