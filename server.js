@@ -23571,7 +23571,10 @@ async function runAgentAssist(req, res, { role, actor }) {
     message,
     tools: agentTools,
     llm: agentLlmConfig.configured ? agentLlm : null,
-    client: role === "driver" && AGENT_CLIENTS.has(req.body?.client) ? req.body.client : "web"
+    client: role === "driver" && AGENT_CLIENTS.has(req.body?.client) ? req.body.client : "web",
+    // The device's own recent turns, for follow-up questions only. Not
+    // stored or logged (lib/agent/followUp.js).
+    context: Array.isArray(req.body?.context) ? req.body.context : []
   });
   let caseId = null;
   if (result.escalation) {
@@ -23589,6 +23592,7 @@ async function runAgentAssist(req, res, { role, actor }) {
     // whether the question had no approved answer.
     sources: result.sources || [],
     knowledge_gap: result.knowledge_gap === true,
+    used_context: result.used_context === true,
     case_id: caseId
   });
 }

@@ -46,6 +46,7 @@
   var css =
     ".hta-btn{position:fixed;left:16px;bottom:var(--hta-bottom,16px);z-index:9998;border:0;border-radius:999px;padding:12px 16px;background:#1d4ed8;color:#fff;font:600 14px/1 Inter,Arial,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.35);cursor:pointer}" +
     ".hta-btn[hidden]{display:none}" +
+    ".hta-clear{margin-left:auto;margin-right:8px;border:1px solid rgba(255,255,255,.25);background:transparent;color:inherit;border-radius:10px;padding:6px 10px;font:600 13px/1 Inter,Arial,sans-serif;cursor:pointer;min-height:32px}" +
     ".hta-panel{position:fixed;left:16px;bottom:var(--hta-bottom,16px);width:380px;max-width:calc(100vw - 32px);height:min(560px,calc(var(--hta-vh,100vh) - var(--hta-bottom,16px) - 32px));z-index:9999;display:none;flex-direction:column;overflow:hidden;background:#0d1630;color:#f4f7ff;border:1px solid rgba(122,162,255,.25);border-radius:16px;font:14px/1.45 Inter,Arial,sans-serif;box-shadow:0 20px 50px rgba(0,0,0,.45)}" +
     ".hta-panel.open{display:flex}" +
     "@media (max-width:599px){.hta-panel{left:8px;right:8px;width:auto;max-width:none;top:calc(var(--hta-top,0px) + 8px + env(safe-area-inset-top,0px));bottom:auto;height:calc(var(--hta-vh,100vh) - 16px - env(safe-area-inset-top,0px));border-radius:14px}}" +
@@ -94,6 +95,11 @@
     var panel = el("section", { id: "htaPanel", class: "hta-panel", role: "dialog", "aria-label": "Harvey Assistant" });
     var head = el("div", { class: "hta-head" });
     head.appendChild(el("strong", {}, "Harvey Assistant"));
+    // Clears this conversation. Memory lives only in this page (nothing is
+    // saved in the browser or on the server), so leaving the page or
+    // signing out also clears it.
+    var clearBtn = el("button", { type: "button", class: "hta-clear", "data-testid": "hta-clear" }, "Clear chat");
+    head.appendChild(clearBtn);
     var close = el("button", { type: "button", class: "hta-close", "aria-label": "Close assistant" }, "×");
     head.appendChild(close);
     var banner = el("div", { class: "hta-911" });
@@ -147,6 +153,14 @@
     });
     btn.addEventListener("click", function () { toggle(!panel.classList.contains("open")); });
     close.addEventListener("click", function () { toggle(false); });
+
+    // Recent turns of this conversation, sent with a new question so a
+    // short follow-up ("what about drivers?") is understood. Page memory only.
+    var history = [];
+    function remember(text, who) {
+      history.push({ role: who === "me" ? "user" : "assistant", text: String(text || "").slice(0, 500) });
+      if (history.length > 12) history.shift();
+    }
 
     function addMessage(text, who, extra) {
       var m = el("div", { class: "hta-msg " + (who === "me" ? "hta-me" : "hta-bot") + (extra && extra.urgent ? " hta-urgent" : "") }, text);
@@ -222,11 +236,14 @@
       var text = input.value.trim();
       if (!text) return;
       input.value = "";
+      var context = history.slice(-6);
       addMessage(text, "me");
+      remember(text, "me");
       send.disabled = true;
-      fetch("/api/agent/" + role + "/assist", { method: "POST", credentials: "same-origin", headers: headers(), body: JSON.stringify({ message: text }) })
+      fetch("/api/agent/" + role + "/assist", { method: "POST", credentials: "same-origin", headers: headers(), body: JSON.stringify({ message: text, context: context }) })
         .then(function (r) { return r.json().catch(function () { return {}; }); })
         .then(function (body) {
+          if (body.reply) remember(body.reply, "bot");
           addMessage(body.reply || "The assistant is unavailable. Booking and your dashboard still work. In an emergency, call 911.", "bot", {
             urgent: body.escalation && body.escalation.category === "emergency",
             actions: body.actions || [],
@@ -240,9 +257,18 @@
         .then(function () { send.disabled = false; });
     });
 
-    addMessage(role === "driver"
+    function greet() {
+      addMessage(role === "driver"
       ? "Hi! I can check your ride offers, your active trip's next step, your earnings or your hours, and answer policy questions from our published pages. You stay in control of every offer and trip action."
       : "Hi! I can help you book, check your ride, explain your fare or cancel an open ride, and answer policy questions from our published pages. You confirm every change.", "bot");
+    }
+    greet();
+    clearBtn.addEventListener("click", function () {
+      history = [];
+      while (log.firstChild) log.removeChild(log.firstChild);
+      greet();
+      input.focus();
+    });
   }
 
   fetch("/api/agent/status", { credentials: "same-origin", headers: { Accept: "application/json" } })

@@ -103,6 +103,8 @@ global.fetch = jest.fn(async (url, init = {}) => {
 
 // eslint-disable-next-line import/first
 import App from '../App';
+// eslint-disable-next-line import/first
+import { clearAllChats } from '../src/chatMemory';
 
 const flush = async () => {
   for (let i = 0; i < 8; i += 1) {
@@ -135,6 +137,8 @@ const start = async () => {
 };
 
 beforeEach(() => {
+  // Each test starts a fresh conversation (memory is per account, in memory).
+  clearAllChats();
   mockStore.harvey_driver_token = 'TOKEN_A';
   mockStore.harvey_driver_id = 'DRIVER_A';
   Object.assign(server, { calls: [], bodies: [], assist: true, online: true, offers: [], ride: null, nextAssist: null });
@@ -156,7 +160,8 @@ test('asks with the driver session and client "driver_app"; nothing changes with
   expect(has(tree, 'assistant-input')).toBe(true); // not on a trip: typing allowed
   server.nextAssist = { intent: 'driver_availability', reply: 'You control your availability…', actions: [{ type: 'toggle_availability', requires_confirmation: true }] };
   await press(tree, 'assistant-quick-online');
-  expect(server.bodies[0]).toEqual({ message: 'How do I go online?', client: 'driver_app' });
+  // First question: no earlier turns, so an empty context.
+  expect(server.bodies[0]).toEqual({ message: 'How do I go online?', client: 'driver_app', context: [] });
   expect(Speech.speak).not.toHaveBeenCalled(); // read-aloud is off unless driving or switched on
 
   // The driver is online, so the proposal becomes "Go offline". Cancelling
@@ -241,5 +246,46 @@ test('server errors and an off assistant give a safe reply, no actions', async (
   const text = JSON.stringify(tree.toJSON());
   expect(text).toContain('The assistant is switched off');
   expect(tree.root.findAll((n) => n.props && typeof n.props.testID === 'string' && n.props.testID.startsWith('assistant-action-'))).toHaveLength(0);
+  await act(async () => tree.unmount());
+});
+
+test('conversation memory: kept for the account, sent as context for a follow-up, cleared by Clear chat and sign-out', async () => {
+  const { contextFrom, loadChat, saveChat, clearChat } = require('../src/chatMemory');
+  saveChat('DRIVER_A', [{ id: 0, who: 'bot', text: 'Hi' }, { id: 1, who: 'me', text: 'How long do you keep my data?' }, { id: 2, who: 'bot', text: 'From our Privacy Policy...' }]);
+  expect(loadChat('DRIVER_A')).toHaveLength(3);
+  expect(loadChat('DRIVER_B')).toBeNull();
+  expect(contextFrom(loadChat('DRIVER_A'))).toEqual([
+    { role: 'user', text: 'How long do you keep my data?' },
+    { role: 'assistant', text: 'From our Privacy Policy...' }
+  ]);
+  clearChat('DRIVER_A');
+  expect(loadChat('DRIVER_A')).toBeNull();
+  saveChat('DRIVER_A', [{ id: 1, who: 'me', text: 'x' }]);
+  clearAllChats();
+  expect(loadChat('DRIVER_A')).toBeNull();
+});
+
+test('follow-up sends the earlier turns; Clear chat starts over; reopening keeps the conversation', async () => {
+  const tree = await start();
+  await press(tree, 'open-assistant');
+  server.nextAssist = { intent: 'policy_question', reply: 'From our Privacy Policy ("6. Data Retention", October 2026): …', actions: [], sources: [{ title: 'Privacy Policy', section: '6. Data Retention', url: '/privacy-policy.html', updated: 'October 2026' }] };
+  await press(tree, 'assistant-quick-earnings');
+  expect(has(tree, 'assistant-sources')).toBe(true);
+  server.nextAssist = { intent: 'driver_hours', reply: 'You have been online 2 h…', actions: [] };
+  await press(tree, 'assistant-quick-hours');
+  expect(server.bodies[1].context).toEqual([
+    { role: 'user', text: 'How much did I earn?' },
+    { role: 'assistant', text: 'From our Privacy Policy ("6. Data Retention", October 2026): …' }
+  ]);
+
+  // Close and reopen: same conversation (memory on this device only).
+  await press(tree, 'assistant-close');
+  await press(tree, 'open-assistant');
+  expect(JSON.stringify(tree.toJSON())).toContain('You have been online 2 h');
+
+  await press(tree, 'assistant-clear');
+  const text = JSON.stringify(tree.toJSON());
+  expect(text).not.toContain('You have been online 2 h');
+  expect(tree.root.findAll((n) => n.props && n.props.testID === 'assistant-reply' && n.type === 'View')).toHaveLength(1); // greeting only
   await act(async () => tree.unmount());
 });

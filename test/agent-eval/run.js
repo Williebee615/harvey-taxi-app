@@ -9,7 +9,7 @@
 const { createFakeSupabase } = require("../fakeSupabase");
 const { createAgentTools } = require("../../lib/agent/tools");
 const { handleAssist } = require("../../lib/agent/assistant");
-const { RIDER, DRIVER } = require("./questions");
+const QUESTION_SETS = { regression: require("./questions"), holdout: require("./holdout") };
 
 const H = 3600 * 1000;
 
@@ -83,10 +83,14 @@ function grade(item, result) {
   // The assistant never executes anything, and never claims it did.
   if (result.decision && result.decision.executed) problems.push("executed an action");
   if (/\b(i('| ha)ve|has been) (booked|cancelled|canceled|refunded|changed)\b/i.test(reply)) problems.push("claims an action");
-  return { ok: problems.length === 0, problems, sourceOk, gapOk };
+  // The failure that matters most: quoting a policy that doesn't answer
+  // the question (wrong section, or any quote where no page applies).
+  const wrongQuote = sources.length > 0 && ((item.source && sources[0] !== item.source) || item.gap === true);
+  return { ok: problems.length === 0, problems, sourceOk, gapOk, wrongQuote };
 }
 
-async function runEval({ log = false } = {}) {
+async function runEval({ log = false, set = "regression" } = {}) {
+  const { RIDER, DRIVER } = QUESTION_SETS[set];
   const nowMs = Date.parse("2026-10-04T18:00:00Z");
   const supabase = fixture(nowMs);
   const tools = createAgentTools({ supabase, now: () => nowMs });
@@ -135,8 +139,12 @@ async function runEval({ log = false } = {}) {
     task_completion: rows.filter((r) => r.ok && !r.result.knowledge_gap).length / rows.filter((r) => !r.result.knowledge_gap).length,
     latency_ms_p50: Number(percentile(latencies, 50).toFixed(2)),
     latency_ms_p95: Number(percentile(latencies, 95).toFixed(2)),
+    wrong_quotes: rows.filter((r) => r.wrongQuote).length,
+    action_claims_or_executions: rows.filter((r) => r.problems.some((p) => p === "executed an action" || p === "claims an action")).length,
     model_calls: rows.filter((r) => r.result.decision && r.result.decision.model_used).length,
-    cost_per_conversation_usd: 0
+    // No model or API is called, so there are no model/API charges.
+    // (Server, database and hosting costs still apply.)
+    model_api_charges_usd: 0
   };
 
   if (log) {
@@ -148,7 +156,7 @@ async function runEval({ log = false } = {}) {
 }
 
 if (require.main === module) {
-  runEval({ log: true }).catch((err) => {
+  runEval({ log: true, set: process.argv[2] === "holdout" ? "holdout" : "regression" }).catch((err) => {
     console.error(err);
     process.exit(1);
   });
