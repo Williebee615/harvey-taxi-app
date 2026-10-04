@@ -222,6 +222,9 @@ test("rider cancellation policy: nothing approved, so the answer says so plainly
   expect(vague.body.source).not.toBe("model");
   expect(vague.body.reply).toMatch(/don't have approved Harvey Taxi information/);
   expect(vague.body.reply).not.toMatch(/limit, delay, reject/);
+  // Offers support without promising an answer or a response time.
+  expect(vague.body.reply).toMatch(/You can send your question to Harvey Taxi support below/);
+  expect(vague.body.reply).not.toMatch(/can answer it|will (reply|respond|answer)|within \d/);
   expect(vague.body.knowledge_gap).toBe(true);
   expect(vague.body.actions.map((a) => a.type)).toContain("support_handoff");
   expect(decisions().at(-1).metadata.model).toMatchObject({ fallback_reason: "guard_gap_not_stated", calls: 2 });
