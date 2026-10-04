@@ -14,6 +14,7 @@ import { requestLocationPermission, locationPermission, setUnauthorizedHandler, 
 import { OFFER_ALERT_KIND, onNotificationReceived, onNotificationTap, playOfferSound, registerForPush, unregisterPush } from './push';
 import { createOfferAlerter, OFFER_VIBRATION_PATTERN } from './offerAlert';
 import { stepPath } from './tripSteps';
+import { clearAllChats } from './chatMemory';
 
 export function useDriverApp() {
   const [phase, setPhase] = useState('booting'); // booting | signedOut | ready
@@ -95,6 +96,8 @@ export function useDriverApp() {
         if (why !== 'expired' && why !== 'deleted') await unregisterPush(api);
         await clearSession();
       } finally {
+        // Assistant conversations belong to the signed-in account.
+        clearAllChats();
         setSnapshot(null);
         setLoadError(null);
         setTracking({ tracking: false });
@@ -248,9 +251,9 @@ export function useDriverApp() {
     // Harvey Assistant (src/assistant.js). These don't use run(): the
     // assistant shows its own answers and errors, not the screen notice.
     assistantStatus: () => api.get('/api/agent/status'),
-    askAssistant: async (message) => {
+    askAssistant: async (message, context = []) => {
       try {
-        return await api.post('/api/agent/driver/assist', { message, client: 'driver_app' });
+        return await api.post('/api/agent/driver/assist', { message, client: 'driver_app', context });
       } catch (err) {
         // Off or killed: the server still sends a safe reply to show.
         if (err instanceof ApiError && err.data && err.data.reply) return { ...err.data, unavailable: true };

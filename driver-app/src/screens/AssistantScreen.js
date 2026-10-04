@@ -6,6 +6,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { API_BASE, EMERGENCY_NUMBER, LINKS } from '../config';
 import { GREETING, isHandsFree, planActions, QUICK_PROMPTS, sourceLabel, speakable, UNAVAILABLE_REPLY } from '../assistant';
 import { directionsUrl } from '../tripSteps';
+import { clearChat, contextFrom, loadChat, saveChat } from '../chatMemory';
 import { Button, C } from '../ui';
 
 // Harvey Assistant: the website's AI Agent Manager in the driver app. It
@@ -15,12 +16,26 @@ import { Button, C } from '../ui';
 export default function AssistantScreen({ app, onClose, onOpenTab }) {
   const { snapshot, actions } = app;
   const handsFree = isHandsFree(snapshot);
-  const [messages, setMessages] = useState([{ id: 0, who: 'bot', text: GREETING }]);
+  const accountId = snapshot && snapshot.driver ? snapshot.driver.id : null;
+  const greeting = [{ id: 0, who: 'bot', text: GREETING }];
+  const [messages, setMessages] = useState(() => loadChat(accountId) || greeting);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [readAloud, setReadAloud] = useState(handsFree);
   const scroll = useRef(null);
-  const nextId = useRef(1);
+  const nextId = useRef(Math.max(0, ...messages.map((m) => m.id)) + 1);
+
+  // Kept on this device for this account only (src/chatMemory.js).
+  useEffect(() => {
+    saveChat(accountId, messages);
+  }, [accountId, messages]);
+
+  const clear = () => {
+    Speech.stop();
+    clearChat(accountId);
+    nextId.current = 1;
+    setMessages(greeting);
+  };
 
   useEffect(() => {
     if (handsFree) setReadAloud(true);
@@ -32,6 +47,7 @@ export default function AssistantScreen({ app, onClose, onOpenTab }) {
   const ask = async (message) => {
     const clean = String(message || '').trim();
     if (!clean || sending) return;
+    const context = contextFrom(messages);
     add({ who: 'me', text: clean });
     setText('');
     setSending(true);
@@ -40,7 +56,7 @@ export default function AssistantScreen({ app, onClose, onOpenTab }) {
     let proposed = [];
     let sources = [];
     try {
-      const res = await actions.askAssistant(clean);
+      const res = await actions.askAssistant(clean, context);
       reply = res.reply || UNAVAILABLE_REPLY;
       urgent = Boolean(res.escalation && res.escalation.category === 'emergency');
       proposed = res.unavailable ? [] : res.actions || [];
@@ -112,6 +128,9 @@ export default function AssistantScreen({ app, onClose, onOpenTab }) {
           <Text style={st.title} accessibilityRole="header">Harvey Assistant</Text>
           <Text style={st.sub}>{handsFree ? 'Hands-free while you drive' : 'Answers from your own trips and account'}</Text>
         </View>
+        <Pressable testID="assistant-clear" accessibilityRole="button" accessibilityLabel="Clear chat" onPress={clear} style={st.close}>
+          <Text style={st.closeText}>Clear chat</Text>
+        </Pressable>
         <Pressable testID="assistant-close" accessibilityRole="button" accessibilityLabel="Close assistant" onPress={onClose} style={st.close}>
           <Text style={st.closeText}>Done</Text>
         </Pressable>

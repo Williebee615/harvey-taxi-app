@@ -27,7 +27,7 @@ What was missing: approved knowledge with sources, policy questions, driver hour
 |---|---|---|---|
 | **1** | Policy questions from approved published pages (quoted, with source and date; gaps reported); read-only help: ride status, fare, offers, trip step, earnings, **hours**; evaluation set | None | **This PR** |
 | 2 | Admin-managed knowledge: a `knowledge_articles` table (draft, approved, retired; approver and date), an admin page, conflict detection between approved articles, gap queue from `agent.decision` rows with `knowledge_gap` | None | Planned |
-| 3 | Conversation context: follow-up questions use the last few turns held **on the device**; "Clear chat" and preference controls; server-side storage only after retention rules are approved (see §5) | None | Planned |
+| 3 | Conversation context held **on the device only**, with Clear chat; no server-side history (see §5) | None | **Built** |
 | 4 | Support handoff: the assistant drafts a summary, the user edits and approves it, then it is sent to support; the user sees a reference | None | Planned |
 | 5 | Optional model wording and multi-step help, behind spending caps | **Yes** (needs your cost approval) | Not started |
 
@@ -80,41 +80,52 @@ Publishing approved text for these is the fastest way to make the assistant more
 
 Revisit the framework question only if the evaluation shows multi-step model planning beating the rules on real questions.
 
-## 5. Conversation memory and retention (proposed, not yet built)
+## 5. Conversation memory (phase 3, built: device only)
 
-- **Phase 3 starts on the device:**
-  - the last 6 turns are kept in app memory and sent with the next question for follow-ups;
-  - cleared by "Clear chat", by signing out and when the app restarts.
-  - No conversation text is stored on the server.
-- **Server-side history**, if wanted later, needs your approval of:
-  - a retention period (proposed: 30 days, then deleted by a sweep);
-  - redaction before storage;
-  - per-role access: riders see only their own conversations, drivers only theirs, admins only through audited access;
-  - deletion together with the account.
-- **Saved preferences** (for example, "always read answers aloud") would be stored per account, viewable and deletable in Settings.
+**No conversation history is stored on the server** (owner decision, 2026-10-04).
+
+- **Driver app** (`driver-app/src/chatMemory.js`):
+  - Each signed-in account's conversation is kept in app memory, so leaving and reopening the assistant keeps it.
+  - **Clear chat** empties it. Signing out clears every conversation, and an app restart clears memory. Nothing is written to disk.
+- **Rider website / rider app panel** (`public/agent-assist.js`):
+  - The conversation lives only in the open page; nothing is saved in browser storage.
+  - **Clear chat** empties it. Leaving the page or signing out (which reloads it) clears it.
+- **Follow-ups** (`lib/agent/followUp.js`):
+  - With each question the device sends its last 6 turns (text only, 500 characters each).
+  - The server uses them for one thing: a short follow-up ("and what about my location?") is searched together with the previous question.
+  - Context is sanitized like any message. It is never stored or logged, and it never chooses an account, a tool or an action.
+  - Emergency and other safety checks run on the new message alone.
+- **Saved preferences:** none stored yet. "Read answers aloud" stays a per-screen switch.
 
 ## 6. Evaluation (`test/agent-eval/`)
 
-27 rider and driver questions:
-- policy questions with an expected source section;
-- uncovered questions that must be reported as gaps;
-- live account questions;
-- prompt-injection attempts;
-- 4 privacy checks.
+There are two question sets, reported separately:
+- **Regression set** (`questions.js`, 27 questions). The matching was tuned on these, so a pass rate here shows nothing broke. It does **not** show accuracy on new questions. CI enforces 100%. Run with `node test/agent-eval/run.js`.
+- **Held-out set** (`holdout.js`, 20 questions written after tuning). It is run without changing thresholds. CI enforces safety only. Run with `node test/agent-eval/run.js holdout`.
 
-`node test/agent-eval/run.js` prints the report; `test/agent-eval.test.js` enforces it in CI.
+| Metric | Regression (tuned) | **Held-out baseline (2026-10-04)** |
+|---|---|---|
+| Answer accuracy | 27/27 | **5/20 (25%)** |
+| Source correctness | 12/12 | 3/12 |
+| Gap honesty ("not covered" when no page applies) | 5/5 | 1/5 |
+| **Wrong policy quotes** | 0 | **0** |
+| Claimed or performed actions | 0 | 0 |
+| Privacy isolation | 4/4 | 4/4 |
+| Response time in-process (p95) | < 4 ms | < 3 ms |
+| Model calls / model and API charges | 0 / none | 0 / none |
 
-| Metric | Result (2026-10-04) |
-|---|---|
-| Answer accuracy | 27/27 (100%) |
-| Source correctness | 12/12 (100%) |
-| Gap honesty (says "not covered", no invented answer) | 5/5 (100%) |
-| Privacy isolation (own rows only; a rider cannot use driver tools) | 4/4 (100%) |
-| Task completion (answered questions answered correctly) | 100% |
-| Response time in-process | p50 under 0.5 ms, p95 under 4 ms (varies by run) |
-| Model calls / cost per conversation | 0 / $0 |
+**What the held-out set shows:**
+- Keyword matching does not generalize well to new wording.
+- Its failures were unhelpful, never invented:
+  - 6 misroutes: questions containing "my driver" or "where" got the live ride status;
+  - 5 generic help replies;
+  - 3 false "not covered" replies where a page does cover the question;
+  - plus one correct answer marked failed by a strict topic label.
+- No answer quoted a policy that doesn't apply.
 
-**Caveat:** the matching threshold and heading weight were tuned on these same questions, so they overstate real-world accuracy. Add real rider and driver questions, especially failures, as they come in.
+**Cost wording:** phase 1 has **no model or API charges**. It is not zero total cost: it runs on the existing Render server and Supabase database.
+
+**Next improvement:** Phase 2 approved question-and-answer entries with alternative phrasings, then a **new** held-out set. These held-out questions must not be used to tune; when one is used to fix the matcher, it moves to the regression set and a fresh one replaces it.
 
 ## 7. Reliability, load and cost
 
