@@ -176,6 +176,10 @@ const SUPPORT_EMAIL =
 
 const ADMIN_EMAIL = env("ADMIN_EMAIL", "williebee@harveytaxiservice.com");
 
+// HTAF-controlled mailbox for HTAF new-application alerts (#133). No
+// default and no fallback to ADMIN_EMAIL -- see sendAdminApplicationAlert().
+const HTAF_ADMIN_EMAIL = cleanEmail(env("HTAF_ADMIN_EMAIL", ""));
+
 const ADMIN_PASSWORD = env("ADMIN_PASSWORD", "");
 
 const ADMIN_API_TOKEN = env("ADMIN_API_TOKEN") || env("HARVEY_ADMIN_TOKEN");
@@ -4494,88 +4498,70 @@ async function sendApplicantConfirmation(application) {
 
 }
 
+// New-application alerts go only to HTAF_ADMIN_EMAIL, an HTAF-controlled
+// mailbox the operator must set explicitly. There is deliberately no
+// fallback to ADMIN_EMAIL (a Harvey Taxi mailbox): HTAF applicant activity
+// must not reach the separate for-profit company by default. When it is
+// not configured the alert is not sent at all and the gap is surfaced to
+// operators (server log + critical audit row) instead.
+//
+// The message itself is a minimal notice -- the application code and a
+// link to the secured admin portal. No name, contact details, location,
+// program, income or need text is ever put in an email.
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  })[ch]);
+}
+
 async function sendAdminApplicationAlert(application) {
+  const code = String(application && application.application_code || "");
+
+  if (!HTAF_ADMIN_EMAIL) {
+    console.error(
+      "🚨 HTAF_ADMIN_EMAIL is not configured; new-application alert NOT sent.",
+      { application_code: code }
+    );
+
+    await auditLog({
+      actor_type: "system",
+      action: "htaf_admin_alert_not_configured",
+      entity_type: "htaf_application",
+      entity_id: application && application.id ? String(application.id) : null,
+      metadata: {
+        severity: "critical",
+        application_code: code,
+        reason: "HTAF_ADMIN_EMAIL is not set"
+      }
+    }).catch(() => {});
+
+    return {
+      sent: false,
+      reason: "htaf_admin_email_not_configured"
+    };
+  }
+
+  const portalUrl = `${APP_BASE_URL}/admin-htaf.html`;
+  const safeCode = escapeHtml(code);
 
   return sendEmail({
-
-    to: ADMIN_EMAIL,
-
-    subject:
-
-      `New HTAF Application - ${application.application_code}`,
-
+    to: HTAF_ADMIN_EMAIL,
+    subject: "New HTAF application received",
+    text:
+      `A new HTAF transportation-assistance application was received.\n` +
+      `Application code: ${code}\n\n` +
+      `Review it in the secured admin portal: ${portalUrl}\n`,
     html: `
-
-      <h2>New HTAF Application Submitted</h2>
-
-      <p>
-
-        <strong>Name:</strong>
-
-        ${application.first_name} ${application.last_name}
-
-      </p>
-
-      <p>
-
-        <strong>Program:</strong>
-
-        ${application.program_type}
-
-      </p>
-
-      <p>
-
-        <strong>County:</strong>
-
-        ${application.county}
-
-      </p>
-
-      <p>
-
-        <strong>City:</strong>
-
-        ${application.city}
-
-      </p>
-
-      <p>
-
-        <strong>Email:</strong>
-
-        ${application.email}
-
-      </p>
-
-      <p>
-
-        <strong>Phone:</strong>
-
-        ${application.phone}
-
-      </p>
-
-      <p>
-
-        <strong>Destination:</strong>
-
-        ${application.destination}
-
-      </p>
-
-      <p>
-
-        <strong>Need:</strong>
-
-        ${application.transportation_need}
-
-      </p>
-
+      <p>A new HTAF transportation-assistance application was received.</p>
+      <p><strong>Application code:</strong> ${safeCode}</p>
+      <p>Review it in the secured admin portal:
+        <a href="${escapeHtml(portalUrl)}">${escapeHtml(portalUrl)}</a></p>
     `
-
   });
-
 }
 
 /* =========================================================
@@ -22148,6 +22134,11 @@ app.get(
 
       features: {
 
+        htaf_admin_alerts:
+
+          Boolean(HTAF_ADMIN_EMAIL),
+
+
         rider_approval_gate:
 
           ENABLE_RIDER_APPROVAL_GATE,
@@ -24714,6 +24705,12 @@ async function startServer() {
 
         `🧾 HTAF Applications: ${ENABLE_HTAF_APPLICATIONS ? "ON" : "OFF"}`
 
+      );
+
+      console.log(
+        HTAF_ADMIN_EMAIL
+          ? "📨 HTAF application alerts: ON"
+          : "🚨 HTAF application alerts: OFF -- set HTAF_ADMIN_EMAIL (no Harvey Taxi fallback)"
       );
 
       console.log(
