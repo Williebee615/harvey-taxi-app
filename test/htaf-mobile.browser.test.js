@@ -2,8 +2,8 @@
 // horizontal overflow, footer and legal links present, and no file
 // input rendered on the application page.
 //
-// Needs Playwright and a Chromium build. CI does not install a browser,
-// so this suite skips there; run it locally with Playwright available
+// Needs Playwright and a Chromium build. The suite skips when either is
+// missing (CI installs neither); run it locally with Playwright available
 // (for example NODE_PATH="$(npm root -g)" npx jest test/htaf-mobile).
 // Set HTAF_SCREENSHOT_DIR to also save a full-page screenshot per page
 // and width.
@@ -36,7 +36,17 @@ try {
   chromium = null;
 }
 
-const describeWithBrowser = chromium ? describe : describe.skip;
+// The playwright package can be installed without its browser build; in
+// that case skip rather than fail at launch.
+function browserInstalled() {
+  try {
+    return Boolean(chromium) && fs.existsSync(chromium.executablePath());
+  } catch (error) {
+    return false;
+  }
+}
+
+const describeWithBrowser = browserInstalled() ? describe : describe.skip;
 
 const FOUNDATION = "harveytransportationfoundation.com";
 const WIDTHS = [360, 390];
