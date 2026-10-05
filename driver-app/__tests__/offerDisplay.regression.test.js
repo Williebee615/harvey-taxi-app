@@ -160,6 +160,10 @@ test('review ride offer appears on the Drive screen after a stream "sync" event'
   expect(stream).toBeTruthy();
   expect(has(tree, 'accept-offer')).toBe(false);
   expect(text(tree)).toMatch(/Live updates on/);
+  // Review account: the demonstration guide, with the next step.
+  expect(has(tree, 'review-guide')).toBe(true);
+  expect(text(tree)).toMatch(/simulated demonstration\. No payment is collected/);
+  expect(text(tree)).toMatch(/Next step: in Harvey Taxi Mobile, sign in with the rider review account and request a ride/);
 
   // Dispatch creates the offer and the server sends "sync".
   server.offer = { id: 'OFFER-9E1375D173', ride_id: RIDE.id, status: 'pending', expires_at: new Date(Date.now() + 29000).toISOString() };
@@ -178,6 +182,7 @@ test('review ride offer appears on the Drive screen after a stream "sync" event'
   expect(shown).toMatch(/\$40\.69/);
   expect(shown).toMatch(/\$27\.08/);
   expect(shown).toMatch(/Test ride · no charge/);
+  expect(shown).toMatch(/Next step: tap Accept on the test ride offer\./);
   expect(shown).toMatch(/\b(29|30)s\b/);
 
   // Foreground alert: one vibration and one sound-only notification.

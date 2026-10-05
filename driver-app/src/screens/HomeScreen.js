@@ -7,6 +7,7 @@ import { directionsUrl, isDelivery, nextStep, STATUS_LABELS } from '../tripSteps
 import { riderSharingText } from '../tripMap';
 import { formatWait, noShowText, waitingSeconds } from '../pickupWait';
 import { hoursText } from '../hours';
+import { REVIEW_INTRO, REVIEW_STEPS, reviewNextStep } from '../reviewGuide';
 import TripMapView from '../TripMapView';
 import { Button, C, Card, H, money, Notice, P, Pill, Row } from '../ui';
 
@@ -289,7 +290,18 @@ export default function HomeScreen({ app, onOpenAssistant }) {
           <Notice text={`Can't reach Harvey Taxi right now, so this may be out of date. Retrying… (${loadError})`} />
         </View>
       )}
-      {driver.is_review_account && <Notice tone="info" text="Test account: rides are simulated and no one is charged." />}
+      {driver.is_review_account && (
+        <View testID="review-guide">
+          <Card accent={C.gold}>
+            <H>App Review demonstration</H>
+            <P muted>{REVIEW_INTRO}</P>
+            {REVIEW_STEPS.map((step, i) => (
+              <P key={step}>{`${i + 1}. ${step}`}</P>
+            ))}
+            <P>{reviewNextStep({ online, offers, ride })}</P>
+          </Card>
+        </View>
+      )}
 
       {showDisclosure && <LocationDisclosure app={app} onDone={() => setShowDisclosure(false)} />}
 

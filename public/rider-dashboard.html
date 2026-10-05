@@ -2877,6 +2877,23 @@
       text-align: center;
     }
 
+    /* App Review mode only: what to do, step by step, and how this account
+       works with the Harvey Taxi Driver review account. */
+    .app-review-guide {
+      margin: 0 0 16px;
+      padding: 14px 16px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 196, 0, 0.55);
+      background: rgba(43, 36, 16, 0.92);
+      color: #fff3cc;
+      font-size: 0.92rem;
+      line-height: 1.45;
+    }
+    .app-review-guide h2 { margin: 0 0 6px; font-size: 1rem; color: #ffe59a; }
+    .app-review-guide ol { margin: 6px 0 8px 1.2em; padding: 0; }
+    .app-review-guide p { margin: 6px 0; }
+    .app-review-guide .app-review-next { font-weight: 700; color: #ffe59a; }
+
     /* "App Review Access": its own card, visibly apart from the rider
        booking flow, shown only while signed out. */
     .app-review-access {
@@ -3055,6 +3072,24 @@
     <div class="app-review-banner" id="appReviewBanner" role="status" hidden>
       App Review mode — rides, payments and earnings are simulated. No card is charged and no real driver is dispatched.
     </div>
+
+    <!-- App Review accounts only (shown from the server-verified session's
+         review_mode, like the banner above). -->
+    <section class="app-review-guide" id="appReviewGuide" aria-labelledby="appReviewGuideTitle" hidden>
+      <h2 id="appReviewGuideTitle">App Review demonstration</h2>
+      <p>This is a simulated demonstration. No payment is collected and no real driver is involved.</p>
+      <ol>
+        <li>Tap Request a Ride, choose Driver Ride and Confirm Service, then enter a pickup and a destination.</li>
+        <li>Get the fare estimate and review it.</li>
+        <li>Continue with simulated payment (no card is needed).</li>
+        <li>Tap Request Dispatch to request the simulated ride.</li>
+        <li>Open Live Tracking to see the driver assignment and the current ETA.</li>
+        <li>Follow the driver's arrival and the trip as they progress.</li>
+        <li>When the trip is complete, it appears in your ride history with its fare.</li>
+      </ol>
+      <p><strong>Using it with Harvey Taxi Driver:</strong> rides requested here are offered only to the Harvey Taxi Driver review account, and only while it is online. Before you request, sign in to Harvey Taxi Driver with the driver review account and tap Go online. The driver app then accepts the ride and moves it through pickup and the trip, and this screen follows along. If the review driver is offline, the request ends with "no drivers available" and nothing is charged: go online in the driver app, then request again.</p>
+      <p class="app-review-next" id="appReviewNextStep" role="status" aria-live="polite"></p>
+    </section>
 
     <!-- TOPBAR -->
     <header class="topbar">
@@ -7241,8 +7276,6 @@
         readStorage("riderId") ||
         readStorage("rider_id") ||
         readStorage("harveyRiderId");
-      const storedRideId = readStorage(CONFIG.STORAGE_KEYS.lastRideId);
-
       if (els.riderName && storedName) {
         els.riderName.value = storedName;
       }
@@ -7259,7 +7292,12 @@
       state.rider.phone = storedPhone;
       state.rider.email = storedEmail;
       state.rider.id = storedRiderId;
-      state.ride.rideId = storedRideId;
+      // A new visit never inherits the last ride's id from browser storage:
+      // refuseIfRideExists() treats state.ride.rideId as "already booked in
+      // this visit", so restoring it here blocked every first booking after
+      // a page load with "has already been requested" (nothing reached the
+      // server). Tracking an existing ride comes only from ?ride_id=.
+      state.ride.rideId = "";
 
       const queryMode =
         getQueryParam("mode") ||
@@ -9245,8 +9283,13 @@
         const normalized =
           normalizeRidePayload(data);
 
-        state.ride.rideId =
-          normalized.rideId || rideId;
+        // Looking up the last stored ride (the "Refresh Current Ride
+        // Status" button) only shows its status; it doesn't make this
+        // visit count as having booked it (see hydrateFromStorage()).
+        if (state.ride.rideId) {
+          state.ride.rideId =
+            normalized.rideId || rideId;
+        }
 
         state.ride.status =
           normalized.status;
@@ -9284,7 +9327,10 @@
         // authorization; the rider is never charged for it.
         if (state.ride.status === "failed") {
           showNotice(
-            "No driver was available for this ride, so it was cancelled. You have not been charged. Please book again.",
+            "No driver was available for this ride, so it was cancelled. You have not been charged. Please book again." +
+              (isAppReviewMode()
+                ? " App Review mode: sign in to Harvey Taxi Driver with the driver review account and tap Go online first; this account's rides are offered only to that driver."
+                : ""),
             "warning"
           );
         } else {
@@ -10988,6 +11034,38 @@
       document.querySelectorAll(".app-review-banner").forEach((banner) => {
         banner.hidden = !window.HarveyReviewMode;
       });
+
+      updateReviewGuide();
+    }
+
+    // App Review guide: the next step for the reviewer, from the current
+    // ride's status. Text only; it changes nothing.
+    function reviewNextStepText(status) {
+      switch (status) {
+        case "payment_required":
+        case "payment_authorized":
+        case "awaiting_driver_acceptance":
+          return "Next step: in Harvey Taxi Driver (review account, online), accept the test ride offer. Open Live Tracking here to follow it.";
+        case "driver_assigned":
+        case "driver_enroute":
+          return "Next step: Live Tracking shows the assigned driver and the current ETA. In Harvey Taxi Driver, drive to pickup and mark arrival.";
+        case "arrived":
+          return "Next step: the driver is at pickup. In Harvey Taxi Driver, start the trip.";
+        case "in_progress":
+          return "Next step: the trip is in progress. In Harvey Taxi Driver, complete it; it then appears in your ride history with its fare.";
+        default:
+          return "Next step: make sure Harvey Taxi Driver is signed in with the review account and online, then tap Request a Ride.";
+      }
+    }
+
+    function updateReviewGuide() {
+      const guide = document.getElementById("appReviewGuide");
+      if (!guide) return;
+      guide.hidden = window.HarveyReviewMode !== true;
+      const next = document.getElementById("appReviewNextStep");
+      if (next) {
+        next.textContent = guide.hidden ? "" : reviewNextStepText(state.activeRequest && state.activeRequest.status);
+      }
     }
 
     // The "App Review Access" card is shown only while signed out,
@@ -11670,6 +11748,8 @@
         els.activeRequestSection.style.display = "none";
       }
 
+      updateReviewGuide();
+
       if (state.activeRequestPollId) {
         clearInterval(state.activeRequestPollId);
         state.activeRequestPollId = null;
@@ -11687,6 +11767,7 @@
 
     function renderActiveRequest(data, mode) {
       state.activeRequest = data;
+      updateReviewGuide();
 
       const isDelivery = data.ride_type === "food" || data.ride_type === "grocery";
 
