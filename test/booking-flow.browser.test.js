@@ -111,14 +111,25 @@ describeWithBrowser("Rider booking wizard with Mapbox (mobile 390x844)", () => {
   });
 
   // Everything the browser received, for the token-leak check.
-  async function newPage(base, riderId) {
+  async function newPage(base, riderId, { storage = null } = {}) {
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    // Browser storage left by an earlier visit (set before the page's own
+    // scripts run).
+    if (storage) {
+      await context.addInitScript((entries) => {
+        if (sessionStorage.getItem("__seeded")) return;
+        sessionStorage.setItem("__seeded", "1");
+        for (const [k, v] of Object.entries(entries)) localStorage.setItem(k, v);
+      }, storage);
+    }
     await context.route(/^https?:\/\/(?!harveytaxiservice\.test)/, (route) => route.abort());
     await context.addCookies([
       { name: "harvey_rider_session", value: encodeURIComponent(signTestRiderToken(riderId)), url: base }
     ]);
     const page = await context.newPage();
     page.errors = [];
+    page.requests = [];
+    page.on("request", (req) => page.requests.push(`${req.method()} ${new URL(req.url()).pathname}`));
     page.received = [];
     page.on("pageerror", (err) => page.errors.push(err.message));
     page.on("response", async (res) => {
@@ -260,6 +271,31 @@ describeWithBrowser("Rider booking wizard with Mapbox (mobile 390x844)", () => {
       expect(ctx.state.payments).toHaveLength(0);
       expect(page.errors).toEqual([]);
       await expectNoTokenInBrowser(page);
+    });
+
+    // Regression (2026-10-05): the wizard restored the previous ride's id
+    // from localStorage (harvey_last_ride_id, written after every request
+    // and never cleared at sign-out or completion), so the first booking
+    // after a page load refused with "has already been requested" and never
+    // called the server. Seen with the App Review account in the same
+    // browser that had booked RIDE-193B9EE544 the day before.
+    test("a previous visit's ride id in browser storage does not block a new booking", async () => {
+      const page = await newPage(ctx.base, "RIDER_REVIEW", { storage: { harvey_last_ride_id: "RIDE-PREVIOUS-DONE" } });
+      await bookToEstimate(page);
+      await page.click("#stageReviewContinueBtn");
+      await page.waitForSelector("#authorizePaymentBtn", { state: "visible" });
+      await page.click("#authorizePaymentBtn");
+      await page.waitForTimeout(400);
+      expect(await text(page, "rideWizardOverlay")).not.toMatch(/has already been requested/);
+      await page.click("#stagePaymentContinueBtn");
+      await page.waitForSelector("#requestRideBtn", { state: "visible" });
+      const before = ctx.state.rides.length;
+      await page.click("#requestRideBtn");
+      await page.waitForFunction(() => /submitted/i.test(document.getElementById("rideWizardOverlay").innerText));
+      expect(page.requests).toContain("POST /api/rides/request");
+      expect(ctx.state.rides).toHaveLength(before + 1);
+      expect(ctx.state.rides[before]).toMatchObject({ rider_id: "RIDER_REVIEW", is_review_ride: true, payment_status: "not_required" });
+      expect(page.errors).toEqual([]);
     });
   });
 });

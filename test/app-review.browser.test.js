@@ -233,6 +233,15 @@ describeWithBrowser("App Review mode stays separate from the ordinary rider flow
     expect(await visible(page, "#appReviewAccess")).toBe(false);
     expect(await page.textContent("#appReviewBanner")).toMatch(/App Review mode/);
 
+    // The demonstration guide: simulated, no payment, the rider steps, how
+    // it works with the driver review account, and the next step.
+    expect(await visible(page, "#appReviewGuide")).toBe(true);
+    const guide = await page.textContent("#appReviewGuide");
+    expect(guide).toMatch(/simulated demonstration\. No payment is collected/);
+    expect(guide).toMatch(/offered only to the Harvey Taxi Driver review account, and only while it is online/);
+    expect(guide).toMatch(/no drivers available/);
+    expect(await page.textContent("#appReviewNextStep")).toMatch(/^Next step: /);
+
     await page.waitForSelector(".sim-tag", { timeout: 5000 });
     expect(await page.textContent(".sim-tag")).toBe("Simulated");
 
@@ -249,6 +258,7 @@ describeWithBrowser("App Review mode stays separate from the ordinary rider flow
     expect(await visible(page, ".app-review-banner")).toBe(false);
     expect(await visible(page, "#appReviewAccess")).toBe(false);
     expect(await page.$(".sim-tag")).toBeNull();
+    expect(await visible(page, "#appReviewGuide")).toBe(false);
     await page.evaluate(() => window.HarveyRideWizard.open({ mode: "driver" }));
     await page.waitForTimeout(300);
     expect(await page.isVisible("#rideWizardOverlay .app-review-banner")).toBe(false);
