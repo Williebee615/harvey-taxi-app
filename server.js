@@ -29,6 +29,7 @@ try { sgMail = require("@sendgrid/mail"); } catch {}
 let twilio = null;
 
 try { twilio = require("twilio"); } catch {}
+const htafSms = require("./lib/htafSms");
 
 let Stripe = null;
 
@@ -398,6 +399,12 @@ const TWILIO_FROM_NUMBER =
   env("TWILIO_PHONE_NUMBER");
 
 const TWILIO_VERIFY_SERVICE_SID = env("TWILIO_VERIFY_SERVICE_SID");
+
+// HTAF text messages (lib/htafSms.js): off until toll-free verification is
+// approved and the owner turns them on. HTAF's own number only -- never
+// TWILIO_FROM_NUMBER, which is Harvey Taxi's.
+const HTAF_SMS_ENABLED = envBool("HTAF_SMS_ENABLED", false);
+const HTAF_SMS_FROM_NUMBER = env("HTAF_SMS_FROM_NUMBER");
 
 let twilioClient = null;
 
@@ -4607,6 +4614,85 @@ async function sendAdminApplicationAlert(application) {
 
 /* =========================================================
 
+   HTAF TEXT MESSAGES (consent records, guarded sending, reply keywords)
+
+   HTAF only: these never use Harvey Taxi's sender or records.
+
+========================================================= */
+
+async function recordHtafSmsConsent(application, smsConsent) {
+  const row = htafSms.consentRecord({
+    applicationId: application.id,
+    phone: application.phone,
+    smsConsent
+  });
+  // A number HTAF can't text (not a US number) has nothing to record.
+  if (!row.phone) return null;
+  const { error } = await supabase.from("htaf_sms_consents").insert(row);
+  if (error) throw new Error(error.message || "insert failed");
+  if (row.event === "opt_in") {
+    await sendHtafSms({ phone: row.phone, body: htafSms.WELCOME_MESSAGE }).catch((err) => {
+      console.warn("⚠️ HTAF welcome text not sent:", err.message);
+    });
+  }
+  return row;
+}
+
+// The only way this app texts on HTAF's behalf: messaging switched on,
+// HTAF's own number configured, and a recorded opt-in with no later
+// opt-out for this number.
+async function sendHtafSms({ phone, body }) {
+  const to = htafSms.normalizeUsPhone(phone);
+  if (!to) return { sent: false, reason: "invalid_phone" };
+  const { data: events, error } = await supabase
+    .from("htaf_sms_consents")
+    .select("event, created_at")
+    .eq("phone", to);
+  if (error) return { sent: false, reason: "consent_unavailable" };
+  const decision = htafSms.canText({ events, enabled: HTAF_SMS_ENABLED, fromNumber: HTAF_SMS_FROM_NUMBER });
+  if (!decision.ok) return { sent: false, reason: decision.reason };
+  if (!twilioClient) return { sent: false, reason: "twilio_not_configured" };
+  await twilioClient.messages.create({ to, from: HTAF_SMS_FROM_NUMBER, body });
+  return { sent: true, reason: null };
+}
+
+// Reply keywords sent to HTAF's number (Twilio "A message comes in"
+// webhook). Twilio and the carrier send the STOP/START/HELP replies
+// themselves; this only records opt-outs and re-opt-ins so HTAF's own
+// sending honors them. Requests must carry a valid Twilio signature and be
+// addressed to HTAF's number. The message text is never stored.
+app.post(
+  "/api/htaf/sms/inbound",
+  express.urlencoded({ extended: false }),
+  asyncRoute(async (req, res) => {
+    const signature = req.get("x-twilio-signature") || "";
+    const url = `https://${FOUNDATION_HOST}${req.originalUrl}`;
+    const valid =
+      Boolean(twilio && TWILIO_AUTH_TOKEN && signature) &&
+      twilio.validateRequest(TWILIO_AUTH_TOKEN, signature, url, req.body || {});
+    if (!valid) {
+      return res.status(403).type("text/plain").send("Forbidden");
+    }
+    const to = htafSms.normalizeUsPhone(req.body.To);
+    const from = htafSms.normalizeUsPhone(req.body.From);
+    const event = htafSms.keywordOf(req.body.Body);
+    if (event && from && to && to === htafSms.normalizeUsPhone(HTAF_SMS_FROM_NUMBER)) {
+      const { error } = await supabase.from("htaf_sms_consents").insert({
+        phone: from,
+        application_id: null,
+        event,
+        consent_version: null,
+        source: "sms_reply_keyword"
+      });
+      if (error) console.warn("⚠️ HTAF SMS keyword not recorded:", error.message);
+    }
+    // No reply from this app: Twilio/the carrier already answer keywords.
+    return res.type("text/xml").send("<Response></Response>");
+  })
+);
+
+/* =========================================================
+
    HTAF APPLICATION SUBMISSION API
 
    This is the route your frontend is calling:
@@ -4804,6 +4890,12 @@ app.post(
       }
 
     );
+
+    // Optional text-message consent: recorded after the application is
+    // saved, and never a reason to refuse it. No record means no texts.
+    recordHtafSmsConsent(application, req.body?.sms_consent).catch((error) => {
+      console.warn("⚠️ HTAF SMS consent record failed:", error.message);
+    });
 
     auditLog({
 
