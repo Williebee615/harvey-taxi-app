@@ -13621,18 +13621,19 @@ async function updateRideRecords(rideId, patch, label) {
   }
 }
 
-// The pickup estimate shown when the driver accepted, kept for the
-// "5 minutes late" check; also resets this ride's pickup records.
+// The pickup estimate shown when the first driver accepted, kept for the
+// "5 minutes late" check (and kept through any reassignment); also resets
+// this ride's per-driver pickup records.
 async function recordPickupEstimateAtAccept(rideId) {
   const { data: ride, error } = await supabase
     .from("rides")
-    .select("id, accepted_at, driver_eta_to_pickup_minutes")
+    .select("id, accepted_at, driver_eta_to_pickup_minutes, eta_at_accept_minutes, pickup_due_at")
     .eq("id", rideId)
     .maybeSingle();
   if (error || !ride) return false;
   return updateRideRecords(
     rideId,
-    cancellationRecords.estimateAtAcceptPatch({ acceptedAt: ride.accepted_at, etaMinutes: ride.driver_eta_to_pickup_minutes }),
+    cancellationRecords.estimateAtAcceptPatch({ acceptedAt: ride.accepted_at, etaMinutes: ride.driver_eta_to_pickup_minutes, existing: ride }),
     "estimate_at_accept"
   );
 }

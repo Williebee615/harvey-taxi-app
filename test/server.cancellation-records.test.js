@@ -263,3 +263,45 @@ describe("admin and duplicate-charge protection", () => {
     expect(ride().status).toBe("cancelled");
   });
 });
+
+describe("original pickup estimate through driver reassignment", () => {
+  test("A accepts (6 min), releases the ride, B accepts (12 min): the original 6-minute estimate and due time stay", async () => {
+    seedRide({ id: "RIDE_1", status: "awaiting_driver_acceptance", driver_id: null, accepted_at: null, driver_eta_to_pickup_minutes: 6, payment_id: null });
+    const state = mockSupabaseClient._state;
+    state.driver_offers = [{ id: "OFFER_A", ride_id: "RIDE_1", driver_id: DRIVER.id, status: "pending", created_at: new Date().toISOString() }];
+    const realRpc = mockSupabaseClient.rpc;
+    // In-memory stand-in for accept_driver_offer_atomic (the real function
+    // is tested against Postgres in test/db/acceptDriverOfferAtomic.db.test.js).
+    mockSupabaseClient.rpc = async (fn, args) => {
+      if (fn !== "accept_driver_offer_atomic") return { data: null, error: null };
+      const offer = state.driver_offers.find((o) => o.id === args.p_offer_id);
+      const r = state.rides.find((x) => x.id === offer.ride_id);
+      if (offer.driver_id !== args.p_driver_id || offer.status !== "pending" || r.driver_id) return { data: [{ outcome: "offer_not_pending" }], error: null };
+      offer.status = "accepted";
+      Object.assign(r, { driver_id: offer.driver_id, status: "driver_assigned", accepted_at: new Date().toISOString() });
+      return { data: [{ outcome: "accepted", ride_id: r.id, offer_id: offer.id, driver_id: offer.driver_id, rider_id: r.rider_id }], error: null };
+    };
+    try {
+      expect((await post("/api/driver/offers/OFFER_A/accept").set(driverAuth).send({})).status).toBe(200);
+      await new Promise((r) => setTimeout(r, 30));
+      const original = { eta: ride().eta_at_accept_minutes, due: ride().pickup_due_at };
+      expect(original.eta).toBe(6);
+      expect(original.due).toBeTruthy();
+      await post("/api/driver/rides/RIDE_1/contact-attempt").set(driverAuth).send({ method: "call" });
+
+      const w = await post("/api/driver/rides/RIDE_1/withdraw").set(driverAuth).send({ reason: "test" });
+      expect(w.body).toMatchObject({ status: "awaiting_driver_acceptance" });
+      // Redispatch (no online drivers in this fixture) is not under test
+      // here: put the ride where dispatch would have, with an offer to B.
+      Object.assign(ride(), { status: "awaiting_driver_acceptance", driver_id: null });
+      ride().driver_eta_to_pickup_minutes = 12; // the new driver is further away
+      state.driver_offers.push({ id: "OFFER_B", ride_id: "RIDE_1", driver_id: OTHER_DRIVER.id, status: "pending", created_at: new Date().toISOString() });
+
+      expect((await post("/api/driver/offers/OFFER_B/accept").set(otherDriverAuth).send({})).status).toBe(200);
+      await new Promise((r) => setTimeout(r, 30));
+      expect(ride()).toMatchObject({ status: "driver_assigned", driver_id: OTHER_DRIVER.id, eta_at_accept_minutes: 6, pickup_due_at: original.due, contact_attempt_count: 0 });
+    } finally {
+      mockSupabaseClient.rpc = realRpc;
+    }
+  });
+});
