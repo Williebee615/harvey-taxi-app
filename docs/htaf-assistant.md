@@ -16,7 +16,7 @@ It answers only from HTAF's published pages: the home page, application, contact
   - Unpublished rules (income limits, ride limits, timelines, costs) are gaps.
 - **Actions:** it takes none. It can't book rides, send texts, change or withdraw applications, or make funding or approval decisions.
 - **Applicant records:** it reads none.
-  - Application status needs an HTAF applicant sign-in, which doesn't exist yet. Status questions are referred to HTAF support.
+  - HTAF has no applicant sign-in and no online status check. Status questions get the contact page's own wording (email or call HTAF with the application code).
   - A Harvey Taxi rider session is not accepted as HTAF identity.
 - **No model:** no Claude or other model is called, so there is no per-question cost.
 
@@ -38,3 +38,8 @@ It answers only from HTAF's published pages: the home page, application, contact
 
 ## Adding an approved answer
 Publish the text on an HTAF page (with the owner's approval). The assistant picks it up on the next deploy. A new common-question topic is added in `TOPICS`, quoting the published sentences exactly; a test checks they match the page.
+
+## Approved programs (owner confirmed 2026-10-05)
+The approved programs are Medical Transportation, Employment Access, Education Access, Senior Mobility, Disability Transportation and Veteran Transportation.
+- The foundation page, the application form's choices and the assistant all use this list; a test keeps them aligned.
+- "Community Assistance" is no longer offered on the form.
