@@ -4607,6 +4607,109 @@ async function sendAdminApplicationAlert(application) {
 
 /* =========================================================
 
+   HTAF ASSISTANT (lib/htafAssistant.js, docs/htaf-assistant.md)
+
+   Harvey Transportation Assistance Foundation's own help assistant,
+   separate from the Harvey Taxi assistant: HTAF's published pages only,
+   no model, no actions, no applicant records. Off until an admin sets the
+   system flag htaf_assist_enabled to "true". Questions it can't answer are
+   kept (redacted excerpt only) in htaf_assistant_questions for HTAF staff.
+
+========================================================= */
+
+const htafAssistant = require("./lib/htafAssistant");
+const HTAF_ASSIST = htafAssistant.loadHtafIndex();
+const htafAssistUsage = createAgentUsageMeter();
+const HTAF_ASSIST_SALT = crypto.randomBytes(16).toString("hex");
+const HTAF_ASSIST_DAILY = Object.freeze({ visitor: 60, per_account: 60, global: 5000 });
+
+async function htafAssistEnabled() {
+  return (await getSystemFlag("htaf_assist_enabled", "false")) === "true";
+}
+
+app.get(
+  "/api/htaf/assist/status",
+  rateLimit({ windowMs: 60_000, max: 60, keyPrefix: "htaf_assist_status" }),
+  asyncRoute(async (req, res) => {
+    return ok(res, { assist_available: await htafAssistEnabled() });
+  })
+);
+
+app.post(
+  "/api/htaf/assist",
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "htaf_assist" }),
+  asyncRoute(async (req, res) => {
+    if (!(await htafAssistEnabled())) {
+      return res.status(503).json({
+        ok: false,
+        assist_available: false,
+        reply: `The HTAF assistant isn't available right now. You can reach HTAF at ${htafAssistant.SUPPORT.email} or ${htafAssistant.SUPPORT.phone}.`
+      });
+    }
+    const message = typeof req.body?.message === "string" ? req.body.message : "";
+    if (!message.trim()) {
+      return fail(res, "message required.", 400);
+    }
+    // Visitors are counted by a salted hash of their IP; no account, no
+    // applicant record is read.
+    const key = agentUsageKey({ role: "visitor", actorId: null, ip: getClientIp(req), salt: HTAF_ASSIST_SALT });
+    const usage = htafAssistUsage.check(key, HTAF_ASSIST_DAILY);
+    if (!usage.allowed) {
+      return res.status(429).json({
+        ok: false,
+        assist_available: true,
+        limited: true,
+        reply: `You've reached today's limit for the HTAF assistant. You can reach HTAF at ${htafAssistant.SUPPORT.email} or ${htafAssistant.SUPPORT.phone}.`
+      });
+    }
+    htafAssistUsage.record(key, null);
+
+    const result = htafAssistant.answerHtafQuestion(HTAF_ASSIST.index, message);
+    let logged = false;
+    if (result.knowledge_gap && result.gap_excerpt) {
+      const { error } = await supabase
+        .from("htaf_assistant_questions")
+        .insert({ question_excerpt: result.gap_excerpt, intent: result.intent });
+      if (error) console.warn("⚠️ HTAF assistant question not logged:", error.message);
+      logged = !error;
+    }
+    return ok(res, {
+      assist_available: true,
+      reply: result.reply,
+      intent: result.intent,
+      sources: result.sources,
+      actions: result.actions,
+      knowledge_gap: result.knowledge_gap,
+      gap_logged: logged
+    });
+  })
+);
+
+// HTAF staff: unanswered questions (redacted excerpts), newest first.
+app.get(
+  "/api/admin/htaf/assistant-questions",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const { data, error } = await supabase
+      .from("htaf_assistant_questions")
+      .select("id, question_excerpt, intent, created_at")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error) throw error;
+    return ok(res, {
+      questions: data || [],
+      assistant: {
+        enabled: await htafAssistEnabled(),
+        page_sections: HTAF_ASSIST.sections,
+        topics: HTAF_ASSIST.topics,
+        dropped_topics: HTAF_ASSIST.dropped_topics
+      }
+    });
+  })
+);
+
+/* =========================================================
+
    HTAF APPLICATION SUBMISSION API
 
    This is the route your frontend is calling:
