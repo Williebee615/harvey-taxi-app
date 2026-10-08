@@ -42,7 +42,8 @@ const EXPECTED_ORDER = [
   // Likewise; covered by test/db/agentModelBudget.db.test.js.
   "20261005010000_agent_model_budget_atomic.sql",
   // Covered by test/db/rideCancellationRecords.db.test.js.
-  "20261005030000_ride_cancellation_records.sql"
+  "20261005030000_ride_cancellation_records.sql",
+  "20261005120000_htaf_sms_consents.sql"
 ];
 
 // Synthetic pre-existing row (no production data), inserted after the
