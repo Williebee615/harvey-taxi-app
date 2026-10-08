@@ -162,6 +162,75 @@ Tests:
 - `test/server.agent-driver-app.test.js`: own rows only, nothing changed by the server, web answers unchanged, the rider route ignores `client`, 401 without a session, 503 when off.
 - `driver-app/__tests__/assistant.test.js` and `Assistant.flow.test.js`: hidden when off; the driver session and `client` are sent; cancelling a confirmation changes nothing, confirming calls the same route as the Drive screen; a new offer closes the assistant; stale and foreign proposals are dropped; no typing and spoken answers during a trip; safe reply when the assistant is off.
 
+## 2a. Agent hierarchy: chiefs and specialists (`lib/agent/specialists.js`)
+
+The original agents remain the **chiefs of command**. Their functions, permissions and switches are unchanged. Each new **specialist** answers a narrow set of questions on behalf of one chief.
+
+**All specialists are off.** Each one has its own switch, and **no specialist uses an AI model**.
+
+| Chief (original agent) | Specialist | Uses | Handles | Actions (the user confirms each one) |
+|---|---|---|---|---|
+| Harvey Assistant (Rider) | **Ride Booking & Dispatch** | Rules-based (no AI model) | Booking help; the rider's own ride status; why a ride is still waiting | Open booking, track the ride, cancel |
+| Harvey Assistant (Rider) | **Food & Grocery Delivery** | Rules-based (no AI model) | Delivery stage and merchant; Delivery Center; PIN guidance (the PIN is never written in chat) | Open the Delivery Center, cancel a delivery |
+| Harvey Assistant (Driver) | **Driver Support & Onboarding** | Rules-based (no AI model) | The driver's own onboarding checklist | Open the dashboard, send a support request |
+| Support Handoff | **Customer Support** | Rules-based (no AI model) | Reaching support, complaints, feedback, app problems | A support request the user reviews and sends |
+| Escalation | **Safety Escalation** | Rules-based (no AI model) | Non-emergency safety concerns: harassment, unsafe driving, impairment | Call 911 link; a safety report the user reviews and sends |
+| HTAF Information Assistant | **HTAF Information** | Approved published content only (no AI model) | HTAF questions in Harvey Taxi's assistant | Links to the HTAF application and contact page |
+| Dispatch Recommender | none | | | |
+| Ride Coordinator | none | | | |
+
+**Dispatch advice.** Ride Booking & Dispatch reads **Dispatch Recommender's** eligibility rules for the rider's own waiting ride (tool `rider_dispatch_outlook`). It never changes them, never dispatches and never contacts a driver.
+- Only two aggregates leave the tool: whether any driver qualifies right now, and how many offers the ride has had.
+- No driver names, ids or locations are returned.
+- Review rides keep their own isolation and get no outlook.
+
+### When a specialist answers
+A specialist answers only when all of these hold:
+1. its own flag (below) is `"true"`;
+2. its chief is running: `agent_assist_enabled` on, and for HTAF also `htaf_assist_enabled`;
+3. the master stop switch `agent_kill_switch` is off.
+
+Otherwise the chiefs answer exactly as before.
+
+**Routing order** (the first match wins):
+1. Emergencies, fraud, disputes, refunds, account actions and screening are checked first. They always stay with **Escalation**, which opens a case as before.
+2. Lost items and policy questions stay with their chiefs.
+3. Otherwise, specialists are tried in this order: Safety Escalation, HTAF Information, Food & Grocery Delivery, Driver Support & Onboarding, Customer Support, Ride Booking & Dispatch.
+4. If the first matching specialist is off, its chief answers. The question is never passed to another specialist.
+
+| Flag | Specialist |
+|---|---|
+| `agent_specialist_ride_booking_enabled` | Ride Booking & Dispatch |
+| `agent_specialist_delivery_enabled` | Food & Grocery Delivery |
+| `agent_specialist_driver_onboarding_enabled` | Driver Support & Onboarding |
+| `agent_specialist_customer_support_enabled` | Customer Support |
+| `agent_specialist_safety_enabled` | Safety Escalation |
+| `agent_specialist_htaf_enabled` | HTAF Information |
+
+### Safeguards
+- **Permissions:**
+  - Identity comes only from the session.
+  - Data comes only through role-checked tools that read the signed-in account's own rows: `rider_open_rides`, `rider_open_deliveries` (never `delivery_pin`), `rider_dispatch_outlook`, `driver_onboarding_status`.
+  - Nothing a specialist does changes platform state.
+- **Confirmations:** booking, cancelling and sending a support or safety report are buttons. The user confirms each in the app, which calls the existing authenticated route.
+  - A safety concern does **not** open a case by itself; the user decides whether to send the report.
+  - Emergencies still open a case through Escalation.
+- **No AI model:** a specialist turn never calls Claude or the self-hosted model, even for accounts on the model test list.
+- **Labels:**
+  - Every answer carries `specialist: { id, name, chief, engine, engine_label }`.
+  - The web assistant shows "Answered by … for … · Rules-based (no AI model)".
+  - The driver app ignores the label until its next build; its answers and buttons are unchanged.
+- **HTAF:**
+  - Answers come only from the HTAF Information Assistant's approved index (`lib/htafAssistant.js`), with same-origin links only.
+  - Unanswered HTAF questions go to HTAF staff's list (`htaf_assistant_questions`), redacted.
+- **Audit:** each answer is recorded as `agent.decision` with `specialist`, `chief` and `engine` (null when a chief answered). Switch changes are recorded as `agent.flag_changed`.
+- **Admin control:**
+  - **Agent hierarchy** on `/admin-agent.html` shows each chief, its specialists, and each specialist's state: Off, On (chief or stop switch blocks it), or Answering.
+  - **Switching a specialist on** needs the elevated admin token and a confirmation.
+  - **Switching off** is allowed for any admin.
+  - **The stop switch** turns them all off.
+- **No database change.** The flags are `system_flags` rows.
+
 ## 3. Admin command center (`/admin-agent.html`)
 The page shows:
 - mode, with a one-click **Disable automation now** button (kill switch);
@@ -298,6 +367,18 @@ I have not purchased or provisioned any infrastructure.
 Booking, payment and dispatch never call the agent. They keep working with the agent off, killed, or with its model down. The test suite covers this.
 
 ## 9. Tests
+
+- `lib/agent/specialists.test.js` (19) and `test/server.agent-specialists.test.js` (22):
+  - the hierarchy and labels;
+  - each switch, the chief requirement and the stop switch;
+  - the elevated token for switching on;
+  - routing, with Escalation keeping emergencies, fraud, disputes, refunds and screening;
+  - each specialist's answer;
+  - no PIN, other riders' data or driver identity in answers;
+  - nothing changed or sent without confirmation;
+  - audit fields;
+  - with every specialist off, the chiefs answer as before.
+- `test/agent-manager.browser.test.js`: the hierarchy panel and a confirmed switch.
 - **Everything, with Postgres 16 and Chromium** (`HARVEY_TEST_DATABASE_URL`, `HARVEY_REQUIRE_DB_TESTS=1`, Playwright): **55 suites, 1268 passed, 0 skipped, 0 failed.**
 - **CI-style, no database or browser:** 1153 passed, 115 skipped (the DB and browser suites).
 - **Combined with #152** (this branch applied on top of `claude/rider-dashboard-home`): **58 suites, 1300 passed, 0 skipped, 0 failed.**
