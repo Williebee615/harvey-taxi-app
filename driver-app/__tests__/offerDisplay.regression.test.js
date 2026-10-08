@@ -103,9 +103,9 @@ FakeXHR.prototype.push = function push(text) {
 };
 global.XMLHttpRequest = FakeXHR;
 
-const server = { offer: null, stateReads: 0 };
+const server = { offer: null, ride: null, stateReads: 0 };
 function stateBody() {
-  const offers = server.offer ? [da.shapeOffer(server.offer, RIDE)] : [];
+  const offers = server.offer ? [da.shapeOffer(server.offer, server.ride || RIDE)] : [];
   const mode = da.driverMode({ online: true, offers, activeRide: null });
   return {
     ok: true,
@@ -177,6 +177,8 @@ test('review ride offer appears on the Drive screen after a stream "sync" event'
   expect(has(tree, 'accept-offer')).toBe(true);
   const shown = text(tree);
   expect(shown).toMatch(/New ride request/);
+  expect(shown).toMatch(/Passenger ride/);
+  expect(shown).not.toMatch(/delivery/i);
   expect(shown).toMatch(/1617 Lebanon Pike/);
   expect(shown).toMatch(/4509 Red Tail Trl/);
   expect(shown).toMatch(/\$40\.69/);
@@ -200,4 +202,34 @@ test('review ride offer appears on the Drive screen after a stream "sync" event'
   expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(1);
 
   await act(async () => tree.unmount());
+});
+
+// Delivery offers are named as deliveries (service, pickup/handoff labels)
+// so the driver can tell them from passenger rides. Test data only.
+test('a food delivery offer is labelled as a delivery, not a ride', async () => {
+  jest.spyOn(require('react-native').Vibration, 'vibrate').mockImplementation(() => {});
+  server.ride = { ...RIDE, id: 'TEST-RIDE-FOOD', ride_type: 'food', service_type: 'food', is_review_ride: false, pickup_address: 'TEST Merchant, 1 Main St', dropoff_address: 'TEST Customer, 2 Oak Ave', delivery_pin: '1234' };
+  server.offer = { id: 'TEST-OFFER-FOOD', ride_id: 'TEST-RIDE-FOOD', status: 'pending', expires_at: new Date(Date.now() + 40000).toISOString() };
+  let tree;
+  await act(async () => {
+    tree = renderer.create(<App />);
+  });
+  await flush();
+
+  expect(has(tree, 'accept-offer')).toBe(true);
+  const shown = text(tree);
+  expect(shown).toMatch(/New delivery request/);
+  expect(shown).toMatch(/Food delivery/);
+  expect(shown).toMatch(/Pick up order at/);
+  expect(shown).toMatch(/Deliver to/);
+  expect(shown).toMatch(/completed in the web driver dashboard/);
+  expect(shown).not.toMatch(/New ride request/);
+  expect(shown).not.toMatch(/Passenger ride/);
+  // The recipient's PIN never reaches the offer (shapeOffer has no PIN).
+  expect(shown).not.toMatch(/1234/);
+  expect(JSON.stringify(stateBody())).not.toMatch(/1234|delivery_pin/);
+
+  await act(async () => tree.unmount());
+  server.ride = null;
+  server.offer = null;
 });

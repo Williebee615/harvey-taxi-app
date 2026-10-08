@@ -1199,7 +1199,7 @@ function getClientIp(req) {
 // different destinations, need their own dimension.
 const { computeRetryAfterSeconds, buildRateLimitExceededLogEvent } = require("./lib/rateLimit");
 const { registerDriverAppRoutes, createDriverRealtime } = require("./lib/driverAppRoutes");
-const { locationPolicy: driverAppLocationPolicy, pushKindForTitle: driverAppPushKind } = require("./lib/driverApp");
+const { locationPolicy: driverAppLocationPolicy, pushKindForTitle: driverAppPushKind, offerPushTitle } = require("./lib/driverApp");
 
 
 // Emits the exact sanitized event a rejected request produces (see
@@ -10477,6 +10477,30 @@ const RIDE_LEVEL_DISPATCH_OUTCOMES = new Set([
   "ride_has_live_offer"
 ]);
 
+// Food and grocery deliveries go only to drivers set up for that kind of
+// delivery (drivers.supports_food_delivery / supports_grocery_delivery);
+// passenger rides are unchanged. A driver whose flag is unset (null) stays
+// eligible, as before. If the lookup fails, the candidates are kept so
+// dispatch behaves exactly as it did before this check.
+const DELIVERY_CAPABILITY_COLUMN = { food: "supports_food_delivery", grocery: "supports_grocery_delivery" };
+
+async function filterDriversForService(drivers, rideType) {
+  const column = DELIVERY_CAPABILITY_COLUMN[String(rideType || "").toLowerCase()];
+  if (!column || !(drivers || []).length) return drivers || [];
+  try {
+    const { data, error } = await supabase
+      .from("drivers")
+      .select(`id, ${column}`)
+      .in("id", drivers.map((d) => d.id));
+    if (error || !Array.isArray(data)) throw error || new Error("no rows");
+    const notEligible = new Set(data.filter((d) => d[column] === false).map((d) => String(d.id)));
+    return drivers.filter((d) => !notEligible.has(String(d.id)));
+  } catch (err) {
+    console.warn("⚠️ Delivery capability check skipped:", err && err.message);
+    return drivers;
+  }
+}
+
 async function dispatchRide(ride) {
 
   // Respect the admin dispatch pause. When dispatch is paused,
@@ -10607,6 +10631,8 @@ async function dispatchRide(ride) {
           excludeDriverIds.concat(dispatchPlan.extraExcludeDriverIds)
 
       });
+
+    drivers = await filterDriversForService(drivers, ride.ride_type);
   }
 
   if (!drivers.length) {
@@ -10714,7 +10740,7 @@ async function dispatchRide(ride) {
         sendPushNotification({
           ownerType: "driver",
           ownerId: candidate.id,
-          title: "New Ride Request",
+          title: offerPushTitle(ride),
           body: `Pickup: ${ride.pickup_address || "See app for details"}`,
           url: "/driver-dashboard.html"
         }).catch(() => {});
@@ -10939,7 +10965,7 @@ async function dispatchRide(ride) {
   sendPushNotification({
     ownerType: "driver",
     ownerId: firstDriver.id,
-    title: "New Ride Request",
+    title: offerPushTitle(ride),
     body: `Pickup: ${ride.pickup_address || "See app for details"}`,
     url: "/driver-dashboard.html"
   }).catch(() => {});
@@ -17477,6 +17503,14 @@ app.post(
 
 ========================================================= */
 
+// The recipient's delivery PIN is the rider's to give at handoff; the
+// driver types it in (it is checked server-side) and must never receive it.
+function withoutRecipientPin(row) {
+  if (!row || typeof row !== "object") return row;
+  const { delivery_pin: _pin, ...rest } = row;
+  return rest;
+}
+
 app.get(
 
   "/api/driver/:driverId/missions",
@@ -17525,7 +17559,7 @@ app.get(
 
       missions:
 
-        data || []
+        (data || []).map(withoutRecipientPin)
 
     });
 
@@ -17579,7 +17613,7 @@ app.get(
 
       history:
 
-        data || []
+        (data || []).map(withoutRecipientPin)
 
     });
 

@@ -2877,6 +2877,31 @@
       text-align: center;
     }
 
+    /* Ride Center / Delivery Center */
+    .center-switch {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin: 0 0 16px;
+      padding: 6px;
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.04);
+    }
+    .center-tab {
+      min-height: 48px;
+      border: 0;
+      border-radius: 12px;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .center-tab[aria-pressed="true"] { background: rgba(110, 231, 249, 0.18); color: #e7f6ff; }
+    body[data-active-center="ride"] [data-center="delivery"],
+    body[data-active-center="delivery"] [data-center="ride"] { display: none !important; }
+
     /* App Review mode only: what to do, step by step, and how this account
        works with the Harvey Taxi Driver review account. */
     .app-review-guide {
@@ -3129,12 +3154,128 @@
       style="display:none;"
     ></div>
 
-    <!-- ACTIVE REQUEST -->
-    <section class="section" id="activeRequestSection" style="display:none;">
+    <!-- RIDE CENTER / DELIVERY CENTER: passenger rides and deliveries are
+         separate centers. Elements marked data-center show only in theirs;
+         everything else (profile, notices, guides) shows in both. -->
+    <nav class="center-switch" id="centerSwitch" aria-label="Choose a service center">
+      <button type="button" class="center-tab" id="rideCenterTab" data-center-tab="ride" aria-pressed="true">🚖 Ride Center</button>
+      <button type="button" class="center-tab" id="deliveryCenterTab" data-center-tab="delivery" aria-pressed="false">📦 Delivery Center</button>
+    </nav>
+
+    <section class="section center-intro" data-center="ride" id="rideCenterIntro">
       <div class="section-header">
         <div>
-          <h2>Active request</h2>
-          <p>Your current ride or delivery, live.</p>
+          <h2>Ride Center</h2>
+          <p>Passenger rides: book a ride, follow your active ride, and see your ride history.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section center-intro" data-center="delivery" id="deliveryCenterIntro">
+      <div class="section-header">
+        <div>
+          <h2>Delivery Center</h2>
+          <p>Food and grocery deliveries: request a delivery, follow your active delivery, see delivery history and get delivery support.</p>
+        </div>
+      </div>
+      <div class="services-grid">
+        <button class="service-card" type="button" data-action="food" data-center="delivery" id="requestFoodDeliveryBtn">
+          <div class="service-icon">🍔</div>
+          <strong>Request a Delivery: Food</strong>
+          <span>Restaurant pickup delivered to you.</span>
+        </button>
+        <button class="service-card" type="button" data-action="grocery" data-center="delivery" id="requestGroceryDeliveryBtn">
+          <div class="service-icon">🛒</div>
+          <strong>Request a Delivery: Groceries</strong>
+          <span>Grocery pickup delivered to you.</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- ACTIVE DELIVERY (Delivery Center) -->
+    <section class="section" id="activeDeliverySection" data-center="delivery" style="display:none;">
+      <div class="section-header">
+        <div>
+          <h2>Active delivery</h2>
+          <p>Your current delivery, live.</p>
+        </div>
+      </div>
+
+      <div class="trip-card">
+        <div class="trip-top">
+          <div>
+            <div class="trip-title" id="activeDeliveryTitle">—</div>
+            <div class="trip-sub" id="activeDeliverySub">—</div>
+          </div>
+
+          <div class="trip-status" id="activeDeliveryStatusPill">—</div>
+        </div>
+
+        <div class="trip-meta">
+          <div class="meta-card">
+            <small>ETA</small>
+            <span id="activeDeliveryEta">—</span>
+          </div>
+
+          <div class="meta-card">
+            <small>Driver</small>
+            <span id="activeDeliveryDriver">Not yet assigned</span>
+          </div>
+
+          <div class="meta-card">
+            <small>Delivery ID</small>
+            <span id="activeDeliveryIdText">—</span>
+          </div>
+        </div>
+
+        <div class="trip-meta" id="activeDeliveryMeta" style="display:none;">
+          <div class="meta-card">
+            <small>Delivery stage</small>
+            <span id="activeDeliveryStage">—</span>
+          </div>
+
+          <div class="meta-card">
+            <small>Delivery PIN (give it to the driver only at handoff)</small>
+            <span id="activeDeliveryPin">—</span>
+          </div>
+
+          <div class="meta-card">
+            <small>Merchant</small>
+            <span id="activeDeliveryMerchant">—</span>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="btn primary" type="button" id="openDeliveryTrackingBtn">
+            Track delivery
+          </button>
+          <button class="btn" type="button" id="cancelActiveDeliveryBtn" hidden>
+            Cancel delivery
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- DELIVERY SUPPORT (Delivery Center) -->
+    <section class="section" id="deliverySupportSection" data-center="delivery">
+      <div class="section-header">
+        <div>
+          <h2>Delivery support</h2>
+          <p>Questions about a delivery, a missing or wrong item, or a delivery problem.</p>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn" type="button" id="deliverySupportBtn">Contact support about a delivery</button>
+        <a class="btn" href="support.html">Support page</a>
+      </div>
+    </section>
+
+    <!-- ACTIVE RIDE (Ride Center) -->
+    <section class="section" id="activeRequestSection" data-center="ride" style="display:none;">
+      <div class="section-header">
+        <div>
+          <h2>Active ride</h2>
+          <p>Your current passenger ride, live.</p>
         </div>
       </div>
 
@@ -3224,7 +3365,7 @@
         </p>
 
         <!-- The booking screen opens only from explicit actions like this. -->
-        <button class="btn primary hero-request-btn" type="button" id="heroRequestRideBtn" data-action="ride">
+        <button class="btn primary hero-request-btn" type="button" id="heroRequestRideBtn" data-action="ride" data-center="ride">
           Request a Ride
         </button>
 
@@ -3251,7 +3392,7 @@
         </div>
 
         <div class="service-launch">
-          <button class="launch-card" type="button" data-action="ride">
+          <button class="launch-card" type="button" data-action="ride" data-center="ride">
             <div class="launch-icon">🚖</div>
             <strong>Request Ride</strong>
             <span>
@@ -3259,7 +3400,7 @@
             </span>
           </button>
 
-          <button class="launch-card" type="button" data-action="food">
+          <button class="launch-card" type="button" data-action="food" data-center="delivery">
             <div class="launch-icon">🍔</div>
             <strong>Food Delivery</strong>
             <span>
@@ -3267,7 +3408,7 @@
             </span>
           </button>
 
-          <button class="launch-card" type="button" data-action="grocery">
+          <button class="launch-card" type="button" data-action="grocery" data-center="delivery">
             <div class="launch-icon">🛒</div>
             <strong>Grocery Delivery</strong>
             <span>
@@ -3275,7 +3416,7 @@
             </span>
           </button>
 
-          <button class="launch-card" type="button" data-action="htaf">
+          <button class="launch-card" type="button" data-action="htaf" data-center="ride">
             <div class="launch-icon">🩺</div>
             <strong>HTAF Medical Ride</strong>
             <span>
@@ -3287,7 +3428,7 @@
     </section>
 
     <!-- SCHEDULED RIDES -->
-    <section class="section" id="scheduledSection" style="display:none;">
+    <section class="section" id="scheduledSection" data-center="ride" style="display:none;">
       <div class="section-header">
         <div>
           <h2>Upcoming scheduled rides</h2>
@@ -3388,7 +3529,7 @@
           <button
             class="service-card"
             type="button"
-            data-action="ride"
+            data-action="ride" data-center="ride"
           >
             <div class="service-icon">🚖</div>
 
@@ -3402,7 +3543,7 @@
           <button
             class="service-card"
             type="button"
-            data-action="autonomous"
+            data-action="autonomous" data-center="ride"
           >
             <div class="service-icon">🤖</div>
 
@@ -3416,7 +3557,7 @@
           <button
             class="service-card"
             type="button"
-            data-action="food"
+            data-action="food" data-center="delivery"
           >
             <div class="service-icon">🍟</div>
 
@@ -3430,7 +3571,7 @@
           <button
             class="service-card"
             type="button"
-            data-action="grocery"
+            data-action="grocery" data-center="delivery"
           >
             <div class="service-icon">🥬</div>
 
@@ -3444,7 +3585,7 @@
           <button
             class="service-card"
             type="button"
-            data-action="htaf"
+            data-action="htaf" data-center="ride"
           >
             <div class="service-icon">🩺</div>
 
@@ -3458,7 +3599,7 @@
           <button
             class="service-card"
             type="button"
-            data-action="airport"
+            data-action="airport" data-center="ride"
           >
             <div class="service-icon">✈️</div>
 
@@ -3472,7 +3613,7 @@
           <button
             class="service-card"
             type="button"
-            data-action="scheduled"
+            data-action="scheduled" data-center="ride"
           >
             <div class="service-icon">🗓️</div>
 
@@ -3497,15 +3638,16 @@
 
       <div class="section-header">
         <div>
-          <h2>Activity</h2>
+          <h2 id="activityHeading">Ride history</h2>
 
-          <p>
-            View rides and delivery orders from the unified backend.
+          <p id="activitySubheading">
+            Your passenger rides.
           </p>
         </div>
       </div>
 
-      <div class="tabs">
+      <!-- Each center shows its own history; the switch above chooses. -->
+      <div class="tabs" hidden>
 
         <button
           id="ridesTab"
@@ -10230,6 +10372,9 @@
       activeRequest: null,
       activeRequestPollId: null,
       activeRequestLastStatus: "",
+      activeDelivery: null,
+      activeDeliveryLastStatus: "",
+      center: "ride",
       savedPlaces: [],
       trackingMap: { instance: null, driverMarker: null, targetMarker: null, line: null },
       geoEnabled: false,
@@ -10268,6 +10413,22 @@
       activeRequestDeliveryPin: document.getElementById("activeRequestDeliveryPin"),
       activeRequestDeliveryMerchant: document.getElementById("activeRequestDeliveryMerchant"),
       activeRequestMap: document.getElementById("activeRequestMap"),
+      activeDeliverySection: document.getElementById("activeDeliverySection"),
+      activeDeliveryTitle: document.getElementById("activeDeliveryTitle"),
+      activeDeliverySub: document.getElementById("activeDeliverySub"),
+      activeDeliveryStatusPill: document.getElementById("activeDeliveryStatusPill"),
+      activeDeliveryEta: document.getElementById("activeDeliveryEta"),
+      activeDeliveryDriver: document.getElementById("activeDeliveryDriver"),
+      activeDeliveryIdText: document.getElementById("activeDeliveryIdText"),
+      activeDeliveryMeta: document.getElementById("activeDeliveryMeta"),
+      activeDeliveryStage: document.getElementById("activeDeliveryStage"),
+      activeDeliveryPin: document.getElementById("activeDeliveryPin"),
+      activeDeliveryMerchant: document.getElementById("activeDeliveryMerchant"),
+      openDeliveryTrackingBtn: document.getElementById("openDeliveryTrackingBtn"),
+      cancelActiveDeliveryBtn: document.getElementById("cancelActiveDeliveryBtn"),
+      deliverySupportBtn: document.getElementById("deliverySupportBtn"),
+      activityHeading: document.getElementById("activityHeading"),
+      activitySubheading: document.getElementById("activitySubheading"),
 
       scheduledSection: document.getElementById("scheduledSection"),
       scheduledList: document.getElementById("scheduledList"),
@@ -11736,21 +11897,75 @@
     const ACTIVE_REQUEST_POLL_MS = 15000;
     const TERMINAL_STATUSES = ["completed", "cancelled", "failed"];
 
-    function clearActiveRequest() {
+    const DELIVERY_RIDE_TYPES = ["food", "grocery"];
+
+    function isDeliveryType(value) {
+      return DELIVERY_RIDE_TYPES.includes(String(value || "").toLowerCase());
+    }
+
+    // The two active cards: the Ride Center's (passenger rides) and the
+    // Delivery Center's (food and grocery). Same rendering, own elements.
+    function activeSlot(kind) {
+      return kind === "delivery"
+        ? {
+            kind: "delivery",
+            section: els.activeDeliverySection,
+            title: els.activeDeliveryTitle,
+            sub: els.activeDeliverySub,
+            pill: els.activeDeliveryStatusPill,
+            eta: els.activeDeliveryEta,
+            driver: els.activeDeliveryDriver,
+            idText: els.activeDeliveryIdText,
+            trackBtn: els.openDeliveryTrackingBtn,
+            cancelBtn: els.cancelActiveDeliveryBtn,
+            meta: els.activeDeliveryMeta,
+            stage: els.activeDeliveryStage,
+            pin: els.activeDeliveryPin,
+            merchant: els.activeDeliveryMerchant
+          }
+        : {
+            kind: "ride",
+            section: els.activeRequestSection,
+            title: els.activeRequestTitle,
+            sub: els.activeRequestSub,
+            pill: els.activeRequestStatusPill,
+            eta: els.activeRequestEta,
+            driver: els.activeRequestDriver,
+            idText: els.activeRequestIdText,
+            trackBtn: els.openLiveTrackingBtn,
+            cancelBtn: els.cancelActiveRideBtn,
+            meta: els.activeRequestDeliveryMeta,
+            stage: els.activeRequestDeliveryStage,
+            pin: els.activeRequestDeliveryPin,
+            merchant: els.activeRequestDeliveryMerchant
+          };
+    }
+
+    function clearActiveRequest(kind) {
+      const kinds = kind ? [kind] : ["ride", "delivery"];
+
       try {
-        localStorage.removeItem(CONFIG.STORAGE_KEYS.activeRideId);
-        localStorage.removeItem(CONFIG.STORAGE_KEYS.activeRequestMode);
+        const storedMode = localStorage.getItem(CONFIG.STORAGE_KEYS.activeRequestMode) || "driver";
+        if (kinds.includes(isDeliveryType(storedMode) ? "delivery" : "ride")) {
+          localStorage.removeItem(CONFIG.STORAGE_KEYS.activeRideId);
+          localStorage.removeItem(CONFIG.STORAGE_KEYS.activeRequestMode);
+        }
       } catch {}
 
-      state.activeRequest = null;
-
-      if (els.activeRequestSection) {
-        els.activeRequestSection.style.display = "none";
+      for (const k of kinds) {
+        const slot = activeSlot(k);
+        if (k === "delivery") {
+          state.activeDelivery = null;
+        } else {
+          state.activeRequest = null;
+          updateReviewGuide();
+        }
+        if (slot.section) {
+          slot.section.style.display = "none";
+        }
       }
 
-      updateReviewGuide();
-
-      if (state.activeRequestPollId) {
+      if (!state.activeRequest && !state.activeDelivery && state.activeRequestPollId) {
         clearInterval(state.activeRequestPollId);
         state.activeRequestPollId = null;
       }
@@ -11765,96 +11980,106 @@
       els.reviewCancelledRideBtn.onclick = () => window.HarveyAssistant.openHandoff("cancellation_review", { rideId });
     }
 
-    function renderActiveRequest(data, mode) {
-      state.activeRequest = data;
-      updateReviewGuide();
+    function renderActiveRequest(data, mode, kind) {
+      const isDelivery = isDeliveryType(data.ride_type) || (!data.ride_type && isDeliveryType(mode));
+      const slotKind = kind || (isDelivery ? "delivery" : "ride");
+      const slot = activeSlot(slotKind);
+      const serviceLabel = isDelivery ? "delivery" : "ride";
 
-      const isDelivery = data.ride_type === "food" || data.ride_type === "grocery";
-
-      if (els.activeRequestTitle) {
-        els.activeRequestTitle.textContent = human(
-          data.ride_type || mode || "ride"
-        ) + (isDelivery ? " delivery" : " ride");
+      if (slotKind === "delivery") {
+        state.activeDelivery = data;
+      } else {
+        state.activeRequest = data;
+        updateReviewGuide();
       }
 
-      if (els.activeRequestSub) {
-        els.activeRequestSub.textContent =
+      if (slot.title) {
+        slot.title.textContent = isDelivery
+          ? `${human(data.ride_type || mode || "food")} delivery`
+          : `${human(data.ride_type === "standard" || !data.ride_type ? "passenger" : data.ride_type)} ride`;
+      }
+
+      if (slot.sub) {
+        slot.sub.textContent =
           `${data.pickup_address || "Pickup pending"} → ${data.destination_address || "Destination pending"}`;
       }
 
-      if (els.activeRequestStatusPill) {
-        els.activeRequestStatusPill.className = `trip-status ${statusClass(data.status)}`;
-        els.activeRequestStatusPill.textContent = human(data.status || "pending");
+      if (slot.pill) {
+        slot.pill.className = `trip-status ${statusClass(data.status)}`;
+        slot.pill.textContent = human(data.status || "pending");
       }
 
-      if (els.activeRequestEta) {
-        els.activeRequestEta.textContent = data.tracking?.eta_minutes
+      if (slot.eta) {
+        slot.eta.textContent = data.tracking?.eta_minutes
           ? `~${data.tracking.eta_minutes} min (estimate)`
           : (data.eta_minutes ? `~${data.eta_minutes} min (estimate)` : "Pending");
       }
 
-      if (els.activeRequestDriver) {
-        els.activeRequestDriver.textContent = data.driver?.name
+      if (slot.driver) {
+        slot.driver.textContent = data.driver?.name
           ? `${data.driver.name}${data.driver.vehicle ? " • " + data.driver.vehicle : ""}`
           : "Not yet assigned";
       }
 
-      if (els.activeRequestIdText) {
-        els.activeRequestIdText.textContent = data.id || "—";
+      if (slot.idText) {
+        slot.idText.textContent = data.id || "—";
       }
 
-      if (els.openLiveTrackingBtn) {
-        els.openLiveTrackingBtn.onclick = () => {
-          window.HarveyRideWizard.open({ ride_id: data.id, mode: mode || "driver" });
+      if (slot.trackBtn) {
+        slot.trackBtn.onclick = () => {
+          window.HarveyRideWizard.open({ ride_id: data.id, mode: mode || (isDelivery ? data.ride_type : "driver") });
         };
       }
 
       // Cancel: the fee is fetched and shown before confirming
-      // (public/ride-cancel.js). Offered until the trip starts.
-      if (els.cancelActiveRideBtn) {
+      // (public/ride-cancel.js). Offered until the trip starts. Same rules
+      // for rides and deliveries (unchanged).
+      if (slot.cancelBtn) {
         const cancellable = ["payment_required", "payment_authorized", "awaiting_driver_acceptance", "driver_assigned", "driver_enroute", "arrived", "failed"].includes(data.status);
-        els.cancelActiveRideBtn.hidden = !(cancellable && data.id && window.HarveyCancelRide);
-        els.cancelActiveRideBtn.onclick = async () => {
-          els.cancelActiveRideBtn.disabled = true;
-          const result = await window.HarveyCancelRide.cancelRide(data.id, { reason: "Rider cancelled from ride card" });
-          els.cancelActiveRideBtn.disabled = false;
+        slot.cancelBtn.hidden = !(cancellable && data.id && window.HarveyCancelRide);
+        slot.cancelBtn.onclick = async () => {
+          slot.cancelBtn.disabled = true;
+          const result = await window.HarveyCancelRide.cancelRide(data.id, { reason: `Rider cancelled from ${serviceLabel} card`, noun: serviceLabel });
+          slot.cancelBtn.disabled = false;
           if (els.cancelActiveRideNote && result.message) {
             els.cancelActiveRideNote.textContent = result.message;
             if (els.cancelledRideNotice) els.cancelledRideNotice.hidden = false;
           }
           if (result.cancelled) {
-            els.cancelActiveRideBtn.hidden = true;
+            slot.cancelBtn.hidden = true;
             showCancellationReview(data.id);
           }
         };
       }
 
-      if (els.activeRequestDeliveryMeta) {
+      if (slot.meta) {
         if (isDelivery && data.delivery) {
-          els.activeRequestDeliveryMeta.style.display = "grid";
+          slot.meta.style.display = "grid";
 
-          if (els.activeRequestDeliveryStage) {
-            els.activeRequestDeliveryStage.textContent =
+          if (slot.stage) {
+            slot.stage.textContent =
               data.delivery.stage_label || human(data.delivery.stage || "pending");
           }
 
-          if (els.activeRequestDeliveryPin) {
-            els.activeRequestDeliveryPin.textContent = data.delivery.pin || "—";
+          // The recipient's PIN: shown to the rider only (the server
+          // never sends it to drivers).
+          if (slot.pin) {
+            slot.pin.textContent = data.delivery.pin || "—";
           }
 
-          if (els.activeRequestDeliveryMerchant) {
-            els.activeRequestDeliveryMerchant.textContent = data.delivery.merchant_name || "—";
+          if (slot.merchant) {
+            slot.merchant.textContent = data.delivery.merchant_name || "—";
           }
         } else {
-          els.activeRequestDeliveryMeta.style.display = "none";
+          slot.meta.style.display = "none";
         }
       }
 
-      renderActiveRequestMap(data);
-      recordStatusNotification(data);
+      if (slotKind === "ride") renderActiveRequestMap(data);
+      recordStatusNotification(data, slotKind);
 
-      if (els.activeRequestSection) {
-        els.activeRequestSection.style.display = "block";
+      if (slot.section) {
+        slot.section.style.display = "block";
       }
     }
 
@@ -11939,13 +12164,15 @@
     // In-page record of every real status change on the active request,
     // so status updates are visible even without push permission granted
     // (push, below, covers the same events when the tab isn't open).
-    function recordStatusNotification(data) {
+    function recordStatusNotification(data, kind) {
       const status = String(data?.status || "").toLowerCase();
+      const key = kind === "delivery" ? "activeDeliveryLastStatus" : "activeRequestLastStatus";
 
-      if (!status || status === state.activeRequestLastStatus) return;
+      if (!status || status === state[key]) return;
 
-      state.activeRequestLastStatus = status;
-      pushNotificationFeed(`${human(data.ride_type || "Ride")} is now ${human(status)}.`);
+      state[key] = status;
+      const label = kind === "delivery" ? `${human(data.ride_type || "food")} delivery` : "Ride";
+      pushNotificationFeed(`${label} is now ${human(status)}.`);
     }
 
     function showNotificationStatus(message, type) {
@@ -12196,40 +12423,94 @@
       }
     }
 
+    // The first still-open request in a loaded history list.
+    function openRequestId(items) {
+      const open = (items || []).find((item) => {
+        const status = String(item.status || item.ride_status || "").toLowerCase();
+        return status && !TERMINAL_STATUSES.includes(status) && status !== "draft";
+      });
+      return open ? normalizeItemId(open) : "";
+    }
+
+    // Active ride (Ride Center) and active delivery (Delivery Center),
+    // each shown in its own card. A request booked on this device is known
+    // right away; otherwise the open one from each history list is used.
     async function loadActiveRequest() {
-      let rideId = "";
-      let mode = "driver";
+      let storedId = "";
+      let storedMode = "driver";
 
       try {
-        rideId = localStorage.getItem(CONFIG.STORAGE_KEYS.activeRideId) || "";
-        mode = localStorage.getItem(CONFIG.STORAGE_KEYS.activeRequestMode) || "driver";
+        storedId = localStorage.getItem(CONFIG.STORAGE_KEYS.activeRideId) || "";
+        storedMode = localStorage.getItem(CONFIG.STORAGE_KEYS.activeRequestMode) || "driver";
       } catch {}
 
-      if (!rideId) {
-        clearActiveRequest();
-        return;
+      const storedKind = isDeliveryType(storedMode) ? "delivery" : "ride";
+      const targets = {
+        ride: { id: storedKind === "ride" && storedId ? storedId : openRequestId(state.rides), mode: storedKind === "ride" ? storedMode : "driver" },
+        delivery: { id: storedKind === "delivery" && storedId ? storedId : openRequestId(state.deliveries), mode: storedKind === "delivery" ? storedMode : "" }
+      };
+
+      for (const kind of ["ride", "delivery"]) {
+        const { id, mode } = targets[kind];
+        if (!id) {
+          clearActiveRequest(kind);
+          continue;
+        }
+
+        try {
+          const data = await requestJson(`/api/rides/${encodeURIComponent(id)}/status`);
+          const dataKind = isDeliveryType(data.ride_type) ? "delivery" : "ride";
+
+          if (TERMINAL_STATUSES.includes(String(data.status || "").toLowerCase()) || dataKind !== kind) {
+            clearActiveRequest(kind);
+            continue;
+          }
+
+          renderActiveRequest(data, mode || data.ride_type, kind);
+        } catch (error) {
+          // Not found (deleted, wrong ID, etc.): clear rather than leave a
+          // permanently broken card.
+          console.log(`Active ${kind} unavailable:`, error.message);
+          clearActiveRequest(kind);
+        }
       }
 
+      if ((state.activeRequest || state.activeDelivery) && !state.activeRequestPollId) {
+        state.activeRequestPollId = setInterval(loadActiveRequest, ACTIVE_REQUEST_POLL_MS);
+      }
+    }
+
+    // Ride Center / Delivery Center. Remembered on this device only.
+    function setCenter(center) {
+      const next = center === "delivery" ? "delivery" : "ride";
+      state.center = next;
+      document.body.dataset.activeCenter = next;
+
+      document.querySelectorAll("[data-center-tab]").forEach((tab) => {
+        tab.setAttribute("aria-pressed", tab.dataset.centerTab === next ? "true" : "false");
+      });
+
+      if (els.activityHeading) {
+        els.activityHeading.textContent = next === "delivery" ? "Delivery history" : "Ride history";
+      }
+      if (els.activitySubheading) {
+        els.activitySubheading.textContent = next === "delivery" ? "Your food and grocery deliveries." : "Your passenger rides.";
+      }
+
+      setTab(next === "delivery" ? "deliveries" : "rides");
+
       try {
-        const data = await requestJson(
-          `/api/rides/${encodeURIComponent(rideId)}/status`
-        );
+        localStorage.setItem("harvey_service_center", next);
+      } catch {}
+    }
 
-        if (TERMINAL_STATUSES.includes(String(data.status || "").toLowerCase())) {
-          clearActiveRequest();
-          return;
-        }
-
-        renderActiveRequest(data, mode);
-
-        if (!state.activeRequestPollId) {
-          state.activeRequestPollId = setInterval(loadActiveRequest, ACTIVE_REQUEST_POLL_MS);
-        }
-      } catch (error) {
-        // Ride not found (deleted, wrong ID, etc.) — clear it rather than
-        // leaving a permanently-broken card showing.
-        console.log("Active request unavailable:", error.message);
-        clearActiveRequest();
+    function initialCenter() {
+      const fromUrl = new URLSearchParams(window.location.search).get("center");
+      if (fromUrl === "delivery" || fromUrl === "ride") return fromUrl;
+      try {
+        return localStorage.getItem("harvey_service_center") === "delivery" ? "delivery" : "ride";
+      } catch {
+        return "ride";
       }
     }
 
@@ -12411,6 +12692,10 @@
     // Back from a completed booking (or from ride tracking): show the
     // active ride, which keeps updating via loadActiveRequest's polling.
     window.addEventListener("harvey-booking-complete", async () => {
+      try {
+        const mode = localStorage.getItem(CONFIG.STORAGE_KEYS.activeRequestMode) || "";
+        if (mode) setCenter(isDeliveryType(mode) ? "delivery" : "ride");
+      } catch {}
       hideSystemNotice();
       await Promise.allSettled([loadActiveRequest(), loadHistory()]);
       // The active ride card is the first section on the dashboard.
@@ -12460,6 +12745,20 @@
     });
 
     function bindEvents() {
+      document.querySelectorAll("[data-center-tab]").forEach((tab) => {
+        tab.addEventListener("click", () => setCenter(tab.dataset.centerTab));
+      });
+
+      // Delivery support: the support request flow (reviewed by the rider
+      // before anything is sent), or the support page when unavailable.
+      els.deliverySupportBtn?.addEventListener("click", () => {
+        if (window.HarveyAssistant && typeof window.HarveyAssistant.openHandoff === "function") {
+          window.HarveyAssistant.openHandoff("general", state.activeDelivery?.id ? { rideId: state.activeDelivery.id } : {});
+        } else {
+          window.location.href = "support.html";
+        }
+      });
+
       document.querySelectorAll("[data-action]").forEach((button) => {
         button.addEventListener("click", () => {
           handleAction(button.dataset.action);
@@ -12629,6 +12928,7 @@
     async function boot() {
       bindEvents();
       bindAuthEvents();
+      setCenter(initialCenter());
       setAuthChannel("phone");
       renderNotificationFeed();
       loadGeoStatus();
