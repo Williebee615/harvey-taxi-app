@@ -177,6 +177,10 @@ const SUPPORT_EMAIL =
 
 const ADMIN_EMAIL = env("ADMIN_EMAIL", "williebee@harveytaxiservice.com");
 
+// HTAF-controlled mailbox for HTAF new-application alerts (#133). No
+// default and no fallback to ADMIN_EMAIL -- see sendAdminApplicationAlert().
+const HTAF_ADMIN_EMAIL = cleanEmail(env("HTAF_ADMIN_EMAIL", ""));
+
 const ADMIN_PASSWORD = env("ADMIN_PASSWORD", "");
 
 const ADMIN_API_TOKEN = env("ADMIN_API_TOKEN") || env("HARVEY_ADMIN_TOKEN");
@@ -275,6 +279,17 @@ const ENABLE_FOOD_DELIVERY = envBool("ENABLE_FOOD_DELIVERY", true);
 const ENABLE_GROCERY_DELIVERY = envBool("ENABLE_GROCERY_DELIVERY", true);
 
 const ENABLE_HTAF_APPLICATIONS = envBool("ENABLE_HTAF_APPLICATIONS", true);
+// HTAF ride creation (applicant data copied to a transportation
+// provider's rides) and HTAF AI triage (application facts sent to an AI
+// provider) are resolved after the AI client is created, below: each needs
+// its feature flag AND a complete approval record (lib/htafActivation.js,
+// docs/htaf-activation-checklist.md). The flag alone does nothing.
+const { resolveHtafActivation } = require("./lib/htafActivation");
+// HTAF application records are only reachable by an admin whose role
+// carries the route's HTAF capability (#134). On by default; setting it
+// to false reverts to log-only (the decision is still recorded) and is
+// meant only as an emergency rollback.
+const HTAF_RBAC_ENFORCED = envBool("HTAF_RBAC_ENFORCED", true);
 
 /* =========================================================
 
@@ -808,6 +823,10 @@ function buildSitemapXml(host, urlPaths) {
     `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`
   );
 }
+
+const HTAF_ACTIVATION = resolveHtafActivation(process.env, {
+  aiProviderConfigured: Boolean(openai)
+});
 
 app.get("/sitemap.xml", (req, res) => {
   const isFoundation = req.hostname && FOUNDATION_HOSTS.has(req.hostname);
@@ -2887,7 +2906,10 @@ async function auditLog({
 // requireAdmin() itself already resolved server-side (the env-var
 // admin identity, or the signed admin-session cookie's email), never
 // anything read from a request body/header/query parameter.
-async function logAdminRbacShadowCheck(req, route, capability) {
+// Resolves the admin_roles role for the identity requireAdmin() already
+// authenticated (never a request-supplied value). Shared by the shadow
+// logger below and by requireHtafCapability()'s enforcement.
+async function resolveAdminRoleForRequest(req) {
 
   const admin = req.admin;
 
@@ -2925,7 +2947,12 @@ async function logAdminRbacShadowCheck(req, route, capability) {
     dbLookupFailed = true;
   }
 
-  const { role, source } = resolveShadowRole({ dbLookupFailed, roleRow, isLegacyAdmin });
+  return resolveShadowRole({ dbLookupFailed, roleRow, isLegacyAdmin });
+}
+
+async function logAdminRbacShadowCheck(req, route, capability) {
+  const admin = req.admin;
+  const { role, source } = await resolveAdminRoleForRequest(req);
   const wouldAllow = computeShadowWouldAllow(role, capability);
 
   const entry = buildShadowLogEntry({
@@ -2946,6 +2973,53 @@ async function logAdminRbacShadowCheck(req, route, capability) {
 
   return { logged: true, wouldAllow, source };
 
+}
+
+// HTAF access separation (#134): runs after requireAdmin() on every HTAF
+// application route. An admin is let through only when their admin_roles
+// role grants the route's capability (lib/adminRbac.js: super_admin and
+// htaf_caseworker today). Harvey Taxi-only roles (dispatcher, support,
+// finance, compliance), unknown roles, and identities with no role row
+// are denied. If the role lookup fails, only the configured legacy admin
+// identity falls back to super_admin -- everyone else is denied.
+//
+// Every decision is recorded in admin_rbac_shadow_log (identity, route,
+// capability, role, allow/deny) -- never any application content.
+function requireHtafCapability(route, capability) {
+  return asyncRoute(async (req, res, next) => {
+    const { role, source } = await resolveAdminRoleForRequest(req);
+    const allowed = computeShadowWouldAllow(role, capability);
+
+    Promise.resolve(
+      supabase.from("admin_rbac_shadow_log").insert(
+        buildShadowLogEntry({
+          admin: req.admin,
+          route,
+          httpMethod: req.method,
+          capability,
+          role,
+          source,
+          wouldAllow: allowed
+        })
+      )
+    ).catch(() => {});
+
+    if (allowed || !HTAF_RBAC_ENFORCED) {
+      return next();
+    }
+
+    auditLog({
+      actor_type: "admin",
+      actor_id: req.admin && req.admin.email ? req.admin.email : null,
+      action: "htaf_access_denied",
+      entity_type: "route",
+      entity_id: route,
+      metadata: { capability, role: role || null, source },
+      req
+    }).catch(() => {});
+
+    return fail(res, "HTAF access requires an HTAF role.", 403);
+  });
 }
 
 /* =========================================================
@@ -4530,88 +4604,70 @@ async function sendApplicantConfirmation(application) {
 
 }
 
+// New-application alerts go only to HTAF_ADMIN_EMAIL, an HTAF-controlled
+// mailbox the operator must set explicitly. There is deliberately no
+// fallback to ADMIN_EMAIL (a Harvey Taxi mailbox): HTAF applicant activity
+// must not reach the separate for-profit company by default. When it is
+// not configured the alert is not sent at all and the gap is surfaced to
+// operators (server log + critical audit row) instead.
+//
+// The message itself is a minimal notice -- the application code and a
+// link to the secured admin portal. No name, contact details, location,
+// program, income or need text is ever put in an email.
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  })[ch]);
+}
+
 async function sendAdminApplicationAlert(application) {
+  const code = String(application && application.application_code || "");
+
+  if (!HTAF_ADMIN_EMAIL) {
+    console.error(
+      "🚨 HTAF_ADMIN_EMAIL is not configured; new-application alert NOT sent.",
+      { application_code: code }
+    );
+
+    await auditLog({
+      actor_type: "system",
+      action: "htaf_admin_alert_not_configured",
+      entity_type: "htaf_application",
+      entity_id: application && application.id ? String(application.id) : null,
+      metadata: {
+        severity: "critical",
+        application_code: code,
+        reason: "HTAF_ADMIN_EMAIL is not set"
+      }
+    }).catch(() => {});
+
+    return {
+      sent: false,
+      reason: "htaf_admin_email_not_configured"
+    };
+  }
+
+  const portalUrl = `${APP_BASE_URL}/admin-htaf.html`;
+  const safeCode = escapeHtml(code);
 
   return sendEmail({
-
-    to: ADMIN_EMAIL,
-
-    subject:
-
-      `New HTAF Application - ${application.application_code}`,
-
+    to: HTAF_ADMIN_EMAIL,
+    subject: "New HTAF application received",
+    text:
+      `A new HTAF transportation-assistance application was received.\n` +
+      `Application code: ${code}\n\n` +
+      `Review it in the secured admin portal: ${portalUrl}\n`,
     html: `
-
-      <h2>New HTAF Application Submitted</h2>
-
-      <p>
-
-        <strong>Name:</strong>
-
-        ${application.first_name} ${application.last_name}
-
-      </p>
-
-      <p>
-
-        <strong>Program:</strong>
-
-        ${application.program_type}
-
-      </p>
-
-      <p>
-
-        <strong>County:</strong>
-
-        ${application.county}
-
-      </p>
-
-      <p>
-
-        <strong>City:</strong>
-
-        ${application.city}
-
-      </p>
-
-      <p>
-
-        <strong>Email:</strong>
-
-        ${application.email}
-
-      </p>
-
-      <p>
-
-        <strong>Phone:</strong>
-
-        ${application.phone}
-
-      </p>
-
-      <p>
-
-        <strong>Destination:</strong>
-
-        ${application.destination}
-
-      </p>
-
-      <p>
-
-        <strong>Need:</strong>
-
-        ${application.transportation_need}
-
-      </p>
-
+      <p>A new HTAF transportation-assistance application was received.</p>
+      <p><strong>Application code:</strong> ${safeCode}</p>
+      <p>Review it in the secured admin portal:
+        <a href="${escapeHtml(portalUrl)}">${escapeHtml(portalUrl)}</a></p>
     `
-
   });
-
 }
 
 /* =========================================================
@@ -4698,6 +4754,7 @@ app.post(
 app.get(
   "/api/admin/htaf/assistant-questions",
   requireAdmin,
+  requireHtafCapability("GET /api/admin/htaf/assistant-questions", "htaf.applications.read"),
   asyncRoute(async (req, res) => {
     const { data, error } = await supabase
       .from("htaf_assistant_questions")
@@ -5391,14 +5448,9 @@ app.get(
   "/api/admin/foundation/applications",
 
   requireAdmin,
+  requireHtafCapability("GET /api/admin/foundation/applications", "htaf.applications.read"),
 
   asyncRoute(async (req, res) => {
-
-    logAdminRbacShadowCheck(
-      req,
-      "GET /api/admin/foundation/applications",
-      RBAC_SHADOW_ROUTE_CAPABILITIES["GET /api/admin/foundation/applications"]
-    ).catch(() => {});
 
     const status =
 
@@ -5527,6 +5579,7 @@ app.get(
 app.get(
   "/api/admin/foundation/applications/:id",
   requireAdmin,
+  requireHtafCapability("GET /api/admin/foundation/applications/:id", "htaf.applications.read_detail"),
   asyncRoute(async (req, res) => {
     const id = cleanString(req.params.id, 100);
 
@@ -5559,14 +5612,9 @@ app.patch(
   "/api/admin/foundation/applications/:id",
 
   requireAdmin,
+  requireHtafCapability("PATCH /api/admin/foundation/applications/:id", "htaf.applications.update"),
 
   asyncRoute(async (req, res) => {
-
-    logAdminRbacShadowCheck(
-      req,
-      "PATCH /api/admin/foundation/applications/:id",
-      RBAC_SHADOW_ROUTE_CAPABILITIES["PATCH /api/admin/foundation/applications/:id"]
-    ).catch(() => {});
 
     const id =
 
@@ -5748,6 +5796,7 @@ app.patch(
 app.post(
   "/api/admin/foundation/applications/export",
   requireAdmin,
+  requireHtafCapability("POST /api/admin/foundation/applications/export", "htaf.applications.export"),
   asyncRoute(async (req, res) => {
     const resolved = resolveHtafExportRequest(req.body || {});
 
@@ -5829,6 +5878,7 @@ app.get(
   "/api/admin/foundation/schema-check",
 
   requireAdmin,
+  requireHtafCapability("GET /api/admin/foundation/schema-check", "htaf.applications.read"),
 
   asyncRoute(async (req, res) => {
 
@@ -5978,8 +6028,21 @@ async function triageHtafApplication(application) {
 app.post(
   "/api/admin/foundation/applications/:id/triage",
   requireAdmin,
+  requireHtafCapability("POST /api/admin/foundation/applications/:id/triage", "htaf.applications.triage"),
   rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "htaf_triage" }),
   asyncRoute(async (req, res) => {
+    if (!HTAF_ACTIVATION.aiTriage.enabled) {
+      auditLog({
+        actor_type: "admin",
+        actor_id: req.admin.email,
+        action: "htaf_ai_triage_blocked",
+        entity_type: "htaf_application",
+        entity_id: cleanString(req.params.id, 80),
+        metadata: { reason: HTAF_ACTIVATION.aiTriage.reason },
+        req
+      }).catch(() => {});
+      return fail(res, "HTAF AI triage is disabled.", 403);
+    }
     const id = cleanString(req.params.id, 80);
     const { data: application, error } = await supabase
       .from("htaf_applications")
@@ -6012,7 +6075,8 @@ app.post(
       entity_id: application.id,
       metadata: {
         recommendation: triage.recommendation || null,
-        facts_sent: triage.facts_sent || null
+        facts_sent: triage.facts_sent || null,
+        approval: HTAF_ACTIVATION.aiTriage.approvals
       },
       req
     }).catch(() => {});
@@ -20865,8 +20929,23 @@ app.post(
   "/api/admin/foundation/applications/:id/create-ride",
 
   requireAdmin,
+  requireHtafCapability("POST /api/admin/foundation/applications/:id/create-ride", "htaf.rides.create"),
 
   asyncRoute(async (req, res) => {
+    if (!HTAF_ACTIVATION.rideCreation.enabled) {
+      // IDs only: the blocked attempt is recorded without reading or
+      // logging anything from the application itself.
+      auditLog({
+        actor_type: "admin",
+        actor_id: req.admin.email,
+        action: "htaf_ride_creation_blocked",
+        entity_type: "htaf_application",
+        entity_id: cleanString(req.params.id, 100),
+        metadata: { reason: HTAF_ACTIVATION.rideCreation.reason },
+        req
+      }).catch(() => {});
+      return fail(res, "HTAF ride creation is paused pending an approved provider agreement.", 403);
+    }
 
     const applicationId =
 
@@ -21000,7 +21079,11 @@ app.post(
 
         reason:
 
-          outcome.reason || null
+          outcome.reason || null,
+
+        approval:
+
+          HTAF_ACTIVATION.rideCreation.approvals
 
       },
 
@@ -23393,7 +23476,38 @@ app.get(
 
       },
 
+      htaf_activation: {
+
+        ride_creation: {
+          enabled: HTAF_ACTIVATION.rideCreation.enabled,
+          reason: HTAF_ACTIVATION.rideCreation.reason,
+          missing_approvals: HTAF_ACTIVATION.rideCreation.missing,
+          approvals: HTAF_ACTIVATION.rideCreation.approvals
+        },
+
+        ai_triage: {
+          enabled: HTAF_ACTIVATION.aiTriage.enabled,
+          reason: HTAF_ACTIVATION.aiTriage.reason,
+          missing_approvals: HTAF_ACTIVATION.aiTriage.missing,
+          approvals: HTAF_ACTIVATION.aiTriage.approvals
+        }
+
+      },
+
       features: {
+
+        htaf_ride_creation:
+
+          HTAF_ACTIVATION.rideCreation.enabled,
+
+        htaf_ai_triage:
+
+          HTAF_ACTIVATION.aiTriage.enabled,
+
+        htaf_admin_alerts:
+
+          Boolean(HTAF_ADMIN_EMAIL),
+
 
         rider_approval_gate:
 
@@ -26774,6 +26888,12 @@ async function startServer() {
       );
 
       console.log(
+        HTAF_ADMIN_EMAIL
+          ? "📨 HTAF application alerts: ON"
+          : "🚨 HTAF application alerts: OFF -- set HTAF_ADMIN_EMAIL (no Harvey Taxi fallback)"
+      );
+
+      console.log(
 
         `💳 Stripe: ${stripe ? "ON" : "OFF"}`
 
@@ -26822,6 +26942,17 @@ async function startServer() {
         `🤖 AI Support: ${openai ? "ON" : "OFF"}`
 
       );
+
+      for (const [label, state] of [
+        ["🚐 HTAF ride creation", HTAF_ACTIVATION.rideCreation],
+        ["🧠 HTAF AI triage", HTAF_ACTIVATION.aiTriage]
+      ]) {
+        // A flag set without its approval record is an operator error worth
+        // shouting about; a flag that is simply off is the normal state.
+        (state.requested && !state.enabled ? console.error : console.log)(
+          `${label}: ${state.enabled ? "ON" : "OFF"} (${state.reason})`
+        );
+      }
 
       console.log(
         `🧭 Agent model: ${agentLlmConfig.configured ? `self-hosted (${describeAgentLlmConfig(agentLlmConfig).host})` : "rules only"}`
