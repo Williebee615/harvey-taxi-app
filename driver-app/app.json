@@ -32,7 +32,8 @@
       "package": "com.harveytaxi.driver",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#050816"
+        "backgroundImage": "./assets/adaptive-icon-background.png",
+        "backgroundColor": "#010937"
       },
       "permissions": [
         "ACCESS_COARSE_LOCATION",
