@@ -2510,6 +2510,15 @@
 
         </div>
 
+        <!-- HTAF Assistant: questions it couldn't answer from HTAF's published
+             pages (redacted excerpts only), so staff can add approved answers. -->
+        <section class="card" id="htafAssistantQuestions" style="margin-top:24px;padding:20px">
+          <h3>HTAF Assistant: unanswered questions</h3>
+          <p id="htafAssistantStatus" style="color:var(--muted,#a9bdd6)">Not loaded.</p>
+          <button class="btn" type="button" onclick="loadHtafAssistantQuestions()">Load questions</button>
+          <ul id="htafAssistantQuestionList" style="margin-top:12px"></ul>
+        </section>
+
       </main>
 
       <footer class="footer">
@@ -2629,6 +2638,29 @@
       const HTAF_API =
 
         `${window.location.origin}`;
+
+      // HTAF Assistant questions (admin session cookie; text inserted as text).
+      async function loadHtafAssistantQuestions() {
+        const status = document.getElementById("htafAssistantStatus");
+        const list = document.getElementById("htafAssistantQuestionList");
+        status.textContent = "Loading…";
+        list.replaceChildren();
+        try {
+          const response = await fetch(`${HTAF_API}/api/admin/htaf/assistant-questions`, { credentials: "include" });
+          const payload = await response.json();
+          if (!response.ok) throw new Error(payload.error || "Unable to load.");
+          const a = payload.assistant || {};
+          status.textContent = `Assistant ${a.enabled ? "on" : "off"} · ${payload.questions.length} unanswered question(s)` +
+            (a.dropped_topics && a.dropped_topics.length ? ` · topics no longer matching their page: ${a.dropped_topics.join(", ")}` : "");
+          for (const q of payload.questions) {
+            const li = document.createElement("li");
+            li.textContent = `${new Date(q.created_at).toLocaleString()} — ${q.question_excerpt}`;
+            list.appendChild(li);
+          }
+        } catch (error) {
+          status.textContent = error.message || "Unable to load.";
+        }
+      }
 
       /* =========================================================
 
