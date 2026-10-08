@@ -302,6 +302,70 @@ describe("application page -- no document upload", () => {
   });
 });
 
+describe("application page -- optional HTAF text-message consent", () => {
+  const html = readPage("htaf-application.html");
+  const { CONSENT_TEXT, CONSENT_VERSION } = require("../lib/htafSms");
+
+  test("a separate checkbox, unchecked by default and not required to apply", () => {
+    const box = /<input id="smsConsent"[^>]*>/.exec(html)[0];
+    expect(box).toContain('type="checkbox"');
+    expect(box).not.toMatch(/\bchecked\b/);
+    expect(box).not.toMatch(/\brequired\b/);
+    // Validation never looks at it; only the certification box is required.
+    const validate = /function validateApplication\(\)\{[\s\S]*?\n    \}/.exec(html)[0];
+    expect(validate).not.toContain("smsConsent");
+    // A saved draft never re-checks it.
+    const loadDraft = /function loadDraftApplication\(\)\{[\s\S]*?\n    \}/.exec(html)[0];
+    expect(loadDraft).not.toContain("smsConsent");
+  });
+
+  test("shows the current consent wording verbatim, with links to HTAF's own privacy policy and terms", () => {
+    const section = /<div class="sms-consent" id="smsConsentSection">[\s\S]*?<\/div>/.exec(html)[0];
+    // Tag stripping leaves a space before punctuation that follows a link.
+    expect(visibleText(section).replace(/ ([.,])/g, "$1")).toContain(CONSENT_TEXT[CONSENT_VERSION]);
+    expect(section).toContain('href="https://harveytransportationfoundation.com/privacy.html"');
+    expect(section).toContain('href="https://harveytransportationfoundation.com/terms.html"');
+    expect(section).not.toMatch(/Harvey Taxi/);
+    expect(visibleText(section)).toContain("(optional)");
+  });
+
+  test("sits with the applicant's contact details (next to the phone field)", () => {
+    expect(html.indexOf('id="smsConsentSection"')).toBeGreaterThan(html.indexOf('id="phone"'));
+    expect(html.indexOf('id="smsConsentSection"')).toBeLessThan(html.indexOf("Transportation Program"));
+  });
+
+  test("sends only a true/false choice; the server decides version, source and time", () => {
+    expect(html).toContain('sms_consent:document.getElementById("smsConsent")?.checked===true');
+    expect(html).not.toContain("sms_consent_version");
+  });
+});
+
+describe("HTAF text-message terms in the published policies", () => {
+  const privacy = visibleText(readPage("htaf-privacy.html"));
+  const terms = visibleText(readPage("htaf-terms.html"));
+
+  test("the privacy policy carries the carriers' required non-sharing statement verbatim", () => {
+    expect(privacy).toContain(
+      "All the above categories exclude text messaging originator opt-in data and consent; this information won't be shared with any third parties."
+    );
+  });
+
+  test("both describe the actual program: optional, HTAF's number, message types, frequency, rates, STOP/HELP, no marketing", () => {
+    for (const text of [privacy, terms]) {
+      expect(text).toContain("(844) 795-0299");
+      expect(text).toMatch(/application updates, transportation scheduling, pickup reminders, service changes, and support/);
+      expect(text).toMatch(/Message frequency varies/);
+      expect(text).toMatch(/Message and data rates may apply/);
+      expect(text).toMatch(/Reply STOP/);
+      expect(text).toMatch(/Reply HELP/);
+      expect(text).toMatch(/HTAF does not send marketing texts/);
+    }
+    expect(terms).toMatch(/not a condition of applying for or receiving assistance/);
+    expect(terms).toContain("WillieHtaf@harveytransportationfoundation.com");
+    expect(privacy).toMatch(/Harvey Taxi Service LLC does not send texts on HTAF's behalf/);
+  });
+});
+
 describe("Privacy Policy content", () => {
   const html = readPage("htaf-privacy.html");
   const text = visibleText(html);
@@ -323,7 +387,8 @@ describe("Privacy Policy content", () => {
       "12. Your Rights and Choices",
       "13. Children",
       "14. Changes to This Policy",
-      "15. Contact Us"
+      "15. Text Messages (SMS)",
+      "16. Contact Us"
     ]);
   });
 

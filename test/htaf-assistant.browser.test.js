@@ -86,7 +86,7 @@ describeWithBrowser("HTAF Assistant widget (390px)", () => {
     expect(await page.locator("#htafAssistPanel").innerText()).toMatch(/can't see applications, book rides, send texts or make decisions/);
 
     const programs = await askAndWait(page, "What programs do you offer?");
-    expect(programs).toMatch(/Veteran Transportation/);
+    expect(programs).toMatch(/Veteran Assistance/);
     expect(programs).toMatch(/Source: HTAF home page — Programs/);
 
     const gap = await askAndWait(page, "Do you have wheelchair vans?");

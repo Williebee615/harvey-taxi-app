@@ -1,4 +1,4 @@
-/* HTAF Assistant widget (Harvey Transportation Assistance Foundation).
+/* HTAF Information Assistant widget (Harvey Transportation Assistance Foundation).
  *
  * Separate from Harvey Taxi's assistant: talks only to /api/htaf/assist,
  * which answers from HTAF's published pages. Renders nothing unless the
@@ -11,7 +11,7 @@
 
   var API = (window.HARVEY_API_BASE || "") + "/api/htaf/assist";
   var NOTE =
-    "Automated help from HTAF's published information. It can't see applications, book rides, send texts or make decisions. Please don't share personal, medical or financial details here.";
+    "Automated answers using HTAF's approved, published information only (not an AI model). It can't see applications, book rides, send texts or make decisions. Please don't share personal, medical or financial details here.";
 
   function el(tag, attrs, text) {
     var node = document.createElement(tag);
@@ -74,9 +74,9 @@
   function build() {
     injectStyles();
     var button = el("button", { type: "button", class: "htaf-assist-btn", "aria-expanded": "false", "aria-controls": "htafAssistPanel", "data-testid": "htaf-assist-open" }, "Ask HTAF");
-    var panel = el("section", { id: "htafAssistPanel", class: "htaf-assist-panel", role: "dialog", "aria-label": "HTAF Assistant", hidden: "" });
+    var panel = el("section", { id: "htafAssistPanel", class: "htaf-assist-panel", role: "dialog", "aria-label": "HTAF Information Assistant", hidden: "" });
     var head = el("div", { class: "htaf-assist-head" });
-    head.appendChild(el("strong", {}, "HTAF Assistant"));
+    head.appendChild(el("strong", {}, "HTAF Information Assistant"));
     var close = el("button", { type: "button", class: "htaf-assist-close", "aria-label": "Close" }, "×");
     head.appendChild(close);
     var note = el("p", { class: "htaf-assist-note" }, NOTE);

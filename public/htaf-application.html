@@ -131,6 +131,10 @@
     .status-box{margin-top:18px}
     .consent-row{display:flex;align-items:flex-start;gap:13px;margin-top:18px;padding:16px;border-radius:18px;border:1px solid rgba(126,166,255,.22);background:rgba(255,255,255,.035);cursor:pointer}
     .consent-row input{width:22px;height:22px;margin-top:2px;flex:0 0 auto;accent-color:var(--cyan)}
+    .sms-consent{margin-top:18px}
+    .sms-consent h5{margin:0 0 4px;font-size:1rem}
+    .sms-consent .consent-text a{color:var(--cyan);text-decoration:underline}
+    .sms-consent-note{margin:8px 2px 0;font-size:.9rem;color:var(--muted)}
     .copy-status{display:none;margin-top:16px;padding:14px 16px;border-radius:16px;font-size:.92rem;line-height:1.5;border:1px solid transparent}
     .copy-status.show{display:block}.copy-status.ok{background:rgba(124,255,199,.10);border-color:rgba(124,255,199,.20);color:var(--green)}.copy-status.err{background:rgba(255,126,144,.12);border-color:rgba(255,126,144,.24);color:#ffd4dc}.copy-status.info{background:rgba(115,244,255,.10);border-color:rgba(115,244,255,.20);color:var(--cyan)}
     .invalid{border-color:var(--danger)!important;box-shadow:0 0 0 4px rgba(255,126,144,.12)!important}
@@ -259,6 +263,14 @@
                   <div class="field"><label for="county">County *</label><input id="county" type="text" required placeholder="Davidson County" /></div>
                   <div class="field"><label for="city">City *</label><input id="city" type="text" required placeholder="Nashville" /></div>
                 </div>
+                <!-- Optional SMS consent (lib/htafSms.js, version htaf-sms-v1). Unchecked by
+                     default; applying never depends on it. The wording must match
+                     CONSENT_TEXT["htaf-sms-v1"] exactly. -->
+                <div class="sms-consent" id="smsConsentSection">
+                  <h5 id="smsConsentTitle">Text message updates from HTAF (optional)</h5>
+                  <label class="consent-row" for="smsConsent"><input id="smsConsent" name="smsConsent" type="checkbox" aria-describedby="smsConsentTitle" /><span class="consent-text" id="smsConsentText">Yes, I agree to receive text messages from Harvey Transportation Assistance Foundation (HTAF) at the phone number above, sent from (844) 795-0299, about my application updates, transportation scheduling, pickup reminders, service changes and support. Message frequency varies. Message and data rates may apply. Reply STOP to opt out at any time, or HELP for help. Consent is not required to apply for or receive assistance. See our <a href="https://harveytransportationfoundation.com/privacy.html" target="_blank" rel="noopener">Privacy Policy</a> and <a href="https://harveytransportationfoundation.com/terms.html" target="_blank" rel="noopener">Terms of Use</a>.</span></label>
+                  <p class="sms-consent-note">Leave this unchecked if you do not want texts. Declining texts does not affect your application.</p>
+                </div>
               </div>
 
               <div class="form-section">
@@ -270,9 +282,9 @@
                   <label class="choice"><input type="radio" name="program" value="medical" checked /><div class="choice-card"><strong>Medical Transportation</strong><span>Doctor appointments, treatment, rehabilitation, counseling, and pharmacy access.</span></div></label>
                   <label class="choice"><input type="radio" name="program" value="employment" /><div class="choice-card"><strong>Employment Access</strong><span>Interviews, onboarding, workforce training, and employment transportation.</span></div></label>
                   <label class="choice"><input type="radio" name="program" value="education" /><div class="choice-card"><strong>Education Access</strong><span>School transportation, certification programs, and workforce education.</span></div></label>
-                  <label class="choice"><input type="radio" name="program" value="senior" /><div class="choice-card"><strong>Senior Mobility</strong><span>Transportation support for older Tennesseans maintaining independence.</span></div></label>
-                  <label class="choice"><input type="radio" name="program" value="disability" /><div class="choice-card"><strong>Disability Transportation</strong><span>Accessible transportation for residents with disabilities.</span></div></label>
-                  <label class="choice"><input type="radio" name="program" value="veteran" /><div class="choice-card"><strong>Veteran Transportation</strong><span>Transportation support for Tennessee veterans.</span></div></label>
+                  <label class="choice"><input type="radio" name="program" value="senior" /><div class="choice-card"><strong>Senior Assistance</strong><span>Transportation support for older Tennesseans maintaining independence.</span></div></label>
+                  <label class="choice"><input type="radio" name="program" value="disability" /><div class="choice-card"><strong>Disability Assistance</strong><span>Accessible transportation for residents with disabilities.</span></div></label>
+                  <label class="choice"><input type="radio" name="program" value="veteran" /><div class="choice-card"><strong>Veteran Assistance</strong><span>Transportation support for Tennessee veterans.</span></div></label>
                 </div>
               </div>
 
@@ -337,10 +349,10 @@
               <ul class="why-list">
                 <li>Medical Transportation</li>
                 <li>Employment Access</li>
-                <li>Education Support</li>
-                <li>Senior Mobility</li>
-                <li>Disability Transportation</li>
-                <li>Veteran Transportation</li>
+                <li>Education Access</li>
+                <li>Senior Assistance</li>
+                <li>Disability Assistance</li>
+                <li>Veteran Assistance</li>
               </ul>
             </div>
           </aside>
@@ -356,9 +368,9 @@
             <article class="feature-card"><div class="feature-icon">🏥</div><h4>Medical Transportation</h4><p>Doctor appointments, treatment, rehabilitation, counseling, and pharmacy access.</p></article>
             <article class="feature-card"><div class="feature-icon">💼</div><h4>Employment Access</h4><p>Interviews, onboarding, workforce training, and employment transportation.</p></article>
             <article class="feature-card"><div class="feature-icon">🎓</div><h4>Education Access</h4><p>School transportation, certification programs, and workforce education.</p></article>
-            <article class="feature-card"><div class="feature-icon">🧓</div><h4>Senior Mobility</h4><p>Transportation support for older Tennesseans maintaining independence.</p></article>
-            <article class="feature-card"><div class="feature-icon">♿</div><h4>Disability Transportation</h4><p>Accessible transportation for residents with disabilities.</p></article>
-            <article class="feature-card"><div class="feature-icon">🎖️</div><h4>Veteran Transportation</h4><p>Transportation support for Tennessee veterans.</p></article>
+            <article class="feature-card"><div class="feature-icon">🧓</div><h4>Senior Assistance</h4><p>Transportation support for older Tennesseans maintaining independence.</p></article>
+            <article class="feature-card"><div class="feature-icon">♿</div><h4>Disability Assistance</h4><p>Accessible transportation for residents with disabilities.</p></article>
+            <article class="feature-card"><div class="feature-icon">🎖️</div><h4>Veteran Assistance</h4><p>Transportation support for Tennessee veterans.</p></article>
           </div>
         </section>
       </div>
@@ -481,6 +493,9 @@
         applicant_type:document.getElementById("applicantType")?.value||"",
         household_size:document.getElementById("householdSize")?.value||"",
         monthly_income:document.getElementById("monthlyIncome")?.value||"",
+        // Optional; only an explicit check opts in. The server records the
+        // wording version, source and time itself.
+        sms_consent:document.getElementById("smsConsent")?.checked===true,
         submitted_at:new Date().toISOString(),
         source:"htaf-application.html"
       };

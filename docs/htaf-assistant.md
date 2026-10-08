@@ -1,4 +1,6 @@
-# HTAF Assistant
+# HTAF Information Assistant
+
+An information assistant that answers only with approved content (HTAF's published pages). It does not call an AI model.
 
 Harvey Transportation Assistance Foundation's own help assistant, on harveytransportationfoundation.com (home, application and contact pages). It is separate from the Harvey Taxi assistant: its own knowledge, wording, widget, routes, switch and records.
 
@@ -39,7 +41,8 @@ It answers only from HTAF's published pages: the home page, application, contact
 ## Adding an approved answer
 Publish the text on an HTAF page (with the owner's approval). The assistant picks it up on the next deploy. A new common-question topic is added in `TOPICS`, quoting the published sentences exactly; a test checks they match the page.
 
-## Approved programs (owner confirmed 2026-10-05)
-The approved programs are Medical Transportation, Employment Access, Education Access, Senior Mobility, Disability Transportation and Veteran Transportation.
+## Program categories (owner confirmed 2026-10-07)
+The approved programs are Medical Transportation, Employment Access, Education Access, Senior Assistance, Disability Assistance and Veteran Assistance.
 - The foundation page, the application form's choices and the assistant all use this list; a test keeps them aligned.
-- "Community Assistance" is no longer offered on the form.
+- "Community Assistance" is no longer offered on the form. Applications already filed under it (`program_type = 'community'`) are kept as they are, neither deleted nor reclassified, and the HTAF admin page can still filter them.
+- Accepting an application doesn't guarantee eligibility, funding or transportation. The pages say so, and the assistant repeats the published wording. No category has separate eligibility rules.
