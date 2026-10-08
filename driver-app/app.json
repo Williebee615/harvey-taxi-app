@@ -12,7 +12,7 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#050816"
+      "backgroundColor": "#010937"
     },
     "ios": {
       "bundleIdentifier": "com.harveytaxiservice.driver",
