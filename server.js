@@ -528,6 +528,7 @@ const { recommendDrivers: recommendAgentDrivers, driverLabel: agentDriverLabel }
 const { readLlmConfig: readAgentLlmConfig, createLlmClient: createAgentLlmClient, describeLlmConfig: describeAgentLlmConfig } = require("./lib/agent/llmClient");
 const { createAgentTools } = require("./lib/agent/tools");
 const { handleAssist: handleAgentAssist } = require("./lib/agent/assistant");
+const agentSpecialists = require("./lib/agent/specialists");
 const { createKnowledgeStore } = require("./lib/knowledge/store");
 const { readClaudeConfig, createClaudeClient } = require("./lib/agent/claudeClient");
 const { createModelBudget, budgetFromEnv } = require("./lib/agent/modelBudget");
@@ -24440,7 +24441,12 @@ const knowledgeStore = createKnowledgeStore({
   },
   log: (msg) => console.warn("⚠️ Knowledge articles could not be loaded:", msg)
 });
-const agentTools = createAgentTools({ supabase });
+const agentTools = createAgentTools({
+  supabase,
+  complianceOptions: { enablePersona: ENABLE_PERSONA, enableCheckr: ENABLE_CHECKR },
+  // Dispatch Recommender's current rules, for the read-only dispatch outlook.
+  getRules: async () => (await loadAgentState()).rules
+});
 // Claude Haiku (owner-approved, at most $10 a month across all apps;
 // docs/ai-model.md). Off unless ANTHROPIC_API_KEY is set AND the admin
 // model mode lets the account use it; the budget is checked before every
@@ -24680,8 +24686,13 @@ async function runAgentAssist(req, res, { role, actor }) {
   // The device's own recent turns, for follow-up questions only. Not
   // stored or logged (lib/agent/followUp.js).
   const assistContext = Array.isArray(req.body?.context) ? req.body.context : [];
-  const model = await runModelTurn({ state, role, actor, message, client: assistClient, context: assistContext, appTarget });
+  // Specialist agents (lib/agent/specialists.js) answer first when one is
+  // switched on for this question; they use rules or approved content only,
+  // never the model. All off: this is null and nothing below changes.
+  const specialistResult = await runAgentSpecialistTurn({ state, role, actor, message, client: assistClient });
+  const model = specialistResult ? { result: null, record: null } : await runModelTurn({ state, role, actor, message, client: assistClient, context: assistContext, appTarget });
   const result =
+    specialistResult ||
     model.result ||
     (await handleAgentAssist({
       role,
@@ -24710,8 +24721,55 @@ async function runAgentAssist(req, res, { role, actor }) {
     sources: result.sources || [],
     knowledge_gap: result.knowledge_gap === true,
     used_context: result.used_context === true,
-    case_id: caseId
+    case_id: caseId,
+    // Which specialist answered, its chief, and that it used rules or
+    // approved content (no AI model). Absent when a chief answered.
+    ...(result.specialist ? { specialist: result.specialist } : {})
   });
+}
+
+// One specialist turn, or null for "let the chiefs answer as before".
+// Never throws: any failure falls back to the chiefs.
+async function runAgentSpecialistTurn({ state, role, actor, message, client }) {
+  try {
+    const anyOn = agentSpecialists.SPECIALIST_FLAG_KEYS.some((key) => state.flags[key] === true);
+    if (!anyOn || !state.mode.assist_enabled || state.mode.kill_switch) return null;
+    // The HTAF chief has its own switch; read it only for HTAF questions.
+    let htafEnabled = false;
+    if (state.flags[agentSpecialists.SPECIALIST_FLAGS.HTAF] === true && agentSpecialists.PATTERNS.htaf_information.test(String(message || ""))) {
+      htafEnabled = await htafAssistEnabled();
+    }
+    const specialist = agentSpecialists.routeSpecialist({
+      role,
+      message,
+      isActive: (s) => agentSpecialists.specialistActive(s, { mode: state.mode, flags: state.flags, htafEnabled })
+    });
+    if (!specialist) return null;
+    if (specialist.id === "htaf_information") return await runHtafSpecialist(specialist, { role, actor, message, client });
+    return await agentSpecialists.runSpecialist({ specialist, role, actor, message, tools: agentTools, client });
+  } catch (err) {
+    console.warn("⚠️ Specialist agent skipped:", err && err.message);
+    return null;
+  }
+}
+
+async function runHtafSpecialist(specialist, { role, actor, message, client }) {
+  const result = await agentSpecialists.runSpecialist({
+    specialist,
+    role,
+    actor,
+    message,
+    tools: agentTools,
+    client,
+    htaf: { answer: (text) => htafAssistant.answerHtafQuestion(HTAF_ASSIST.index, text) }
+  });
+  // Unanswered HTAF questions go to HTAF staff's list, redacted, as on
+  // the HTAF site.
+  if (result && result.knowledge_gap && result.gap_excerpt) {
+    const { error } = await supabase.from("htaf_assistant_questions").insert({ question_excerpt: result.gap_excerpt, intent: "harvey_taxi_assistant" });
+    if (error) console.warn("⚠️ HTAF assistant question not logged:", error.message);
+  }
+  return result;
 }
 
 const agentAssistRateLimit = rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "agent_assist" });
@@ -25098,6 +25156,23 @@ app.get(
       req
     );
     return ok(res, { ride: { id: ride.id, status: ride.status, ride_type: ride.ride_type || null }, recommendation });
+  })
+);
+
+// Agent hierarchy: the original agents (chiefs) and their specialists,
+// with each specialist's switch and whether it is answering right now.
+app.get(
+  "/api/admin/agent/specialists",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const state = await loadAgentState();
+    const htafEnabled = await htafAssistEnabled().catch(() => false);
+    return ok(res, {
+      kill_switch: state.mode.kill_switch,
+      assist_enabled: state.mode.assist_enabled,
+      htaf_assist_enabled: htafEnabled,
+      chiefs: agentSpecialists.hierarchy({ mode: state.mode, flags: state.flags, htafEnabled })
+    });
   })
 );
 

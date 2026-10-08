@@ -181,6 +181,41 @@ describeWithBrowser("AI Agent Manager UI", () => {
     expect(page.errors).toEqual([]);
   });
 
+  test("agent hierarchy: chiefs and their specialists, all off; a switch is confirmed and saved", async () => {
+    const page = await newPage({ admin: true });
+    await page.goto(`${base}/admin-agent.html`);
+    await page.waitForSelector('#hierarchy tr[data-specialist="delivery"]');
+    const text = await page.textContent("#hierarchy");
+    for (const chief of ["Harvey Assistant (Rider)", "Harvey Assistant (Driver)", "Escalation", "Support Handoff", "Dispatch Recommender", "Ride Coordinator", "HTAF Information Assistant"]) {
+      expect(text).toContain(chief);
+    }
+    expect(await page.$$eval("#hierarchy tr[data-specialist]", (rows) => rows.length)).toBe(6);
+    expect(await page.textContent('[data-chief="harvey_assistant_rider"]')).toMatch(/Ride Booking & Dispatch.*Uses advice from Dispatch Recommender \(read-only\)/s);
+    expect(await page.textContent('[data-chief="dispatch_recommender"]')).toContain("No specialists.");
+    expect(await page.$$eval("#hierarchy tr[data-specialist]", (rows) => rows.map((r) => r.cells[1].textContent))).toEqual([
+      "Rules-based (no AI model)",
+      "Rules-based (no AI model)",
+      "Rules-based (no AI model)",
+      "Rules-based (no AI model)",
+      "Rules-based (no AI model)",
+      "Approved published content only (no AI model)"
+    ]);
+    expect(await page.$$eval("#hierarchy tr[data-specialist] .badge", (b) => b.map((x) => x.textContent))).toEqual(Array(6).fill("Off"));
+
+    // Switching on asks first; declining changes nothing.
+    page.once("dialog", (d) => d.dismiss());
+    await page.click('#hierarchy button[data-flag="agent_specialist_delivery_enabled"]');
+    await page.waitForTimeout(300);
+    expect(mockSupabaseClient._state.system_flags.find((r) => r.key === "agent_specialist_delivery_enabled")).toBeUndefined();
+    page.once("dialog", (d) => d.accept());
+    await page.click('#hierarchy button[data-flag="agent_specialist_delivery_enabled"]');
+    await page.waitForFunction(() => /Answering/.test(document.querySelector('#hierarchy tr[data-specialist="delivery"]').textContent));
+    await page.click('#hierarchy button[data-flag="agent_specialist_delivery_enabled"]');
+    await page.waitForFunction(() => /Off/.test(document.querySelector('#hierarchy tr[data-specialist="delivery"] .badge').textContent));
+    expect(mockSupabaseClient._state.system_flags.find((r) => r.key === "agent_specialist_delivery_enabled").value).toBe("false");
+    expect(page.errors).toEqual([]);
+  });
+
   test("admin command center on a phone, and a signed-out admin sees the sign-in notice", async () => {
     const page = await newPage({ admin: true, mobile: true });
     await page.goto(`${base}/admin-agent.html`);

@@ -128,12 +128,18 @@
     </section>
   </div>
 
+  <section class="panel" id="hierarchyPanel">
+    <h2>Agent hierarchy</h2>
+    <p class="muted">The original agents are the chiefs. Each specialist answers a narrow set of questions for its chief, using rules or approved published content only (no AI model). A specialist answers only when its own switch and its chief are on and the stop switch is off. Switching one on needs the elevated admin token; switching off never does.</p>
+    <div id="hierarchy"><p class="muted">Loading…</p></div>
+  </section>
+
   <div class="grid">
     <section class="panel">
       <h2>Automation controls</h2>
       <div id="flags"></div>
       <div class="row" style="margin-top:12px">
-        <label class="muted" for="elevatedToken">Elevated admin token (needed only to enable automation)</label>
+        <label class="muted" for="elevatedToken">Elevated admin token (needed only to enable automation or a specialist)</label>
         <input id="elevatedToken" type="password" autocomplete="off" placeholder="x-admin-token" />
       </div>
       <p class="muted" style="margin-top:6px">Kept in this browser tab only. Turning anything off never needs it.</p>
@@ -213,6 +219,9 @@
     agent_kill_switch: ["Kill switch", "Stops every agent capability immediately."]
   };
   const ELEVATED = ["agent_automation_enabled", "agent_auto_redispatch_enabled"];
+  // Specialist switches (from /api/admin/agent/specialists); enabling one
+  // also needs the elevated admin token.
+  let specialistFlags = [];
   const RULE_LABELS = {
     recommendation_radius_miles: "Recommendation radius (miles)",
     max_candidates: "Candidates per ride",
@@ -439,6 +448,41 @@
     }
   }
 
+  let hierarchyData = null;
+  async function loadHierarchy() {
+    try {
+      hierarchyData = await api("/api/admin/agent/specialists");
+      renderHierarchy();
+    } catch (err) {
+      if (err.status !== 401) $("hierarchy").innerHTML = `<p class="muted">${esc(err.message)}</p>`;
+    }
+  }
+
+  function renderHierarchy() {
+    const data = hierarchyData;
+    if (!data) return;
+    {
+      // Same rule as the automation controls: an admin signed in with the
+      // admin token, or one who typed it below.
+      const canElevate = Boolean(state && state.admin_can_enable_automation) || Boolean(token());
+      specialistFlags = [];
+      $("hierarchy").innerHTML = data.chiefs.map((chief) => {
+        const rows = chief.specialists.map((sp) => {
+          specialistFlags.push(sp.flag);
+          const state = sp.answering ? "Answering" : sp.switched_on ? "On (chief or stop switch blocks it)" : "Off";
+          const needs = !sp.switched_on && !canElevate;
+          return `<tr data-specialist="${esc(sp.id)}"><td><b>${esc(sp.name)}</b>${sp.consults.length ? `<div class="muted">Uses advice from ${esc(sp.consults.join(", "))} (read-only)</div>` : ""}</td>
+            <td>${esc(sp.engine_label)}</td><td>${esc(sp.handles)}</td><td>${esc(sp.actions)}</td>
+            <td><span class="badge ${sp.answering ? "b-assist" : "b-off"}">${esc(state)}</span></td>
+            <td><button type="button" data-flag="${esc(sp.flag)}" data-enable="${sp.switched_on ? "false" : "true"}" ${needs ? "disabled title=\"Elevated admin token required\"" : ""}>${sp.switched_on ? "Switch off" : "Switch on"}</button></td></tr>`;
+        }).join("");
+        return `<div class="chief" data-chief="${esc(chief.id)}" style="margin-top:12px"><h3 style="margin:0">${esc(chief.name)} <span class="muted" style="font-weight:normal">(chief)</span></h3>
+          <div class="muted">${esc(chief.engine)} · Runs when: ${esc(chief.runs_when)}</div>
+          ${rows ? `<div class="table-wrap"><table><thead><tr><th>Specialist</th><th>Uses</th><th>Handles</th><th>Actions (user confirms)</th><th>State</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="muted">No specialists.</div>`}</div>`;
+      }).join("") + (data.kill_switch ? `<p class="muted"><b>Stop switch is on:</b> no agent or specialist is answering.</p>` : "");
+    }
+  }
+
   async function load() {
     loadUsage();
     loadModel();
@@ -446,15 +490,18 @@
       state = await api("/api/admin/agent/overview");
       $("authNotice").hidden = true;
       renderMode(); renderStats(); renderAlerts(); renderCases(); renderRides(); renderPlan(); renderDrivers(); renderFlags(); renderRules(); renderDecisions();
+      loadHierarchy();
     } catch (err) {
       if (err.status !== 401) toast(err.message);
     }
   }
 
   async function setFlag(key, enable) {
+    const specialist = specialistFlags.includes(key);
     if (enable && ELEVATED.includes(key) && !confirm("Enable live automation? Stalled paid rides will be redispatched automatically through existing dispatch rules.")) return;
+    if (enable && specialist && !confirm("Switch on this specialist? It will answer real riders or drivers for its questions (rules-based, no AI model).")) return;
     try {
-      await api("/api/admin/agent/flags", { method: "POST", elevated: enable && ELEVATED.includes(key), body: { key, enabled: enable, reason: "admin command center" } });
+      await api("/api/admin/agent/flags", { method: "POST", elevated: enable && (ELEVATED.includes(key) || specialist), body: { key, enabled: enable, reason: "admin command center" } });
       toast("Saved.");
     } catch (err) { toast(err.message); }
     load();
@@ -568,7 +615,7 @@
   $("elevatedToken").addEventListener("change", (e) => {
     try { if (e.target.value) sessionStorage.setItem(TOKEN_KEY, e.target.value); else sessionStorage.removeItem(TOKEN_KEY); } catch {}
     e.target.value = "";
-    if (state) renderFlags();
+    if (state) { renderFlags(); renderHierarchy(); }
     toast(token() ? "Elevated token held for this tab." : "Elevated token cleared.");
   });
 

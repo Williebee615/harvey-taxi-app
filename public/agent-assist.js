@@ -211,6 +211,11 @@
         m.appendChild(src);
       }
       if (extra && extra.caseId) m.appendChild(el("div", { class: "hta-src" }, "Reference: " + extra.caseId));
+      // Which specialist answered for which chief, and that it used rules
+      // or approved content (no AI model).
+      if (extra && extra.specialist && extra.specialist.name) {
+        m.appendChild(el("div", { class: "hta-src" }, "Answered by " + extra.specialist.name + " for " + (extra.specialist.chief || "Harvey Assistant") + " · " + (extra.specialist.engine_label || "Rules-based (no AI model)")));
+      }
       log.appendChild(m);
       log.scrollTop = log.scrollHeight;
     }
@@ -381,7 +386,8 @@
             urgent: body.escalation && body.escalation.category === "emergency",
             actions: body.actions || [],
             sources: body.sources || [],
-            caseId: body.case_id
+            caseId: body.case_id,
+            specialist: body.specialist || null
           });
         })
         .catch(function () {

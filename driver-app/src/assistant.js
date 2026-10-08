@@ -172,6 +172,26 @@ export function planActions(serverActions, snapshot) {
   return out;
 }
 
+// "Answered by Driver Support & Onboarding for Harvey Assistant (Driver) ·
+// Rules-based (no AI model)" when a specialist agent answered. The
+// description comes from the engine type here, not from server text, so
+// the app only ever says "rules-based" or "approved published content";
+// anything unrecognized shows no label.
+const ENGINE_LABELS = Object.freeze({
+  rules: 'Rules-based (no AI model)',
+  approved_content: 'Approved published content only (no AI model)'
+});
+const cleanName = (v) => (typeof v === 'string' ? v.replace(/[\u0000-\u001f]/g, '').trim().slice(0, 60) : '');
+
+export function answeredByLabel(specialist) {
+  if (!specialist || typeof specialist !== 'object') return null;
+  const name = cleanName(specialist.name);
+  const chief = cleanName(specialist.chief);
+  const engine = ENGINE_LABELS[specialist.engine];
+  if (!name || !chief || !engine) return null;
+  return `Answered by ${name} for ${chief} · ${engine}`;
+}
+
 // "Terms of Service — Payments (April 5, 2026)" for an answer's sources.
 export function sourceLabel(src) {
   if (!src) return '';
