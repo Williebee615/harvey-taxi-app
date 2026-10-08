@@ -13,6 +13,19 @@ export function isDelivery(ride) {
   return Boolean(ride && ['food', 'grocery'].includes(ride.ride_type));
 }
 
+// How an offer or trip is named on the Drive screen: food and grocery
+// deliveries are labelled as deliveries, everything else as a passenger
+// ride. Text only.
+export function offerLabel(item) {
+  const type = item && item.ride_type;
+  if (type === 'food') return { delivery: true, title: 'New delivery request', service: 'Food delivery' };
+  if (type === 'grocery') return { delivery: true, title: 'New delivery request', service: 'Grocery delivery' };
+  return { delivery: false, title: 'New ride request', service: 'Passenger ride' };
+}
+
+export const DELIVERY_OFFER_NOTE =
+  'Delivery steps (order pickup, recipient PIN or photo at handoff) are completed in the web driver dashboard.';
+
 export function nextStep(ride) {
   if (!ride || isDelivery(ride)) return null;
   return STEPS[ride.status] || null;

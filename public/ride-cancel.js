@@ -23,9 +23,10 @@
       });
   }
 
-  function confirmText(preview) {
+  // `noun` is "ride" (default) or "delivery": wording only, same rules.
+  function confirmText(preview, noun) {
     return (
-      "Cancel this ride?\n\n" +
+      "Cancel this " + (noun || "ride") + "?\n\n" +
       "Cancellation fee: " + preview.fee_display + "\n" +
       (preview.message || "") + "\n\n" +
       "Nothing changes unless you confirm."
@@ -35,22 +36,23 @@
   // Resolves to { cancelled, message }. `confirmFn` defaults to window.confirm.
   function cancelRide(rideId, opts) {
     opts = opts || {};
+    var noun = opts.noun === "delivery" ? "delivery" : "ride";
     var confirmFn = opts.confirm || function (t) { return window.confirm(t); };
     var id = encodeURIComponent(String(rideId || ""));
-    if (!id) return Promise.resolve({ cancelled: false, message: "No ride to cancel." });
+    if (!id) return Promise.resolve({ cancelled: false, message: "No " + noun + " to cancel." });
     return call("GET", "/api/rides/" + id + "/cancel-preview").then(function (p) {
-      if (!p.ok) return { cancelled: false, message: (p.data && (p.data.error || p.data.message)) || "We couldn't check this ride right now. Please try again." };
-      if (!p.data.cancellable) return { cancelled: false, message: p.data.message || "This ride can't be cancelled now." };
-      if (!confirmFn(confirmText(p.data))) return { cancelled: false, message: null };
+      if (!p.ok) return { cancelled: false, message: (p.data && (p.data.error || p.data.message)) || "We couldn't check this " + noun + " right now. Please try again." };
+      if (!p.data.cancellable) return { cancelled: false, message: p.data.message || "This " + noun + " can't be cancelled now." };
+      if (!confirmFn(confirmText(p.data, noun))) return { cancelled: false, message: null };
       return call("POST", "/api/rides/" + id + "/cancel", { reason: opts.reason || "Rider cancelled in app", expected_fee_cents: p.data.fee_cents }).then(function (c) {
-        if (c.ok) return { cancelled: true, message: "Your ride was cancelled. Cancellation fee: " + (c.data.cancellation_fee_display || p.data.fee_display) + "." };
+        if (c.ok) return { cancelled: true, message: "Your " + noun + " was cancelled. Cancellation fee: " + (c.data.cancellation_fee_display || p.data.fee_display) + "." };
         if (c.data && (c.data.code === "cancellation_fee_changed" || c.data.code === "cancellation_fee_not_shown")) {
           return { cancelled: false, message: "The cancellation fee changed before you confirmed. Nothing was cancelled; please review it and try again." };
         }
-        return { cancelled: false, message: (c.data && (c.data.error || c.data.message)) || "The ride could not be cancelled." };
+        return { cancelled: false, message: (c.data && (c.data.error || c.data.message)) || "The " + noun + " could not be cancelled." };
       });
     }).catch(function () {
-      return { cancelled: false, message: "The ride could not be cancelled. Please check your connection and try again." };
+      return { cancelled: false, message: "The " + noun + " could not be cancelled. Please check your connection and try again." };
     });
   }
 

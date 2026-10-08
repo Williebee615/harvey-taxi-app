@@ -3,7 +3,7 @@ import { Alert, Linking, Platform, Pressable, RefreshControl, ScrollView, StyleS
 import * as WebBrowser from 'expo-web-browser';
 
 import { EMERGENCY_NUMBER, LINKS } from '../config';
-import { directionsUrl, isDelivery, nextStep, STATUS_LABELS } from '../tripSteps';
+import { DELIVERY_OFFER_NOTE, directionsUrl, isDelivery, nextStep, offerLabel, STATUS_LABELS } from '../tripSteps';
 import { riderSharingText } from '../tripMap';
 import { formatWait, noShowText, waitingSeconds } from '../pickupWait';
 import { hoursText } from '../hours';
@@ -34,15 +34,18 @@ function useCountdown(offer) {
 function OfferCard({ offer, app }) {
   const left = useCountdown(offer);
   const expired = left === 0;
+  const label = offerLabel(offer);
   return (
-    <Card accent={C.cyan}>
+    <Card accent={label.delivery ? C.gold : C.cyan}>
       <View style={st.between}>
-        <H>New ride request</H>
+        <H>{label.title}</H>
         <Pill text={expired ? 'Expired' : `${left}s`} tone={expired ? 'bad' : left <= 10 ? 'warn' : 'info'} />
       </View>
+      <View testID="offer-service"><Pill text={label.service} tone={label.delivery ? 'warn' : 'info'} /></View>
       {offer.is_review_ride && <Pill text="Test ride · no charge" tone="warn" />}
-      <Row label="Pickup" value={offer.pickup_address || 'See map'} />
-      <Row label="Drop-off" value={offer.dropoff_address || '—'} />
+      <Row label={label.delivery ? 'Pick up order at' : 'Pickup'} value={offer.pickup_address || 'See map'} />
+      <Row label={label.delivery ? 'Deliver to' : 'Drop-off'} value={offer.dropoff_address || '—'} />
+      {label.delivery && <P muted>{DELIVERY_OFFER_NOTE}</P>}
       <Row label="Estimated fare" value={money(offer.estimated_fare)} />
       {offer.estimated_payout !== null && <Row label="Your estimated payout" value={money(offer.estimated_payout)} />}
       {offer.eta_to_pickup_minutes !== null && <Row label="To pickup" value={`${Math.round(offer.eta_to_pickup_minutes)} min`} />}
@@ -82,6 +85,7 @@ function ActiveRideCard({ ride, app, mapToken }) {
       <TripMapView ride={ride} token={mapToken} />
       {isDelivery(ride) ? (
         <>
+          <Pill text={offerLabel(ride).service} tone="warn" />
           <P muted style={{ marginTop: 8 }}>Deliveries aren't supported in this version of the app yet. Continue this delivery in the web driver dashboard.</P>
           <Button title="Open web dashboard" kind="ghost" onPress={() => WebBrowser.openBrowserAsync(LINKS.onboarding)} />
         </>

@@ -1206,7 +1206,7 @@ function getClientIp(req) {
 // different destinations, need their own dimension.
 const { computeRetryAfterSeconds, buildRateLimitExceededLogEvent } = require("./lib/rateLimit");
 const { registerDriverAppRoutes, createDriverRealtime } = require("./lib/driverAppRoutes");
-const { locationPolicy: driverAppLocationPolicy, pushKindForTitle: driverAppPushKind } = require("./lib/driverApp");
+const { locationPolicy: driverAppLocationPolicy, pushKindForTitle: driverAppPushKind, offerPushTitle } = require("./lib/driverApp");
 
 
 // Emits the exact sanitized event a rejected request produces (see
@@ -10332,6 +10332,36 @@ async function runDriverHoursSweep(nowMs = Date.now()) {
   return takenOffline;
 }
 
+// Food and grocery deliveries go only to drivers set up for that kind of
+// delivery (drivers.supports_food_delivery / supports_grocery_delivery),
+// for automatic dispatch and admin assignment alike. A driver whose flag
+// is unset (null) stays eligible, as before. Passenger rides are unchanged.
+const DELIVERY_CAPABILITY_COLUMN = { food: "supports_food_delivery", grocery: "supports_grocery_delivery" };
+
+function deliveryCapabilityColumn(rideType) {
+  return DELIVERY_CAPABILITY_COLUMN[String(rideType || "").toLowerCase()] || null;
+}
+
+function driverEligibleForService(driver, rideType) {
+  const column = deliveryCapabilityColumn(rideType);
+  return !column || !driver || driver[column] !== false;
+}
+
+// Deliveries: how many nearest drivers (within the search radius) to read
+// before the eligibility check, so ineligible drivers nearby can't crowd
+// out an eligible driver farther away.
+const DELIVERY_CANDIDATE_POOL = envNumber("DELIVERY_CANDIDATE_POOL", 200);
+
+// Ids of the given drivers not set up for this delivery type. Throws when
+// the flags can't be read.
+async function deliveryIneligibleDriverIds(driverIds, rideType) {
+  const column = deliveryCapabilityColumn(rideType);
+  if (!column || !driverIds.length) return new Set();
+  const { data, error } = await supabase.from("drivers").select(`id, ${column}`).in("id", driverIds);
+  if (error || !Array.isArray(data)) throw error || new Error("Driver delivery settings unavailable.");
+  return new Set(data.filter((d) => d[column] === false).map((d) => String(d.id)));
+}
+
 async function findAvailableDrivers({
 
   pickup_lat,
@@ -10342,9 +10372,13 @@ async function findAvailableDrivers({
 
   limit = envNumber("MAX_DISPATCH_ATTEMPTS", 5),
 
-  exclude_driver_ids = []
+  exclude_driver_ids = [],
+
+  ride_type = null
 
 }) {
+
+  const deliveryColumn = deliveryCapabilityColumn(ride_type);
 
   const excludeSet =
 
@@ -10388,18 +10422,25 @@ async function findAvailableDrivers({
 
           p_radius_miles: Number(radius_miles),
 
-          p_limit: Number(limit) + excludeSet.size + 5
+          p_limit: deliveryColumn
+            ? Math.max(DELIVERY_CANDIDATE_POOL, Number(limit) + excludeSet.size + 5)
+            : Number(limit) + excludeSet.size + 5
 
         });
 
       if (!rpcError && Array.isArray(rpcData)) {
         const overLimit = await driversOverHoursLimit(rpcData.filter((d) => d.is_review_account !== true).map((d) => d.id));
 
+        // Delivery eligibility comes before the nearest-N cut below. If
+        // the flags can't be read this throws, and the Node fallback below
+        // (which reads them with the drivers) is used instead.
+        const notEligible = await deliveryIneligibleDriverIds(rpcData.map((d) => d.id), ride_type);
+
         return rpcData
 
           .filter(
 
-            (d) => !excludeSet.has(String(d.id)) && !overLimit.has(String(d.id))
+            (d) => !excludeSet.has(String(d.id)) && !overLimit.has(String(d.id)) && !notEligible.has(String(d.id))
 
           )
 
@@ -10448,14 +10489,18 @@ async function findAvailableDrivers({
   // equivalent to dispatch_ride_atomic()'s in-transaction re-check, so it
   // cannot offer the same concurrency guarantee, only the same filter.
 
+  let fallbackQuery = supabase
+    .from("drivers")
+    .select("*")
+    .eq("online", true)
+    .eq("status", "active")
+    .eq("approval_status", "approved");
+  // Deliveries: ineligible drivers are left out before the row limit.
+  if (deliveryColumn) {
+    fallbackQuery = fallbackQuery.or(`${deliveryColumn}.is.null,${deliveryColumn}.eq.true`);
+  }
   const [{ data, error }, busyDriverIds] = await Promise.all([
-    supabase
-      .from("drivers")
-      .select("*")
-      .eq("online", true)
-      .eq("status", "active")
-      .eq("approval_status", "approved")
-      .limit(50),
+    fallbackQuery.limit(50),
     getBusyDriverIds({ supabase }).catch((busyErr) => {
       console.warn(
         "⚠️ Could not load busy-driver ids for dispatch fallback filter:",
@@ -10475,7 +10520,7 @@ async function findAvailableDrivers({
 
   return excludeBusyDrivers(data || [], busyDriverIds)
 
-    .filter((driver) => !excludeSet.has(String(driver.id)) && !overLimit.has(String(driver.id)))
+    .filter((driver) => !excludeSet.has(String(driver.id)) && !overLimit.has(String(driver.id)) && driverEligibleForService(driver, ride_type))
 
     .map((driver) => {
 
@@ -11055,7 +11100,11 @@ async function dispatchRide(ride) {
 
         exclude_driver_ids:
 
-          excludeDriverIds.concat(dispatchPlan.extraExcludeDriverIds)
+          excludeDriverIds.concat(dispatchPlan.extraExcludeDriverIds),
+
+        ride_type:
+
+          ride.ride_type
 
       });
   }
@@ -11171,7 +11220,7 @@ async function dispatchRide(ride) {
         sendPushNotification({
           ownerType: "driver",
           ownerId: candidate.id,
-          title: "New Ride Request",
+          title: offerPushTitle(ride),
           body: `Pickup: ${ride.pickup_address || "See app for details"}`,
           url: "/driver-dashboard.html"
         }).catch(() => {});
@@ -11398,7 +11447,7 @@ async function dispatchRide(ride) {
   sendPushNotification({
     ownerType: "driver",
     ownerId: firstDriver.id,
-    title: "New Ride Request",
+    title: offerPushTitle(ride),
     body: `Pickup: ${ride.pickup_address || "See app for details"}`,
     url: "/driver-dashboard.html"
   }).catch(() => {});
@@ -17975,6 +18024,14 @@ app.post(
 
 ========================================================= */
 
+// The recipient's delivery PIN is the rider's to give at handoff; the
+// driver types it in (it is checked server-side) and must never receive it.
+function withoutRecipientPin(row) {
+  if (!row || typeof row !== "object") return row;
+  const { delivery_pin: _pin, ...rest } = row;
+  return rest;
+}
+
 app.get(
 
   "/api/driver/:driverId/missions",
@@ -18023,7 +18080,7 @@ app.get(
 
       missions:
 
-        data || []
+        (data || []).map(withoutRecipientPin)
 
     });
 
@@ -18077,7 +18134,7 @@ app.get(
 
       history:
 
-        data || []
+        (data || []).map(withoutRecipientPin)
 
     });
 
@@ -19503,6 +19560,26 @@ app.post(
     const driver =
 
       await getDriverOrFail(driverId);
+
+    // Deliveries: only a driver set up for that delivery type.
+    const { data: target, error: targetError } = await supabase
+      .from("rides")
+      .select("id, ride_type")
+      .eq("id", rideId)
+      .maybeSingle();
+    if (targetError) {
+      throw targetError;
+    }
+    if (!target) {
+      return fail(res, "Ride not found.", 404);
+    }
+    if (!driverEligibleForService(driver, target.ride_type)) {
+      return fail(
+        res,
+        `This driver is not set up for ${deliveryCapabilityColumn(target.ride_type) === "supports_grocery_delivery" ? "grocery" : "food"} deliveries.`,
+        409
+      );
+    }
 
     const driverRideFields = buildDriverRideFields(driver);
 
