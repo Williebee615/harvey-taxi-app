@@ -255,8 +255,13 @@ function createFakeSupabase(seed = {}, options = {}) {
         filters.push((row) => row[col] !== null && row[col] !== undefined && regex.test(String(row[col])));
         return builder;
       },
-      // Only the not(col, "is", null) form.
+      // The not(col, "is", null) and not(col, "in", "(a,b)") forms.
       not(col, op, val) {
+        if (op === "in" && typeof val === "string" && /^\(.*\)$/.test(val)) {
+          const excluded = val.slice(1, -1).split(",").map((v) => v.trim());
+          filters.push((row) => row[col] !== null && row[col] !== undefined && !excluded.includes(String(row[col])));
+          return builder;
+        }
         if (op !== "is" || val !== null) throw new Error(`fakeSupabase.not: unsupported ${op} ${val}`);
         filters.push((row) => row[col] !== null && row[col] !== undefined);
         return builder;

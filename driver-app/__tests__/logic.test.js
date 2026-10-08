@@ -1,5 +1,5 @@
 import { PROFILES, profileFor, shouldSend, distanceMeters, MAX_SILENCE_MS } from '../src/locationPolicy';
-import { nextStep, stepPath, directionsUrl, isDelivery } from '../src/tripSteps';
+import { nextStep, stepPath, directionsUrl, isDelivery, offerLabel } from '../src/tripSteps';
 import { parseSseChunk, openEventStream } from '../src/sse';
 import { backoffDelay, BACKOFF_MAX_MS } from '../src/backoff';
 import { createApi, ApiError } from '../src/api';
@@ -171,4 +171,13 @@ describe('API base', () => {
     expect(resolveApiBase('https://evil.example.com/path')).toBe(PRODUCTION_API_BASE);
     expect(resolveApiBase('javascript:alert(1)')).toBe(PRODUCTION_API_BASE);
   });
+});
+
+test('offer labels: food and grocery are deliveries, everything else a passenger ride', () => {
+  expect(offerLabel({ ride_type: 'food' })).toEqual({ delivery: true, title: 'New delivery request', service: 'Food delivery' });
+  expect(offerLabel({ ride_type: 'grocery' })).toEqual({ delivery: true, title: 'New delivery request', service: 'Grocery delivery' });
+  for (const t of ['standard', 'airport', 'scheduled', undefined]) {
+    expect(offerLabel({ ride_type: t })).toEqual({ delivery: false, title: 'New ride request', service: 'Passenger ride' });
+  }
+  expect(offerLabel(null).delivery).toBe(false);
 });
