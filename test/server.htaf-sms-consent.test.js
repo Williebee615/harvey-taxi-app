@@ -50,11 +50,14 @@ const APPLICATION = {
   transportation_need: "Appointment"
 };
 
-function loadApp({ enabled = false, failConsentInsert = false } = {}) {
+function loadApp({ enabled = false, failConsentInsert = false, failConsentRead = false } = {}) {
   process.env.HTAF_SMS_ENABLED = enabled ? "true" : "false";
   mockSupabaseClient = createFakeSupabase(
     { htaf_applications: [], htaf_sms_consents: [], audit_logs: [] },
-    { failInsert: (table) => (failConsentInsert && table === "htaf_sms_consents" ? { message: "relation does not exist" } : null) }
+    {
+      failInsert: (table) => (failConsentInsert && table === "htaf_sms_consents" ? { message: "relation does not exist" } : null),
+      failSelect: (table) => (failConsentRead && table === "htaf_sms_consents" ? { message: "read failed" } : null)
+    }
   );
   mockSent.length = 0;
   let app;
@@ -137,6 +140,70 @@ describe("sending honors consent", () => {
     await request(app).post("/api/foundation/apply").send({ ...APPLICATION, sms_consent: false });
     await settle();
     expect(mockSent).toHaveLength(0);
+  });
+});
+
+describe("missing or failed consent records never allow a text", () => {
+  test("no record at all for a number: nothing is sent", async () => {
+    const { app, state } = loadApp({ enabled: true });
+    // A number with no consent row (for example an old application from
+    // before consent existed) is never texted, even with messaging on.
+    state.htaf_sms_consents.length = 0;
+    await request(app).post("/api/htaf/sms/inbound").set("X-Twilio-Signature", "good-signature").type("form").send({ From: "+16155550100", To: "+18447950299", Body: "HELP" });
+    expect(mockSent).toHaveLength(0);
+  });
+
+  test("the consent record can't be read: nothing is sent, even right after an opt-in", async () => {
+    const { app, state } = loadApp({ enabled: true, failConsentRead: true });
+    const res = await request(app).post("/api/foundation/apply").send({ ...APPLICATION, sms_consent: true });
+    expect(res.status).toBe(201);
+    await settle();
+    expect(state.htaf_sms_consents.map((r) => r.event)).toEqual(["opt_in"]);
+    expect(mockSent).toHaveLength(0);
+  });
+
+  test("the consent record can't be saved: nothing is sent (already covered above), and the application is kept", async () => {
+    const { app, state } = loadApp({ enabled: true, failConsentInsert: true });
+    await request(app).post("/api/foundation/apply").send({ ...APPLICATION, sms_consent: true });
+    await settle();
+    expect(state.htaf_applications).toHaveLength(1);
+    expect(mockSent).toHaveLength(0);
+  });
+});
+
+describe("STOP stays in effect across later applications", () => {
+  const inbound = (app, Body) =>
+    request(app).post("/api/htaf/sms/inbound").set("X-Twilio-Signature", "good-signature").type("form").send({ From: "+16155550100", To: "+18447950299", Body });
+
+  test("a later application with the box unchecked does not re-subscribe a number that replied STOP", async () => {
+    const { app, state } = loadApp({ enabled: true });
+    await request(app).post("/api/foundation/apply").send({ ...APPLICATION, sms_consent: true });
+    await settle();
+    await inbound(app, "STOP");
+    mockSent.length = 0;
+
+    await request(app).post("/api/foundation/apply").send({ ...APPLICATION, sms_consent: false });
+    await request(app).post("/api/foundation/apply").send(APPLICATION); // an old page: no field at all
+    await settle();
+    expect(state.htaf_sms_consents.map((r) => r.event)).toEqual(["opt_in", "opt_out", "declined", "declined"]);
+    expect(mockSent).toHaveLength(0);
+  });
+
+  test("only an explicit new opt-in (checking the box again) or a START reply re-subscribes", async () => {
+    const { app, state } = loadApp({ enabled: true });
+    await request(app).post("/api/foundation/apply").send({ ...APPLICATION, sms_consent: true });
+    await settle();
+    await inbound(app, "STOP");
+    mockSent.length = 0;
+
+    await request(app).post("/api/foundation/apply").send({ ...APPLICATION, sms_consent: true });
+    await settle();
+    expect(state.htaf_sms_consents.map((r) => r.event)).toEqual(["opt_in", "opt_out", "opt_in"]);
+    expect(mockSent).toHaveLength(1); // the welcome text for the new opt-in
+
+    await inbound(app, "STOP");
+    await inbound(app, "START");
+    expect(state.htaf_sms_consents.map((r) => r.event)).toEqual(["opt_in", "opt_out", "opt_in", "opt_out", "opt_in_again"]);
   });
 });
 
