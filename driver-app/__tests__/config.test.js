@@ -25,6 +25,20 @@ test('location permissions match behaviour: while-in-use only, no Android backgr
   expect(driver.plugins[0]).toBe('./plugins/withDriverLocationPrivacy');
 });
 
+// The production profile names its EAS environment explicitly. eas-cli
+// already resolves "production" for a store build today, but stating it means
+// a later profile change can't silently switch builds to another environment
+// and drop the GOOGLE_SERVICES_JSON file variable (stored under
+// "production"), which would leave Android push off.
+test('production builds use the EAS "production" environment', () => {
+  expect(eas.build.production.environment).toBe('production');
+});
+
+test('eas.json holds no credentials or machine-specific paths', () => {
+  const text = JSON.stringify(eas);
+  expect(text).not.toMatch(/ascApiKeyPath|ascApiKeyId|ascApiKeyIssuerId|serviceAccountKeyPath|appleId|\/Users\/|\.p8|PRIVATE KEY/);
+});
+
 test('production builds an Android app bundle; submission goes to a draft internal track', () => {
   expect(eas.build.production.android.buildType).toBe('app-bundle');
   expect(eas.submit.production.android).toEqual({ track: 'internal', releaseStatus: 'draft' });
