@@ -133,6 +133,106 @@ describe("dispatch: deliveries reach eligible delivery drivers", () => {
   });
 });
 
+describe("dispatch: eligibility is checked before the nearest-driver limit", () => {
+  // nearest_drivers() returns drivers nearest first. Six ineligible drivers
+  // are nearer than the one eligible driver; dispatch reads at most 5
+  // candidates (MAX_DISPATCH_ATTEMPTS), so a filter applied after that cut
+  // would never reach the eligible one.
+  function nearestRpc(ordered, seen) {
+    return (name, args) => {
+      if (name === "nearest_drivers") {
+        seen.push(args);
+        return Promise.resolve({ data: ordered.slice(0, args.p_limit).map((d, i) => ({ ...d, distance_miles: i + 1 })), error: null });
+      }
+      if (name === "dispatch_ride_atomic") return Promise.resolve({ data: null, error: { message: "not implemented in the fake" } });
+      return Promise.resolve({ data: null, error: null });
+    };
+  }
+
+  test("database search: the nearest drivers are ineligible, a farther eligible driver gets the offer", async () => {
+    const near = Array.from({ length: 6 }, (_, i) => driverAt(`DRIVER_NEAR_${i}`, 10 + i, { supports_food_delivery: false }));
+    const far = driverAt("DRIVER_FAR_FOOD", 30, { supports_food_delivery: true });
+    reset({ drivers: [...near, far] });
+    const seen = [];
+    mockSupabaseClient.rpc = nearestRpc([...near, far], seen);
+
+    const res = await requestService("food");
+    expect(res.status).toBe(201);
+    expect(res.body.dispatch.driver.id).toBe("DRIVER_FAR_FOOD");
+    expect(mockSupabaseClient._state.driver_offers.map((o) => o.driver_id)).toEqual(["DRIVER_FAR_FOOD"]);
+    // The candidate pool for a delivery is wider than the offer limit.
+    expect(seen[0].p_limit).toBeGreaterThanOrEqual(200);
+  });
+
+  test("database search for a passenger ride keeps the original pool size", async () => {
+    const drivers = [driverAt("DRIVER_A", 1, { supports_food_delivery: false })];
+    reset({ drivers });
+    const seen = [];
+    mockSupabaseClient.rpc = nearestRpc(drivers, seen);
+    const res = await requestService("standard");
+    expect(res.body.dispatch.driver.id).toBe("DRIVER_A");
+    expect(seen[0].p_limit).toBeLessThan(200);
+  });
+
+  test("fallback search: 55 ineligible online drivers do not crowd out the eligible one", async () => {
+    const ineligible = Array.from({ length: 55 }, (_, i) => driverAt(`DRIVER_X_${i}`, 100 + i, { supports_food_delivery: false }));
+    const eligible = driverAt("DRIVER_OK", 400, { supports_food_delivery: true, current_lat: 36.2, current_lng: -86.8 });
+    reset({ drivers: [...ineligible, eligible] });
+    const res = await requestService("food");
+    expect(res.body.dispatch.driver.id).toBe("DRIVER_OK");
+  });
+});
+
+describe("admin assignment enforces delivery eligibility", () => {
+  const assign = (rideId, driverId) =>
+    request(app)
+      .post(`/api/admin/rides/${rideId}/assign-driver`)
+      .set("x-admin-token", process.env.ADMIN_API_TOKEN)
+      .set("x-admin-email", "ops@example.test")
+      .send({ driver_id: driverId });
+
+  beforeEach(() => {
+    reset({
+      drivers: [
+        driverAt("DRIVER_NOFOOD", 1, { supports_food_delivery: false, supports_grocery_delivery: true }),
+        driverAt("DRIVER_FOOD", 2, { supports_food_delivery: true, supports_grocery_delivery: false }),
+        driverAt("DRIVER_UNSET", 3, { supports_food_delivery: null })
+      ],
+      rides: [
+        makeRide({ id: "TEST-FOOD", rider_id: "RIDER_1", status: "awaiting_driver_acceptance", ride_type: "food", driver_id: null }),
+        makeRide({ id: "TEST-GROCERY", rider_id: "RIDER_1", status: "awaiting_driver_acceptance", ride_type: "grocery", driver_id: null }),
+        makeRide({ id: "TEST-RIDE", rider_id: "RIDER_1", status: "awaiting_driver_acceptance", ride_type: "standard", driver_id: null })
+      ]
+    });
+  });
+
+  const ride = (id) => mockSupabaseClient._state.rides.find((r) => r.id === id);
+
+  test("an ineligible driver is refused and the ride is unchanged", async () => {
+    const food = await assign("TEST-FOOD", "DRIVER_NOFOOD");
+    expect(food.status).toBe(409);
+    expect(food.body.error).toBe("This driver is not set up for food deliveries.");
+    expect(ride("TEST-FOOD")).toMatchObject({ status: "awaiting_driver_acceptance", driver_id: null });
+
+    const grocery = await assign("TEST-GROCERY", "DRIVER_FOOD");
+    expect(grocery.status).toBe(409);
+    expect(grocery.body.error).toBe("This driver is not set up for grocery deliveries.");
+    expect(ride("TEST-GROCERY").driver_id).toBe(null);
+  });
+
+  test("eligible and unset drivers can be assigned; passenger rides are unchanged", async () => {
+    expect((await assign("TEST-FOOD", "DRIVER_FOOD")).status).toBe(200);
+    expect(ride("TEST-FOOD")).toMatchObject({ status: "driver_assigned", driver_id: "DRIVER_FOOD" });
+    expect((await assign("TEST-GROCERY", "DRIVER_UNSET")).status).toBe(200);
+    expect((await assign("TEST-RIDE", "DRIVER_NOFOOD")).status).toBe(200);
+    expect(ride("TEST-RIDE").driver_id).toBe("DRIVER_NOFOOD");
+  });
+
+  test("an unknown ride is still not found", async () => {
+    expect((await assign("TEST-NOPE", "DRIVER_FOOD")).status).toBe(404);
+  });
+});
+
 describe("offer push titles", () => {
   test("deliveries are named as deliveries and keep offer priority", () => {
     expect(offerPushTitle({ ride_type: "food" })).toBe("New Delivery Request · Food");
