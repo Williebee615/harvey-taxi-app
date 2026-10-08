@@ -60,7 +60,15 @@ function useFake({ flags = {}, rides = [], drivers = null } = {}) {
   return currentFake;
 }
 const allOn = () => Object.fromEntries(SPECIALIST_FLAG_KEYS.map((k) => [k, "true"]));
-const ask = (role, message, headers = {}) => request(app).post(`/api/agent/${role}/assist`).set(headers).send({ message });
+// Each request from its own test address, so the per-IP assistant rate
+// limit (20 a minute) doesn't decide these tests.
+let testIp = 0;
+const ask = (role, message, headers = {}) =>
+  request(app)
+    .post(`/api/agent/${role}/assist`)
+    .set("X-Forwarded-For", `198.51.100.${(testIp = (testIp % 250) + 1)}`)
+    .set(headers)
+    .send({ message });
 const decisions = (fake) => fake._state.audit_logs.filter((r) => r.action === "agent.decision");
 const cases = (fake) => fake._state.audit_logs.filter((r) => r.action === "agent.case_opened");
 const settle = () => new Promise((r) => setTimeout(r, 30));
@@ -257,3 +265,184 @@ describe("admin: hierarchy and switches", () => {
     expect(fake._state.system_flags.find((r) => r.key === SPECIALIST_FLAGS.SAFETY)).toBeUndefined();
   });
 });
+
+describe("switches: specialist, chief and the master stop switch", () => {
+  const DELIVERY_Q = "where is my delivery?";
+  const specialistOf = (res) => (res.body.specialist ? res.body.specialist.id : null);
+
+  test.each([
+    // [specialist flag, chief (assistance), stop switch, expected status, expected specialist]
+    ["true", "true", "false", 200, "delivery"],
+    ["false", "true", "false", 200, null],
+    ["true", "false", "false", 503, null],
+    ["true", "true", "true", 503, null],
+    ["false", "false", "true", 503, null]
+  ])("delivery %s / chief %s / stop %s -> %i %s", async (specialistFlag, chief, stop, status, expected) => {
+    const fake = useFake({
+      flags: { [SPECIALIST_FLAGS.DELIVERY]: specialistFlag, agent_assist_enabled: chief, agent_kill_switch: stop },
+      rides: [FOOD()]
+    });
+    const res = await ask("rider", DELIVERY_Q, RIDER);
+    expect(res.status).toBe(status);
+    expect(specialistOf(res)).toBe(expected);
+    await settle();
+    // A refused turn records no decision.
+    expect(decisions(fake)).toHaveLength(status === 200 ? 1 : 0);
+  });
+
+  test("only exactly \"true\" switches a specialist on", async () => {
+    for (const value of ["1", "yes", "on", "", "false", "True "]) {
+      useFake({ flags: { [SPECIALIST_FLAGS.DELIVERY]: value }, rides: [FOOD()] });
+      // eslint-disable-next-line no-await-in-loop
+      const res = await ask("rider", DELIVERY_Q, RIDER);
+      const on = String(value).trim().toLowerCase() === "true";
+      expect([value, specialistOf(res)]).toEqual([value, on ? "delivery" : null]);
+    }
+  });
+
+  test("each switch turns on only its own specialist", async () => {
+    const cases_ = [
+      [SPECIALIST_FLAGS.RIDE_BOOKING, "rider", "where is my ride", RIDER, "ride_booking_dispatch"],
+      [SPECIALIST_FLAGS.DELIVERY, "rider", DELIVERY_Q, RIDER, "delivery"],
+      [SPECIALIST_FLAGS.DRIVER_ONBOARDING, "driver", "what is missing for onboarding", DRIVER, "driver_support_onboarding"],
+      [SPECIALIST_FLAGS.CUSTOMER_SUPPORT, "rider", "I want to talk to support", RIDER, "customer_support"],
+      [SPECIALIST_FLAGS.SAFETY, "rider", "my driver was speeding", RIDER, "safety_escalation"]
+    ];
+    for (const [flag] of cases_) {
+      for (const [, role, message, headers, id] of cases_) {
+        useFake({ flags: { [flag]: "true" }, rides: [WAITING_RIDE(), FOOD()] });
+        // eslint-disable-next-line no-await-in-loop
+        const res = await ask(role, message, headers);
+        const own = cases_.find((c) => c[0] === flag)[4] === id;
+        expect([flag, message, specialistOf(res)]).toEqual([flag, message, own ? id : null]);
+      }
+    }
+  });
+
+  test("HTAF Information needs its own switch, Harvey Assistant and the HTAF assistant's switch", async () => {
+    const q = "how do I apply to HTAF?";
+    for (const [specialistFlag, chief, htaf, stop, expected] of [
+      ["true", "true", "true", "false", "htaf_information"],
+      ["false", "true", "true", "false", null],
+      ["true", "true", "false", "false", null],
+      ["true", "true", "true", "true", "refused"],
+      ["true", "false", "true", "false", "refused"]
+    ]) {
+      useFake({ flags: { [SPECIALIST_FLAGS.HTAF]: specialistFlag, agent_assist_enabled: chief, htaf_assist_enabled: htaf, agent_kill_switch: stop } });
+      // eslint-disable-next-line no-await-in-loop
+      const res = await ask("rider", q, RIDER);
+      const got = res.status === 503 ? "refused" : specialistOf(res);
+      expect([specialistFlag, chief, htaf, stop, got]).toEqual([specialistFlag, chief, htaf, stop, expected]);
+    }
+  });
+
+  test("engaging the stop switch from the admin page stops specialists at once; releasing it brings them back", async () => {
+    const fake = useFake({ flags: allOn(), rides: [FOOD()] });
+    expect(specialistOf(await ask("rider", DELIVERY_Q, RIDER))).toBe("delivery");
+    // Any admin may engage the stop switch (no elevated token needed).
+    const stop = await request(app).post("/api/admin/agent/flags").set(PASSWORD_ADMIN).send({ key: "agent_kill_switch", enabled: true });
+    expect(stop.status).toBe(200);
+    expect((await ask("rider", DELIVERY_Q, RIDER)).status).toBe(503);
+    const view = await request(app).get("/api/admin/agent/specialists").set(PASSWORD_ADMIN);
+    expect(view.body.kill_switch).toBe(true);
+    const all = view.body.chiefs.flatMap((c) => c.specialists);
+    expect(all.every((sp) => sp.switched_on === true && sp.answering === false)).toBe(true);
+    // Releasing it: the specialist answers again; the switches were kept.
+    await request(app).post("/api/admin/agent/flags").set(PASSWORD_ADMIN).send({ key: "agent_kill_switch", enabled: false });
+    expect(specialistOf(await ask("rider", DELIVERY_Q, RIDER))).toBe("delivery");
+    expect(fake._state.audit_logs.filter((r) => r.action === "agent.flag_changed").map((r) => [r.entity_id, r.metadata.value])).toEqual([
+      ["agent_kill_switch", "true"],
+      ["agent_kill_switch", "false"]
+    ]);
+  });
+
+  test("the admin view separates 'switched on' from 'answering'", async () => {
+    useFake({ flags: { ...allOn(), agent_assist_enabled: "false" } });
+    const view = await request(app).get("/api/admin/agent/specialists").set(PASSWORD_ADMIN);
+    expect(view.body.assist_enabled).toBe(false);
+    const all = view.body.chiefs.flatMap((c) => c.specialists);
+    expect(all.every((sp) => sp.switched_on && !sp.answering)).toBe(true);
+
+    useFake({ flags: allOn() });
+    const on = await request(app).get("/api/admin/agent/specialists").set(PASSWORD_ADMIN);
+    const byId = Object.fromEntries(on.body.chiefs.flatMap((c) => c.specialists).map((sp) => [sp.id, sp.answering]));
+    // HTAF also needs the HTAF assistant's own switch, which is off here.
+    expect(byId).toEqual({
+      ride_booking_dispatch: true,
+      delivery: true,
+      driver_support_onboarding: true,
+      customer_support: true,
+      safety_escalation: true,
+      htaf_information: false
+    });
+  });
+});
+
+describe("permissions", () => {
+  test("the driver route needs a driver session", async () => {
+    useFake({ flags: allOn() });
+    expect((await ask("driver", "what is missing for onboarding")).status).toBe(401);
+    expect((await ask("driver", "what is missing for onboarding", RIDER)).status).toBe(401);
+    expect((await ask("driver", "what is missing for onboarding", { "x-driver-token": "forged.token.value" })).status).toBe(401);
+  });
+
+  test("signed-out or forged rider sessions get general guidance only, never ride data", async () => {
+    useFake({ flags: allOn(), rides: [WAITING_RIDE(), FOOD()] });
+    for (const headers of [{}, riderAuthHeaders("forged.rider.token")]) {
+      // eslint-disable-next-line no-await-in-loop
+      const delivery = await ask("rider", "where is my delivery", headers);
+      expect(delivery.status).toBe(200);
+      expect(delivery.body.reply).toMatch(/^You can request a food or grocery delivery in the Delivery Center\. Sign in/);
+      // eslint-disable-next-line no-await-in-loop
+      const ride = await ask("rider", "where is my ride", headers);
+      expect(ride.body.reply).toMatch(/^You can book in the Harvey Taxi booking screen/);
+      expect(JSON.stringify([delivery.body, ride.body])).not.toMatch(/TEST-FOOD|TEST-RIDE-WAIT|TEST Kitchen|4321|Dana/);
+    }
+  });
+
+  test("roles: a rider never reaches the driver specialist and a driver never reaches rider-only ones", async () => {
+    useFake({ flags: { ...allOn(), htaf_assist_enabled: "true" }, rides: [FOOD()] });
+    const rider = await ask("rider", "what documents do I need for onboarding", RIDER);
+    expect(rider.body.specialist).toBeUndefined();
+    for (const q of ["where is my delivery", "how do I apply to HTAF", "where is my ride"]) {
+      // eslint-disable-next-line no-await-in-loop
+      const driver = await ask("driver", q, DRIVER);
+      expect([q, driver.body.specialist]).toEqual([q, undefined]);
+      expect(JSON.stringify(driver.body)).not.toMatch(/TEST Kitchen|4321/);
+    }
+  });
+
+  test("another rider's delivery is never shown", async () => {
+    useFake({ flags: allOn(), rides: [FOOD()] });
+    const res = await ask("rider", "where is my delivery", OTHER_RIDER);
+    expect(res.body.reply).toBe("You don't have an active delivery right now. You can request one in the Delivery Center.");
+  });
+
+  test("the hierarchy view needs real admin credentials", async () => {
+    useFake();
+    for (const headers of [{}, { "x-admin-token": "wrong" }, { "x-admin-token": "" }, { "x-admin-email": process.env.ADMIN_EMAIL, "x-admin-password": "wrong" }, { cookie: "htaf_admin_session=forged.value" }]) {
+      // eslint-disable-next-line no-await-in-loop
+      const res = await request(app).get("/api/admin/agent/specialists").set(headers);
+      expect([JSON.stringify(headers), res.status]).toEqual([JSON.stringify(headers), 401]);
+    }
+    expect((await request(app).get("/api/admin/agent/specialists").set(TOKEN_ADMIN)).status).toBe(200);
+    expect((await request(app).get("/api/admin/agent/specialists").set(PASSWORD_ADMIN)).status).toBe(200);
+  });
+
+  test("no specialist can be switched on without the elevated token; bad requests change nothing", async () => {
+    const fake = useFake();
+    for (const key of SPECIALIST_FLAG_KEYS) {
+      // eslint-disable-next-line no-await-in-loop
+      const res = await request(app).post("/api/admin/agent/flags").set(PASSWORD_ADMIN).send({ key, enabled: true });
+      expect([key, res.status, res.body.error]).toEqual([key, 403, "Switching on a specialist agent requires elevated admin authorization."]);
+      // eslint-disable-next-line no-await-in-loop
+      const forged = await request(app).post("/api/admin/agent/flags").set({ "x-admin-token": "wrong" }).send({ key, enabled: true });
+      expect([key, forged.status]).toEqual([key, 401]);
+    }
+    expect((await request(app).post("/api/admin/agent/flags").set(TOKEN_ADMIN).send({ key: "agent_specialist_unknown_enabled", enabled: true })).status).toBe(400);
+    expect((await request(app).post("/api/admin/agent/flags").set(TOKEN_ADMIN).send({ key: SPECIALIST_FLAGS.SAFETY, enabled: "true" })).status).toBe(400);
+    expect(fake._state.system_flags.filter((r) => r.key.startsWith("agent_specialist_"))).toEqual([]);
+    expect(fake._state.audit_logs.filter((r) => r.action === "agent.flag_changed")).toEqual([]);
+  });
+});
+

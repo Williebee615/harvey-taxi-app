@@ -219,7 +219,10 @@ Otherwise the chiefs answer exactly as before.
 - **Labels:**
   - Every answer carries `specialist: { id, name, chief, engine, engine_label }`.
   - The web assistant shows "Answered by … for … · Rules-based (no AI model)".
-  - The driver app ignores the label until its next build; its answers and buttons are unchanged.
+  - The driver app (`driver-app/src/assistant.js` `answeredByLabel`) shows the same label under the answer from its **next build**.
+    - The app builds the description from the engine type itself ("rules" or "approved_content"), so it can only say "Rules-based (no AI model)" or "Approved published content only (no AI model)".
+    - An unknown engine shows no label.
+    - Builds before that ignore the field; their answers and buttons are unchanged.
 - **HTAF:**
   - Answers come only from the HTAF Information Assistant's approved index (`lib/htafAssistant.js`), with same-origin links only.
   - Unanswered HTAF questions go to HTAF staff's list (`htaf_assistant_questions`), redacted.
@@ -368,7 +371,16 @@ Booking, payment and dispatch never call the agent. They keep working with the a
 
 ## 9. Tests
 
-- `lib/agent/specialists.test.js` (19) and `test/server.agent-specialists.test.js` (22):
+- `lib/agent/specialists.test.js` (19) and `test/server.agent-specialists.test.js` (38). The server tests also cover:
+  - the switch matrix (specialist, chief and stop switch, including HTAF's own chief switch);
+  - only an exact `"true"` turning a specialist on;
+  - each switch enabling only its own specialist;
+  - the stop switch engaged and released from the admin route;
+  - "switched on" versus "answering" in the admin view;
+  - driver-session, signed-out, forged-session, role and other-rider permissions;
+  - admin credentials, including forged and wrong ones;
+  - no specialist switched on without the elevated token, and bad requests changing nothing.
+- The tests also cover:
   - the hierarchy and labels;
   - each switch, the chief requirement and the stop switch;
   - the elevated token for switching on;
@@ -379,6 +391,7 @@ Booking, payment and dispatch never call the agent. They keep working with the a
   - audit fields;
   - with every specialist off, the chiefs answer as before.
 - `test/agent-manager.browser.test.js`: the hierarchy panel and a confirmed switch.
+- `driver-app/__tests__/assistant.test.js` and `Assistant.flow.test.js`: the driver app's "Answered by … for … · Rules-based (no AI model)" label, and no label for a chief's answer.
 - **Everything, with Postgres 16 and Chromium** (`HARVEY_TEST_DATABASE_URL`, `HARVEY_REQUIRE_DB_TESTS=1`, Playwright): **55 suites, 1268 passed, 0 skipped, 0 failed.**
 - **CI-style, no database or browser:** 1153 passed, 115 skipped (the DB and browser suites).
 - **Combined with #152** (this branch applied on top of `claude/rider-dashboard-home`): **58 suites, 1300 passed, 0 skipped, 0 failed.**

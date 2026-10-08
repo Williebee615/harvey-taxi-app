@@ -53,3 +53,22 @@ test('hands-free during a trip; spoken text drops quote marks; no "help me" prom
   expect(speakable('tap "Start trip".')).toBe('tap Start trip.');
   expect(QUICK_PROMPTS.some((q) => /help me/i.test(q.message))).toBe(false);
 });
+
+describe('answeredByLabel (specialist agents)', () => {
+  const { answeredByLabel } = require('../src/assistant');
+  test('names the specialist and its chief, and says rules-based / approved content', () => {
+    expect(answeredByLabel({ id: 'driver_support_onboarding', name: 'Driver Support & Onboarding', chief: 'Harvey Assistant (Driver)', engine: 'rules' })).toBe(
+      'Answered by Driver Support & Onboarding for Harvey Assistant (Driver) · Rules-based (no AI model)'
+    );
+    expect(answeredByLabel({ name: 'HTAF Information', chief: 'HTAF Information Assistant', engine: 'approved_content' })).toBe(
+      'Answered by HTAF Information for HTAF Information Assistant · Approved published content only (no AI model)'
+    );
+  });
+  test('no label for a chief answer, a missing field, or an unrecognized engine', () => {
+    expect(answeredByLabel(undefined)).toBe(null);
+    expect(answeredByLabel({ name: 'Customer Support', engine: 'rules' })).toBe(null);
+    expect(answeredByLabel({ name: 'X', chief: 'Y', engine: 'model' })).toBe(null);
+    // The server's own description is never shown; only the engine type is used.
+    expect(answeredByLabel({ name: 'X', chief: 'Y', engine: 'rules', engine_label: 'AI powered' })).toBe('Answered by X for Y · Rules-based (no AI model)');
+  });
+});

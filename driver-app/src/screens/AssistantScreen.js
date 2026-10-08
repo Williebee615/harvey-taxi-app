@@ -4,7 +4,7 @@ import * as Speech from 'expo-speech';
 import * as WebBrowser from 'expo-web-browser';
 
 import { API_BASE, EMERGENCY_NUMBER, LINKS } from '../config';
-import { GREETING, isHandsFree, planActions, QUICK_PROMPTS, sourceLabel, speakable, UNAVAILABLE_REPLY } from '../assistant';
+import { answeredByLabel, GREETING, isHandsFree, planActions, QUICK_PROMPTS, sourceLabel, speakable, UNAVAILABLE_REPLY } from '../assistant';
 import { directionsUrl } from '../tripSteps';
 import { clearChat, contextFrom, loadChat, saveChat } from '../chatMemory';
 import { Button, C } from '../ui';
@@ -60,16 +60,18 @@ export default function AssistantScreen({ app, onClose, onOpenTab }) {
     let urgent = false;
     let proposed = [];
     let sources = [];
+    let answeredBy = null;
     try {
       const res = await actions.askAssistant(clean, context);
       reply = res.reply || UNAVAILABLE_REPLY;
       urgent = Boolean(res.escalation && res.escalation.category === 'emergency');
       proposed = res.unavailable ? [] : res.actions || [];
       sources = res.unavailable ? [] : (res.sources || []).filter((src) => src && typeof src.url === 'string' && src.url.startsWith('/'));
+      answeredBy = res.unavailable ? null : answeredByLabel(res.specialist);
     } catch {
       reply = UNAVAILABLE_REPLY;
     }
-    add({ who: 'bot', text: reply, urgent, actions: planActions(proposed, snapshot), sources });
+    add({ who: 'bot', text: reply, urgent, actions: planActions(proposed, snapshot), sources, answeredBy });
     setSending(false);
     if (readAloud) {
       Speech.stop();
@@ -204,6 +206,11 @@ export default function AssistantScreen({ app, onClose, onOpenTab }) {
         {messages.map((m) => (
           <View key={m.id} style={[st.msg, m.who === 'me' ? st.me : st.bot, m.urgent && st.urgent]} testID={m.who === 'bot' ? 'assistant-reply' : undefined}>
             <Text style={st.msgText}>{m.text}</Text>
+            {m.answeredBy ? (
+              <Text style={st.answeredBy} testID="assistant-answered-by">
+                {m.answeredBy}
+              </Text>
+            ) : null}
             {m.sources && m.sources.length > 0 && (
               <View style={st.sources} testID="assistant-sources">
                 <Text style={st.sourceHead}>Source</Text>
@@ -344,6 +351,7 @@ const st = StyleSheet.create({
   actions: { marginTop: 8, gap: 0 },
   sources: { marginTop: 8, gap: 4 },
   sourceHead: { color: C.muted, fontSize: 12, fontWeight: '800', textTransform: 'uppercase' },
+  answeredBy: { color: C.muted, fontSize: 12, marginTop: 4 },
   sourceLink: { color: C.cyan, fontSize: 13, textDecorationLine: 'underline' },
   action: { marginTop: 8 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingTop: 8 },

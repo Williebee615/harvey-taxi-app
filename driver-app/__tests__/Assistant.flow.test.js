@@ -194,6 +194,25 @@ test('asks with the driver session and client "driver_app"; nothing changes with
   await act(async () => tree.unmount());
 });
 
+test('a specialist answer shows who answered, for which chief, and that it is rules-based; a chief answer shows no label', async () => {
+  const tree = await start();
+  await press(tree, 'open-assistant');
+  server.nextAssist = {
+    intent: 'specialist.customer_support',
+    reply: 'I can prepare a request to Harvey Taxi support from this conversation.',
+    actions: [{ type: 'support_handoff', label: 'Send a request to support', requires_confirmation: true }],
+    specialist: { id: 'customer_support', name: 'Customer Support', chief: 'Support Handoff', engine: 'rules', engine_label: 'Rules-based (no AI model)' }
+  };
+  await press(tree, 'assistant-quick-online');
+  const labels = tree.root.findAll((n) => n.props && n.props.testID === 'assistant-answered-by' && typeof n.type === 'string');
+  expect(labels.map((n) => [].concat(n.props.children).join(''))).toEqual(['Answered by Customer Support for Support Handoff · Rules-based (no AI model)']);
+
+  server.nextAssist = { intent: 'driver_availability', reply: 'You control your availability…', actions: [] };
+  await press(tree, 'assistant-quick-online');
+  expect(tree.root.findAll((n) => n.props && n.props.testID === 'assistant-answered-by' && typeof n.type === 'string')).toHaveLength(1);
+  await act(async () => tree.unmount());
+});
+
 test('a new offer closes the assistant; reopened, Accept needs confirmation', async () => {
   const tree = await start();
   await press(tree, 'open-assistant');
