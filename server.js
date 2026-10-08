@@ -3651,6 +3651,7 @@ const {
   extractSupabaseProjectRef,
   buildFlagDiagnosticLogEvent
 } = require("./lib/reviewAccounts");
+const reviewDemo = require("./lib/reviewDemo");
 
 const {
   DELETION_STATUS,
@@ -10672,6 +10673,261 @@ const RIDE_LEVEL_DISPATCH_OUTCOMES = new Set([
   "ride_has_live_offer"
 ]);
 
+/* =========================================================
+
+   APP REVIEW STANDALONE DEMOS (lib/reviewDemo.js, docs/app-review-demo.md)
+
+   Off unless the system flag review_demo_autopilot_enabled is "true".
+   Review rides and the review driver only; never Stripe, never a real
+   driver or rider.
+
+========================================================= */
+
+async function reviewDemoEnabled() {
+  return (await getSystemFlag(reviewDemo.FLAG, "false")) === "true";
+}
+
+// A review ride no review driver can take. Returns a dispatch-shaped
+// outcome when the demo handled it (the caller must not fail the ride),
+// or null to keep the normal "no drivers" handling (switch off, or not a
+// review ride).
+async function handleReviewRideWithoutDriver(rideId) {
+  if (!(await reviewDemoEnabled())) return null;
+  const { data: ride } = await supabase
+    .from("rides")
+    .select("id, status, is_review_ride, review_demo, rider_id")
+    .eq("id", rideId)
+    .maybeSingle();
+  if (!ride || ride.is_review_ride !== true) return null;
+
+  // The driver demo's own ride: nobody took it, so it is withdrawn.
+  if (ride.review_demo === "auto_offer") {
+    await withdrawReviewAutoOffer(ride.id, "review_demo_offer_expired");
+    return { dispatched: false, review_demo: "auto_offer_withdrawn", reason: "Simulated offer expired." };
+  }
+
+  // A reviewer's ride: the simulated driver takes it.
+  const claim = await claimRideTransition({
+    supabase,
+    rideId: ride.id,
+    fromStatuses: [RIDE_STATUS.PAYMENT_AUTHORIZED, RIDE_STATUS.AWAITING_DRIVER],
+    toStatus: RIDE_STATUS.DRIVER_ASSIGNED,
+    patch: reviewDemo.autopilotStartPatch({ now: Date.now() })
+  }).catch(() => ({ ok: false }));
+  if (claim.ok) {
+    broadcastRideSse(ride.id, "stage", { status: RIDE_STATUS.DRIVER_ASSIGNED, delivery_stage: null });
+    auditLog({ actor_type: "system", actor_id: "review-demo", action: "review_demo_autopilot_started", entity_type: "ride", entity_id: ride.id }).catch(() => {});
+    return { dispatched: true, review_demo: "autopilot", simulated: true };
+  }
+  // Already taken over, cancelled or otherwise moved on: leave it as is.
+  return { dispatched: false, review_demo: "unchanged", reason: "Ride is no longer waiting for a driver." };
+}
+
+// Cancels the driver demo's simulated ride (only while nobody has accepted
+// it) and closes its pending offer.
+async function withdrawReviewAutoOffer(rideId, reason) {
+  const claim = await claimRideTransition({
+    supabase,
+    rideId,
+    fromStatuses: [RIDE_STATUS.PAYMENT_AUTHORIZED, RIDE_STATUS.AWAITING_DRIVER],
+    toStatus: RIDE_STATUS.CANCELLED,
+    patch: { cancelled_at: nowIso(), dispatch_status: reason, review_demo_next_at: null, updated_at: nowIso() }
+  }).catch(() => ({ ok: false }));
+  await supabase
+    .from("driver_offers")
+    .update({ status: "expired", updated_at: nowIso() })
+    .eq("ride_id", rideId)
+    .eq("status", "pending");
+  return claim.ok;
+}
+
+// When the rider reviewer books, a simulated offer still waiting for the
+// review driver is withdrawn so the rider's own request reaches them
+// (the connected two-app test).
+async function withdrawPendingReviewAutoOffers(reason) {
+  const { data } = await supabase
+    .from("rides")
+    .select("id")
+    .eq("review_demo", "auto_offer")
+    .in("status", [RIDE_STATUS.PAYMENT_AUTHORIZED, RIDE_STATUS.AWAITING_DRIVER]);
+  for (const r of data || []) {
+    await withdrawReviewAutoOffer(r.id, reason);
+  }
+}
+
+let reviewDemoTickRunning = false;
+
+// Every few seconds while the switch is on: advance the simulated driver,
+// hand expired reviewer offers to it, cancel abandoned demo rides, and
+// offer the idle review driver a simulated ride.
+async function runReviewDemoTick({ now = Date.now() } = {}) {
+  if (reviewDemoTickRunning) return null;
+  reviewDemoTickRunning = true;
+  try {
+    if (!(await reviewDemoEnabled())) return null;
+    const nowText = new Date(now).toISOString();
+    const summary = { advanced: 0, taken_over: 0, stale_cancelled: 0, offered: null };
+
+    // 1) Simulated driver stages that are due. Each is an atomic claim
+    // from the stage it was in, so a cancellation in between stops it.
+    const { data: due } = await supabase
+      .from("rides")
+      .select("id, status, review_demo, review_demo_next_at, estimated_fare")
+      .eq("review_demo", "autopilot")
+      .in("status", Object.keys(reviewDemo.NEXT_STAGE))
+      .lte("review_demo_next_at", nowText);
+    for (const ride of due || []) {
+      const step = reviewDemo.dueStage(ride, now);
+      if (!step) continue;
+      const claim = await claimRideTransition({ supabase, rideId: ride.id, fromStatuses: [step.from], toStatus: step.to, patch: step.patch }).catch(() => ({ ok: false }));
+      if (claim.ok) {
+        summary.advanced += 1;
+        broadcastRideSse(ride.id, "stage", { status: step.to, delivery_stage: null });
+      }
+    }
+
+    // 2) Reviewer rides whose offer to the review driver expired without
+    // an answer (whether or not the general expiry sweep is on).
+    const { data: waiting } = await supabase
+      .from("rides")
+      .select("id")
+      .eq("is_review_ride", true)
+      .eq("status", RIDE_STATUS.AWAITING_DRIVER);
+    for (const ride of waiting || []) {
+      const { data: offers } = await supabase.from("driver_offers").select("status, expires_at").eq("ride_id", ride.id);
+      const live = (offers || []).some((o) => o.status === "pending" && Date.parse(o.expires_at) > now);
+      if ((offers || []).length && !live) {
+        await supabase.from("driver_offers").update({ status: "expired", updated_at: nowText }).eq("ride_id", ride.id).eq("status", "pending");
+        const outcome = await handleReviewRideWithoutDriver(ride.id);
+        if (outcome && outcome.review_demo === "autopilot") summary.taken_over += 1;
+      }
+    }
+
+    // 3) Abandoned demo rides (review rides only).
+    const { data: openReview } = await supabase
+      .from("rides")
+      .select("id, status, updated_at, review_demo")
+      .eq("is_review_ride", true)
+      .in("status", reviewDemo.OPEN_STATUSES);
+    let stillOpen = 0;
+    for (const ride of openReview || []) {
+      if (ride.review_demo && reviewDemo.isStale(ride, now)) {
+        const claim = await claimRideTransition({
+          supabase,
+          rideId: ride.id,
+          fromStatuses: [ride.status],
+          toStatus: RIDE_STATUS.CANCELLED,
+          patch: { cancelled_at: nowText, dispatch_status: "review_demo_abandoned", review_demo_next_at: null, updated_at: nowText }
+        }).catch(() => ({ ok: false }));
+        if (claim.ok) {
+          summary.stale_cancelled += 1;
+          continue;
+        }
+      }
+      stillOpen += 1;
+    }
+
+    // 4) The idle review driver's simulated offer.
+    summary.offered = await maybeOfferReviewDemoRide({ now, openReviewRides: stillOpen });
+    return summary;
+  } finally {
+    reviewDemoTickRunning = false;
+  }
+}
+
+// The latest of: going online, the driver's last offer (or its expiry),
+// their last ride update, and the last simulated offer's update. Null when
+// the driver has no open online session.
+async function reviewDriverIdleSince(driverId, now) {
+  const { data: sessions } = await supabase
+    .from("driver_online_sessions")
+    .select("started_at, ended_at")
+    .eq("driver_id", driverId)
+    .is("ended_at", null);
+  if (!(sessions || []).length) return null;
+  const times = sessions.map((r) => Date.parse(r.started_at));
+  const { data: offers } = await supabase
+    .from("driver_offers")
+    .select("created_at, expires_at")
+    .eq("driver_id", driverId)
+    .order("created_at", { ascending: false })
+    .limit(1);
+  (offers || []).forEach((o) => {
+    times.push(Date.parse(o.created_at));
+    times.push(Math.min(Date.parse(o.expires_at), now));
+  });
+  const { data: rides } = await supabase
+    .from("rides")
+    .select("updated_at")
+    .eq("driver_id", driverId)
+    .order("updated_at", { ascending: false })
+    .limit(1);
+  (rides || []).forEach((r) => times.push(Date.parse(r.updated_at)));
+  const { data: demos } = await supabase
+    .from("rides")
+    .select("updated_at")
+    .eq("review_demo", "auto_offer")
+    .order("updated_at", { ascending: false })
+    .limit(1);
+  (demos || []).forEach((r) => times.push(Date.parse(r.updated_at)));
+  const valid = times.filter(Number.isFinite);
+  return valid.length ? Math.max(...valid) : null;
+}
+
+async function maybeOfferReviewDemoRide({ now, openReviewRides }) {
+  const { data: driver } = await supabase
+    .from("drivers")
+    .select("id, online, is_review_account")
+    .eq("is_review_account", true)
+    .maybeSingle();
+  if (!driver) return { ok: false, reason: "no_review_driver" };
+  const { data: active } = await supabase
+    .from("rides")
+    .select("id")
+    .eq("driver_id", driver.id)
+    .in("status", [RIDE_STATUS.DRIVER_ASSIGNED, RIDE_STATUS.DRIVER_ENROUTE, RIDE_STATUS.ARRIVED, RIDE_STATUS.IN_PROGRESS])
+    .limit(1);
+  const { data: pending } = await supabase
+    .from("driver_offers")
+    .select("id, expires_at")
+    .eq("driver_id", driver.id)
+    .eq("status", "pending");
+  const livePending = (pending || []).some((o) => Date.parse(o.expires_at) > now);
+  const idleSinceMs = driver.online === true ? await reviewDriverIdleSince(driver.id, now) : null;
+  const decision = reviewDemo.shouldAutoOffer({
+    enabled: true,
+    driver,
+    activeRide: (active || [])[0] || null,
+    pendingOffer: livePending,
+    openReviewRide: openReviewRides > 0,
+    idleSinceMs,
+    now
+  });
+  if (!decision.ok) return decision;
+
+  const estimate = calculateRideEstimate({ miles: reviewDemo.DEMO_TRIP.miles, minutes: reviewDemo.DEMO_TRIP.minutes, ride_type: "standard" });
+  const row = reviewDemo.demoRideForDriver({ id: makeId("RIDE"), estimate, now });
+  const { data: created, error } = await supabase.from("rides").insert(row).select().maybeSingle();
+  // Another instance or tick created one first (unique index): nothing to do.
+  if (error || !created) return { ok: false, reason: "already_offered" };
+
+  // A rider reviewer booked at the same moment: their ride wins.
+  const { data: others } = await supabase
+    .from("rides")
+    .select("id")
+    .eq("is_review_ride", true)
+    .in("status", reviewDemo.OPEN_STATUSES)
+    .neq("id", created.id);
+  if ((others || []).length) {
+    await withdrawReviewAutoOffer(created.id, "review_demo_rider_request_first");
+    return { ok: false, reason: "review_ride_open" };
+  }
+
+  auditLog({ actor_type: "system", actor_id: "review-demo", action: "review_demo_offer_created", entity_type: "ride", entity_id: created.id }).catch(() => {});
+  const outcome = await dispatchRide(created);
+  return { ok: Boolean(outcome && outcome.dispatched), ride_id: created.id };
+}
+
 async function dispatchRide(ride) {
 
   // Respect the admin dispatch pause. When dispatch is paused,
@@ -10805,6 +11061,12 @@ async function dispatchRide(ride) {
   }
 
   if (!drivers.length) {
+
+    // App Review demo (off unless review_demo_autopilot_enabled): a review
+    // ride no review driver can take goes to the simulated driver (or, for
+    // the driver demo's own ride, is withdrawn) instead of failing.
+    const reviewDemoOutcome = await handleReviewRideWithoutDriver(ride.id);
+    if (reviewDemoOutcome) return reviewDemoOutcome;
 
     await supabase
 
@@ -10992,6 +11254,8 @@ async function dispatchRide(ride) {
 
     // The RPC itself is working -- every candidate was tried through it
     // and none succeeded. Equivalent to no drivers being available.
+    const reviewDemoOutcome = await handleReviewRideWithoutDriver(ride.id);
+    if (reviewDemoOutcome) return reviewDemoOutcome;
     await supabase
 
       .from("rides")
@@ -12852,6 +13116,13 @@ app.post(
 
     let dispatch = null;
 
+    // App Review demo: a simulated offer still waiting for the review
+    // driver is withdrawn, so the rider reviewer's own request reaches
+    // them (only while the demo switch is on; review rides only).
+    if (isReviewRide && (await reviewDemoEnabled())) {
+      await withdrawPendingReviewAutoOffers("review_demo_rider_request_first").catch(() => {});
+    }
+
     if (shouldDispatchRideNow(data)) {
 
       dispatch =
@@ -13425,6 +13696,22 @@ app.get(
 
     }
 
+    // App Review demo: an active ride with no assigned driver can only be
+    // a simulated-driver demo ride. Looked up separately (and only then)
+    // so this route never depends on the demo columns existing.
+    let simulatedDriver = false;
+    if (!ride.driver_id && Object.keys(reviewDemo.NEXT_STAGE).includes(ride.status)) {
+      const { data: demo } = await supabase
+        .from("rides")
+        .select("review_demo, review_demo_next_at, is_review_ride")
+        .eq("id", ride.id)
+        .maybeSingle();
+      if (demo && demo.is_review_ride === true && demo.review_demo === "autopilot") {
+        simulatedDriver = true;
+        driverLocation = reviewDemo.simulatedPosition({ ...ride, ...demo }, Date.now());
+      }
+    }
+
     const isDelivery = isDeliveryRideType(ride.ride_type);
 
     let tracking = null;
@@ -13491,7 +13778,8 @@ app.get(
 
           ),
 
-          is_estimate: true
+          is_estimate: true,
+          ...(simulatedDriver ? { simulated: true, label: "Simulated location" } : {})
 
         };
 
@@ -13552,7 +13840,22 @@ app.get(
 
           }
 
-        : null,
+        : simulatedDriver
+          ? {
+              name: reviewDemo.SIMULATED_DRIVER.name,
+              vehicle: reviewDemo.SIMULATED_DRIVER.vehicle,
+              phone: null,
+              photo_url: null,
+              verified: false,
+              simulated: true,
+              location: driverLocation
+            }
+          : null,
+
+      // App Review demo only: the ride is driven by the simulated driver.
+      ...(simulatedDriver
+        ? { simulated: true, simulated_label: "App Review demonstration: simulated driver, location and trip. No payment is collected." }
+        : {}),
 
       delivery: isDelivery
 
@@ -26407,6 +26710,11 @@ async function startServer() {
       // offer_expiry_sweep_enabled.
       runStuckRedispatchRecovery();
       setInterval(runStuckRedispatchRecovery, 30_000);
+      // App Review standalone demos. Does nothing unless the
+      // review_demo_autopilot_enabled system flag is "true" (off by default).
+      setInterval(() => {
+        runReviewDemoTick().catch((err) => console.error("⚠️ Review demo tick failed:", err && err.message));
+      }, 5_000);
 
       // Driver hours limit: offline at 12 hours online (lib/driverHours.js).
       setInterval(() => {
@@ -26464,4 +26772,4 @@ if (require.main === module) {
 // runOfferExpirySweep is exported only so tests can drive the real
 // Supabase adapters for the offer-expiry sweep; production runs it on the
 // interval set up under require.main === module below.
-module.exports = { app, runOfferExpirySweep, runUnusedHoldSweep, runAgentCoordinationSweep, reconcileStripeHolds, runScheduledReconciliation, purgeRiderLocations, runDriverHoursSweep };
+module.exports = { app, runReviewDemoTick, runOfferExpirySweep, runUnusedHoldSweep, runAgentCoordinationSweep, reconcileStripeHolds, runScheduledReconciliation, purgeRiderLocations, runDriverHoursSweep };

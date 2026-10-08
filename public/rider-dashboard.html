@@ -5928,7 +5928,9 @@
       els.driverInfoCard.classList.remove("hidden");
 
       if (els.driverNameText) {
-        els.driverNameText.textContent = driver.name || "Assigned driver";
+        // App Review demo: the server marks its simulated driver.
+        els.driverNameText.textContent =
+          (driver.name || "Assigned driver") + (driver.simulated ? " (App Review demonstration)" : "");
       }
 
       if (els.driverVehicleText) {
@@ -6075,7 +6077,8 @@
         if (!tracking) {
           els.driverTracking.classList.add("hidden");
         } else {
-          els.driverTrackingText.textContent = trackingSummaryText(tracking);
+          els.driverTrackingText.textContent =
+            (tracking.simulated ? "Simulated location: " : "") + trackingSummaryText(tracking);
           els.driverTracking.classList.remove("hidden");
         }
       }
