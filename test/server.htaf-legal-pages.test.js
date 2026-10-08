@@ -232,6 +232,18 @@ describe("every HTAF page -- no advertising tags, no Harvey Taxi AI widget", () 
     expect(readPage(page)).not.toContain("buy.stripe.com");
   });
 
+  test.each(["foundation.html", "htaf-application.html", "contact.html"])("%s loads HTAF's own assistant, never Harvey Taxi's", (page) => {
+    const html = readPage(page);
+    expect(html).toContain('<script src="/htaf-assist.js" defer></script>');
+    expect(html).not.toContain("agent-assist.js");
+  });
+
+  test("Harvey Taxi pages never load the HTAF assistant", () => {
+    for (const page of ["index.html", "rider-dashboard.html", "driver-dashboard.html", "support.html"]) {
+      expect(readPage(page)).not.toContain("htaf-assist.js");
+    }
+  });
+
   test("the Harvey Taxi widget itself is left in place for Harvey Taxi pages", () => {
     expect(fs.existsSync(path.join(PUBLIC_DIR, "ai-support-widget.js"))).toBe(true);
     expect(readPage("index.html")).toContain("ai-support-widget.js");
