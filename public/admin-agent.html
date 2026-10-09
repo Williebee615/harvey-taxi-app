@@ -466,7 +466,8 @@
       // admin token, or one who typed it below.
       const canElevate = Boolean(state && state.admin_can_enable_automation) || Boolean(token());
       specialistFlags = [];
-      $("hierarchy").innerHTML = data.chiefs.map((chief) => {
+      const scopeText = { off: "nobody", all: "every rider and driver (signed-out visitors get general guidance only)", test_accounts: "listed test accounts only" }[data.specialist_scope] || "listed test accounts only";
+      $("hierarchy").innerHTML = `<p id="specialistScope" class="muted">Switched-on specialists answer: <b>${esc(scopeText)}</b> (agent_specialist_scope).</p>` + data.chiefs.map((chief) => {
         const rows = chief.specialists.map((sp) => {
           specialistFlags.push(sp.flag);
           const state = sp.answering ? "Answering" : sp.switched_on ? "On (chief or stop switch blocks it)" : "Off";

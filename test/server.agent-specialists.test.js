@@ -42,7 +42,9 @@ const OTHER_RIDER = riderAuthHeaders(signTestRiderToken("RIDER_2"));
 const DRIVER = driverAuthHeaders(signTestDriverToken("DRIVER_1"));
 
 function useFake({ flags = {}, rides = [], drivers = null } = {}) {
-  const base = { agent_assist_enabled: "true", agent_kill_switch: "false", ...flags };
+  // Scope "all" unless a test sets it: most tests check specialist behaviour
+  // itself; the scope tests below cover who gets it.
+  const base = { agent_assist_enabled: "true", agent_kill_switch: "false", agent_specialist_scope: "all", ...flags };
   currentFake = createFakeSupabase(
     {
       riders: [makeRider(), makeRider({ id: "RIDER_2", email: "r2@example.test", phone: "+16155550111" })],
@@ -441,8 +443,63 @@ describe("permissions", () => {
     }
     expect((await request(app).post("/api/admin/agent/flags").set(TOKEN_ADMIN).send({ key: "agent_specialist_unknown_enabled", enabled: true })).status).toBe(400);
     expect((await request(app).post("/api/admin/agent/flags").set(TOKEN_ADMIN).send({ key: SPECIALIST_FLAGS.SAFETY, enabled: "true" })).status).toBe(400);
-    expect(fake._state.system_flags.filter((r) => r.key.startsWith("agent_specialist_"))).toEqual([]);
+    expect(fake._state.system_flags.filter((r) => r.key.startsWith("agent_specialist_") && r.key.endsWith("_enabled"))).toEqual([]);
     expect(fake._state.audit_logs.filter((r) => r.action === "agent.flag_changed")).toEqual([]);
   });
 });
 
+
+describe("who specialists answer (agent_specialist_scope)", () => {
+  const LISTED = JSON.stringify(["rider:RIDER_1", "driver:DRIVER_1"]);
+  const scoped = (scope) => ({ ...allOn(), agent_specialist_scope: scope, agent_model_test_accounts: LISTED });
+
+  test("unset (default): listed test accounts only; everyone else gets the chiefs", async () => {
+    const flags = { ...allOn(), agent_model_test_accounts: LISTED };
+    delete flags.agent_specialist_scope;
+    useFake({ flags });
+    // The fake keeps the test helper's "all" default unless removed.
+    currentFake._state.system_flags = currentFake._state.system_flags.filter((r) => r.key !== "agent_specialist_scope");
+    const listed = await ask("rider", "where is my ride", RIDER);
+    expect(listed.body.specialist && listed.body.specialist.id).toBe("ride_booking_dispatch");
+    const other = await ask("rider", "where is my ride", OTHER_RIDER);
+    expect(other.status).toBe(200);
+    expect(other.body.specialist).toBeUndefined();
+    const signedOut = await ask("rider", "where is my ride");
+    expect(signedOut.body.specialist).toBeUndefined();
+  });
+
+  test("test_accounts: drivers too; a driver not on the list gets the chief", async () => {
+    useFake({ flags: scoped("test_accounts"), drivers: [makeDriver(), makeDriver({ id: "DRIVER_2", email: "d2@example.test", phone: "+16155550299" })] });
+    const listed = await ask("driver", "what is missing for onboarding", DRIVER);
+    expect(listed.body.specialist && listed.body.specialist.id).toBe("driver_support_onboarding");
+    const other = await ask("driver", "what is missing for onboarding", driverAuthHeaders(signTestDriverToken("DRIVER_2")));
+    expect(other.status).toBe(200);
+    expect(other.body.specialist).toBeUndefined();
+  });
+
+  test("off: nobody, including listed test accounts", async () => {
+    useFake({ flags: scoped("off") });
+    expect((await ask("rider", "where is my ride", RIDER)).body.specialist).toBeUndefined();
+  });
+
+  test("an emergency stays with Escalation for listed accounts", async () => {
+    useFake({ flags: scoped("test_accounts") });
+    const res = await ask("rider", "there was an accident and someone is hurt", RIDER);
+    expect(res.body.specialist).toBeUndefined();
+    expect(res.body.escalation && res.body.escalation.category).toBe("emergency");
+  });
+
+  test("admins set the scope through the model settings route; it is audited and shown in the hierarchy", async () => {
+    const fake = useFake({ flags: allOn() });
+    fake._state.system_flags = fake._state.system_flags.filter((r) => r.key !== "agent_specialist_scope");
+    expect((await request(app).post("/api/admin/agent/model").set(TOKEN_ADMIN).send({ specialist_scope: "everyone" })).status).toBe(400);
+    const res = await request(app).post("/api/admin/agent/model").set(TOKEN_ADMIN).send({ specialist_scope: "test_accounts" });
+    expect(res.status).toBe(200);
+    expect(res.body.specialist_scope).toBe("test_accounts");
+    expect(fake._state.system_flags.find((r) => r.key === "agent_specialist_scope").value).toBe("test_accounts");
+    expect(fake._state.audit_logs.some((r) => r.action === "agent.flag_changed" && r.metadata.specialist_scope === "test_accounts")).toBe(true);
+    const h = await request(app).get("/api/admin/agent/specialists").set(TOKEN_ADMIN);
+    expect(h.body.specialist_scope).toBe("test_accounts");
+    expect((await request(app).post("/api/admin/agent/model").send({ specialist_scope: "all" })).status).toBe(401);
+  });
+});
