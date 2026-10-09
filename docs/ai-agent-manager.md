@@ -187,6 +187,12 @@ The original agents remain the **chiefs of command**. Their functions, permissio
 ### When a specialist answers
 A specialist answers only when all of these hold:
 1. its own flag (below) is `"true"`;
+1. the account is in `agent_specialist_scope`:
+   - `test_accounts` (the default): the accounts in `agent_model_test_accounts`;
+   - `all`: every rider and driver; signed-out visitors get general guidance only;
+   - `off`: nobody.
+
+   Admins change it on `POST /api/admin/agent/model` (`specialist_scope`), which validates and audits it. The Agent hierarchy panel shows the current scope.
 2. its chief is running: `agent_assist_enabled` on, and for HTAF also `htaf_assist_enabled`;
 3. the master stop switch `agent_kill_switch` is off.
 

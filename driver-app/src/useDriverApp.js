@@ -15,6 +15,7 @@ import { OFFER_ALERT_KIND, onNotificationReceived, onNotificationTap, playOfferS
 import { createOfferAlerter, OFFER_VIBRATION_PATTERN } from './offerAlert';
 import { stepPath } from './tripSteps';
 import { clearAllChats } from './chatMemory';
+import { AI_LABEL_CAPABILITY } from './assistant';
 
 export function useDriverApp() {
   const [phase, setPhase] = useState('booting'); // booting | signedOut | ready
@@ -287,7 +288,7 @@ export function useDriverApp() {
     assistantStatus: () => api.get('/api/agent/status'),
     askAssistant: async (message, context = []) => {
       try {
-        return await api.post('/api/agent/driver/assist', { message, client: 'driver_app', platform: Platform.OS, context });
+        return await api.post('/api/agent/driver/assist', { message, client: 'driver_app', platform: Platform.OS, context, capabilities: [AI_LABEL_CAPABILITY] });
       } catch (err) {
         // Off or killed: the server still sends a safe reply to show.
         if (err instanceof ApiError && err.data && err.data.reply) return { ...err.data, unavailable: true };

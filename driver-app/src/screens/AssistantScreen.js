@@ -4,7 +4,7 @@ import * as Speech from 'expo-speech';
 import * as WebBrowser from 'expo-web-browser';
 
 import { API_BASE, EMERGENCY_NUMBER, LINKS } from '../config';
-import { answeredByLabel, GREETING, isHandsFree, planActions, QUICK_PROMPTS, sourceLabel, speakable, UNAVAILABLE_REPLY } from '../assistant';
+import { aiAnswerLabel, answeredByLabel, GREETING, isHandsFree, planActions, QUICK_PROMPTS, sourceLabel, speakable, UNAVAILABLE_REPLY } from '../assistant';
 import { directionsUrl } from '../tripSteps';
 import { clearChat, contextFrom, loadChat, saveChat } from '../chatMemory';
 import { Button, C } from '../ui';
@@ -67,7 +67,7 @@ export default function AssistantScreen({ app, onClose, onOpenTab }) {
       urgent = Boolean(res.escalation && res.escalation.category === 'emergency');
       proposed = res.unavailable ? [] : res.actions || [];
       sources = res.unavailable ? [] : (res.sources || []).filter((src) => src && typeof src.url === 'string' && src.url.startsWith('/'));
-      answeredBy = res.unavailable ? null : answeredByLabel(res.specialist);
+      answeredBy = res.unavailable ? null : answeredByLabel(res.specialist) || aiAnswerLabel(res.answered_by);
     } catch {
       reply = UNAVAILABLE_REPLY;
     }
