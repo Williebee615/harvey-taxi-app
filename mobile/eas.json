@@ -28,10 +28,7 @@
   "submit": {
     "production": {
       "ios": {
-        "ascAppId": "6761441561",
-        "ascApiKeyPath": "/Users/willieharveyiv/Downloads/AuthKey_NHKG2PYJ96.p8",
-        "ascApiKeyId": "NHKG2PYJ96",
-        "ascApiKeyIssuerId": "89c207c0-d8a4-4b28-b927-6f5e134c7f01"
+        "ascAppId": "6761548295"
       }
     }
   }

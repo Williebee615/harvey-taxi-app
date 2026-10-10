@@ -13,7 +13,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.harveytaxiservice.app",
+      "bundleIdentifier": "com.harveytaxi.app",
       "buildNumber": "10",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Harvey Taxi uses your location to set your pickup point and, only if you turn it on, to show your driver where you are until pickup.",

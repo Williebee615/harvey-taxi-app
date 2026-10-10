@@ -1,9 +1,21 @@
 # Harvey Taxi iOS app: build and release verification
 
-App Store app: **Harvey Taxi**, iOS bundle ID `com.harveytaxiservice.app`
-(set in `mobile/app.json` by "Fix App Store Connect identifiers"); Android
-package `com.harveytaxi.app`. Both are built from this `mobile/` directory. The root `app.json` (`com.harveytaxi.mobile`) is not
-a buildable Expo project and is not used for App Store builds.
+App Store app: **Harvey Taxi Mobile**, the existing public listing: Apple ID
+`6761548295`, iOS bundle ID `com.harveytaxi.app`. Android package
+`com.harveytaxi.app`. Both are built from this `mobile/` directory. The root
+`app.json` (`com.harveytaxi.mobile`) is not a buildable Expo project and is not
+used for App Store builds.
+
+An App Store Connect record's bundle ID can't be changed, so a build reaches
+Harvey Taxi Mobile only if it is built with `com.harveytaxi.app`.
+`mobile/__tests__/storeConfig.test.js` pins both identifiers and checks they
+differ from Harvey Taxi Driver's.
+
+The second record, **Harvey Taxi** (`6761441561`, bundle
+`com.harveytaxiservice.app`), received builds from 30 September to 4 October
+2026 (1.0.1 (10) from `03b00fe`, 1.0.2 (11-13)) after `mobile/app.json` was
+switched to that bundle ID. It is kept, but rider updates no longer go
+there.
 
 ## Build
 
@@ -29,8 +41,9 @@ npx eas-cli build --platform ios --profile production
 npx eas-cli submit --platform ios --latest
 ```
 
-`submit.production.ios.ascAppId` (`6761548295`) lets EAS upload with the saved
-App Store Connect API key without an Apple ID lookup. This uploads the build
+`submit.production.ios.ascAppId` (`6761548295`) lets EAS upload with the App
+Store Connect API key stored with EAS (team key, assigned to this project with
+`npx eas-cli credentials -p ios`), with no key file or Mac path in this repo. This uploads the build
 to App Store Connect for TestFlight; it does **not** submit it for App Review.
 Submitting for review is a separate, manual step in App Store Connect.
 
