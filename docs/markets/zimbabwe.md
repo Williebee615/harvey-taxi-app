@@ -22,7 +22,7 @@ confirmation by Zimbabwe counsel before launch.
 4. **Currency:** whether fares are quoted and settled in USD, ZiG or both; exchange-rate source; rounding.
 5. **Pricing:** local fare levels (current values are illustrative). **Commission rate: not set**; the owner sets it (no split is computed until then).
 6. **Payments: EcoCash only (owner decision, 10 Oct 2026).** Harvey Taxi collects the rider's fare, keeps its commission and pays the driver's share. Neither Paynow nor EcoCash publicly documents that marketplace arrangement, and Paynow's published terms appear to exclude collecting on behalf of others. Written confirmation is required first: see [zimbabwe-payments.md](zimbabwe-payments.md). **Not to be enabled until confirmed.**
-7. **No cash bookings in Zimbabwe.** Cash is removed from the plan (owner decision, 10 Oct 2026).
+7. **Cash with a driver commission ledger: assessed, disabled.** Drivers keep cash fares and settle Harvey Taxi's commission by EcoCash before their next shift. Sandbox preview only; needs owner approval, a commission rate, an unpaid limit, Paynow's confirmation and tax advice (fiscal receipts, IMTT). See [cash-commission.md](cash-commission.md).
 8. **Emergency numbers:** sources agree on 999 (all), 995 police, 994 ambulance, 993 fire, but some say ambulance and fire are landline-only and 999 is unreliable outside Harare. Confirm what a rider's mobile phone can reach in Harare.
 9. **Driver documents:** confirm the list (national ID, licence class, defensive driving certificate, police clearance, vehicle registration, ZINARA licence, insurance with passenger cover, any operator or route permit) and which ones expire.
 10. **Background checks:** Checkr lists Zimbabwe in its international coverage, check types unknown; Persona coverage of Zimbabwean IDs not confirmed.
@@ -43,5 +43,6 @@ confirmation by Zimbabwe counsel before launch.
 | Address search outside the US | Not done (server change) |
 | +263 SMS sign-in | Phone rules done; Twilio delivery unconfirmed |
 | Driver app: local emergency number, currency, km | Needs a driver build |
-| EcoCash (only method; no cash) | Sandbox ledger and tests only; no provider adapter; disabled |
+| EcoCash in-app payment | Sandbox ledger and tests only; no provider adapter; disabled |
+| Cash + driver commission ledger | Sandbox ledger, tests and admin preview; disabled |
 | Driver document upload, review, expiry | Settings only; not built |

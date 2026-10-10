@@ -96,6 +96,43 @@ describeWithBrowser("admin markets preview (test mode)", () => {
     await context.close();
   });
 
+  test("cash with driver commission: sandbox preview per pilot market; the US has none; nothing is saved", async () => {
+    const before = JSON.stringify(mockSupabaseClient._state);
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, extraHTTPHeaders: { "x-admin-token": "test-admin-token" } });
+    await context.route(/^https?:\/\/(?!harveytaxiservice\.test)/, (route) => route.abort());
+    const page = await context.newPage();
+    const errors = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.goto(`${base}/admin-markets.html`);
+    await page.waitForSelector("[data-testid=market-gh-accra]", { timeout: 20000 });
+    expect(await page.$("[data-testid=cash-preview-us-nashville]")).toBeNull();
+    for (const id of ["zw-harare", "ng-lagos", "gh-accra"]) {
+      const card = `[data-testid=market-${id}]`;
+      expect(await page.textContent(card)).toContain("Cash with driver commission (sandbox)");
+      expect(await page.textContent(card)).toContain("Unpaid limit: not set");
+      // eslint-disable-next-line no-await-in-loop
+      await page.click(`[data-testid=cash-preview-${id}]`);
+      // eslint-disable-next-line no-await-in-loop
+      await page.waitForSelector(`[data-testid=cash-preview-result-${id}]`);
+      // eslint-disable-next-line no-await-in-loop
+      const text = await page.textContent(`[data-testid=cash-preview-result-${id}]`);
+      expect(text).toContain("SANDBOX — no money moves");
+      expect(text).toMatch(/Test values only/);
+      expect(text).toMatch(/blocked: settle/);
+      expect(text).toMatch(/never interrupted/);
+      expect(text).toMatch(/Duplicate payment prevented/);
+      expect(text).toMatch(/ignored \(unverified\)/);
+      expect(text).toMatch(/balance now \D*0[.,]00/);
+      // eslint-disable-next-line no-await-in-loop
+      if (SHOTS) await page.locator(card).screenshot({ path: path.join(SHOTS, `${id}-cash-preview.png`) });
+    }
+    const res = await page.evaluate(() => fetch("/api/admin/markets/us-nashville/cash-commission-preview", { headers: { "x-admin-token": "test-admin-token" } }).then((r) => r.status));
+    expect(res).toBe(404);
+    expect(JSON.stringify(mockSupabaseClient._state)).toBe(before);
+    expect(errors).toEqual([]);
+    await context.close();
+  });
+
   test("without admin access the page shows nothing but the sign-in prompt", async () => {
     const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
     await context.route(/^https?:\/\/(?!harveytaxiservice\.test)/, (route) => route.abort());
