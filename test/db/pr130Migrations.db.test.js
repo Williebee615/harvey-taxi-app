@@ -45,7 +45,9 @@ const EXPECTED_ORDER = [
   "20261005030000_ride_cancellation_records.sql",
   "20261005120000_htaf_sms_consents.sql",
   "20261005130000_htaf_assistant_questions.sql",
-  "20261005150000_review_demo.sql"
+  "20261005150000_review_demo.sql",
+  // Covered by test/db/agentAiConsents.db.test.js.
+  "20261010120000_agent_ai_consents.sql"
 ];
 
 // Synthetic pre-existing row (no production data), inserted after the

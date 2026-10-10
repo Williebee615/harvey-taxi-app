@@ -286,6 +286,11 @@ export function useDriverApp() {
     // Harvey Assistant (src/assistant.js). These don't use run(): the
     // assistant shows its own answers and errors, not the screen notice.
     assistantStatus: () => api.get('/api/agent/status'),
+    // "Allow AI answers?" (lib/agent/aiConsent.js on the server). Nothing is
+    // sent to the AI provider until the driver allows it here.
+    aiConsentStatus: () => api.get(`/api/agent/driver/ai-consent?client=driver_app&capabilities=${AI_LABEL_CAPABILITY}`),
+    setAiConsent: (granted, version) =>
+      api.post('/api/agent/driver/ai-consent', { granted, version, client: 'driver_app', capabilities: [AI_LABEL_CAPABILITY] }),
     askAssistant: async (message, context = []) => {
       try {
         return await api.post('/api/agent/driver/assist', { message, client: 'driver_app', platform: Platform.OS, context, capabilities: [AI_LABEL_CAPABILITY] });

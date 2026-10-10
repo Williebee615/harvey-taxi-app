@@ -489,6 +489,45 @@ describe("who specialists answer (agent_specialist_scope)", () => {
     expect(res.body.escalation && res.body.escalation.category).toBe("emergency");
   });
 
+  test("their own list: taking a driver off the AI model list keeps its specialists", async () => {
+    // The production situation: the review driver is off the model list
+    // (rules-based answers) but should keep the rules-based specialists.
+    useFake({
+      flags: {
+        ...allOn(),
+        agent_specialist_scope: "test_accounts",
+        agent_model_test_accounts: JSON.stringify(["rider:RIDER_1"]),
+        agent_specialist_test_accounts: LISTED
+      }
+    });
+    const driver = await ask("driver", "what is missing for onboarding", DRIVER);
+    expect(driver.body.specialist && driver.body.specialist.id).toBe("driver_support_onboarding");
+    expect(driver.body.source).not.toBe("model");
+    // And the other way round: an empty specialist list means no
+    // specialists, even for accounts on the model list.
+    const fake = useFake({ flags: { ...scoped("test_accounts"), agent_specialist_test_accounts: "[]" } });
+    expect((await ask("rider", "where is my ride", RIDER)).body.specialist).toBeUndefined();
+    expect(fake._state.system_flags.find((r) => r.key === "agent_model_test_accounts").value).toBe(LISTED);
+  });
+
+  test("until their own list is set, they follow the model list (no change on deploy)", async () => {
+    useFake({ flags: scoped("test_accounts") });
+    const status = await request(app).get("/api/admin/agent/model").set(TOKEN_ADMIN);
+    expect(status.body.specialist_accounts_source).toBe("model_list");
+    expect(status.body.specialist_test_accounts).toEqual(["rider:RIDER_1", "driver:DRIVER_1"]);
+    expect((await ask("driver", "what is missing for onboarding", DRIVER)).body.specialist.id).toBe("driver_support_onboarding");
+  });
+
+  test("admins set the specialist list separately; validated and audited", async () => {
+    const fake = useFake({ flags: scoped("test_accounts") });
+    expect((await request(app).post("/api/admin/agent/model").set(TOKEN_ADMIN).send({ specialist_test_accounts: ["nobody"] })).status).toBe(400);
+    expect((await request(app).post("/api/admin/agent/model").set(TOKEN_ADMIN).send({ specialist_test_accounts: "driver:DRIVER_1" })).status).toBe(400);
+    const res = await request(app).post("/api/admin/agent/model").set(TOKEN_ADMIN).send({ specialist_test_accounts: ["driver:DRIVER_1"] });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ specialist_test_accounts: ["driver:DRIVER_1"], specialist_accounts_source: "own", test_accounts: ["rider:RIDER_1", "driver:DRIVER_1"] });
+    expect(fake._state.audit_logs.some((r) => r.action === "agent.flag_changed" && Array.isArray(r.metadata.specialist_test_accounts))).toBe(true);
+  });
+
   test("admins set the scope through the model settings route; it is audited and shown in the hierarchy", async () => {
     const fake = useFake({ flags: allOn() });
     fake._state.system_flags = fake._state.system_flags.filter((r) => r.key !== "agent_specialist_scope");
