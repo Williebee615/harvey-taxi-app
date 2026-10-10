@@ -94,7 +94,9 @@ describeWithBrowser("Harvey Taxi Mobile index page: the chat on small phones", (
   }
 
   // Floating things (assistant button, teaser) never sit on a control's
-  // centre; content never scrolls sideways.
+  // centre; content never scrolls sideways. A phone shows a page wider
+  // than its screen zoomed out instead (innerWidth grows past
+  // screen.width), so that counts as sideways too.
   const pageFacts = (page) =>
     page.evaluate(() => {
       const vis = (el) => { if (!el) return false; const s = getComputedStyle(el); const r = el.getBoundingClientRect(); return s.display !== "none" && s.visibility !== "hidden" && r.width > 0 && r.height > 0 && !el.closest("[hidden]"); };
@@ -112,7 +114,7 @@ describeWithBrowser("Harvey Taxi Mobile index page: the chat on small phones", (
       }
       const tabs = Array.from(document.querySelectorAll(".bottom-nav .nav-btn")).filter(vis);
       const tabsFit = tabs.every((t) => t.scrollWidth <= t.clientWidth + 1);
-      return { sideways: document.documentElement.scrollWidth > innerWidth + 1, covered, oldWidget: Boolean(document.querySelector(".harvey-ai-launch, [data-harvey-ai-root], .harvey-ai-panel")), newLauncher: vis(document.querySelector("[data-testid=hta-launcher]")), navAssistant: vis(document.querySelector("[data-testid=nav-assistant]")), tabs: tabs.length, tabsFit };
+      return { sideways: document.documentElement.scrollWidth > innerWidth + 1 || innerWidth > screen.width + 1, covered, oldWidget: Boolean(document.querySelector(".harvey-ai-launch, [data-harvey-ai-root], .harvey-ai-panel")), newLauncher: vis(document.querySelector("[data-testid=hta-launcher]")), navAssistant: vis(document.querySelector("[data-testid=nav-assistant]")), tabs: tabs.length, tabsFit };
     });
 
   // Scrolls the whole page; at every step no floating element (assistant
