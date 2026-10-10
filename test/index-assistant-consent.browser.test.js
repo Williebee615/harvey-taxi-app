@@ -1,4 +1,4 @@
-// Harvey Taxi Mobile index page: the "Allow AI answers?" notice (PR #210)
+// Index, Settings and rider sign-up: the "Allow AI answers?" notice (PR #210)
 // in the shared Harvey Assistant fits small phones, with and without the
 // keyboard: the panel stays on screen, nothing scrolls sideways, and
 // "Allow AI answers" can be tapped. The assistant and consent routes are
@@ -83,7 +83,7 @@ describeWithConsent("Harvey Taxi Mobile index page: the AI consent notice on sma
     }
   });
 
-  async function open(phone) {
+  async function open(phone, url = "/") {
     const context = await browser.newContext({ viewport: { width: phone.width, height: phone.height }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, extraHTTPHeaders: nextIpHeaders() });
     await context.route(/^https?:\/\/(?!harveytaxiservice\.test)/, (route) => route.abort());
     const page = await context.newPage();
@@ -94,7 +94,7 @@ describeWithConsent("Harvey Taxi Mobile index page: the AI consent notice on sma
       if (r.url().includes("/api/ai/support")) calls.legacy += 1;
       if (r.url().includes("/api/agent/rider/assist")) calls.assist.push(JSON.parse(r.postData() || "{}").message);
     });
-    await page.goto(`${base}/`);
+    await page.goto(`${base}${url}`);
     await page.waitForTimeout(2500);
     return { context, page, errors, calls };
   }
@@ -102,9 +102,11 @@ describeWithConsent("Harvey Taxi Mobile index page: the AI consent notice on sma
 
   // eslint-disable-next-line global-require
   const NOTICE = hasConsent ? { required: true, ...require("../lib/agent/aiConsent").consentText("rider") } : null;
-  for (const phone of PHONES) {
-    test(`${phone.name}: consent notice fits`, async () => {
-      const { context, page, errors } = await open(phone);
+  // The index page, plus the other rider pages that use the same assistant.
+  const PAGES = [{ name: "", url: "/" }, { name: "settings-", url: "/settings.html" }, { name: "rider-signup-", url: "/rider-signup.html" }];
+  for (const pg of PAGES) for (const phone of PHONES) {
+    test(`${pg.url} ${phone.name}: consent notice fits`, async () => {
+      const { context, page, errors } = await open(phone, pg.url);
       await context.route("**/api/agent/rider/ai-consent", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, ai_available: true, consent: { granted: false, version: NOTICE.version }, notice: NOTICE }) }));
       await context.route("**/api/agent/rider/assist", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, agent_available: true, reply: "Your ride is on the way. Open Track ride to see your driver.", source: "rules", actions: [], sources: [], ai_consent: NOTICE }) }));
       await page.evaluate(() => window.openHarveyAiChat());
@@ -112,7 +114,7 @@ describeWithConsent("Harvey Taxi Mobile index page: the AI consent notice on sma
       await page.press("#htaPanel input[type=text]", "Enter");
       await page.waitForSelector("[data-testid=hta-consent]", { timeout: 15000 });
       await page.waitForTimeout(500);
-      if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `${phone.name}-consent.png`) });
+      if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `${pg.name}${phone.name}-consent.png`) });
       const facts = async () => page.evaluate(() => {
         const p = document.getElementById("htaPanel"); const pr = p.getBoundingClientRect();
         const card = document.querySelector("[data-testid=hta-consent]");
@@ -123,12 +125,12 @@ describeWithConsent("Harvey Taxi Mobile index page: the AI consent notice on sma
         return { inside: pr.top >= 0 && pr.left >= 0 && pr.right <= innerWidth && pr.bottom <= innerHeight, cardWithinPanel: cr.left >= pr.left && cr.right <= pr.right, allowTappable: hit === allow || allow.contains(hit), sideways: p.scrollWidth > p.clientWidth + 1 || document.querySelector("#htaPanel .hta-log").scrollWidth > document.querySelector("#htaPanel .hta-log").clientWidth + 1 };
       });
       const normal = await facts();
-      if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `${phone.name}-consent-allow.png`) });
+      if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `${pg.name}${phone.name}-consent-allow.png`) });
       await page.focus("#htaPanel input[type=text]");
       await page.setViewportSize({ width: phone.width, height: Math.round(phone.height * 0.55) });
       await page.waitForTimeout(600);
       const kb = await facts();
-      if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `${phone.name}-consent-keyboard.png`) });
+      if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `${pg.name}${phone.name}-consent-keyboard.png`) });
       const want = { inside: true, cardWithinPanel: true, allowTappable: true, sideways: false };
       expect(normal).toEqual(want);
       expect(kb).toEqual(want);
