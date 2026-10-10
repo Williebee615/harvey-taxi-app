@@ -132,6 +132,19 @@ describeWithBrowser("Harvey Taxi Mobile index page: the chat on small phones", (
       if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `${phone.name}-chat.png`) });
       const panelVisible = await page.evaluate(() => { const p = document.getElementById("htaPanel"); return Boolean(p && p.classList.contains("open")); });
       expect(panelVisible).toBe(true);
+      // Nothing on the page (welcome toast, teaser) sits over the panel's
+      // header, 911 line or input.
+      const onTop = await page.evaluate(() => {
+        const p = document.getElementById("htaPanel");
+        return ["header, .hta-head", ".hta-911", "input[type=text]"].map((sel) => {
+          const n = p.querySelector(sel);
+          if (!n) return `${sel}: missing`;
+          const r = n.getBoundingClientRect();
+          const hit = document.elementFromPoint(r.left + r.width / 2, r.top + Math.min(r.height / 2, 10));
+          return p.contains(hit) ? "ok" : `${sel} under ${hit && (hit.className || hit.tagName)}`;
+        });
+      });
+      expect(onTop).toEqual(["ok", "ok", "ok"]);
 
       await page.fill("#htaPanel input[type=text]", "How do I book a ride?");
       await page.press("#htaPanel input[type=text]", "Enter");

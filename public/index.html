@@ -1039,6 +1039,10 @@
     /* ============================================================
        TOAST / WELCOME BANNER
        ============================================================ */
+    /* While Harvey Assistant is open, the welcome toast and the teaser
+       bubble would sit on top of its header and 911 line. Hide them. */
+    body:has(#htaPanel.open) .welcome-banner,
+    body:has(#htaPanel.open) .ai-teaser-bubble { display: none; }
     .welcome-banner {
       position: fixed;
       top: 18px;
