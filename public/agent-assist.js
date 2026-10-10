@@ -79,6 +79,70 @@
     ".hta-aibar[hidden]{display:none}" +
     ".hta-aibar button{border:1px solid rgba(122,162,255,.35);background:transparent;color:inherit;border-radius:8px;padding:4px 8px;min-height:30px;font:600 12px Inter,Arial,sans-serif;cursor:pointer}";
 
+  // Phones (<600px): the launcher is a small round button at the right
+  // edge instead of a wide pill on the left, so it covers as little of the
+  // page as possible (the page leaves room at the bottom to scroll any
+  // control clear of it). The label stays for screen readers. It also
+  // hides while a page field is focused: Android WebViews resize the page
+  // for the keyboard instead of shrinking the visual viewport, so the
+  // keyboard check below doesn't see it there.
+  css +=
+    ".hta-btn-icon{display:none}" +
+    "@media (max-width:599px){" +
+    ".hta-btn{left:auto;right:12px;width:52px;height:52px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center}" +
+    ".hta-btn[hidden]{display:none}" +
+    ".hta-btn-text{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}" +
+    ".hta-btn-icon{display:block;width:26px;height:26px}" +
+    "}";
+
+  // Look shared with the rider pages and the driver app's assistant: the
+  // site font, cyan accents, bordered answer bubbles, a title with a
+  // subtitle, one-tap questions, and readable action buttons. "Compact"
+  // (keyboard up or a short screen) keeps the 911 line to one row and
+  // hides the one-tap questions so the conversation stays visible.
+  css +=
+    ".hta-panel{font:14px/1.45 Inter,system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;background:linear-gradient(180deg,#0a1530,#070f24);border-color:rgba(99,245,255,.22)}" +
+    ".hta-head{gap:8px;padding:10px 12px 10px 14px}" +
+    ".hta-title{display:flex;flex-direction:column;min-width:0}" +
+    ".hta-title strong{display:flex;align-items:center;gap:8px;font-size:17px;font-weight:800;color:#fff}" +
+    ".hta-title strong::before{content:'';width:9px;height:9px;border-radius:50%;background:#63f5ff;box-shadow:0 0 10px rgba(99,245,255,.7);flex:0 0 auto}" +
+    ".hta-title span{font-size:12px;color:#aab8de;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}" +
+    ".hta-title strong{white-space:nowrap}" +
+    ".hta-head .hta-clear{white-space:nowrap;padding:6px 9px;flex:0 0 auto}" +
+    ".hta-head .hta-close{flex:0 0 auto}" +
+    "@media (max-width:399px){.hta-title strong{font-size:16px}}" +
+    ".hta-bot{border:1px solid rgba(99,245,255,.18)}" +
+    ".hta-actions a,.hta-actions button{color:#fff;border-color:rgba(99,245,255,.4);background:rgba(99,245,255,.08)}" +
+    ".hta-chips{flex:0 0 auto;display:flex;gap:6px;padding:8px 14px 0;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}" +
+    ".hta-chips::-webkit-scrollbar{display:none}" +
+    ".hta-chips button{flex:0 0 auto;border:1px solid rgba(99,245,255,.45);background:rgba(99,245,255,.08);color:#63f5ff;border-radius:999px;padding:8px 12px;min-height:36px;font:700 13px Inter,system-ui,sans-serif;cursor:pointer;white-space:nowrap}" +
+    ".hta-chips button:disabled{opacity:.55}" +
+    ".hta-panel.hta-compact .hta-chips{display:none}" +
+    ".hta-panel.hta-compact .hta-911{margin:6px 12px;padding:5px 9px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}" +
+    ".hta-panel.hta-compact .hta-911 .hta-911-more{display:none}" +
+    ".hta-panel.hta-compact .hta-title span{display:none}";
+
+  // One-tap questions, the same set as the driver app for drivers.
+  // "help me" is avoided on purpose: it reads as possible distress.
+  var QUICK = role === "driver"
+    ? [
+      ["Going online", "How do I go online?"],
+      ["Ride offers", "Do I have any ride offers?"],
+      ["Next trip step", "What's next on my current trip?"],
+      ["Directions", "Navigate to my next stop"],
+      ["Earnings", "How much did I earn?"],
+      ["My hours", "How many hours have I been online this shift?"],
+      ["Support", "I need to contact support"]
+    ]
+    : [
+      ["Where's my driver?", "Where is my driver?"],
+      ["My fare", "How much is my fare?"],
+      ["Book a ride", "Book a ride"],
+      ["Cancel my ride", "Cancel my ride"],
+      ["Lost item", "I left something in the car"],
+      ["Support", null]
+    ];
+
   // Height of anything fixed to the bottom of the screen (a page's bottom
   // navigation), so the launcher sits above it rather than on top of it.
   function bottomInset(ignore) {
@@ -103,10 +167,25 @@
     style.textContent = css;
     document.head.appendChild(style);
 
-    var btn = el("button", { type: "button", class: "hta-btn", "aria-expanded": "false", "aria-controls": "htaPanel", "data-testid": "hta-launcher" }, "Harvey Assistant");
+    var btn = el("button", { type: "button", class: "hta-btn", "aria-expanded": "false", "aria-controls": "htaPanel", "aria-label": "Harvey Assistant", "data-testid": "hta-launcher" });
+    btn.appendChild(el("span", { class: "hta-btn-text" }, "Harvey Assistant"));
+    // Chat bubble icon, shown on phones only.
+    var svgNs = "http://www.w3.org/2000/svg";
+    var icon = document.createElementNS(svgNs, "svg");
+    icon.setAttribute("viewBox", "0 0 24 24");
+    icon.setAttribute("class", "hta-btn-icon");
+    icon.setAttribute("aria-hidden", "true");
+    var bubble = document.createElementNS(svgNs, "path");
+    bubble.setAttribute("d", "M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.2 3.6A.5.5 0 0 1 5 19.2V16h-.5A.5.5 0 0 1 4 15.5z");
+    bubble.setAttribute("fill", "currentColor");
+    icon.appendChild(bubble);
+    btn.appendChild(icon);
     var panel = el("section", { id: "htaPanel", class: "hta-panel", role: "dialog", "aria-label": "Harvey Assistant" });
     var head = el("div", { class: "hta-head" });
-    head.appendChild(el("strong", {}, "Harvey Assistant"));
+    var title = el("div", { class: "hta-title" });
+    title.appendChild(el("strong", {}, "Harvey Assistant"));
+    title.appendChild(el("span", {}, role === "driver" ? "Your trips and account" : "Your rides and account"));
+    head.appendChild(title);
     // Clears this conversation. For a signed-in rider, recent turns are
     // kept in this browser/app session only (sessionStorage, per account;
     // never on the server) and deleted on sign-out. Otherwise they live
@@ -118,7 +197,8 @@
     var banner = el("div", { class: "hta-911" });
     banner.appendChild(document.createTextNode("Emergency? "));
     banner.appendChild(el("a", { href: "tel:911" }, "Call 911"));
-    banner.appendChild(document.createTextNode(" first. This assistant cannot send help."));
+    banner.appendChild(document.createTextNode(" first."));
+    banner.appendChild(el("span", { class: "hta-911-more" }, " This assistant cannot send help."));
     var log = el("div", { class: "hta-log", "aria-live": "polite" });
     var form = el("form", { class: "hta-form" });
     var input = el("input", { type: "text", maxlength: "1000", placeholder: role === "driver" ? "Ask about offers, your trip or earnings" : "Ask about booking, your ride or fares", "aria-label": "Message" });
@@ -128,6 +208,8 @@
     panel.appendChild(head);
     panel.appendChild(banner);
     panel.appendChild(log);
+    var chips = el("div", { class: "hta-chips", role: "group", "aria-label": "Quick questions", "data-testid": "hta-chips" });
+    panel.appendChild(chips);
     // Shown while this account has AI answers turned on, with the way to
     // turn them off (lib/agent/aiConsent.js).
     var aiBar = el("div", { class: "hta-aibar", "data-testid": "hta-ai-bar" });
@@ -151,7 +233,21 @@
       root.style.setProperty("--hta-vh", visible + "px");
       root.style.setProperty("--hta-top", (vv ? vv.offsetTop : 0) + "px");
       root.style.setProperty("--hta-bottom", "calc(" + (bottomInset([panel, btn]) + 16) + "px + env(safe-area-inset-bottom, 0px))");
-      btn.hidden = panel.classList.contains("open") || keyboardOpen;
+      btn.hidden = panel.classList.contains("open") || keyboardOpen || fieldFocused();
+      // Compact when the keyboard is up or the screen is short, so the
+      // conversation keeps most of the height. Android resizes the page for
+      // the keyboard, so the height test covers it there. Not tied to
+      // focus: a tap that moves focus would otherwise reshuffle the panel
+      // between press and release, and the tap would miss its button.
+      panel.classList.toggle("hta-compact", keyboardOpen || visible < 520);
+    }
+
+    // A text field on the page (not in the assistant) has focus on a phone.
+    function fieldFocused() {
+      var a = document.activeElement;
+      if (!a || panel.contains(a) || window.innerWidth >= 600) return false;
+      if (a.isContentEditable || a.tagName === "TEXTAREA" || a.tagName === "SELECT") return true;
+      return a.tagName === "INPUT" && !/^(button|submit|reset|checkbox|radio|range|color|file|image|hidden)$/i.test(a.type || "");
     }
 
     function toggle(open) {
@@ -161,8 +257,23 @@
       if (open) input.focus();
       else btn.focus();
     }
+    // One-tap questions go through the same form as typed ones. Support
+    // opens the support request editor directly (riders).
+    QUICK.forEach(function (q) {
+      var chip = el("button", { type: "button", "data-testid": "hta-chip" }, q[0]);
+      chip.addEventListener("click", function () {
+        if (!q[1]) { openHandoff("general"); return; }
+        if (send.disabled) return;
+        input.value = q[1];
+        form.dispatchEvent(new Event("submit", { cancelable: true }));
+      });
+      chips.appendChild(chip);
+    });
+
     layout();
     window.addEventListener("resize", layout);
+    document.addEventListener("focusin", layout);
+    document.addEventListener("focusout", function () { setTimeout(layout, 0); });
     if (window.visualViewport) {
       window.visualViewport.addEventListener("resize", layout);
       window.visualViewport.addEventListener("scroll", layout);
