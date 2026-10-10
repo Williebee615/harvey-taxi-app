@@ -188,6 +188,15 @@
     }
     .home-btn:hover { background: rgba(255, 255, 255, 0.07); transform: translateY(-1px); }
     .home-btn:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+    /* Harvey Assistant: on phones it opens from this button in the sticky
+       top bar (always in reach, never over the form); wider screens use its
+       own launcher. */
+    .assistant-btn { display: none; cursor: pointer; font: inherit; font-weight: 700; color: var(--cyan); border-color: rgba(99, 245, 255, 0.45); background: rgba(99, 245, 255, 0.08); }
+    @media (max-width: 599px) {
+      .assistant-btn { display: inline-flex; }
+      .top-actions { flex-wrap: nowrap; }
+      .top-actions .home-btn { flex: 1 1 0; min-width: 0; white-space: nowrap; padding: 10px 6px; font-size: 14px; overflow: hidden; text-overflow: ellipsis; }
+    }
 
     .hero {
       background:
@@ -401,6 +410,7 @@
     </div>
     <div class="top-actions">
       <a class="home-btn" href="/" data-i18n="returnHome">← Return Home</a>
+      <button class="home-btn assistant-btn" type="button" onclick="openHarveyAiChat()" aria-label="Harvey Assistant" aria-controls="htaPanel" data-testid="top-assistant" data-i18n="assistantBtn">Assistant</button>
     </div>
   </header>
 
@@ -661,6 +671,7 @@
       langCopy: "Select your preferred language and accessibility settings.",
       riderOnboarding: "Rider onboarding",
       returnHome: "← Return Home",
+      assistantBtn: "Assistant",
       heroBadge: "Secure rider onboarding • Harvey Taxi",
       heroTitle: "Create your Harvey Taxi rider account",
       heroCopy: "Begin the Harvey Taxi rider onboarding flow with secure rider profile creation, approval-aware access controls, AI-assisted support compatibility, and production-safe rider session recovery.",
@@ -707,6 +718,7 @@
       langCopy: "Seleccione su idioma preferido y configuración de accesibilidad.",
       riderOnboarding: "Incorporación de pasajeros",
       returnHome: "← Volver al Inicio",
+      assistantBtn: "Asistente",
       heroBadge: "Incorporación segura de pasajeros • Harvey Taxi",
       heroTitle: "Crea tu cuenta de pasajero de Harvey Taxi",
       heroCopy: "Comienza el proceso de incorporación de pasajeros de Harvey Taxi con creación segura de perfil, controles de acceso basados en aprobación, compatibilidad con soporte de IA y recuperación segura de sesión.",
@@ -753,6 +765,7 @@
       langCopy: "Sélectionnez votre langue préférée et vos paramètres d'accessibilité.",
       riderOnboarding: "Intégration des passagers",
       returnHome: "← Retour à l'Accueil",
+      assistantBtn: "Assistant",
       heroBadge: "Intégration sécurisée des passagers • Harvey Taxi",
       heroTitle: "Créez votre compte passager Harvey Taxi",
       heroCopy: "Commencez le processus d'intégration des passagers Harvey Taxi avec création sécurisée de profil, contrôles d'accès basés sur l'approbation, compatibilité avec le support IA et récupération sécurisée de session.",
@@ -799,6 +812,7 @@
       langCopy: "اختر لغتك المفضلة وإعدادات إمكانية الوصول.",
       riderOnboarding: "تسجيل الركاب",
       returnHome: "→ العودة للرئيسية",
+      assistantBtn: "المساعد",
       heroBadge: "تسجيل آمن للركاب · هارفي تاكسي",
       heroTitle: "أنشئ حساب راكب في هارفي تاكسي",
       heroCopy: "ابدأ عملية تسجيل الركاب في هارفي تاكسي مع إنشاء ملف تعريف آمن، وضوابط وصول قائمة على الموافقة، وتوافق دعم الذكاء الاصطناعي، واسترداد جلسة آمن وجاهز للإنتاج.",
@@ -1666,7 +1680,8 @@
 
   bootstrap();
 </script>
-<!-- Harvey Assistant (replaces ai-support-widget.js / /api/ai/support). -->
-<script src="/agent-assist.js?v=20261010-index2" data-role="rider" defer></script>
+<!-- Harvey Assistant (replaces ai-support-widget.js / /api/ai/support).
+     On phones it opens from the Assistant button in the sticky top bar. -->
+<script src="/agent-assist.js?v=20261010-index2" data-role="rider" data-launcher="desktop" defer></script>
 </body>
 </html>

@@ -114,7 +114,7 @@ describeWithBrowser("Rider sign-up and Settings: the chat on small phones", () =
       }
       const tabs = Array.from(document.querySelectorAll(".bottom-nav .nav-btn")).filter(vis);
       const tabsFit = tabs.every((t) => t.scrollWidth <= t.clientWidth + 1);
-      return { sideways: document.documentElement.scrollWidth > innerWidth + 1, covered, oldWidget: Boolean(document.querySelector(".harvey-ai-launch, [data-harvey-ai-root], .harvey-ai-panel")), newLauncher: vis(document.querySelector("[data-testid=hta-launcher]")), navAssistant: vis(document.querySelector("[data-testid=nav-assistant]")), tabs: tabs.length, tabsFit };
+      return { sideways: document.documentElement.scrollWidth > innerWidth + 1 || innerWidth > screen.width + 1, covered, oldWidget: Boolean(document.querySelector(".harvey-ai-launch, [data-harvey-ai-root], .harvey-ai-panel")), newLauncher: vis(document.querySelector("[data-testid=hta-launcher]")), navAssistant: vis(document.querySelector("[data-testid=nav-assistant]")), tabs: tabs.length, tabsFit };
     });
 
   // Scrolls the whole page; at every step no floating element (assistant
@@ -125,7 +125,7 @@ describeWithBrowser("Rider sign-up and Settings: the chat on small phones", () =
       const hits = new Set();
       const H = document.scrollingElement.scrollHeight;
       for (let y = 0; y <= H; y += 60) {
-        document.scrollingElement.scrollTop = y;
+        window.scrollTo({ top: y, behavior: "instant" }); // pages use smooth scrolling
         await new Promise((r) => requestAnimationFrame(r));
         const floaters = ["[data-testid=hta-launcher]", "#aiTeaserBubble", ".harvey-ai-launch"].map((q) => document.querySelector(q)).filter(vis);
         for (const f of floaters) {
@@ -142,16 +142,15 @@ describeWithBrowser("Rider sign-up and Settings: the chat on small phones", () =
           }
         }
       }
-      document.scrollingElement.scrollTop = 0;
+      window.scrollTo({ top: 0, behavior: "instant" });
       return Array.from(hits);
     });
 
   const PAGES = [
     // Settings opens the assistant from its bottom-nav tab on phones.
     { name: "settings", url: "/settings.html", openWith: "[data-testid=nav-assistant]" },
-    // Sign-up has no bottom nav: the round launcher, which hides while a
-    // form field is focused.
-    { name: "rider-signup", url: "/rider-signup.html", openWith: "[data-testid=hta-launcher]" }
+    // Sign-up has no bottom nav: an Assistant button in its sticky top bar.
+    { name: "rider-signup", url: "/rider-signup.html", openWith: "[data-testid=top-assistant]" }
   ];
 
   for (const pg of PAGES) {
@@ -160,11 +159,11 @@ describeWithBrowser("Rider sign-up and Settings: the chat on small phones", () =
         const { context, page, errors, calls } = await open(phone, pg.url);
         const shot = async (what) => { if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `${pg.name}-${phone.name}-${what}.png`) }); };
         await shot("page");
-        await page.evaluate(() => { document.scrollingElement.scrollTop = 1e9; });
+        await page.evaluate(() => { window.scrollTo({ top: 1e9, behavior: "instant" }); });
         await page.waitForTimeout(600);
         await shot("page-end");
         const end = await pageFacts(page);
-        await page.evaluate(() => { document.scrollingElement.scrollTop = 0; });
+        await page.evaluate(() => { window.scrollTo({ top: 0, behavior: "instant" }); });
         await page.waitForTimeout(400);
         const top = await pageFacts(page);
         const textHits = await textUnderFloaters(page);
@@ -206,7 +205,8 @@ describeWithBrowser("Rider sign-up and Settings: the chat on small phones", () =
           return { inside: p.top >= 0 && p.left >= 0 && p.right <= innerWidth && p.bottom <= innerHeight, inputVisible: input.top >= 0 && input.bottom <= innerHeight, sideways: panel.scrollWidth > panel.clientWidth + 1, emergency: panel.querySelector(".hta-911").textContent };
         });
 
-        const navTabs = pg.name === "settings" ? { navAssistant: true, newLauncher: false, tabsFit: true } : { newLauncher: true };
+        // Phones: no floating button on either page.
+        const navTabs = pg.name === "settings" ? { navAssistant: true, newLauncher: false, tabsFit: true } : { newLauncher: false };
         expect(top).toMatchObject({ sideways: false, covered: [], ...navTabs });
         expect(end).toMatchObject({ sideways: false, covered: [] });
         expect(textHits).toEqual([]);
@@ -221,13 +221,16 @@ describeWithBrowser("Rider sign-up and Settings: the chat on small phones", () =
     }
   }
 
-  test("sign-up: the launcher steps aside while a form field is focused; settings keeps its own launcher on wider screens", async () => {
+  test("sign-up: the top-bar Assistant button stays in reach when scrolled down; settings keeps its own launcher on wider screens", async () => {
     const { context, page } = await open(PHONES[0], "/rider-signup.html");
-    // A sign-up form field (not the assistant's own input).
-    await page.locator("input[type=email]:visible, input[type=text]:visible").filter({ hasNot: page.locator("#htaPanel") }).first().focus();
-    expect(await page.evaluate(() => !document.getElementById("htaPanel").contains(document.activeElement) && document.activeElement.tagName)).toBe("INPUT");
-    await page.waitForTimeout(400);
-    expect(await page.isVisible("[data-testid=hta-launcher]")).toBe(false);
+    await page.evaluate(() => window.scrollTo({ top: 1e9, behavior: "instant" }));
+    await page.waitForTimeout(300);
+    const reach = await page.evaluate(() => {
+      const b = document.querySelector("[data-testid=top-assistant]").getBoundingClientRect();
+      const hit = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+      return { onScreen: b.top >= 0 && b.bottom <= innerHeight, onTop: Boolean(hit && hit.closest("[data-testid=top-assistant]")), labelFits: Array.from(document.querySelectorAll(".top-actions .home-btn")).every((e) => e.scrollWidth <= e.clientWidth + 1 && (() => { const r = document.createRange(); r.selectNodeContents(e); const t = r.getBoundingClientRect(); const o = e.getBoundingClientRect(); return t.left >= o.left + 6 && t.right <= o.right - 6; })()) };
+    });
+    expect(reach).toEqual({ onScreen: true, onTop: true, labelFits: true });
     await context.close();
     const desk = await open({ name: "desktop", width: 1280, height: 900 }, "/settings.html");
     expect(await desk.page.isVisible("[data-testid=hta-launcher]")).toBe(true);
