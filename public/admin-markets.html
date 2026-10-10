@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Harvey Taxi | Markets (test mode)</title>
+  <style>
+    :root{
+      --bg:#060b1a; --panel:#0d1630; --panel2:#111d3d; --line:rgba(122,162,255,.18);
+      --text:#f4f7ff; --muted:#aab8de; --blue:#5ea0ff; --cyan:#63f5ff; --green:#6dffb3; --gold:#ffd76a;
+      --danger:#ff7e97; --radius:16px;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.45;padding:16px}
+    main{max-width:1180px;margin:0 auto;display:grid;gap:16px}
+    h1{font-size:1.4rem} h2{font-size:1.05rem;margin-bottom:6px} h3{font-size:.92rem;margin:12px 0 6px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+    .muted{color:var(--muted);font-size:.88rem}
+    .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;min-width:0}
+    .notice{border-color:rgba(255,215,106,.5);background:#2b2410;color:#ffe59a}
+    .grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr))}
+    .badge{display:inline-block;border-radius:999px;padding:2px 10px;font-size:.78rem;font-weight:700;border:1px solid var(--line);white-space:nowrap;margin:2px 4px 2px 0}
+    .live{background:#123a2c;color:var(--green)} .test{background:#3a3212;color:var(--gold)} .off{background:#1b2440;color:var(--muted)} .warn{background:#40210f;color:#ffb86b}
+    dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:.9rem} dt{color:var(--muted)}
+    ul{padding-left:18px;font-size:.9rem} li{margin:2px 0}
+    label{display:block;font-size:.85rem;color:var(--muted);margin-top:8px}
+    select,input,button{font:inherit;color:var(--text);background:#0a1228;border:1px solid var(--line);border-radius:10px;padding:9px 10px;width:100%}
+    button{background:#1d4ed8;border-color:#1d4ed8;font-weight:700;cursor:pointer;margin-top:10px}
+    .ride{border:1px solid rgba(99,245,255,.3);border-radius:14px;padding:14px;margin-top:12px;background:var(--panel2)}
+    .ride .total{font-size:1.6rem;font-weight:800}
+    .sos{margin-top:10px;padding:8px 10px;border-radius:10px;background:#2e1019;border:1px solid rgba(255,126,151,.4);font-size:.88rem}
+    .timeline li{list-style:none;display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line);padding:4px 0}
+    .err{color:var(--danger);font-size:.9rem;margin-top:8px}
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Markets</h1>
+    <p class="muted">One rider app and one driver app, with each market's own settings. Nashville is live. The pilot markets run in a simulated test mode only.</p>
+  </header>
+
+  <section class="panel notice" role="note">
+    Test mode: simulated rides are computed only. Nothing is dispatched, charged, texted or sent to an AI provider, and nothing is saved.
+    Values marked "unconfirmed" are placeholders pending local confirmation. Prices are illustrative, not market research.
+  </section>
+
+  <section class="panel">
+    <label for="tok">Admin token (or sign in as an admin)</label>
+    <input id="tok" type="password" autocomplete="off" placeholder="x-admin-token" />
+    <p class="err" id="loadErr" role="alert" hidden></p>
+  </section>
+
+  <section class="grid" id="markets" aria-live="polite"></section>
+</main>
+<script>
+(function () {
+  "use strict";
+  var KEY = "harvey_agent_elevated_token";
+  var tok = document.getElementById("tok");
+  try { tok.value = sessionStorage.getItem(KEY) || ""; } catch (e) { /* none */ }
+  tok.addEventListener("change", function () {
+    try { if (tok.value) sessionStorage.setItem(KEY, tok.value); else sessionStorage.removeItem(KEY); } catch (e) { /* none */ }
+    load();
+  });
+
+  function api(path, body) {
+    var headers = { Accept: "application/json" };
+    if (tok.value) headers["x-admin-token"] = tok.value;
+    if (body) headers["Content-Type"] = "application/json";
+    return fetch(path, { method: body ? "POST" : "GET", headers: headers, credentials: "same-origin", body: body ? JSON.stringify(body) : undefined })
+      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (b) { return { ok: r.ok, body: b }; }); });
+  }
+  function el(tag, attrs, text) {
+    var n = document.createElement(tag);
+    Object.keys(attrs || {}).forEach(function (k) { n.setAttribute(k, attrs[k]); });
+    if (text !== undefined) n.textContent = text;
+    return n;
+  }
+  function row(dl, k, v) { dl.appendChild(el("dt", {}, k)); dl.appendChild(el("dd", {}, v)); }
+
+  function card(m) {
+    var c = el("article", { class: "panel", "data-testid": "market-" + m.id });
+    var h = el("h2", {}, m.name + ", " + m.country);
+    c.appendChild(h);
+    var badges = el("div");
+    badges.appendChild(el("span", { class: "badge " + (m.live_allowed ? "live" : m.status === "test" ? "test" : "off") }, m.live_allowed ? "Live" : "Test mode — not live"));
+    if (!m.approved_for_live) badges.appendChild(el("span", { class: "badge off" }, "Not approved for live"));
+    m.unconfirmed.forEach(function (u) { badges.appendChild(el("span", { class: "badge warn" }, "Unconfirmed: " + u)); });
+    c.appendChild(badges);
+
+    var dl = el("dl");
+    row(dl, "Pilot city", m.pilot_city);
+    row(dl, "Time zone", m.timezone);
+    row(dl, "Distance", m.distance_unit === "km" ? "Kilometres" : "Miles");
+    row(dl, "Currency", m.currency.code + (m.currency.accepted.length > 1 ? " (also " + m.currency.accepted.filter(function (x) { return x !== m.currency.code; }).join(", ") + ")" : ""));
+    row(dl, "Phone", m.phone.country_code + " · e.g. " + m.phone.example);
+    row(dl, "Emergency", m.emergency.label);
+    row(dl, "AI answers", m.ai_model_allowed ? "Allowed (with consent)" : "Off until data transfer is assessed");
+    c.appendChild(dl);
+
+    c.appendChild(el("h3", {}, "Pricing"));
+    var p = m.pricing;
+    c.appendChild(el("p", { class: "muted" }, p.source ? p.source : p.currency + " base " + p.base_fare + " + " + p.per_km + "/km + " + p.per_minute + "/min, booking fee " + p.booking_fee + ", minimum " + p.minimum_fare + (p.confirmed ? "" : " (illustrative)")));
+
+    c.appendChild(el("h3", {}, "Payments"));
+    var pay = el("ul");
+    m.payments.forEach(function (x) { pay.appendChild(el("li", {}, x.method + (x.provider ? " — " + x.provider : "") + (x.enabled ? " (enabled)" : " — disabled: " + (x.pending || "pending")))); });
+    c.appendChild(pay);
+
+    if (Array.isArray(m.driver_documents)) {
+      c.appendChild(el("h3", {}, "Driver documents (pending local confirmation)"));
+      var docs = el("ul");
+      m.driver_documents.forEach(function (d) { docs.appendChild(el("li", {}, d.label + (d.expiry_required ? " · expiry checked" : ""))); });
+      c.appendChild(docs);
+    }
+
+    c.appendChild(el("h3", {}, "Privacy"));
+    c.appendChild(el("p", { class: "muted" }, m.privacy.law + (m.privacy.regulator ? " · " + m.privacy.regulator : "") + ". " + m.privacy.notes));
+
+    if (m.places.length) {
+      c.appendChild(el("h3", {}, "Simulated ride"));
+      var from = el("select", { "aria-label": "Pickup", "data-testid": "from-" + m.id });
+      var to = el("select", { "aria-label": "Drop-off", "data-testid": "to-" + m.id });
+      m.places.forEach(function (pl, i) {
+        from.appendChild(el("option", { value: pl.key }, pl.label));
+        to.appendChild(el("option", { value: pl.key }, pl.label));
+        if (i === 1) to.value = pl.key;
+      });
+      to.selectedIndex = 1;
+      var lf = el("label", {}, "Pickup"); lf.appendChild(from); c.appendChild(lf);
+      var lt = el("label", {}, "Drop-off"); lt.appendChild(to); c.appendChild(lt);
+      var go = el("button", { type: "button", "data-testid": "simulate-" + m.id }, "Simulate a test ride");
+      c.appendChild(go);
+      var out = el("div");
+      c.appendChild(out);
+      go.addEventListener("click", function () {
+        out.textContent = "";
+        api("/api/admin/markets/" + m.id + "/simulate", { from: from.value, to: to.value, ride_type: from.value === "airport" || to.value === "airport" ? "airport" : "standard" }).then(function (r) {
+          if (!r.ok) { out.appendChild(el("p", { class: "err", role: "alert" }, r.body.error || "Simulation failed.")); return; }
+          out.appendChild(rideCard(r.body.ride));
+        });
+      });
+    }
+    return c;
+  }
+
+  function rideCard(ride) {
+    var c = el("div", { class: "ride", "data-testid": "ride-" + ride.market.id });
+    c.appendChild(el("span", { class: "badge test" }, "SIMULATED — not a real ride"));
+    c.appendChild(el("p", { class: "muted" }, ride.pickup + " → " + ride.dropoff));
+    c.appendChild(el("p", { class: "total" }, ride.fare.total_text + (ride.fare.illustrative ? "*" : "")));
+    c.appendChild(el("p", { class: "muted" }, ride.distance_text + " · about " + ride.duration_minutes + " min · driver payout " + ride.fare.driver_payout_text));
+    var tl = el("ul", { class: "timeline" });
+    ride.timeline.forEach(function (s) { var li = el("li"); li.appendChild(el("span", {}, s.label)); li.appendChild(el("span", { class: "muted" }, s.local_time)); tl.appendChild(li); });
+    c.appendChild(tl);
+    c.appendChild(el("p", { class: "muted" }, "Payment: simulated. " + ride.payment.options.map(function (o) { return o.method + " (" + (o.enabled ? "enabled" : "disabled") + ")"; }).join(", ")));
+    c.appendChild(el("div", { class: "sos" }, ride.emergency.instruction + " This app cannot send help."));
+    if (ride.fare.illustrative) c.appendChild(el("p", { class: "muted" }, "* Illustrative test price; local pricing not yet set."));
+    return c;
+  }
+
+  function load() {
+    var err = document.getElementById("loadErr");
+    api("/api/admin/markets").then(function (r) {
+      var box = document.getElementById("markets");
+      box.textContent = "";
+      if (!r.ok) { err.hidden = false; err.textContent = r.body.error || "Admin access required."; return; }
+      err.hidden = true;
+      r.body.markets.forEach(function (m) { box.appendChild(card(m)); });
+    });
+  }
+  load();
+})();
+</script>
+</body>
+</html>

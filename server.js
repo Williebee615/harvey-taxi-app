@@ -549,6 +549,7 @@ const { readClaudeConfig, createClaudeClient } = require("./lib/agent/claudeClie
 const { createModelBudget, budgetFromEnv } = require("./lib/agent/modelBudget");
 const { handleModelAssist, firstRequest } = require("./lib/agent/modelAssistant");
 const { MODEL_FLAG_KEYS, resolveModelPolicy, modelEligibility, specialistEligibility, validateModelSettings } = require("./lib/agent/modelPolicy");
+const markets = require("./lib/markets");
 const {
   draftSummary: draftHandoffSummary,
   cleanSummary: cleanHandoffSummary,
@@ -12024,9 +12025,71 @@ app.post(
 
 );
 
+/* =========================================================
+   MARKETS (lib/markets.js, docs/markets/README.md)
+   Nashville is the only live market. A request that names another
+   market is refused unless that market is approved in code AND its
+   market_live_<id> flag is on (both false today). A request that names
+   no market is Nashville's, exactly as before (no extra lookup).
+========================================================= */
+
+async function loadMarketFlags() {
+  try {
+    const { data, error } = await supabase.from("system_flags").select("key,value").ilike("key", "market_live_%");
+    if (error) throw error;
+    return Object.fromEntries((data || []).map((r) => [r.key, r.value]));
+  } catch {
+    return {}; // fail closed: no market other than Nashville is live
+  }
+}
+
+async function requireLiveMarket(req, res, next) {
+  const requested = req.body && req.body.market_id;
+  if (requested === undefined || requested === null || requested === "" || requested === markets.DEFAULT_MARKET_ID) return next();
+  const id = String(requested);
+  if (!markets.getMarket(id)) return res.status(400).json({ ok: false, error: "Unknown market.", market_not_open: true });
+  if (!markets.marketLiveAllowed(id, await loadMarketFlags())) {
+    return res.status(403).json({ ok: false, error: `Harvey Taxi isn't operating in ${markets.getMarket(id).name} yet.`, market_not_open: true });
+  }
+  return next();
+}
+
+app.get(
+  "/api/admin/markets",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const flags = await loadMarketFlags();
+    return ok(res, { markets: markets.listMarkets().map((m) => markets.marketSummary(m.id, flags)) });
+  })
+);
+
+// Simulated ride in a pilot market: computed only. No database write, no
+// dispatch, no payment, no SMS, no AI call.
+app.post(
+  "/api/admin/markets/:id/simulate",
+  requireAdmin,
+  rateLimit({ windowMs: 60_000, max: 30, keyPrefix: "market_simulate" }),
+  asyncRoute(async (req, res) => {
+    const market = markets.getMarket(req.params.id);
+    if (!market || !market.places) return fail(res, "No simulation for that market.", 404);
+    try {
+      const ride = markets.simulateRide(market.id, {
+        from: cleanString(req.body?.from, 40),
+        to: cleanString(req.body?.to, 40),
+        ride_type: req.body?.ride_type === "airport" ? "airport" : "standard"
+      });
+      return ok(res, { ride });
+    } catch (err) {
+      return fail(res, err.message, 400);
+    }
+  })
+);
+
 app.post(
 
   "/api/rides/estimate",
+
+  requireLiveMarket,
 
   asyncRoute(async (req, res) => {
 
@@ -12724,6 +12787,8 @@ app.post(
   "/api/rides/request",
 
   requireRiderIfEnforced,
+
+  requireLiveMarket,
 
   asyncRoute(async (req, res) => {
 
