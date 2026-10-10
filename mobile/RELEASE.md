@@ -60,11 +60,28 @@ npx eas-cli build --platform ios --profile production
   rider-navigation release below; 1.0.1 build 10 stays as submitted).
 - Build number: managed by EAS (`cli.appVersionSource: "remote"` in
   `eas.json`); the `production` profile auto-increments it. EAS keeps build
-  numbers per bundle ID and has none yet for `com.harveytaxi.HarveyTaxi`, so
-  the first build starts from `expo.ios.buildNumber` (`10`) and increments
-  to 11. Check the number in the build log before uploading.
+  numbers per bundle ID. For `com.harveytaxi.HarveyTaxi` it was set
+  explicitly on 10 October 2026 to 1.0.1 (10), the last upload Apple
+  received for this record, so the next build is **1.0.2 (11)**. The build
+  log must say "Incrementing buildNumber from 10 to 11"; if it shows any
+  other number, stop. `expo.ios.buildNumber` in `app.json` is ignored.
 - EAS project: `@williebee615/harvey-taxi`
   (`ae7e5a71-4f7c-45d8-8b7e-e0ef4de507b2`).
+
+## Verify the IPA before any upload
+
+Run on a Mac against the IPA you are about to upload (from the build page,
+or the file `eas build --local` writes):
+
+```sh
+cd mobile
+sh scripts/verify-ipa.sh path/to/build.ipa 11
+```
+
+It checks the bundle ID (`com.harveytaxi.HarveyTaxi`), version (`1.0.2`),
+build number, iOS 26 SDK, a valid distribution signature from team
+`AYF633JM4W`, and an App Store provisioning profile for this bundle ID.
+Upload only if it prints `ALL CHECKS PASSED`.
 
 ## TestFlight upload (private testing only)
 
