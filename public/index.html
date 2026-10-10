@@ -999,6 +999,15 @@
     .nav-btn svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
     .nav-btn.active, .nav-btn:hover, .nav-btn:focus-visible { color: var(--cyan); background: rgba(93,245,255,0.08); }
     .nav-btn:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+    /* Harvey Assistant lives in the bottom nav on phones (no floating button
+       over the page there); on wider screens its own launcher is used. Six
+       tabs share the width evenly on phones. */
+    .nav-btn.nav-assistant { display: none; }
+    @media (max-width: 599px) {
+      .nav-btn.nav-assistant { display: flex; }
+      .bottom-nav { padding-left: 4px; padding-right: 4px; }
+      .nav-btn { min-width: 0; flex: 1 1 0; padding: 8px 2px; font-size: 10.5px; white-space: nowrap; }
+    }
 
     /* ============================================================
        MODALS
@@ -1629,6 +1638,10 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
       Trips
     </button>
+    <button class="nav-btn nav-assistant" type="button" onclick="openHarveyAiChat();" aria-label="Harvey Assistant" aria-controls="htaPanel" data-testid="nav-assistant">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.2 3.6A.5.5 0 0 1 5 19.2V16h-.5A.5.5 0 0 1 4 15.5z"/></svg>
+      Assistant
+    </button>
     <button class="nav-btn" onclick="safeGo('foundation.html','bottom_foundation')" aria-label="Foundation">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>
       HTAF
@@ -1657,7 +1670,7 @@
   <!-- Harvey Assistant: the same assistant as the rider dashboard (rules
        and approved pages; consent-gated AI where enabled). Replaces the old
        ai-support-widget.js, which called /api/ai/support (OpenAI). -->
-  <script src="/agent-assist.js?v=20261010-index" data-role="rider" defer></script>
+  <script src="/agent-assist.js?v=20261010-index2" data-role="rider" data-launcher="desktop" defer></script>
 
   <!-- ============================================================
        ALL APP JS — single block, correct declaration order

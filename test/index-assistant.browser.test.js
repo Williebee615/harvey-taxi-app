@@ -110,7 +110,38 @@ describeWithBrowser("Harvey Taxi Mobile index page: the chat on small phones", (
           if (cx >= fr.left && cx <= fr.right && cy >= fr.top && cy <= fr.bottom) covered.push(`${f.id || f.className} over ${(c.innerText || c.getAttribute("aria-label") || c.tagName).trim().slice(0, 30)}`);
         }
       }
-      return { sideways: document.documentElement.scrollWidth > innerWidth + 1, covered, oldWidget: Boolean(document.querySelector(".harvey-ai-launch, [data-harvey-ai-root], .harvey-ai-panel")), newLauncher: vis(document.querySelector("[data-testid=hta-launcher]")) };
+      const tabs = Array.from(document.querySelectorAll(".bottom-nav .nav-btn")).filter(vis);
+      const tabsFit = tabs.every((t) => t.scrollWidth <= t.clientWidth + 1);
+      return { sideways: document.documentElement.scrollWidth > innerWidth + 1, covered, oldWidget: Boolean(document.querySelector(".harvey-ai-launch, [data-harvey-ai-root], .harvey-ai-panel")), newLauncher: vis(document.querySelector("[data-testid=hta-launcher]")), navAssistant: vis(document.querySelector("[data-testid=nav-assistant]")), tabs: tabs.length, tabsFit };
+    });
+
+  // Scrolls the whole page; at every step no floating element (assistant
+  // button, teaser) overlaps any text. Returns the overlaps found.
+  const textUnderFloaters = (page) =>
+    page.evaluate(async () => {
+      const vis = (el) => { if (!el) return false; const s = getComputedStyle(el); const r = el.getBoundingClientRect(); return s.display !== "none" && s.visibility !== "hidden" && r.width > 0 && r.height > 0 && !el.closest("[hidden]"); };
+      const hits = new Set();
+      const H = document.scrollingElement.scrollHeight;
+      for (let y = 0; y <= H; y += 60) {
+        document.scrollingElement.scrollTop = y;
+        await new Promise((r) => requestAnimationFrame(r));
+        const floaters = ["[data-testid=hta-launcher]", "#aiTeaserBubble", ".harvey-ai-launch"].map((q) => document.querySelector(q)).filter(vis);
+        for (const f of floaters) {
+          const b = f.getBoundingClientRect();
+          const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+          let n;
+          while ((n = walker.nextNode())) {
+            if (!n.textContent.trim() || f.contains(n) || n.parentElement.closest("#htaPanel, .welcome-banner, .bottom-nav")) continue;
+            const range = document.createRange();
+            range.selectNodeContents(n);
+            for (const q of range.getClientRects()) {
+              if (q.width >= 1 && q.right > b.left && q.left < b.right && q.bottom > b.top && q.top < b.bottom) { hits.add(n.textContent.trim().slice(0, 30)); break; }
+            }
+          }
+        }
+      }
+      document.scrollingElement.scrollTop = 0;
+      return Array.from(hits);
     });
 
   for (const phone of PHONES) {
@@ -126,8 +157,11 @@ describeWithBrowser("Harvey Taxi Mobile index page: the chat on small phones", (
       await page.waitForTimeout(500);
       const top = await pageFacts(page);
 
-      // Open the chat the way the page does ("Open AI Support").
-      await page.evaluate(() => window.openHarveyAiChat());
+      const textHits = await textUnderFloaters(page);
+      await page.waitForTimeout(300);
+
+      // Open the chat from the bottom nav's Assistant tab (a real tap).
+      await page.tap("[data-testid=nav-assistant]");
       await page.waitForTimeout(800);
       if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `${phone.name}-chat.png`) });
       const panelVisible = await page.evaluate(() => { const p = document.getElementById("htaPanel"); return Boolean(p && p.classList.contains("open")); });
@@ -162,7 +196,10 @@ describeWithBrowser("Harvey Taxi Mobile index page: the chat on small phones", (
         return { inside: p.top >= 0 && p.left >= 0 && p.right <= innerWidth && p.bottom <= innerHeight, inputVisible: input.top >= 0 && input.bottom <= innerHeight, sideways: document.getElementById("htaPanel").scrollWidth > document.getElementById("htaPanel").clientWidth + 1, emergency: banner && banner.textContent };
       });
 
-      expect(top).toMatchObject({ sideways: false, covered: [], oldWidget: false, newLauncher: true });
+      // Phones: no floating button at all; the Assistant tab is in the nav
+      // and all six tabs fit their labels.
+      expect(top).toMatchObject({ sideways: false, covered: [], oldWidget: false, newLauncher: false, navAssistant: true, tabs: 6, tabsFit: true });
+      expect(textHits).toEqual([]);
       expect(end).toMatchObject({ sideways: false, covered: [] });
       expect(kb).toMatchObject({ inside: true, inputVisible: true, sideways: false });
       expect(kb.emergency).toContain("Call 911");
@@ -173,11 +210,20 @@ describeWithBrowser("Harvey Taxi Mobile index page: the chat on small phones", (
     });
   }
 
-  test("desktop: the teaser bubble and the Open AI Support button open Harvey Assistant; phones hide the teaser", async () => {
+  test("desktop: launcher, teaser and Open AI Support open Harvey Assistant; phones hide the teaser and return focus to the Assistant tab", async () => {
     const phone = await open(PHONES[0]);
     expect(await phone.page.isVisible("#aiTeaserBubble")).toBe(false);
+    // Closing the chat returns focus to the Assistant tab that opened it.
+    await phone.page.tap("[data-testid=nav-assistant]");
+    await phone.page.waitForTimeout(400);
+    await phone.page.tap("#htaPanel .hta-close");
+    await phone.page.waitForTimeout(400);
+    expect(await phone.page.evaluate(() => document.activeElement && document.activeElement.dataset.testid)).toBe("nav-assistant");
     await phone.context.close();
     const { context, page, calls } = await open({ name: "desktop", width: 1280, height: 900 });
+    // Wider screens keep the floating launcher; the nav tab is phone-only.
+    expect(await page.isVisible("[data-testid=hta-launcher]")).toBe(true);
+    expect(await page.isVisible("[data-testid=nav-assistant]")).toBe(false);
     await page.dispatchEvent("#aiTeaserBubble", "click"); // it floats (animation), so no "stable" tap
     await page.waitForTimeout(600);
     expect(await page.evaluate(() => document.getElementById("htaPanel").classList.contains("open"))).toBe(true);
