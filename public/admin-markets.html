@@ -142,6 +142,54 @@
         });
       });
     }
+
+    if (m.cash_commission) {
+      var cc = m.cash_commission;
+      c.appendChild(el("h3", {}, "Cash with driver commission (sandbox)"));
+      c.appendChild(el("p", { class: "muted" }, "Disabled" + (cc.approved ? "" : ", not approved") + ". Settlement provider: " + cc.settlement_provider.name + (cc.settlement_provider.confirmed ? "" : " (not confirmed)") + ". Unpaid limit: " + (cc.unpaid_limit_minor === null ? "not set" : cc.unpaid_limit_minor) + ". Commission settled before the next shift, never during a trip."));
+      var pv = el("button", { type: "button", "data-testid": "cash-preview-" + m.id }, "Preview a driver's cash day (sandbox)");
+      c.appendChild(pv);
+      var pout = el("div");
+      c.appendChild(pout);
+      pv.addEventListener("click", function () {
+        pout.textContent = "";
+        api("/api/admin/markets/" + m.id + "/cash-commission-preview").then(function (r) {
+          if (!r.ok) { pout.appendChild(el("p", { class: "err", role: "alert" }, r.body.error || "Preview failed.")); return; }
+          pout.appendChild(cashPreviewCard(r.body.preview));
+        });
+      });
+    }
+    return c;
+  }
+
+  function money(minorUnits, currency) {
+    try { return (minorUnits / 100).toLocaleString(undefined, { style: "currency", currency: currency }); } catch (e) { return currency + " " + (minorUnits / 100).toFixed(2); }
+  }
+
+  // Sandbox preview of the cash commission ledger: scripted, test values.
+  function cashPreviewCard(pv) {
+    var cur = pv.market.currency;
+    var c = el("div", { class: "ride", "data-testid": "cash-preview-result-" + pv.market.id });
+    c.appendChild(el("span", { class: "badge test" }, "SANDBOX — no money moves"));
+    c.appendChild(el("p", { class: "muted" }, "Test commission " + Math.round(pv.test_values.commission_rate * 100) + "% and unpaid limit " + money(pv.test_values.unpaid_limit_minor, cur) + ": " + pv.test_values.note));
+    var tl = el("ul", { class: "timeline" });
+    pv.steps.forEach(function (s) {
+      var d = s.detail || {};
+      var text = d.commission_owed_minor !== undefined ? "fare " + money(d.fare_collected_minor, cur) + " · driver " + money(d.driver_earnings_minor, cur) + " · commission " + money(d.commission_owed_minor, cur) + " · " + d.receipt
+        : d.amount_paid_minor !== undefined ? "paid " + money(d.amount_paid_minor, cur) + " · receipt " + d.receipt
+        : d.amount_minor !== undefined ? money(d.amount_minor, cur)
+        : d.reason === "settle_commission" ? "blocked: settle " + money(d.due_minor, cur) + " first"
+        : d.reason === "unpaid_limit_reached" ? "paused: owes " + money(d.owed_minor, cur) + " (limit " + money(d.limit_minor, cur) + ")"
+        : d.allowed === true ? (d.note || "allowed")
+        : d.ignored ? "ignored (" + d.ignored + ")"
+        : d.note || "";
+      var li = el("li");
+      li.appendChild(el("span", {}, s.title));
+      li.appendChild(el("span", { class: "muted" }, text));
+      tl.appendChild(li);
+    });
+    c.appendChild(tl);
+    c.appendChild(el("p", { class: "muted" }, pv.receipts.length + " receipts · " + pv.audit.length + " audit entries · balance now " + money(pv.steps[pv.steps.length - 1].balance.outstanding_minor, cur)));
     return c;
   }
 

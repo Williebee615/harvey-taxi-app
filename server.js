@@ -12085,6 +12085,25 @@ app.post(
   })
 );
 
+// Sandbox preview of cash trips with a driver commission ledger
+// (lib/payments/cashCommission.js): a scripted driver day with test values.
+// Computed only: no database write, no wallet charged, nothing sent. Cash
+// stays disabled in every market.
+app.get(
+  "/api/admin/markets/:id/cash-commission-preview",
+  requireAdmin,
+  rateLimit({ windowMs: 60_000, max: 30, keyPrefix: "market_cash_preview" }),
+  asyncRoute(async (req, res) => {
+    try {
+      // eslint-disable-next-line global-require
+      const { runCashCommissionPreview } = require("./lib/payments/cashCommissionPreview");
+      return ok(res, { preview: await runCashCommissionPreview(cleanString(req.params.id, 40)) });
+    } catch (err) {
+      return fail(res, err.message, 404);
+    }
+  })
+);
+
 app.post(
 
   "/api/rides/estimate",
