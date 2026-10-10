@@ -1,0 +1,288 @@
+{
+  "dashboardTop": {
+    "at": {
+      "top10": "div.shell [0..7428] pos=relative",
+      "top40": "div#appReviewBanner.app-review-banner [14..79] pos=sticky",
+      "middle": "li [439..482] pos=static",
+      "bottom": "div.shell [0..7428] pos=relative"
+    },
+    "vw": 412,
+    "vh": 915,
+    "scrollWidth": 412,
+    "clientWidth": 412,
+    "bodyScrollWidth": 412,
+    "widestBlockShare": 94,
+    "banner": {
+      "top": 14,
+      "bottom": 79,
+      "left": 12,
+      "right": 400,
+      "width": 388,
+      "height": 65
+    },
+    "header": null,
+    "bannerHeaderOverlap": 0,
+    "launcher": {
+      "top": 795,
+      "bottom": 847,
+      "left": 348,
+      "right": 400,
+      "width": 52,
+      "height": 52
+    },
+    "covered": [],
+    "underNav": [
+      "Home",
+      "Support",
+      "Book",
+      "Delete Account"
+    ],
+    "nav": {
+      "top": 863,
+      "bottom": 915,
+      "left": 0,
+      "right": 412,
+      "width": 412,
+      "height": 52
+    }
+  },
+  "dashboardScrolled": {
+    "at": {
+      "top10": "div#appReviewBanner.app-review-banner [0..65] pos=sticky",
+      "top40": "div#appReviewBanner.app-review-banner [0..65] pos=sticky",
+      "middle": "nav#centerSwitch.center-switch [424..486] pos=static",
+      "bottom": "p#heroText [822..958] pos=static"
+    },
+    "vw": 412,
+    "vh": 915,
+    "scrollWidth": 412,
+    "clientWidth": 412,
+    "bodyScrollWidth": 412,
+    "widestBlockShare": 94,
+    "banner": {
+      "top": 0,
+      "bottom": 65,
+      "left": 12,
+      "right": 400,
+      "width": 388,
+      "height": 65
+    },
+    "header": null,
+    "bannerHeaderOverlap": 0,
+    "launcher": {
+      "top": 795,
+      "bottom": 847,
+      "left": 348,
+      "right": 400,
+      "width": 52,
+      "height": 52
+    },
+    "covered": [],
+    "underNav": [],
+    "nav": {
+      "top": 863,
+      "bottom": 915,
+      "left": 0,
+      "right": 412,
+      "width": 412,
+      "height": 52
+    }
+  },
+  "dashboardEnd": {
+    "at": {
+      "top10": "div#appReviewBanner.app-review-banner [0..65] pos=sticky",
+      "top40": "div#appReviewBanner.app-review-banner [0..65] pos=sticky",
+      "middle": "section.section [171..467] pos=relative",
+      "bottom": "div.shell [-6513..915] pos=relative"
+    },
+    "vw": 412,
+    "vh": 915,
+    "scrollWidth": 412,
+    "clientWidth": 412,
+    "bodyScrollWidth": 412,
+    "widestBlockShare": 94,
+    "banner": {
+      "top": 0,
+      "bottom": 65,
+      "left": 12,
+      "right": 400,
+      "width": 388,
+      "height": 65
+    },
+    "header": null,
+    "bannerHeaderOverlap": 0,
+    "launcher": {
+      "top": 795,
+      "bottom": 847,
+      "left": 348,
+      "right": 400,
+      "width": 52,
+      "height": 52
+    },
+    "covered": [],
+    "underNav": [],
+    "nav": {
+      "top": 863,
+      "bottom": 915,
+      "left": 0,
+      "right": 412,
+      "width": 412,
+      "height": 52
+    }
+  },
+  "dashboardEndClearance": {
+    "belowContentToNav": 88,
+    "belowContentToAssistant": 20
+  },
+  "errors": [],
+  "bookTop": {
+    "at": {
+      "top10": "div.page [0..3688] pos=relative",
+      "top40": "div.app-review-banner [18..83] pos=sticky",
+      "middle": "p#heroCopy.hero-copy [365..474] pos=static",
+      "bottom": "button#modeFoodBtn.mode-chip [812..894] pos=static"
+    },
+    "vw": 412,
+    "vh": 915,
+    "scrollWidth": 412,
+    "clientWidth": 412,
+    "bodyScrollWidth": 412,
+    "widestBlockShare": 94,
+    "banner": {
+      "top": 18,
+      "bottom": 83,
+      "left": 12,
+      "right": 400,
+      "width": 388,
+      "height": 65
+    },
+    "header": null,
+    "bannerHeaderOverlap": 0,
+    "launcher": {
+      "top": 795,
+      "bottom": 847,
+      "left": 348,
+      "right": 400,
+      "width": 52,
+      "height": 52
+    },
+    "covered": [],
+    "underNav": [],
+    "nav": null
+  },
+  "bookTextShare": 86,
+  "bookScrolled": {
+    "at": {
+      "top10": "div.app-review-banner [0..65] pos=sticky",
+      "top40": "div.app-review-banner [0..65] pos=sticky",
+      "middle": "span [447..463] pos=static",
+      "bottom": "div.status-box [819..931] pos=static"
+    },
+    "vw": 412,
+    "vh": 915,
+    "scrollWidth": 412,
+    "clientWidth": 412,
+    "bodyScrollWidth": 412,
+    "widestBlockShare": 94,
+    "banner": {
+      "top": 0,
+      "bottom": 65,
+      "left": 12,
+      "right": 400,
+      "width": 388,
+      "height": 65
+    },
+    "header": null,
+    "bannerHeaderOverlap": 0,
+    "launcher": {
+      "top": 795,
+      "bottom": 847,
+      "left": 348,
+      "right": 400,
+      "width": 52,
+      "height": 52
+    },
+    "covered": [],
+    "underNav": [],
+    "nav": null
+  },
+  "bookKeyboard": {
+    "fieldTop": 158,
+    "fieldBottom": 207,
+    "vh": 503,
+    "fieldVisible": true,
+    "launcherOverField": false
+  },
+  "bookErrors": [],
+  "trackTop": {
+    "at": {
+      "top10": "div.app-review-banner [0..65] pos=sticky",
+      "top40": "div.app-review-banner [0..65] pos=sticky",
+      "middle": "div#wizardStageDispatch.wizard-step.active [202..872] pos=static",
+      "bottom": "span#dispatchTimelineText.timeline-caption [817..835] pos=static"
+    },
+    "vw": 412,
+    "vh": 915,
+    "scrollWidth": 412,
+    "clientWidth": 412,
+    "bodyScrollWidth": 412,
+    "widestBlockShare": 94,
+    "banner": {
+      "top": 0,
+      "bottom": 65,
+      "left": 12,
+      "right": 400,
+      "width": 388,
+      "height": 65
+    },
+    "header": null,
+    "bannerHeaderOverlap": 0,
+    "launcher": {
+      "top": 795,
+      "bottom": 847,
+      "left": 348,
+      "right": 400,
+      "width": 52,
+      "height": 52
+    },
+    "covered": [],
+    "underNav": [],
+    "nav": null
+  },
+  "trackEnd": {
+    "at": {
+      "top10": "div.app-review-banner [0..65] pos=sticky",
+      "top40": "div.app-review-banner [0..65] pos=sticky",
+      "middle": "a [443..488] pos=static",
+      "bottom": "div.shell [-3401..881] pos=relative"
+    },
+    "vw": 412,
+    "vh": 915,
+    "scrollWidth": 412,
+    "clientWidth": 412,
+    "bodyScrollWidth": 412,
+    "widestBlockShare": 94,
+    "banner": {
+      "top": 0,
+      "bottom": 65,
+      "left": 12,
+      "right": 400,
+      "width": 388,
+      "height": 65
+    },
+    "header": null,
+    "bannerHeaderOverlap": 0,
+    "launcher": {
+      "top": 795,
+      "bottom": 847,
+      "left": 348,
+      "right": 400,
+      "width": 52,
+      "height": 52
+    },
+    "covered": [],
+    "underNav": [],
+    "nav": null
+  },
+  "trackErrors": []
+}

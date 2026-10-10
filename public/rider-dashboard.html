@@ -3088,6 +3088,110 @@
       }
     }
 
+    /* ===== Phone layout (rider apps' WebView and mobile browsers) =====
+       test/rider-mobile-layout.browser.test.js checks these at 360-412px.
+       Layout only: no feature, step or ride logic changes here. */
+
+    /* viewport-fit=cover lets the page draw under the phone's status bar
+       (iPhone, and Android Chrome edge-to-edge). Pinned bars stop below
+       it, and a solid strip keeps scrolled content from showing through
+       the status bar. The app shells already pad the WebView, so there
+       these insets are 0 and nothing moves. */
+    html::after {
+      content: "";
+      position: fixed;
+      left: 0;
+      right: 0;
+      top: 0;
+      height: env(safe-area-inset-top, 0px);
+      background: #050b18;
+      z-index: 4500;
+      pointer-events: none;
+    }
+
+    .app-review-banner {
+      top: var(--safe-top, 0px);
+    }
+
+    .topbar {
+      top: calc(14px + var(--safe-top, 0px));
+    }
+
+    @media (max-width: 640px) {
+      /* One pinned bar on phones. The dashboard header (brand and five
+         buttons, ~160px) used to stick 14px from the top, on top of the
+         sticky App Review banner; it now scrolls away with the page. */
+      .shell > .topbar {
+        position: relative;
+        top: auto;
+      }
+
+      /* A field scrolled into view (keyboard, focus) lands below the
+         pinned App Review banner rather than under it. */
+      body.app-review-mode #rideWizardOverlay {
+        scroll-padding-top: calc(var(--safe-top, 0px) + 80px);
+      }
+
+      html:has(body.app-review-mode) {
+        scroll-padding-top: calc(var(--safe-top, 0px) + 80px);
+      }
+
+      /* The App Review banner stays pinned, but compact. */
+      .app-review-banner {
+        padding: 7px 10px;
+        font-size: 0.78rem;
+        line-height: 1.3;
+        border-radius: 10px;
+      }
+
+      /* Booking and tracking: the wizard's .shell was also picking up the
+         dashboard's .shell side and top padding, inside a padded, bordered
+         .hero section, leaving ~62% of the screen for text. */
+      #rideWizardOverlay .shell {
+        padding-left: 0;
+        padding-right: 0;
+        padding-top: 0;
+      }
+
+      #rideWizardOverlay .hero {
+        padding: 0;
+        border: 0;
+        background: none;
+        box-shadow: none;
+      }
+
+      #rideWizardOverlay .hero-card,
+      #rideWizardOverlay .ride-card {
+        padding: 16px;
+      }
+
+      /* The booking header card had no side padding, so the logo sat
+         on its border. */
+      #rideWizardOverlay .topbar {
+        padding: 12px 14px 16px;
+      }
+
+      /* The header's brand line no longer pushes the screen sideways
+         (it was also inheriting the dashboard's .brand nowrap and wide
+         letter spacing). */
+      #rideWizardOverlay .brand {
+        flex: 1 1 100%;
+        min-width: 0;
+        max-width: 100%;
+        white-space: normal;
+        letter-spacing: normal;
+      }
+
+      #rideWizardOverlay .brand-text {
+        overflow: hidden;
+      }
+
+      #rideWizardOverlay .brand-text strong {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
+
   </style>
 </head>
 
@@ -13024,6 +13128,6 @@
   </script>
   <!-- Harvey Assistant (AI Agent Manager); renders nothing unless agent_assist_enabled is on. -->
   <script src="/ride-cancel.js" defer></script>
-  <script src="/agent-assist.js" data-role="rider" defer></script>
+  <script src="/agent-assist.js?v=20261010-layout" data-role="rider" defer></script>
 </body>
 </html>
