@@ -125,7 +125,7 @@ describeWithBrowser("Harvey Taxi Mobile index page: the chat on small phones", (
       const hits = new Set();
       const H = document.scrollingElement.scrollHeight;
       for (let y = 0; y <= H; y += 60) {
-        document.scrollingElement.scrollTop = y;
+        window.scrollTo({ top: y, behavior: "instant" }); // pages use smooth scrolling
         await new Promise((r) => requestAnimationFrame(r));
         const floaters = ["[data-testid=hta-launcher]", "#aiTeaserBubble", ".harvey-ai-launch"].map((q) => document.querySelector(q)).filter(vis);
         for (const f of floaters) {
@@ -142,7 +142,7 @@ describeWithBrowser("Harvey Taxi Mobile index page: the chat on small phones", (
           }
         }
       }
-      document.scrollingElement.scrollTop = 0;
+      window.scrollTo({ top: 0, behavior: "instant" });
       return Array.from(hits);
     });
 
@@ -151,11 +151,11 @@ describeWithBrowser("Harvey Taxi Mobile index page: the chat on small phones", (
       const { context, page, errors, calls } = await open(phone);
       if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `${phone.name}-page.png`) });
       // Scrolled to the bottom: the last controls are reachable.
-      await page.evaluate(() => { document.scrollingElement.scrollTop = 1e9; });
+      await page.evaluate(() => { window.scrollTo({ top: 1e9, behavior: "instant" }); });
       await page.waitForTimeout(800);
       if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `${phone.name}-page-end.png`) });
       const end = await pageFacts(page);
-      await page.evaluate(() => { document.scrollingElement.scrollTop = 0; });
+      await page.evaluate(() => { window.scrollTo({ top: 0, behavior: "instant" }); });
       await page.waitForTimeout(500);
       const top = await pageFacts(page);
 
