@@ -15,6 +15,10 @@
   var script = document.currentScript;
   var role = script && script.dataset.role === "driver" ? "driver" : "rider";
   var tokenKey = script && script.dataset.tokenKey;
+  // data-launcher="desktop": the page has its own way in on phones (a tab in
+  // its bottom navigation that calls HarveyAssistant.open()), so the round
+  // floating button is left out below 600px and never sits over the page.
+  var desktopLauncherOnly = Boolean(script && script.dataset.launcher === "desktop");
   if (window.__harveyAgentAssist) return;
   window.__harveyAgentAssist = true;
 
@@ -88,6 +92,7 @@
     ".hta-btn[hidden]{display:none}" +
     ".hta-btn-text{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}" +
     ".hta-btn-icon{display:block;width:26px;height:26px}" +
+    ".hta-btn.hta-desktop-only{display:none}" +
     "}";
 
   // Look shared with the rider pages and the driver app's assistant: the
@@ -162,7 +167,7 @@
     style.textContent = css;
     document.head.appendChild(style);
 
-    var btn = el("button", { type: "button", class: "hta-btn", "aria-expanded": "false", "aria-controls": "htaPanel", "aria-label": "Harvey Assistant", "data-testid": "hta-launcher" });
+    var btn = el("button", { type: "button", class: desktopLauncherOnly ? "hta-btn hta-desktop-only" : "hta-btn", "aria-expanded": "false", "aria-controls": "htaPanel", "aria-label": "Harvey Assistant", "data-testid": "hta-launcher" });
     btn.appendChild(el("span", { class: "hta-btn-text" }, "Harvey Assistant"));
     // Chat bubble icon, shown on phones only.
     var svgNs = "http://www.w3.org/2000/svg";
@@ -237,12 +242,17 @@
       return a.tagName === "INPUT" && !/^(button|submit|reset|checkbox|radio|range|color|file|image|hidden)$/i.test(a.type || "");
     }
 
+    // Focus goes back to whatever opened the panel (the launcher, or a page
+    // button when the launcher is hidden on phones).
+    var opener = null;
     function toggle(open) {
+      if (open && !panel.classList.contains("open")) opener = document.activeElement;
       panel.classList.toggle("open", open);
       btn.setAttribute("aria-expanded", String(open));
       layout();
-      if (open) input.focus();
-      else btn.focus();
+      if (open) { input.focus(); return; }
+      var back = btn.offsetParent ? btn : opener;
+      if (back && back.focus && document.contains(back)) back.focus();
     }
     // One-tap questions go through the same form as typed ones. Support
     // opens the support request editor directly (riders).
@@ -546,6 +556,10 @@
     // For page buttons (the ride card's "Ask support to review"): opens the
     // assistant with a support request of this kind for the user to review.
     window.HarveyAssistant = {
+      // For page buttons that open the chat ("Open AI Support" on the
+      // index page).
+      open: function () { toggle(true); },
+      close: function () { toggle(false); },
       openHandoff: function (kind, opts) {
         toggle(true);
         openHandoff(kind === "lost_item" || kind === "cancellation_review" ? kind : "general", opts);
