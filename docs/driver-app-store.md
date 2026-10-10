@@ -221,7 +221,12 @@ remove location, photo, addresses, license and plate numbers and push tokens
 | Foreground service permissions | Location, with the text above and the video link |
 | Content rating (IARC) | Category "Utility/Productivity/Communication/Other"; no violence, sexuality, language, drugs or gambling; users interact (rider and driver see each other's details during a trip); shares location with other users: yes |
 
-## App Store Connect: values entered for app 6818705885
+## App Store Connect: prepared values for app 6818705885
+
+These are the values prepared on 2026-10-03 for the owner to enter. They
+are **not proof that anything is saved in App Store Connect**: on
+2026-10-10 the owner's screenshots showed these listing fields blank.
+Enter and save them from this table, and check each one after saving.
 
 | Where | Field | Value |
 |---|---|---|
@@ -242,9 +247,10 @@ remove location, photo, addresses, license and plate numbers and push tokens
 
 ## Version 1.0.0 (13): readiness review (2026-10-10)
 
-The owner entered this listing in App Store Connect for **Harvey Taxi Driver
-(6818705885)** on 2026-10-03; none of it belongs to Harvey Taxi Mobile
-(6761548295). It stays as entered except for the items below.
+All listing materials in this file and in `store-screenshots/` were prepared
+for **Harvey Taxi Driver (6818705885)**; none belong to Harvey Taxi Mobile
+(6761548295). The owner reports the listing fields are blank in App Store
+Connect, so this is what to enter, not a record of what is saved.
 
 | Item | Status |
 |---|---|
@@ -253,8 +259,8 @@ The owner entered this listing in App Store Connect for **Harvey Taxi Driver
 | Screenshots | Replace 02, 03, 04 (see Screenshots) and put 01 last |
 | Description | One added line for Harvey Assistant, which is on for all drivers (`agent_assist_enabled`) and shown in the screenshots |
 | Review account hours | Review accounts get no hours data, so App Review can't hit the 12-hour limit |
-| Version release | **Manually release this version** (owner to select and save) |
-| Third-party AI (guideline 5.1.2(i)) | **Blocking. Resolve before submitting.** See below. |
+| Version release | Manual release selected and saved by the owner (2026-10-10) |
+| Third-party AI (guideline 5.1.2(i)) | Resolved for build 13 on 2026-10-10: the review driver now gets rules-based answers. See below. |
 
 ### Third-party AI and the review account
 
@@ -281,3 +287,22 @@ production flag): remove `driver:DRIVER_GPLAY_REVIEWER` from
 answers as every other driver and no question goes to a third-party AI.
 Model answers in the driver app then wait for a build with the label, an
 in-app permission step and the published privacy disclosure.
+
+**Done on 2026-10-10 (owner-approved; audit record 1283):**
+`agent_model_test_accounts` changed from
+`["rider:RIDER_GPLAY_REVIEWER","driver:DRIVER_GPLAY_REVIEWER"]` to
+`["rider:RIDER_GPLAY_REVIEWER"]`. `agent_model_mode` (`test_accounts`) and
+the rider entry are unchanged. Verified:
+- the server's own `modelEligibility` on the live values returns
+  `not_a_test_account` for the review driver in the driver app (with or
+  without the AI label) and on the web dashboard, and for every other
+  driver; the review rider is still eligible;
+- `runModelTurn` returns before any Anthropic call, budget hold or usage
+  row when an account isn't eligible;
+- `agent_model_usage`: last driver model call 2026-10-08 15:07 UTC; none
+  since the change.
+
+Side effect: specialists use the same test list
+(`agent_specialist_scope = test_accounts`), so the review driver also gets
+the standard driver answers instead of the rules-based specialists. Neither
+calls a model.
