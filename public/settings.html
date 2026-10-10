@@ -35,7 +35,6 @@
     href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
     rel="stylesheet"
   />
-  <link rel="stylesheet" href="/ai-support-widget.css" onerror="this.remove()" />
   <style>
     :root {
       --bg1: #040814;
@@ -174,7 +173,10 @@
       box-shadow: var(--shadowSoft);
       margin-bottom: 18px;
     }
-    .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    /* max-width: on phones the top bar is a column with align-items:
+       flex-start, which sized the brand to its one-line subtitle and made
+       the page wider than the screen (418px on a 360px phone). */
+    .brand { display: flex; align-items: center; gap: 12px; min-width: 0; max-width: 100%; }
     .brand-mark {
       width: 52px; height: 52px; border-radius: 17px; display: grid; place-items: center;
       color: var(--ink); font-weight: 950; letter-spacing: 0.03em;
@@ -365,6 +367,14 @@
     .nav-btn { color: var(--muted); background: transparent; font-size: 12px; font-weight: 900; padding: 10px; border-radius: 14px; min-height: 48px; min-width: 64px; transition: var(--dur) var(--ease); }
     .nav-btn.active { color: white; background: rgba(255, 255, 255, 0.06); }
     .nav-btn:hover, .nav-btn:focus-visible { color: var(--cyan); outline: none; }
+    /* Harvey Assistant is a bottom-nav tab on phones (no floating button over
+       the settings); wider screens use its own launcher. */
+    .nav-btn.nav-assistant { display: none; }
+    @media (max-width: 599px) {
+      .nav-btn.nav-assistant { display: block; }
+      .bottom-nav { padding-left: 4px; padding-right: 4px; }
+      .nav-btn { min-width: 0; flex: 1 1 0; padding: 10px 2px; white-space: nowrap; }
+    }
 
     @media(max-width: 1020px) {
       .two-col, .status-grid, .account-stat-grid, .support-grid { grid-template-columns: 1fr 1fr; }
@@ -748,12 +758,11 @@
   <nav class="bottom-nav" aria-label="Bottom navigation">
     <button class="nav-btn" onclick="safeGo('index.html','bottom_home')" data-i18n="navHome">Home</button>
     <button class="nav-btn" onclick="safeGo('rider-dashboard.html','bottom_rider')" data-i18n="navRider">Rider</button>
+    <button class="nav-btn nav-assistant" type="button" onclick="openHarveyAiChat()" aria-label="Harvey Assistant" aria-controls="htaPanel" data-testid="nav-assistant" data-i18n="navAssistant">Assistant</button>
     <button class="nav-btn" onclick="safeGo('driver-dashboard.html','bottom_driver')" data-i18n="navDriver">Driver</button>
     <button class="nav-btn active" aria-current="page" data-i18n="navSettings">Settings</button>
   </nav>
 
-  <!-- AI chat mount point (populated by ai-support-widget.js) -->
-  <div id="harvey-ai-chat-root"></div>
 
   <script>
     /* ============================================================
@@ -840,7 +849,7 @@
         dangerZoneWarningBody: "Deleting your account removes your profile, saved preferences, and ride or driver history from Harvey Taxi. Active rides, pending payments, or open driver missions must be resolved first. Some records may be retained as required by law or for fraud prevention.",
         deletionReasonLabel: "Reason for Deletion (optional)", deletionConfirmLabel: "Confirm Account Email",
         requestDeletion: "Request Account Deletion",
-        navHome: "Home", navRider: "Rider", navDriver: "Driver", navSettings: "Settings"
+        navHome: "Home", navRider: "Rider", navDriver: "Driver", navSettings: "Settings", navAssistant: "Assistant"
       },
       es: {
         langTitle: "Idioma y Accesibilidad",
@@ -888,7 +897,7 @@
         dangerZoneWarningBody: "Eliminar tu cuenta elimina tu perfil, preferencias guardadas e historial de viajes o conductor de Harvey Taxi. Los viajes activos, pagos pendientes o misiones de conductor abiertas deben resolverse primero. Algunos registros pueden conservarse según lo requiera la ley o para prevención de fraude.",
         deletionReasonLabel: "Motivo de Eliminación (opcional)", deletionConfirmLabel: "Confirmar Correo de la Cuenta",
         requestDeletion: "Solicitar Eliminación de Cuenta",
-        navHome: "Inicio", navRider: "Pasajero", navDriver: "Conductor", navSettings: "Configuración"
+        navHome: "Inicio", navRider: "Pasajero", navDriver: "Conductor", navSettings: "Configuración", navAssistant: "Asistente"
       },
       fr: {
         langTitle: "Langue et Accessibilité",
@@ -936,7 +945,7 @@
         dangerZoneWarningBody: "La suppression de votre compte supprime votre profil, vos préférences enregistrées et votre historique de trajets ou de chauffeur de Harvey Taxi. Les trajets actifs, les paiements en attente ou les missions chauffeur ouvertes doivent d'abord être résolus. Certains enregistrements peuvent être conservés selon les exigences légales ou pour la prévention de la fraude.",
         deletionReasonLabel: "Raison de la Suppression (optionnel)", deletionConfirmLabel: "Confirmer l'E-mail du Compte",
         requestDeletion: "Demander la Suppression du Compte",
-        navHome: "Accueil", navRider: "Passager", navDriver: "Chauffeur", navSettings: "Paramètres"
+        navHome: "Accueil", navRider: "Passager", navDriver: "Chauffeur", navSettings: "Paramètres", navAssistant: "Assistant"
       },
       ar: {
         langTitle: "اللغة وإمكانية الوصول",
@@ -984,7 +993,7 @@
         dangerZoneWarningBody: "حذف حسابك يزيل ملفك الشخصي وتفضيلاتك المحفوظة وسجل رحلاتك أو سجل السائق من هارفي تاكسي. يجب حل الرحلات النشطة أو المدفوعات المعلقة أو مهام السائق المفتوحة أولاً. قد يتم الاحتفاظ ببعض السجلات حسب ما يقتضيه القانون أو لمنع الاحتيال.",
         deletionReasonLabel: "سبب الحذف (اختياري)", deletionConfirmLabel: "تأكيد البريد الإلكتروني للحساب",
         requestDeletion: "طلب حذف الحساب",
-        navHome: "الرئيسية", navRider: "راكب", navDriver: "سائق", navSettings: "الإعدادات",
+        navHome: "الرئيسية", navRider: "راكب", navDriver: "سائق", navSettings: "الإعدادات", navAssistant: "المساعد",
         dir: "rtl"
       }
     };
@@ -1096,21 +1105,23 @@
     }
 
     /* ============================================================
-       AI CHAT: delegates to the server-backed widget (ai-support-widget.js),
-       which calls /api/ai/support. No client-side model calls happen here.
+       AI CHAT: Harvey Assistant (agent-assist.js), the same assistant as the
+       rider dashboard and the index page: rules and approved pages, with AI
+       answers only after the rider allows them. Replaces the old
+       ai-support-widget.js, which called /api/ai/support (OpenAI).
        ============================================================ */
     function openHarveyAiChat() {
       trackSettingsEvent("ai_support_open");
-      if (window.HarveyAI && typeof window.HarveyAI.open === "function") {
-        window.HarveyAI.open();
+      if (window.HarveyAssistant && typeof window.HarveyAssistant.open === "function") {
+        window.HarveyAssistant.open();
         return;
       }
       window.location.href = "support.html";
     }
 
     function closeHarveyAiChat() {
-      if (window.HarveyAI && typeof window.HarveyAI.close === "function") {
-        window.HarveyAI.close();
+      if (window.HarveyAssistant && typeof window.HarveyAssistant.close === "function") {
+        window.HarveyAssistant.close();
       }
     }
 
@@ -1503,6 +1514,9 @@
 
     document.addEventListener("DOMContentLoaded", performStateHydration);
   </script>
-  <script src="/ai-support-widget.js" onerror="console.warn('AI widget script failed to load — AI Help button will fall back to support.html')"></script>
+  <!-- Harvey Assistant (replaces ai-support-widget.js / /api/ai/support).
+       On phones it opens from the Assistant tab in the bottom nav, so no
+       floating button sits over the settings. -->
+  <script src="/agent-assist.js?v=20261010-index2" data-role="rider" data-launcher="desktop" defer></script>
 </body>
 </html>

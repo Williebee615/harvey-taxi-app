@@ -13,7 +13,6 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="manifest" href="/manifest.json" />
-  <link rel="stylesheet" href="/ai-support-widget.css" onerror="this.remove()" />
 
   <style>
     :root {
@@ -612,8 +611,6 @@
   </main>
 </div>
 
-<!-- AI chat mount point (populated by ai-support-widget.js) -->
-<div id="harvey-ai-chat-root"></div>
 
 <script>
   /* ============================================================
@@ -943,21 +940,23 @@
   }
 
   /* ============================================================
-     AI CHAT: delegates to the server-backed widget (ai-support-widget.js),
-     which calls /api/ai/support. No client-side model calls happen here.
+     AI CHAT: Harvey Assistant (agent-assist.js), the same assistant as the
+     rider dashboard and the index page: rules and approved pages, with AI
+     answers only after the rider allows them. Replaces the old
+     ai-support-widget.js, which called /api/ai/support (OpenAI).
      ============================================================ */
   function openHarveyAiChat() {
     trackEvent("ai_support_open");
-    if (window.HarveyAI && typeof window.HarveyAI.open === "function") {
-      window.HarveyAI.open();
+    if (window.HarveyAssistant && typeof window.HarveyAssistant.open === "function") {
+      window.HarveyAssistant.open();
       return;
     }
     window.location.href = "support.html";
   }
 
   function closeHarveyAiChat() {
-    if (window.HarveyAI && typeof window.HarveyAI.close === "function") {
-      window.HarveyAI.close();
+    if (window.HarveyAssistant && typeof window.HarveyAssistant.close === "function") {
+      window.HarveyAssistant.close();
     }
   }
 
@@ -1667,6 +1666,7 @@
 
   bootstrap();
 </script>
-<script src="/ai-support-widget.js" onerror="console.warn('AI widget script failed to load — AI Help button will fall back to support.html')"></script>
+<!-- Harvey Assistant (replaces ai-support-widget.js / /api/ai/support). -->
+<script src="/agent-assist.js?v=20261010-index2" data-role="rider" defer></script>
 </body>
 </html>
