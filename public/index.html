@@ -14,7 +14,6 @@
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icon-192.png" />
   <link rel="icon" href="/favicon.ico" sizes="any" />
-  <link rel="stylesheet" href="/ai-support-widget.css" />
 
   <!-- Open Graph -->
   <meta property="og:type" content="website" />
@@ -757,7 +756,9 @@
     }
     .ai-teaser-bubble .at-text { font-size: 13.5px; font-weight: 700; line-height: 1.4; color: var(--text); }
     @keyframes aiTeaserFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
-    @media (max-width: 640px) { .ai-teaser-bubble { left: 16px; right: 16px; max-width: none; bottom: 16px; } }
+    /* Phones: the round Harvey Assistant button is the entry point; the
+       full-width teaser used to sit on top of the bottom navigation. */
+    @media (max-width: 640px) { .ai-teaser-bubble { display: none; } }
 
     /* ============================================================
        SUPPORT CALLOUT
@@ -1644,13 +1645,15 @@
   <!-- AI TEASER BUBBLE — opens the same real, server-backed AI widget as the
        "Open AI Support" button above (openHarveyAiChat()), just a friendlier
        time-of-day-aware entry point. -->
-  <div class="ai-teaser-bubble" id="aiTeaserBubble" role="button" tabindex="0" aria-label="Open Harvey AI Support">
-    <div class="at-eyebrow">Harvey AI</div>
+  <div class="ai-teaser-bubble" id="aiTeaserBubble" role="button" tabindex="0" aria-label="Open Harvey Assistant">
+    <div class="at-eyebrow">Harvey Assistant</div>
     <div class="at-text" id="aiTeaserText">Need a ride? Ask me anything.</div>
   </div>
 
-  <!-- AI widget (optional external) -->
-  <script src="/ai-support-widget.js" onerror="console.warn('AI widget not available — using built-in chat')"></script>
+  <!-- Harvey Assistant: the same assistant as the rider dashboard (rules
+       and approved pages; consent-gated AI where enabled). Replaces the old
+       ai-support-widget.js, which called /api/ai/support (OpenAI). -->
+  <script src="/agent-assist.js?v=20261010-index" data-role="rider" defer></script>
 
   <!-- ============================================================
        ALL APP JS — single block, correct declaration order
@@ -2994,20 +2997,21 @@
       document.getElementById("modal-root").innerHTML = "";
     }
 
-    /* ---- AI Chat: delegates to the server-backed widget (ai-support-widget.js),
-       which calls /api/ai/support. No client-side model calls happen on this page. ---- */
+    /* ---- AI Chat: opens Harvey Assistant (agent-assist.js), the same
+       assistant as the rider dashboard. If it isn't available (switched
+       off, or still loading), the support page is the fallback. ---- */
     function openHarveyAiChat() {
       trackEvent("ai_support_open");
-      if (window.HarveyAI && typeof window.HarveyAI.open === "function") {
-        window.HarveyAI.open();
+      if (window.HarveyAssistant && typeof window.HarveyAssistant.open === "function") {
+        window.HarveyAssistant.open();
         return;
       }
       window.location.href = "support.html";
     }
 
     function closeHarveyAiChat() {
-      if (window.HarveyAI && typeof window.HarveyAI.close === "function") {
-        window.HarveyAI.close();
+      if (window.HarveyAssistant && typeof window.HarveyAssistant.close === "function") {
+        window.HarveyAssistant.close();
       }
     }
 
@@ -3080,7 +3084,7 @@
       let totalChecks = 0;
       const timer = setInterval(() => {
         totalChecks++;
-        const loaded = window.HarveyAI || document.querySelector(".harvey-ai-launch");
+        const loaded = window.HarveyAssistant || document.querySelector("[data-testid=hta-launcher]");
         if (loaded) { failures = 0; if (totalChecks >= 5) { clearInterval(timer); } return; }
         failures++;
         if (failures >= 3) {

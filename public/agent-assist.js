@@ -473,6 +473,10 @@
     // For page buttons (the ride card's "Ask support to review"): opens the
     // assistant with a support request of this kind for the user to review.
     window.HarveyAssistant = {
+      // For page buttons that open the chat ("Open AI Support" on the
+      // index page).
+      open: function () { toggle(true); },
+      close: function () { toggle(false); },
       openHandoff: function (kind, opts) {
         toggle(true);
         openHandoff(kind === "lost_item" || kind === "cancellation_review" ? kind : "general", opts);
