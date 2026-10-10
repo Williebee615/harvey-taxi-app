@@ -74,6 +74,22 @@
     ".hta-close{background:transparent;font-size:20px;padding:2px 10px;min-width:40px}" +
     ".hta-src{font-size:11px;color:#aab8de;margin-top:4px}";
 
+  // Phones (<600px): the launcher is a small round button at the right
+  // edge instead of a wide pill on the left, so it covers as little of the
+  // page as possible (the page leaves room at the bottom to scroll any
+  // control clear of it). The label stays for screen readers. It also
+  // hides while a page field is focused: Android WebViews resize the page
+  // for the keyboard instead of shrinking the visual viewport, so the
+  // keyboard check below doesn't see it there.
+  css +=
+    ".hta-btn-icon{display:none}" +
+    "@media (max-width:599px){" +
+    ".hta-btn{left:auto;right:12px;width:52px;height:52px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center}" +
+    ".hta-btn[hidden]{display:none}" +
+    ".hta-btn-text{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}" +
+    ".hta-btn-icon{display:block;width:26px;height:26px}" +
+    "}";
+
   // Height of anything fixed to the bottom of the screen (a page's bottom
   // navigation), so the launcher sits above it rather than on top of it.
   function bottomInset(ignore) {
@@ -98,7 +114,19 @@
     style.textContent = css;
     document.head.appendChild(style);
 
-    var btn = el("button", { type: "button", class: "hta-btn", "aria-expanded": "false", "aria-controls": "htaPanel", "data-testid": "hta-launcher" }, "Harvey Assistant");
+    var btn = el("button", { type: "button", class: "hta-btn", "aria-expanded": "false", "aria-controls": "htaPanel", "aria-label": "Harvey Assistant", "data-testid": "hta-launcher" });
+    btn.appendChild(el("span", { class: "hta-btn-text" }, "Harvey Assistant"));
+    // Chat bubble icon, shown on phones only.
+    var svgNs = "http://www.w3.org/2000/svg";
+    var icon = document.createElementNS(svgNs, "svg");
+    icon.setAttribute("viewBox", "0 0 24 24");
+    icon.setAttribute("class", "hta-btn-icon");
+    icon.setAttribute("aria-hidden", "true");
+    var bubble = document.createElementNS(svgNs, "path");
+    bubble.setAttribute("d", "M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.2 3.6A.5.5 0 0 1 5 19.2V16h-.5A.5.5 0 0 1 4 15.5z");
+    bubble.setAttribute("fill", "currentColor");
+    icon.appendChild(bubble);
+    btn.appendChild(icon);
     var panel = el("section", { id: "htaPanel", class: "hta-panel", role: "dialog", "aria-label": "Harvey Assistant" });
     var head = el("div", { class: "hta-head" });
     head.appendChild(el("strong", {}, "Harvey Assistant"));
@@ -138,7 +166,15 @@
       root.style.setProperty("--hta-vh", visible + "px");
       root.style.setProperty("--hta-top", (vv ? vv.offsetTop : 0) + "px");
       root.style.setProperty("--hta-bottom", "calc(" + (bottomInset([panel, btn]) + 16) + "px + env(safe-area-inset-bottom, 0px))");
-      btn.hidden = panel.classList.contains("open") || keyboardOpen;
+      btn.hidden = panel.classList.contains("open") || keyboardOpen || fieldFocused();
+    }
+
+    // A text field on the page (not in the assistant) has focus on a phone.
+    function fieldFocused() {
+      var a = document.activeElement;
+      if (!a || panel.contains(a) || window.innerWidth >= 600) return false;
+      if (a.isContentEditable || a.tagName === "TEXTAREA" || a.tagName === "SELECT") return true;
+      return a.tagName === "INPUT" && !/^(button|submit|reset|checkbox|radio|range|color|file|image|hidden)$/i.test(a.type || "");
     }
 
     function toggle(open) {
@@ -150,6 +186,8 @@
     }
     layout();
     window.addEventListener("resize", layout);
+    document.addEventListener("focusin", layout);
+    document.addEventListener("focusout", function () { setTimeout(layout, 0); });
     if (window.visualViewport) {
       window.visualViewport.addEventListener("resize", layout);
       window.visualViewport.addEventListener("scroll", layout);
