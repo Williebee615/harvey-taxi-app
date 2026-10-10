@@ -20,9 +20,9 @@ confirmation by Zimbabwe counsel before launch.
 2. **Tax:** ZIMRA registration, VAT on fares and commissions, and withholding on driver payouts.
 3. **Company presence:** whether a local entity, local director or local bank account is required.
 4. **Currency:** whether fares are quoted and settled in USD, ZiG or both; exchange-rate source; rounding.
-5. **Pricing:** local fare levels (current values are illustrative).
-6. **EcoCash:** merchant onboarding at developers.ecocash.co.zw (or via an aggregator), API credentials, sandbox, USD vs ZiG settlement, fees, refunds and reversals, and any RBZ rules. **Not to be enabled until these are known.**
-7. **Cash:** how drivers remit Harvey's share, receipts, and fraud controls. **Not to be enabled until designed and approved.**
+5. **Pricing:** local fare levels (current values are illustrative). **Commission rate: not set**; the owner sets it (no split is computed until then).
+6. **Payments: EcoCash only (owner decision, 10 Oct 2026).** Harvey Taxi collects the rider's fare, keeps its commission and pays the driver's share. Neither Paynow nor EcoCash publicly documents that marketplace arrangement, and Paynow's published terms appear to exclude collecting on behalf of others. Written confirmation is required first: see [zimbabwe-payments.md](zimbabwe-payments.md). **Not to be enabled until confirmed.**
+7. **No cash bookings in Zimbabwe.** Cash is removed from the plan (owner decision, 10 Oct 2026).
 8. **Emergency numbers:** sources agree on 999 (all), 995 police, 994 ambulance, 993 fire, but some say ambulance and fire are landline-only and 999 is unreliable outside Harare. Confirm what a rider's mobile phone can reach in Harare.
 9. **Driver documents:** confirm the list (national ID, licence class, defensive driving certificate, police clearance, vehicle registration, ZINARA licence, insurance with passenger cover, any operator or route permit) and which ones expire.
 10. **Background checks:** Checkr lists Zimbabwe in its international coverage, check types unknown; Persona coverage of Zimbabwean IDs not confirmed.
@@ -43,5 +43,5 @@ confirmation by Zimbabwe counsel before launch.
 | Address search outside the US | Not done (server change) |
 | +263 SMS sign-in | Phone rules done; Twilio delivery unconfirmed |
 | Driver app: local emergency number, currency, km | Needs a driver build |
-| EcoCash / cash | Not built; disabled |
+| EcoCash (only method; no cash) | Sandbox ledger and tests only; no provider adapter; disabled |
 | Driver document upload, review, expiry | Settings only; not built |
