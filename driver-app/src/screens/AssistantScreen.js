@@ -4,7 +4,7 @@ import * as Speech from 'expo-speech';
 import * as WebBrowser from 'expo-web-browser';
 
 import { API_BASE, EMERGENCY_NUMBER, LINKS } from '../config';
-import { aiAnswerLabel, answeredByLabel, GREETING, isHandsFree, planActions, QUICK_PROMPTS, sourceLabel, speakable, UNAVAILABLE_REPLY } from '../assistant';
+import { AI_SPOKEN_NOTE, aiAnswerLabel, answeredByLabel, consentNotice, GREETING, isHandsFree, planActions, QUICK_PROMPTS, sourceLabel, speakable, UNAVAILABLE_REPLY } from '../assistant';
 import { directionsUrl } from '../tripSteps';
 import { clearChat, contextFrom, loadChat, saveChat } from '../chatMemory';
 import { Button, C } from '../ui';
@@ -26,6 +26,12 @@ export default function AssistantScreen({ app, onClose, onOpenTab }) {
   // attachRide, loading, sending, error }. One requestId per review, so a
   // retry can't create a second case.
   const [handoff, setHandoff] = useState(null);
+  // AI answers: `consent` is the server's notice waiting for an answer
+  // ({ notice, question, saving, error }) or null; `aiOn` shows the "Turn
+  // off" control. "Not now" isn't asked again while this screen is open.
+  const [consent, setConsent] = useState(null);
+  const [aiOn, setAiOn] = useState(false);
+  const declined = useRef(false);
   const scroll = useRef(null);
   const nextId = useRef(Math.max(0, ...messages.map((m) => m.id)) + 1);
 
@@ -46,14 +52,33 @@ export default function AssistantScreen({ app, onClose, onOpenTab }) {
     if (handsFree) setReadAloud(true);
   }, [handsFree]);
   useEffect(() => () => Speech.stop(), []);
+  useEffect(() => {
+    let live = true;
+    if (actions.aiConsentStatus) {
+      actions
+        .aiConsentStatus()
+        .then((res) => live && setAiOn(Boolean(res && res.ai_available && res.consent && res.consent.granted)))
+        .catch(() => {});
+    }
+    return () => {
+      live = false;
+    };
+  }, [actions]);
 
   const add = (msg) => setMessages((prev) => [...prev, { id: nextId.current++, ...msg }]);
 
-  const ask = async (message) => {
+  // `repeat`: the same question again right after AI answers were allowed,
+  // without showing it twice or sending it as its own context.
+  const ask = async (message, { repeat = false } = {}) => {
     const clean = String(message || '').trim();
     if (!clean || sending) return;
-    const context = contextFrom(messages);
-    add({ who: 'me', text: clean });
+    let context = contextFrom(messages);
+    if (repeat) {
+      const at = context.map((t) => t.role === 'user' && t.text === clean).lastIndexOf(true);
+      if (at >= 0) context = context.slice(0, at);
+    } else {
+      add({ who: 'me', text: clean });
+    }
     setText('');
     setSending(true);
     let reply = UNAVAILABLE_REPLY;
@@ -61,6 +86,8 @@ export default function AssistantScreen({ app, onClose, onOpenTab }) {
     let proposed = [];
     let sources = [];
     let answeredBy = null;
+    let aiWritten = false;
+    let notice = null;
     try {
       const res = await actions.askAssistant(clean, context);
       reply = res.reply || UNAVAILABLE_REPLY;
@@ -68,6 +95,8 @@ export default function AssistantScreen({ app, onClose, onOpenTab }) {
       proposed = res.unavailable ? [] : res.actions || [];
       sources = res.unavailable ? [] : (res.sources || []).filter((src) => src && typeof src.url === 'string' && src.url.startsWith('/'));
       answeredBy = res.unavailable ? null : answeredByLabel(res.specialist) || aiAnswerLabel(res.answered_by);
+      aiWritten = !res.unavailable && !res.specialist && Boolean(aiAnswerLabel(res.answered_by));
+      notice = res.unavailable ? null : consentNotice(res);
     } catch {
       reply = UNAVAILABLE_REPLY;
     }
@@ -75,7 +104,44 @@ export default function AssistantScreen({ app, onClose, onOpenTab }) {
     setSending(false);
     if (readAloud) {
       Speech.stop();
-      Speech.speak(speakable(reply), { language: 'en-US' });
+      Speech.speak(speakable(aiWritten ? `${reply} ${AI_SPOKEN_NOTE}` : reply), { language: 'en-US' });
+    }
+    // Not while driving: the notice needs reading, so it waits until the
+    // driver isn't on a trip (answers stay standard meanwhile).
+    if (notice && !handsFree && !declined.current) setConsent({ notice, question: clean, saving: false, error: null });
+  };
+
+  const allowAi = async () => {
+    if (!consent || consent.saving) return;
+    setConsent({ ...consent, saving: true, error: null });
+    try {
+      await actions.setAiConsent(true, consent.notice.version);
+      const { question } = consent;
+      setConsent(null);
+      setAiOn(true);
+      add({ who: 'bot', text: 'AI answers are on. You can turn them off at any time below.' });
+      if (question) await ask(question, { repeat: true });
+    } catch (err) {
+      const msg = err && err.data && err.data.error;
+      setConsent({ ...consent, saving: false, error: msg || "Your choice couldn't be saved. AI answers stay off." });
+    }
+  };
+
+  const notNow = () => {
+    declined.current = true;
+    setConsent(null);
+    actions.setAiConsent(false).catch(() => {});
+    add({ who: 'bot', text: "OK. You'll keep getting answers from Harvey Taxi's standard assistant. Nothing was sent to the AI." });
+  };
+
+  const turnOffAi = async () => {
+    try {
+      await actions.setAiConsent(false);
+      setAiOn(false);
+      declined.current = true;
+      add({ who: 'bot', text: "AI answers are off. You'll get answers from Harvey Taxi's standard assistant." });
+    } catch {
+      add({ who: 'bot', text: "That didn't save. Please try again." });
     }
   };
 
@@ -202,7 +268,7 @@ export default function AssistantScreen({ app, onClose, onOpenTab }) {
         </Text>
       </View>
 
-      <ScrollView ref={scroll} style={st.log} contentContainerStyle={{ paddingVertical: 8, gap: 8 }} onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: true })}>
+      <ScrollView ref={scroll} style={st.log} contentContainerStyle={{ paddingVertical: 8, gap: 8 }} onContentSizeChange={() => !consent && scroll.current?.scrollToEnd({ animated: true })}>
         {messages.map((m) => (
           <View key={m.id} style={[st.msg, m.who === 'me' ? st.me : st.bot, m.urgent && st.urgent]} testID={m.who === 'bot' ? 'assistant-reply' : undefined}>
             <Text style={st.msgText}>{m.text}</Text>
@@ -236,6 +302,31 @@ export default function AssistantScreen({ app, onClose, onOpenTab }) {
           </View>
         ))}
         {sending && <Text style={st.sub}>Checking…</Text>}
+        {consent && (
+          <View
+            style={st.handoff}
+            testID="assistant-consent"
+            accessibilityRole="summary"
+            // The notice opens at its title, not scrolled to its buttons.
+            onLayout={(e) => scroll.current?.scrollTo({ y: Math.max(0, e.nativeEvent.layout.y - 8), animated: true })}
+          >
+            <Text style={st.handoffTitle} accessibilityRole="header">{consent.notice.title}</Text>
+            <Text style={st.consentBody}>{consent.notice.body}</Text>
+            {consent.notice.points.map((p) => (
+              <Text key={p} style={st.consentPoint}>• {p}</Text>
+            ))}
+            {consent.notice.privacyUrl ? (
+              <Text style={st.sourceLink} accessibilityRole="link" testID="assistant-consent-privacy" onPress={() => WebBrowser.openBrowserAsync(consent.notice.privacyUrl)}>
+                Privacy policy
+              </Text>
+            ) : null}
+            {consent.error ? <Text style={st.handoffError} accessibilityRole="alert">{consent.error}</Text> : null}
+            <View style={st.handoffRow}>
+              <Button testID="assistant-consent-allow" title={consent.saving ? 'Saving…' : consent.notice.allow} onPress={allowAi} disabled={consent.saving} style={st.handoffBtn} />
+              <Button testID="assistant-consent-decline" title={consent.notice.decline} kind="ghost" onPress={notNow} disabled={consent.saving} style={st.handoffBtn} />
+            </View>
+          </View>
+        )}
         {handoff && (
           <View style={st.handoff} testID="assistant-handoff">
             <Text style={st.handoffTitle}>{handoff.kind === 'lost_item' ? 'Report a found item' : 'Send a request to Harvey Taxi support'}</Text>
@@ -308,6 +399,14 @@ export default function AssistantScreen({ app, onClose, onOpenTab }) {
         >
           <Text style={[st.toggleText, readAloud && { color: C.cyan }]}>{readAloud ? 'Reading answers aloud' : 'Read answers aloud'}</Text>
         </Pressable>
+        {aiOn ? (
+          <View style={st.aiRow} testID="assistant-ai-on">
+            <Text style={st.sub}>AI answers are on.</Text>
+            <Pressable testID="assistant-ai-off" accessibilityRole="button" onPress={turnOffAi} style={st.aiOff}>
+              <Text style={st.toggleText}>Turn off AI answers</Text>
+            </Pressable>
+          </View>
+        ) : null}
         {handsFree ? (
           <Text style={st.sub}>Typing is off during a trip. Tap a question above.</Text>
         ) : (
@@ -372,5 +471,9 @@ const st = StyleSheet.create({
   rideRow: { minHeight: 44, justifyContent: 'center' },
   rideText: { color: C.text, fontSize: 14 },
   handoffRow: { flexDirection: 'row', gap: 8 },
-  handoffBtn: { flex: 1, marginTop: 0 }
+  handoffBtn: { flex: 1, marginTop: 0 },
+  consentBody: { color: C.text, fontSize: 15, lineHeight: 21 },
+  consentPoint: { color: C.muted, fontSize: 13, lineHeight: 19 },
+  aiRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  aiOff: { minHeight: 36, justifyContent: 'center', paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: C.line }
 });

@@ -467,7 +467,11 @@
       const canElevate = Boolean(state && state.admin_can_enable_automation) || Boolean(token());
       specialistFlags = [];
       const scopeText = { off: "nobody", all: "every rider and driver (signed-out visitors get general guidance only)", test_accounts: "listed test accounts only" }[data.specialist_scope] || "listed test accounts only";
-      $("hierarchy").innerHTML = `<p id="specialistScope" class="muted">Switched-on specialists answer: <b>${esc(scopeText)}</b> (agent_specialist_scope).</p>` + data.chiefs.map((chief) => {
+      $("hierarchy").innerHTML = `<p id="specialistScope" class="muted">Switched-on specialists answer: <b>${esc(scopeText)}</b> (agent_specialist_scope).` +
+        (data.specialist_scope === "test_accounts"
+          ? ` Specialist test list: <b>${esc((data.specialist_test_accounts || []).join(", ") || "none")}</b> (${data.specialist_accounts_source === "own" ? "agent_specialist_test_accounts" : "not set yet, so the model test list is used"}).`
+          : "") +
+        `</p>` + data.chiefs.map((chief) => {
         const rows = chief.specialists.map((sp) => {
           specialistFlags.push(sp.flag);
           const state = sp.answering ? "Answering" : sp.switched_on ? "On (chief or stop switch blocks it)" : "Off";

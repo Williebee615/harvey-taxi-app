@@ -72,7 +72,12 @@
     ".hta-form input{flex:1;min-width:0;background:#0a1228;color:#f4f7ff;border:1px solid rgba(122,162,255,.25);border-radius:10px;padding:10px;font:16px Inter,Arial,sans-serif}" +
     ".hta-form button,.hta-close{background:#1d4ed8;color:#fff;border:0;border-radius:10px;padding:8px 14px;font:inherit;cursor:pointer;min-height:40px}" +
     ".hta-close{background:transparent;font-size:20px;padding:2px 10px;min-width:40px}" +
-    ".hta-src{font-size:11px;color:#aab8de;margin-top:4px}";
+    ".hta-src{font-size:11px;color:#aab8de;margin-top:4px}" +
+    ".hta-consent ul{margin:0;padding-left:18px;display:grid;gap:4px}" +
+    ".hta-consent a{color:#9fd8ff}" +
+    ".hta-aibar{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:6px 14px 0;font-size:12px;color:#aab8de}" +
+    ".hta-aibar[hidden]{display:none}" +
+    ".hta-aibar button{border:1px solid rgba(122,162,255,.35);background:transparent;color:inherit;border-radius:8px;padding:4px 8px;min-height:30px;font:600 12px Inter,Arial,sans-serif;cursor:pointer}";
 
   // Height of anything fixed to the bottom of the screen (a page's bottom
   // navigation), so the launcher sits above it rather than on top of it.
@@ -123,6 +128,14 @@
     panel.appendChild(head);
     panel.appendChild(banner);
     panel.appendChild(log);
+    // Shown while this account has AI answers turned on, with the way to
+    // turn them off (lib/agent/aiConsent.js).
+    var aiBar = el("div", { class: "hta-aibar", "data-testid": "hta-ai-bar" });
+    aiBar.hidden = true;
+    aiBar.appendChild(el("span", {}, "AI answers are on."));
+    var aiOff = el("button", { type: "button", "data-testid": "hta-ai-off" }, "Turn off AI answers");
+    aiBar.appendChild(aiOff);
+    panel.appendChild(aiBar);
     panel.appendChild(form);
     document.body.appendChild(panel);
     document.body.appendChild(btn);
@@ -373,14 +386,105 @@
       });
     }
 
-    form.addEventListener("submit", function (e) {
-      e.preventDefault();
-      var text = input.value.trim();
-      if (!text) return;
-      input.value = "";
+    // "Allow AI answers?" The server sends this notice when the account
+    // could get AI answers but hasn't allowed them. It is shown exactly as
+    // sent. Nothing goes to the AI provider until the person taps Allow;
+    // "Not now" keeps the standard assistant for the rest of this visit.
+    var consentCard = null;
+    var consentDeclined = false;
+    function postConsent(granted, version) {
+      return fetch("/api/agent/" + role + "/ai-consent", { method: "POST", credentials: "same-origin", headers: headers(), body: JSON.stringify({ granted: granted, version: version }) })
+        .then(function (r) { return r.json().catch(function () { return {}; }).then(function (body) { return { ok: r.ok, body: body }; }); });
+    }
+    function showConsent(notice, question) {
+      if (consentCard || consentDeclined || !notice || !notice.title) return;
+      var card = el("div", { class: "hta-handoff hta-consent", "data-testid": "hta-consent", role: "group", "aria-label": notice.title });
+      consentCard = card;
+      card.appendChild(el("strong", {}, notice.title));
+      card.appendChild(el("div", {}, notice.body));
+      var list = el("ul", { class: "hta-note" });
+      (notice.points || []).forEach(function (p) { list.appendChild(el("li", {}, p)); });
+      card.appendChild(list);
+      var privacy = notice.privacy_path && safeHref(notice.privacy_path);
+      if (privacy) {
+        var more = el("div", { class: "hta-note" });
+        more.appendChild(el("a", { href: privacy, target: "_blank", rel: "noopener" }, "Privacy policy"));
+        card.appendChild(more);
+      }
+      var err = el("div", { class: "hta-err", role: "alert" });
+      var row = el("div", { class: "hta-row" });
+      var allow = el("button", { type: "button", class: "hta-primary", "data-testid": "hta-consent-allow" }, notice.allow || "Allow AI answers");
+      var later = el("button", { type: "button", "data-testid": "hta-consent-decline" }, notice.decline || "Not now");
+      row.appendChild(allow);
+      row.appendChild(later);
+      card.appendChild(err);
+      card.appendChild(row);
+      log.appendChild(card);
+      card.scrollIntoView({ block: "nearest" });
+      function done() {
+        if (card.parentNode) card.parentNode.removeChild(card);
+        consentCard = null;
+      }
+      allow.addEventListener("click", function () {
+        allow.disabled = true;
+        later.disabled = true;
+        err.textContent = "";
+        postConsent(true, notice.version)
+          .then(function (res) {
+            if (!res.ok) throw new Error((res.body && res.body.error) || "");
+            done();
+            aiBar.hidden = false;
+            addMessage("AI answers are on. You can turn them off at any time below.", "bot");
+            if (question) ask(question, { repeat: true });
+          })
+          .catch(function (e) {
+            err.textContent = (e && e.message) || "Your choice couldn't be saved. AI answers stay off.";
+            allow.disabled = false;
+            later.disabled = false;
+          });
+      });
+      later.addEventListener("click", function () {
+        consentDeclined = true;
+        done();
+        postConsent(false).catch(function () { /* nothing was allowed either way */ });
+        addMessage("OK. You'll keep getting answers from Harvey Taxi's standard assistant. Nothing was sent to the AI.", "bot");
+      });
+    }
+    aiOff.addEventListener("click", function () {
+      aiOff.disabled = true;
+      postConsent(false)
+        .then(function (res) {
+          if (!res.ok) throw new Error("save");
+          aiBar.hidden = true;
+          consentDeclined = true;
+          addMessage("AI answers are off. You'll get answers from Harvey Taxi's standard assistant.", "bot");
+        })
+        .catch(function () { addMessage("That didn't save. Please try again.", "bot"); })
+        .then(function () { aiOff.disabled = false; });
+    });
+    // Whether this signed-in account has AI answers on (shows the bar).
+    function refreshAiStatus() {
+      fetch("/api/agent/" + role + "/ai-consent", { credentials: "same-origin", headers: headers() })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (body) { aiBar.hidden = !(body && body.ai_available && body.consent && body.consent.granted); })
+        .catch(function () { aiBar.hidden = true; });
+    }
+
+    // `repeat`: the same question again after AI answers were allowed, so
+    // it isn't shown or remembered twice.
+    function ask(text, opts) {
+      opts = opts || {};
       var context = history.slice(-6);
-      addMessage(text, "me");
-      remember(text, "me");
+      if (!opts.repeat) {
+        addMessage(text, "me");
+        remember(text, "me");
+      } else {
+        // Leave out the earlier copy of this question and the standard
+        // answer it got, so the model sees the question once.
+        for (var i = context.length - 1; i >= 0; i--) {
+          if (context[i].role === "user" && context[i].text === text.slice(0, 500)) { context = context.slice(0, i); break; }
+        }
+      }
       send.disabled = true;
       fetch("/api/agent/" + role + "/assist", { method: "POST", credentials: "same-origin", headers: headers(), body: JSON.stringify({ message: text, context: context }) })
         .then(function (r) { return r.json().catch(function () { return {}; }); })
@@ -394,11 +498,20 @@
             specialist: body.specialist || null,
             aiGenerated: Boolean(body.answered_by && body.answered_by.engine === "model")
           });
+          if (body.ai_consent && body.ai_consent.required) showConsent(body.ai_consent, text);
         })
         .catch(function () {
           addMessage("The assistant is unavailable. Booking and your dashboard still work. In an emergency, call 911.", "bot");
         })
         .then(function () { send.disabled = false; });
+    }
+
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var text = input.value.trim();
+      if (!text) return;
+      input.value = "";
+      ask(text);
     });
 
     function greet() {
@@ -409,6 +522,7 @@
     function reset() {
       history = [];
       handoffCard = null;
+      consentCard = null;
       while (log.firstChild) log.removeChild(log.firstChild);
       greet();
     }
@@ -421,6 +535,7 @@
       history.forEach(function (t) { addMessage(t.text, t.role === "user" ? "me" : "bot"); });
     }
     restore();
+    refreshAiStatus();
     clearBtn.addEventListener("click", function () {
       if (storeKey) { try { sessionStorage.removeItem(storeKey); } catch (e) { /* nothing saved */ } }
       reset();
@@ -430,7 +545,9 @@
       var next = accountKey();
       if (next === storeKey) return;
       storeKey = next;
+      consentDeclined = false;
       restore();
+      refreshAiStatus();
     });
     // For page buttons (the ride card's "Ask support to review"): opens the
     // assistant with a support request of this kind for the user to review.
@@ -443,6 +560,8 @@
 
     window.addEventListener("harvey:signed-out", function () {
       storeKey = null;
+      consentDeclined = false;
+      aiBar.hidden = true;
       reset();
     });
   }
