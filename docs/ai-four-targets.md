@@ -4,7 +4,7 @@ Scope: the full assistant on all four apps. The website alone does not count for
 
 | # | Target | App | Store ID | How the assistant reaches it |
 |---|---|---|---|---|
-| 1 | Harvey Taxi (rider), iOS | `mobile/`, `com.harveytaxiservice.app` | App Store Connect app in `mobile/eas.json` | Native WebView shell. It loads the rider dashboard, and the assistant panel runs inside it. |
+| 1 | Harvey Taxi (rider), iOS | `mobile/`, `com.harveytaxi.HarveyTaxi` | ASC 6761548295 (Harvey Taxi Mobile) | Native WebView shell. It loads the rider dashboard, and the assistant panel runs inside it. |
 | 2 | Harvey Taxi (rider), Android | `mobile/`, `com.harveytaxi.app` | Google Play | Same shell as #1. |
 | 3 | Harvey Taxi Driver, iOS | `driver-app/`, `com.harveytaxiservice.driver` | ASC 6818705885 | Native assistant screen (`AssistantScreen.js`). |
 | 4 | Harvey Taxi Driver, Android | `driver-app/`, `com.harveytaxi.driver` | Google Play | Same native screen as #3. |

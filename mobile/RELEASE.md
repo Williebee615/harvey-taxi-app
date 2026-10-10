@@ -1,9 +1,51 @@
 # Harvey Taxi iOS app: build and release verification
 
-App Store app: **Harvey Taxi**, iOS bundle ID `com.harveytaxiservice.app`
-(set in `mobile/app.json` by "Fix App Store Connect identifiers"); Android
-package `com.harveytaxi.app`. Both are built from this `mobile/` directory. The root `app.json` (`com.harveytaxi.mobile`) is not
-a buildable Expo project and is not used for App Store builds.
+App Store app: **Harvey Taxi Mobile**, the existing public listing: Apple ID
+`6761548295`, iOS bundle ID `com.harveytaxi.HarveyTaxi` (capitalization is
+exact; confirmed from App Store Connect on 10 October 2026). Android package
+`com.harveytaxi.app` (unchanged). Both are built from this `mobile/`
+directory. The root `app.json` (`com.harveytaxi.mobile`) is not a buildable
+Expo project and is not used for App Store builds.
+
+An App Store Connect record's bundle ID can't be changed, so a build reaches
+Harvey Taxi Mobile only if it is built with `com.harveytaxi.HarveyTaxi`.
+`mobile/__tests__/storeConfig.test.js` pins both identifiers, checks they
+differ from Harvey Taxi Driver's, and checks the production image uses
+Xcode 26.
+
+Apple rejected the last upload to this record, 1.0.1 (10), for two reasons;
+the next build must fix both:
+
+- **90054** (bundle identifier changed): it was built as
+  `com.harveytaxi.app`. Fixed by `ios.bundleIdentifier` above.
+- **90725** (built with the iOS 17.5 SDK): it was built on Expo SDK 51 with
+  Xcode 15.4. This directory is now on Expo SDK 54, and the `production`
+  profile pins `macos-sequoia-15.6-xcode-26.0` (iOS 26 SDK).
+
+The second record, **Harvey Taxi** (`6761441561`, bundle
+`com.harveytaxiservice.app`), received builds from 30 September to 4 October
+2026 (1.0.1 (10) from `03b00fe`, 1.0.2 (11-13)) after `mobile/app.json` was
+switched to that bundle ID. It is kept, but rider updates no longer go
+there. None of the existing EAS builds carries `com.harveytaxi.HarveyTaxi`,
+so a new build is required.
+
+## Signing for `com.harveytaxi.HarveyTaxi` (before the next build)
+
+EAS has no credentials for this bundle ID yet. Before building, an Apple
+Account Holder or Admin runs, on their own computer:
+
+```sh
+cd mobile
+npx eas-cli credentials -p ios
+```
+
+Choose the `production` profile, sign in to Apple, reuse the existing team
+distribution certificate, and let EAS create an App Store provisioning
+profile for `com.harveytaxi.HarveyTaxi` (the App ID already exists, because
+the record exists). Then assign the team App Store Connect API key to this
+project for submissions. The app needs no extra capabilities or entitlements
+(no push, associated domains or app groups), so the plain App ID is enough.
+None of this uses a build credit.
 
 ## Build
 
@@ -17,11 +59,29 @@ npx eas-cli build --platform ios --profile production
 - Marketing version: `expo.version` in `app.json` (currently `1.0.2`, for the
   rider-navigation release below; 1.0.1 build 10 stays as submitted).
 - Build number: managed by EAS (`cli.appVersionSource: "remote"` in
-  `eas.json`); the `production` profile auto-increments it. Build 10
-  (`bf85889d-7f63-4063-bace-685e2b8e9492`, commit `3e57b81`) is the first
-  build with this fix. `expo.ios.buildNumber` in `app.json` is ignored.
+  `eas.json`); the `production` profile auto-increments it. EAS keeps build
+  numbers per bundle ID. For `com.harveytaxi.HarveyTaxi` it was set
+  explicitly on 10 October 2026 to 1.0.1 (10), the last upload Apple
+  received for this record, so the next build is **1.0.2 (11)**. The build
+  log must say "Incrementing buildNumber from 10 to 11"; if it shows any
+  other number, stop. `expo.ios.buildNumber` in `app.json` is ignored.
 - EAS project: `@williebee615/harvey-taxi`
   (`ae7e5a71-4f7c-45d8-8b7e-e0ef4de507b2`).
+
+## Verify the IPA before any upload
+
+Run on a Mac against the IPA you are about to upload (from the build page,
+or the file `eas build --local` writes):
+
+```sh
+cd mobile
+sh scripts/verify-ipa.sh path/to/build.ipa 11
+```
+
+It checks the bundle ID (`com.harveytaxi.HarveyTaxi`), version (`1.0.2`),
+build number, iOS 26 SDK, a valid distribution signature from team
+`AYF633JM4W`, and an App Store provisioning profile for this bundle ID.
+Upload only if it prints `ALL CHECKS PASSED`.
 
 ## TestFlight upload (private testing only)
 
@@ -29,8 +89,9 @@ npx eas-cli build --platform ios --profile production
 npx eas-cli submit --platform ios --latest
 ```
 
-`submit.production.ios.ascAppId` (`6761548295`) lets EAS upload with the saved
-App Store Connect API key without an Apple ID lookup. This uploads the build
+`submit.production.ios.ascAppId` (`6761548295`) lets EAS upload with the App
+Store Connect API key stored with EAS (team key, assigned to this project with
+`npx eas-cli credentials -p ios`), with no key file or Mac path in this repo. This uploads the build
 to App Store Connect for TestFlight; it does **not** submit it for App Review.
 Submitting for review is a separate, manual step in App Store Connect.
 
@@ -67,7 +128,7 @@ or review, but no Android signing setup, Play track, `versionCode` history
 or submit config. Before building for Play, the owner checks:
 
 1. **Play Console:** is there an existing app, and what is its package name?
-   If it is not `com.harveytaxi.app`, do **not** create another Play Console
+   If it is not `com.harveytaxi.app` (the Android package), do **not** create another Play Console
    app. Bring `android.package` in line with the existing app instead.
    A package name can never be changed after the first upload.
 2. **Signing:** Play App Signing status and the upload key. If an upload

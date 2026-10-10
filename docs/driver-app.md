@@ -6,7 +6,7 @@ get from its environment; see [Blockers](#blockers-and-earliest-submission).
 
 | App | Directory | Store identity | Changed here? |
 |---|---|---|---|
-| Harvey Taxi (rider) | `mobile/` | iOS `com.harveytaxiservice.app`, Android `com.harveytaxi.app`, EAS `ae7e5a71-…` | **No** |
+| Harvey Taxi (rider) | `mobile/` | iOS `com.harveytaxi.HarveyTaxi` (App Store: Harvey Taxi Mobile, `6761548295`), Android `com.harveytaxi.app`, EAS `ae7e5a71-…` | **No** |
 | Harvey Taxi Driver | `driver-app/` | iOS `com.harveytaxiservice.driver`, Android `com.harveytaxi.driver`, scheme `harveytaxidriver`, its own EAS project | New |
 
 Both apps use the same backend (Express on Render), Supabase database,
