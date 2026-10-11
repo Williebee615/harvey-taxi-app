@@ -94,7 +94,8 @@ describe("admin market preview and simulated rides", () => {
     expect(Object.keys(byId)).toEqual(["us-nashville", "zw-harare", "ng-lagos", "gh-accra"]);
     expect(byId["us-nashville"]).toMatchObject({ live_allowed: true, status: "live" });
     expect(byId["gh-accra"]).toMatchObject({ status: "test", live_flag: true, approved_for_live: false, live_allowed: false });
-    expect(byId["zw-harare"].unconfirmed).toEqual(["currency", "pricing", "emergency numbers", "driver documents"]);
+    expect(byId["zw-harare"].unconfirmed).toEqual(["currency", "pricing", "commission rate (owner to set)", "emergency numbers", "driver documents"]);
+    expect(byId["zw-harare"]).toMatchObject({ cash_bookings: false });
     expect(byId["zw-harare"].phone.country_code).toBe("+263");
   });
 

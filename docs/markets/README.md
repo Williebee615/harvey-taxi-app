@@ -72,8 +72,11 @@ cost areas before a pilot can go live (amounts to be quoted; none verified):
   local bank account for settlement.
 - **SMS verification:** Twilio Verify per-message rates differ by country;
   sender ID registration required for Nigeria and Ghana.
-- **Payments:** EcoCash merchant account (Zimbabwe), a local payment provider
-  (Nigeria), mobile money (Ghana): transaction fees and any setup fees.
+- **Payments:** Zimbabwe is EcoCash only, with no cash. A collection fee is
+  reported at 2.5% via Paynow (unconfirmed), plus payout fees (unknown) and any
+  marketplace/payout contract; see [zimbabwe-payments.md](zimbabwe-payments.md).
+  Nigeria needs a local payment provider and Ghana mobile money: transaction
+  fees and any setup fees.
 - **Identity and background checks:** Persona and Checkr coverage in these
   countries not confirmed; a local provider may be needed.
 - **Maps and routing:** Mapbox usage outside the US; address quality in
