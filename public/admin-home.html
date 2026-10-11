@@ -19,33 +19,59 @@
   </div>
 
   <script>
-    async function loadDrivers() {
-      const res = await fetch('/api/admin/drivers')
-      const data = await res.json()
+    // Driver approval uses the server's real route,
+    // PATCH /api/admin/drivers/:id/approve, the same one the Admin
+    // Dashboard uses. The old POST /api/admin/approve-driver no longer
+    // exists. Admin access comes from the signed admin session cookie.
+    const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+    const driverName = (d) => {
+      const parts = [d.first_name, d.last_name].filter((x) => x && String(x).trim() && String(x) !== 'null')
+      if (parts.length) return parts.join(' ')
+      return [d.full_name, d.name].find((x) => x && String(x).trim() && String(x) !== 'null') || '(no name on file)'
+    }
+    const isApproved = (d) => String(d.approval_status || '').toLowerCase() === 'approved'
 
-      document.getElementById('drivers').innerHTML = (data.drivers || []).map(driver => `
-        <div class="ride-card">
-          <div class="ride-line"><strong>${driver.name}</strong></div>
-          <div class="ride-line">${driver.email || ''}</div>
-          <div class="ride-line">Vehicle: ${driver.vehicle || ''}</div>
-          <div class="ride-line">Plate: ${driver.plate || ''}</div>
-          <div class="ride-line">Status: ${driver.status || ''}</div>
-          <button class="button small" onclick="approveDriver('${driver.id}')">Approve Driver</button>
+    async function loadDrivers() {
+      const box = document.getElementById('drivers')
+      let data = {}
+      try {
+        const res = await fetch('/api/admin/drivers', { credentials: 'include' })
+        data = await res.json().catch(() => ({}))
+        if (!res.ok || data.ok === false) throw new Error(data.error || 'Admin sign-in required.')
+      } catch (err) {
+        box.textContent = err.message
+        return
+      }
+      box.innerHTML = (data.drivers || []).map((d) => `
+        <div class="ride-card" data-driver-id="${esc(d.id)}">
+          <div class="ride-line"><strong>${esc(driverName(d))}</strong></div>
+          <div class="ride-line">${esc(d.email)}</div>
+          <div class="ride-line">Approval: ${esc(d.approval_status || 'pending')} · Account: ${esc(d.status || '')}</div>
+          <div class="ride-line">Checkr: ${esc(d.checkr_status || 'not started')}</div>
+          ${isApproved(d)
+            ? '<div class="ride-line"><strong>Approved</strong></div>'
+            : `<button class="button small" data-approve="${esc(d.id)}">Approve Driver</button>`}
         </div>
-      `).join('')
+      `).join('') || 'No drivers found.'
     }
 
     async function approveDriver(driverId) {
-      const res = await fetch('/api/admin/approve-driver', {
-        method: 'POST',
+      if (!confirm('Approve this driver? Persona and Checkr must already be clear.')) return
+      const res = await fetch('/api/admin/drivers/' + encodeURIComponent(driverId) + '/approve', {
+        method: 'PATCH',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ driverId })
+        body: '{}'
       })
-
-      const data = await res.json()
-      alert(data.message || 'Done')
+      const data = await res.json().catch(() => ({}))
+      alert(res.ok && data.ok !== false ? 'Driver approved.' : (data.error || data.message || 'Could not approve driver.'))
       loadDrivers()
     }
+
+    document.getElementById('drivers').addEventListener('click', (e) => {
+      const id = e.target && e.target.getAttribute('data-approve')
+      if (id) approveDriver(id)
+    })
 
     loadDrivers()
   </script>

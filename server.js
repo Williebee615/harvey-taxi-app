@@ -1052,6 +1052,18 @@ app.get("/driver-missions.html", (req, res) => {
   res.redirect(301, "/driver-dashboard.html");
 });
 
+// admin.html retired: it called API routes that don't exist
+// (/api/drivers, /api/approve-driver, /api/reject-driver), so its approve
+// and reject buttons always failed. admin-dashboard.html is the working
+// admin page; it checks the admin session itself (/api/admin/session) and
+// shows its own sign-in when there isn't one, so the redirect neither
+// grants nor drops access. Same-origin, so the HttpOnly admin cookie
+// still goes with the next request. "/admin" is covered too because
+// express.static's extensions:["html"] would otherwise map it to the file.
+app.get(["/admin.html", "/admin"], (req, res) => {
+  res.redirect(301, "/admin-dashboard.html");
+});
+
 app.use(
 
   express.static(PUBLIC_DIR, {
