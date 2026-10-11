@@ -201,6 +201,15 @@ describe("driver-missions.html retirement", () => {
   });
 });
 
+describe("admin.html retirement", () => {
+  test.each(["/admin.html", "/admin"])("%s redirects to admin-dashboard.html", async (path) => {
+    const res = await request(app).get(path);
+
+    expect(res.status).toBe(301);
+    expect(res.headers.location).toBe("/admin-dashboard.html");
+  });
+});
+
 describe("PATCH /api/admin/rides/:id/status -- narrowed scope", () => {
   test("allows the explicit unstick transition (payment_authorized -> failed) with a reason", async () => {
     mockSupabaseClient._state.rides = [makeRide({ status: "payment_authorized" })];
