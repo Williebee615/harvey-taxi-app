@@ -70,6 +70,7 @@ Combined local run of #212 + #210 + #214 + #215: 34/34 browser tests passed with
 
 | PR | Status |
 |---|---|
+| #219 | Old website chat `/api/ai/support`: no OpenAI call unless the flag `legacy_ai_support_enabled` = true (off by default). CI pending; 3 new tests pass; unit suite 1,799 passed. Part of the rider consent fix; needs owner approval. |
 | #207 | Draft privacy policy (Harvey Assistant AI section). **Do not merge or publish**; it awaits the owner's Anthropic Console checks and wording approval. |
 | #209 | Driver listing materials for build 1.0.0 (13); ready for review |
 | #203 | Driver build-candidate CI check only; **keep unmerged** (owner, 2026-10-08) |
@@ -142,6 +143,13 @@ Key blockers:
 | Paynow / EcoCash / Paystack | Reported percentages only (for example 2.5%) | **[Unresolved]**; nothing contracted |
 
 ## 6. Decisions needed from the owner
+
+**Before submitting Harvey Taxi Driver 1.0 (13)** **[Owner decision 2026-10-11]**: rider AI stays on for reviewers. Instead, consent on the rider website must be fixed for everyone first. The package awaiting approval:
+- #212 + #210: merge, `agent_ai_consents` migration, deploy;
+- #219 (old OpenAI chat off);
+- the #207 privacy section, published with only confirmed statements.
+
+#214/#215 are recommended but not required for consent.
 
 1. Approve merging Stack A (#212 → #210 → #214 → #215), including #210's migration and deploy.
 2. Privacy policy (#207): complete the Anthropic Console checks and approve the wording before publication and any public AI.
