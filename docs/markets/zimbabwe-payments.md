@@ -1,14 +1,26 @@
 # Zimbabwe payments: EcoCash only, marketplace model
 
 Status: **design and sandbox tests only.** There is no live collection, payout or
-deployment, and no provider adapter. Prepared 2026-10-10. This is not legal or
-financial advice, and the provider and regulatory points below need written
-confirmation.
+deployment, and no provider adapter. Every African market and all live payments
+stay disabled. Prepared 2026-10-10, updated 2026-10-11. This is not legal or
+financial advice.
+
+> **Unconfirmed statements.** Every statement below about provider eligibility,
+> fees, settlement, refunds and tax comes from web search summaries, secondary
+> sources or unofficial guides. The provider sites were not reachable from the
+> build environment. Treat each one as **unconfirmed** until supported by current
+> official sources or written advice from the provider, a tax adviser or counsel.
+> Any commission rate in tests (20% here, 15% in the cash preview) is a
+> **demonstration value, not an approved rate**.
+
+**PR order:** #213 (markets) → **#216 (this)** → #217 (cash commission ledger).
+All are drafts; each is merged only with the owner's approval.
 
 ## Owner decisions (10 Oct 2026)
 
 - Zimbabwe is **EcoCash only**, with **no cash bookings** (`cash_bookings: false`
-  in `lib/markets.js`).
+  in `lib/markets.js`). A cash option with a driver commission ledger is assessed
+  separately in #217 and is also disabled.
 - Harvey Taxi **collects** the rider's payment, **records its commission**, and
   **pays the driver's share** through an arrangement the provider has approved.
 - The commission is **configurable** and **not set** (`commission.rate: null`).
@@ -27,8 +39,8 @@ approval should not be assumed to cover it.**
 | Collecting on behalf of others (marketplace) | **Possibly excluded.** Paynow's terms PDF lists, among transactions it won't support, ones "by payment processors to collect payments on behalf of merchants". It is unclear whether a ride platform paying its drivers falls under this. ([terms PDF](https://www.paynow.co.zw/Content/downloads/Terms_and_Conditions_for_Paynow_Service_v1.pdf), as reported by search; the PDF itself could not be opened from here) | **Not documented.** No public material on a marketplace or sub-merchant model. |
 | Split payment at checkout | **Not documented.** Settlement is to the merchant's own Zimbabwean bank account, less fees. ([merchant FAQ](https://www.paynow.co.zw/home/merchanttutorial)) | **Not documented.** |
 | Payouts to drivers' wallets | **A product exists, terms unknown.** Paynow's Postman listing describes "Paynow Disbursement", which "enables merchants to disburse funds to their customers via CBZ, InnBucks, Omari, Ecocash, OneMoney and Telecash". No public endpoints, fees, limits or eligibility. Whether drivers count as "customers" for it is unconfirmed. ([Postman](https://www.postman.com/paynow)) | **Bulk payments by contract.** "Payroll and Bulk Payments" works through an application, vetting and a signed contract; the product is called EcoPay (launched 2024). A 2024 proposal mentions a flat rate per payment and a 1.7% cash-out charge for recipients. A 2020 report said an RBZ directive might restrict salary processing to banks. Current position unknown. ([EcoCash](https://ecocash.co.zw/payroll-and-bulk-payments/), [Pindula](https://www.pindula.co.zw/2024/10/23/ecocash-launches-ecopay-for-instant-bulk-transactions/), [Techzim 2020](https://www.techzim.co.zw/2020/08/ecocash-payroll-and-onepay-under-threat-as-rbz-directive-suggests-banning-of-salary-processing/)) |
-| Fees | Paynow's fee page lists **EcoCash at 2.5%** (as reported by search; the page could not be opened from here). The merchant chooses to absorb, pass on or split it. A separate EcoCash merchant fee may apply on top. ([fees](https://www.paynow.co.zw/Home/Fees)) | Not published for merchants. Recipients pay their own cash-out fees and the government transfer levy (IMT). |
-| Settlement | Paid to a Zimbabwean bank account; mobile-wallet payments settle **one day after** payment. Unverified merchants are paid **weekly, on Tuesday**. ([merchant FAQ](https://www.paynow.co.zw/home/merchanttutorial)) | Not published. |
+| Fees | **Unconfirmed.** Paynow's fee page is reported to list EcoCash at 2.5% (search summary; the page could not be opened from here). The merchant chooses to absorb, pass on or split it. A separate EcoCash merchant fee may apply on top. ([fees](https://www.paynow.co.zw/Home/Fees)) | Not published for merchants. Recipients pay their own cash-out fees and the government transfer levy (IMT). |
+| Settlement | **Unconfirmed.** Reported: paid to a Zimbabwean bank account; mobile-wallet payments settle one day after payment. Unverified merchants are paid **weekly, on Tuesday**. ([merchant FAQ](https://www.paynow.co.zw/home/merchanttutorial)) | Not published. |
 | Refunds | **Not documented publicly.** The official Paynow SDK has no refund call; it only initiates payments, polls and parses status updates (checked in `paynow` 2.2.2 on npm). | Third-party guides describe a **refund (REF) and reversal (REV)** call that uses the original transaction ID. Unofficial. Reports say EcoCash fees and the 2% IMT levy are not returned on refunds. |
 | Currency | USD and ZiG both appear in materials. Which one the integration settles in is unconfirmed. | Guides list USD and ZWG. |
 | Regulation | Under the National Payment Systems Act [Chapter 24:23], payment system operators need RBZ authorisation ([RBZ](https://www.rbz.co.zw/index.php/financial-markets/national-payment-system/legal-basis)). Whether a platform that holds riders' money for drivers needs its own authorisation, or is covered by the provider's, is **unknown** and needs Zimbabwe counsel. | Same. |
