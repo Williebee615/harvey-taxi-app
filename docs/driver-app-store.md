@@ -49,30 +49,59 @@ distinct from the rider app's icon on a home screen.
 
 ## App Review notes (App Store) / app access instructions (Play)
 
-> Harvey Taxi Driver is for approved drivers. Please use the test account:
->
-> 1. On the sign-in screen, tap **Test account sign-in**.
->    Email: **[owner: review driver email]** Password: **[owner: password]**
-> 2. Tap **Go online** and allow location access ("While Using").
-> 3. To create a ride request, open https://harveytaxiservice.com on another
->    device (or the Harvey Taxi app), sign in with the test rider account
->    (Email: **[owner]** Password: **[owner]**), and request a ride. Test rides
->    use simulated payment; no card is charged.
-> 4. The request appears in the driver app within a few seconds. Accept it,
->    then use the buttons to mark arrival, start and complete the trip.
-> 5. Account → Delete account shows the deletion flow (for the test account
->    it is simulated, so the account stays available for review).
->
-> Location: the app asks only for "While Using" access. While the driver is
-> online or on a trip, updates continue in the background (location
-> background mode; iOS shows the location indicator) so riders can follow the
-> car and dispatch can match nearby requests. Tracking stops when the driver
-> goes offline.
+Rewritten 2026-10-11 for build 1.0.0 (13). Paste the quoted text into **App Review Information → Notes**. Enter the two test accounts' emails and passwords only in App Store Connect's sign-in fields and in the bracketed places below. They are never written in this repository.
 
-The test accounts exist in production (`DRIVER_GPLAY_REVIEWER`,
-`RIDER_GPLAY_REVIEWER`) and `review_account_login_enabled` is on. Keep it on
-until review finishes. The review driver must be **online** to receive the
-reviewer's ride.
+> **Harvey Taxi Driver — App Review notes (version 1.0, build 13)**
+>
+> Harvey Taxi Driver is for approved drivers. The test driver account below is already approved, so you can try every driver feature. **Everything in this demonstration is simulated: test rides involve no real rider or driver, no card is ever needed or charged, and earnings shown to the test account are simulated amounts.** No staff action is needed at any point.
+>
+> **Accounts (both are App Review test accounts)**
+> - Driver (this app): Email [driver review email] · Password [driver review password]
+> - Rider (website, to create a ride): Email [rider review email] · Password [rider review password]
+>
+> **1. Sign in and onboarding**
+> On the sign-in screen tap **Test account sign-in** and use the driver account. To see how new drivers apply, tap **Apply to drive** on the sign-in screen: it opens our application form on harveytaxiservice.com. Please only view it. Submitting it starts identity and background checks for a real applicant, and the test account is already approved.
+>
+> **2. Go online**
+> Tap **Go online**. The app explains location use, then asks for "While Using" access; please allow it. A gold "App Review demonstration" card shows each next step. Keep the app open on screen while you wait for the ride.
+>
+> **3. Create a test ride (second device or a computer browser)**
+> Open https://harveytaxiservice.com/rider-dashboard.html, tap **App Review Sign-In** and sign in with the rider account. Tap **Request a Ride → Driver Ride → Confirm Service**, enter any Nashville pickup and destination, review the fare estimate, continue with **simulated payment (no card)**, and tap **Request Dispatch**. Test rides are offered only to the test driver, and only while it is online.
+>
+> **4. Offer, navigation and trip**
+> Within a few seconds the offer appears in the driver app. **Accept it within 45 seconds**; if it expires, request again from the website. Tap **Navigate** to open directions in your maps app (optional). Then tap **Arrived**, **Start trip** and **Complete trip**. The rider page follows each step.
+>
+> **5. Earnings and history**
+> Open **Earnings** and **Trips** to see the completed test ride, marked "Test ride — Simulated". Amounts for the test account are simulated.
+>
+> **6. Support and Harvey Assistant**
+> **Account** has the support contact and an emergency button that calls 911. **Do not tap it during review unless you mean to call 911.** The **Harvey Assistant** bar on the Drive screen answers questions about going online, offers, trip steps, earnings and support. In this build every answer comes from Harvey Taxi's own rules and published pages. **No question is sent to any third-party AI service.**
+>
+> **7. Account deletion**
+> **Account → Delete account** shows the full deletion flow. For the test account it is simulated, so the account stays available.
+>
+> **Location:** the app asks only for "While Using" access. While the driver is online or on a trip, location updates continue in the background (iOS shows the location indicator), so riders can follow the car and nearby rides can be offered. Tracking stops when the driver goes offline.
+>
+> If anything doesn't work as described, the website's test ride page shows what to do next. Questions: support@harveytaxiservice.com.
+
+Checked against production on 2026-10-11:
+- The rider review sign-in panel and the reviewer guide are live on `rider-dashboard.html`.
+- Test rides are created with payment "not required". The latest review ride (`RIDE-1D07F81495`, 2026-10-10) completed on build 13 with no payment.
+- The driver review account has 0 AI model calls since 2026-10-10.
+
+### What reviewers can and can't see in build 13
+
+| Feature | In build 1.0.0 (13) | Planned for a future build |
+|---|---|---|
+| Test-account sign-in, approved driver status, "Apply to drive" link | Yes | — |
+| Go online / offline, location disclosure | Yes | — |
+| Ride offers (45-second window), accept/decline | Yes, while the app is open | Offer push notification with the app in the background or locked: built, **not verified on an iPhone** |
+| Navigation hand-off, arrived/start/complete | Yes | — |
+| Earnings and trip history (test amounts marked simulated) | Yes | — |
+| Support contact, 911 button, account deletion (simulated for test accounts) | Yes | — |
+| Harvey Assistant | Yes, rules-based only. No third-party AI. "Answered by…" attribution. | AI-written answers with the "AI-generated by Harvey Assistant" label and an in-app permission step (#210). They need a new build and owner approval. |
+| Reviewer demo without the website ride (simulated rider, automatic offer) | No. The feature exists on the server (#199) but is switched off. | Owner decision |
+| Africa markets, cash commission | No | Sandbox only (#213, #216, #217) |
 
 ## Apple App Privacy (nutrition label)
 
