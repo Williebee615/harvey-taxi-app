@@ -10424,6 +10424,30 @@ function driverEligibleForService(driver, rideType) {
   return !column || !driver || driver[column] !== false;
 }
 
+// Verification at offer time. Going online checks verification once
+// (POST /api/driver/status), but a driver can stay online after a check
+// changes (a Checkr result that isn't clear, a Persona re-review, a phone
+// or email that is unverified again). Offers, acceptance and admin
+// assignment therefore re-read the driver's verification fields and use
+// the same rule as going online (computeDriverReadiness). The online flag
+// and any trip already under way are left alone.
+const DRIVER_READINESS_COLUMNS =
+  "id, email_verified, phone_verified, persona_verified, persona_status, checkr_status, approval_status, vehicle_make, vehicle_model, vehicle_year";
+
+function driverVerificationReady(driver) {
+  return computeDriverReadiness(driver, { enablePersona: ENABLE_PERSONA, enableCheckr: ENABLE_CHECKR }).ready;
+}
+
+// Ids, from those given, of drivers whose verification is complete right
+// now. Throws when the fields can't be read; callers treat that as "none".
+async function verificationReadyDriverIds(driverIds) {
+  const ids = [...new Set((driverIds || []).filter(Boolean).map(String))];
+  if (!ids.length) return new Set();
+  const { data, error } = await supabase.from("drivers").select(DRIVER_READINESS_COLUMNS).in("id", ids);
+  if (error || !Array.isArray(data)) throw error || new Error("Driver verification unavailable.");
+  return new Set(data.filter(driverVerificationReady).map((d) => String(d.id)));
+}
+
 // Deliveries: how many nearest drivers (within the search radius) to read
 // before the eligibility check, so ineligible drivers nearby can't crowd
 // out an eligible driver farther away.
@@ -11184,6 +11208,24 @@ async function dispatchRide(ride) {
           ride.ride_type
 
       });
+  }
+
+  // Offers go only to drivers whose verification is complete now, not
+  // merely when they went online. Fails closed: if verification can't be
+  // read, no driver is offered the ride.
+  if (drivers.length) {
+    let ready;
+    try {
+      ready = await verificationReadyDriverIds(drivers.map((d) => d.id));
+    } catch (verifyErr) {
+      console.error("❌ Dispatch: driver verification check failed:", ride.id, verifyErr && verifyErr.message);
+      ready = new Set();
+    }
+    const skipped = drivers.length - drivers.filter((d) => ready.has(String(d.id))).length;
+    if (skipped) {
+      console.warn(`⚠️ Dispatch skipped ${skipped} driver(s) without complete verification for ride ${ride.id}`);
+    }
+    drivers = drivers.filter((d) => ready.has(String(d.id)));
   }
 
   if (!drivers.length) {
@@ -15671,6 +15713,24 @@ app.post(
     // read from req.body here.
     const driverId = req.driver.id;
 
+    // Verification is re-checked at acceptance too: an offer made before a
+    // check changed must not become an assignment. The offer is left to
+    // expire, which redispatches the ride the usual way.
+    const { data: verification, error: verificationError } = await supabase
+      .from("drivers")
+      .select(DRIVER_READINESS_COLUMNS)
+      .eq("id", driverId)
+      .maybeSingle();
+
+    if (verificationError) {
+      console.error("❌ Offer accept: driver verification check failed:", { offer_id: offerId, reason: verificationError.message });
+      return fail(res, "Could not accept this offer. Please try again.", 500);
+    }
+
+    if (!verification || !driverVerificationReady(verification)) {
+      return fail(res, "You can't accept offers until your verification is complete.", 403, { code: "verification_required" });
+    }
+
     // One transaction in the database: ride, offer and driver locks,
     // ownership/state/expiry/eligibility checks, then the offer accept,
     // competing-offer supersede and rides.driver_id assignment commit
@@ -19656,6 +19716,14 @@ app.post(
         `This driver is not set up for ${deliveryCapabilityColumn(target.ride_type) === "supports_grocery_delivery" ? "grocery" : "food"} deliveries.`,
         409
       );
+    }
+
+    // Same verification rule as offers. An admin who has reviewed
+    // equivalent documents uses the audited compliance override instead.
+    if (!driverVerificationReady(driver)) {
+      return fail(res, "This driver's verification isn't complete, so they can't be assigned a ride.", 409, {
+        code: "verification_required"
+      });
     }
 
     const driverRideFields = buildDriverRideFields(driver);
