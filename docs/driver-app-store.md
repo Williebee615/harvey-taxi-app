@@ -69,16 +69,22 @@ Rewritten 2026-10-11 for build 1.0.0 (13). Paste the quoted text into **App Revi
 > Open https://harveytaxiservice.com/rider-dashboard.html, tap **App Review Sign-In** and sign in with the rider account. Tap **Request a Ride → Driver Ride → Confirm Service**, enter any Nashville pickup and destination, review the fare estimate, continue with **simulated payment (no card)**, and tap **Request Dispatch**. Test rides are offered only to the test driver, and only while it is online.
 >
 > **4. Offer, navigation and trip**
-> Within a few seconds the offer appears in the driver app. **Accept it within 45 seconds**; if it expires, request again from the website. Tap **Navigate** to open directions in your maps app (optional). Then tap **Arrived**, **Start trip** and **Complete trip**. The rider page follows each step.
+> Within a few seconds the offer appears on the **Drive** tab. Tap **Accept within 45 seconds**; if it expires, request again from the website. Then tap, in order:
+> - **Start driving to pickup**
+> - **I've arrived at pickup**
+> - **Start trip (rider is in the car)**
+> - **Complete trip**
+>
+> **Navigate to pickup** and **Navigate to drop-off** open directions in your maps app; they're optional. The rider page follows each step.
 >
 > **5. Earnings and history**
-> Open **Earnings** and **Trips** to see the completed test ride, marked "Test ride — Simulated". Amounts for the test account are simulated.
+> Open the **Earnings** and **Trips** tabs to see the completed test ride, marked "Test ride: Simulated". Earnings for the test account carry the note "Test account: amounts are simulated."
 >
 > **6. Support and Harvey Assistant**
-> **Account** has the support contact and an emergency button that calls 911. **Do not tap it during review unless you mean to call 911.** The **Harvey Assistant** bar on the Drive screen answers questions about going online, offers, trip steps, earnings and support. In this build every answer comes from Harvey Taxi's own rules and published pages. **No question is sent to any third-party AI service.**
+> The **Account** tab has the support contact and an **Emergency · call 911** button. It asks "Call 911?" before dialling; please choose Cancel. The **Harvey Assistant** bar on the **Drive** tab answers questions about going online, offers, trip steps, earnings and support. In this build every answer comes from Harvey Taxi's own rules and published pages. **No question is sent to any third-party AI service.**
 >
 > **7. Account deletion**
-> **Account → Delete account** shows the full deletion flow. For the test account it is simulated, so the account stays available.
+> **Account tab → Delete account** shows the full deletion flow. For the test account it is simulated, so the account stays available.
 >
 > **Location:** the app asks only for "While Using" access. While the driver is online or on a trip, location updates continue in the background (iOS shows the location indicator), so riders can follow the car and nearby rides can be offered. Tracking stops when the driver goes offline.
 >
