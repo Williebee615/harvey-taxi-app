@@ -114,6 +114,8 @@ Still unverified on devices: push notifications and locked-screen tracking. Thes
 2. **[Owner decision needed]** Approve a driver iOS build with consent in the 1 November allowance. An Android build could use one of the 3 remaining builds before then, after #210.
 3. **[Owner]** Run the push and locked-screen tests (D4a–D4d, D11, D13) on Android build 11.
 4. **[Owner]** Re-enter the listing fields from #209 and confirm they saved.
+5. **[Owner decision needed]** Approve #220 (admin-home Approve Driver fix). Until then, approve drivers from `admin-dashboard.html`, which uses the correct route.
+6. **[Owner]** Confirm `ENABLE_CHECKR` / `ENABLE_PERSONA` in Render. 27 approved non-review accounts lack a Checkr clear or a Persona verification **[Verified 2026-10-11, read-only query]**; 0 online, 0 real rides in 90 days. See project-status §6.
 
 ## 9. Session handoff (2026-10-11)
 
@@ -121,6 +123,7 @@ Still unverified on devices: push notifications and locked-screen tracking. Thes
 - #217 safeguards.
 - #216 unconfirmed-claims labelling.
 - This record created.
+- #220 opened; driver approval and verification records checked (read-only).
 
 **Remaining:**
 - The approvals above.
@@ -128,4 +131,4 @@ Still unverified on devices: push notifications and locked-screen tracking. Thes
 - Device tests.
 - Listing fields.
 
-**Next authorized action:** none for the driver app. Builds, merges and submissions all need new approval.
+**Next authorized action:** submission of 1.0 (13) by the owner in App Store Connect, only after the rider consent package (§6 of project-status) is approved and deployed. No build, merge or release is authorized.

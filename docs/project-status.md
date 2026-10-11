@@ -71,6 +71,7 @@ Combined local run of #212 + #210 + #214 + #215: 34/34 browser tests passed with
 | PR | Status |
 |---|---|
 | #219 | Old website chat `/api/ai/support`: no OpenAI call unless the flag `legacy_ai_support_enabled` = true (off by default). CI pending; 3 new tests pass; unit suite 1,799 passed. Part of the rider consent fix; needs owner approval. |
+| #220 | `admin-home.html` Approve Driver fix. The old page sent POST `/api/admin/approve-driver` (no such route) and read `driver.name` (showed "null"). Now uses PATCH `/api/admin/drivers/:id/approve`, real names and escaping; approved drivers show "Approved" with no button. 2 new browser tests pass (both fail on the old page); unit suite 1,796 passed **[Verified 2026-10-11, local]**. Website-only; needs owner approval. `admin.html` (old routes `/api/approve-driver`, `/api/reject-driver`, `/api/drivers`) is still broken and unchanged. |
 | #207 | Draft privacy policy (Harvey Assistant AI section). **Do not merge or publish**; it awaits the owner's Anthropic Console checks and wording approval. |
 | #209 | Driver listing materials for build 1.0.0 (13); ready for review |
 | #203 | Driver build-candidate CI check only; **keep unmerged** (owner, 2026-10-08) |
@@ -158,6 +159,8 @@ Key blockers:
 5. Driver iOS build with AI consent (after #210): approve the build in the 1 November allowance.
 6. Old `/api/ai/support` endpoint: confirm its status; decide whether to turn it off or delete it after #214/#215.
 7. Supabase plan and staging project decision.
+8. #220 (admin-home approve fix): approve the merge. Decide whether to retire or redirect the broken `admin.html`.
+9. **Driver compliance** **[Verified 2026-10-11, read-only production query]**: every driver record is already `approved`; none are pending. 27 approved non-review driver accounts have no Checkr clear or no Persona verification (many are duplicates of the same email). 0 are online and there were 0 non-review rides in the last 90 days. Whether going online is blocked for them depends on `ENABLE_CHECKR` / `ENABLE_PERSONA` in the Render environment, whose production values are **[Unresolved]**. **[Recommendation]** The owner confirms both are on in Render, and decides whether to reset these accounts to pending or remove duplicate test accounts. Nothing has been changed.
 
 ## 7. Scheduled checks **[Verified 2026-10-11, Routines]**
 
@@ -166,18 +169,20 @@ Key blockers:
 | `trig_01EQw4n15urNHMHP1dz5SrRz` "Rider iOS 1.0.2 (11) cloud build day" | 2026-11-01 14:05 UTC | Checks the allowance reset ($0), signing, main settings and tests, and stored build number 10. Then it starts exactly one rider iOS build. It never uploads or submits. It starts a driver build only with explicit owner approval. |
 | `trig_018F8fjW1v3aiHoGsBSHu3Je` "HTAF Grant Pipeline Watch" | Monthly, 1st, 14:00 UTC | HTAF grant openings (separate from Harvey Taxi) |
 
-## 8. Session handoff (2026-10-11)
+## 8. Session handoff (2026-10-11, updated)
 
 **Completed this session (2026-10-10 to 2026-10-11):**
 - #211 merged and live.
 - Drafts #212–#217 prepared. The #210/#212 conflict is resolved.
 - #217 safeguards added.
 - These three records created.
+- #220 opened (admin-home approve fix) and the driver compliance query above.
 
 **Remaining:**
 - Owner reviews of Stack A and Stack B.
 - Privacy checks.
 - Provider and tax confirmations.
 - Device tests (see the app files).
+- #220 approval; the `ENABLE_CHECKR` / `ENABLE_PERSONA` check.
 
 **Next authorized action:** the 1 November rider iOS build check (scheduled). Nothing else is authorized to merge, deploy, build, upload or submit.
