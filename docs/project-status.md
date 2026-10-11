@@ -90,6 +90,7 @@ Combined local run of #212 + #210 + #214 + #215: 34/34 browser tests passed with
 | 2026-10-10 | Merge and deploy #211 (rider layout) | Only #211; done and live |
 | 2026-10-10 | Release direction: next driver iOS build carries AI consent and labeling; **never submit build 13** | Does not approve merging #210/#207, deploying, publishing or building |
 | 2026-10-11 | #217 safeguards (disputes, override, verified exclusion); 15% labelled as a demonstration rate | No merges, deployments or builds |
+| 2026-10-11 | **Submit Harvey Taxi Driver 1.0 with build 1.0.0 (13) for Apple review** (supersedes "never submit build 13") | Manual release stays selected; build 13 rules-based with no third-party AI; no new build, paid upgrade, public release or African-market activation |
 
 Standing rules **[Owner decision]**:
 - Keep keys and passwords out of chat and GitHub.

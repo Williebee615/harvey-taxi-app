@@ -1,6 +1,6 @@
 # Harvey Taxi Driver: status
 
-**Last updated: 2026-10-11 (UTC).** Shared record: [project-status.md](project-status.md). Rider app: [harvey-taxi-mobile-status.md](harvey-taxi-mobile-status.md). Detailed device log: [driver-app-test-record.md](driver-app-test-record.md).
+**Last updated: 2026-10-11 14:30 (UTC).** Shared record: [project-status.md](project-status.md). Rider app: [harvey-taxi-mobile-status.md](harvey-taxi-mobile-status.md). Detailed device log: [driver-app-test-record.md](driver-app-test-record.md).
 
 Labels: **[Verified]** checked on the date shown · **[Owner decision]** · **[Recommendation]** · **[Unresolved]**.
 "Built", "uploaded", "installed", "internal testing" and "publicly released" are separate states.
@@ -25,9 +25,25 @@ Labels: **[Verified]** checked on the date shown · **[Owner decision]** · **[R
 | **Installed** | **[Unresolved]** for build 13 | Installed on the owner's Android phone, signed in as the review driver; push registrations arrived 2026-10-08 14:22 UTC. **[Verified]** |
 | **Publicly released** | **No** | **No** |
 
-**[Owner decision 2026-10-10]**
-- **Never submit build 1.0.0 (13).** The next driver iOS build must carry the AI consent and labeling from #210.
-- That build needs an explicit owner approval and the 1 November allowance.
+**[Owner decision 2026-10-11, supersedes 2026-10-10]** The owner authorized **submitting version 1.0 with existing build 1.0.0 (13) for Apple review**, with these conditions:
+- **Manual release** stays selected.
+- Build 13 stays rules-based, with no third-party AI calls.
+- No new build, paid upgrade, public release or African-market activation.
+
+The earlier "never submit build 13" rule (2026-10-10) is replaced. The consent build (#210) remains the next driver build, subject to separate approval.
+
+### Pre-submission verification (2026-10-11) **[Verified]**
+
+| Check | Result |
+|---|---|
+| Build in EAS | `be70953b-5316-44b7-b89c-efbaf2f63c8f`: 1.0.0 (13), FINISHED, production profile, commit `ac45c9a` |
+| Build 13 source tests | Driver app at `ac45c9a`: 82/82 passed |
+| No third-party AI for build 13 | Build 13 sends no `ai_label` capability, so the server returns `app_lacks_ai_label` before any model call. The review driver is also not on `agent_model_test_accounts` (now `["rider:RIDER_GPLAY_REVIEWER"]`). `agent_model_usage` shows **0 driver model calls since 2026-10-10 11:47 UTC**; the last was 2026-10-08. |
+| Review accounts | `DRIVER_GPLAY_REVIEWER`: active, approved (offline). `RIDER_GPLAY_REVIEWER`: active, approved. `review_account_login_enabled` = true. No ride left active. |
+| Review ride flow | iPhone running **1.0.0 (13)** was signed in as the review driver (push token updated 2026-10-10 12:39 UTC). Review ride `RIDE-1D07F81495` completed with that driver at 12:52–12:55 UTC, with no payment taken. Server review-flow and model-eligibility tests on main: 91/91 passed. |
+| Public URLs | Privacy policy, support, driver deletion, home and terms all return 200. The privacy policy covers driver location (including background), deletion and the support contact. |
+| Screenshots | 6 iPhone (1242×2688) and 6 iPad (2048×2732), RGB, no transparency, from #209 |
+| App Store Connect | **Not reachable from this environment** (network policy), and no App Store Connect API private key is available here. Listing entry and the final Submit are done by the owner. |
 
 ## 3. Signing, push, allowance and scheduled checks
 
@@ -83,12 +99,14 @@ Labels: **[Verified]** checked on the date shown · **[Owner decision]** · **[R
 | Icon | The approved HTS DRIVER icon is in build 13. The App Store Connect header shows it after the build was attached. **[Verified 2026-10-10, owner]** The Android adaptive icon and splash were approved from previews on 2026-10-08. |
 | Listing | Materials in `store-screenshots/ios-6.5`, `store-screenshots/ipad-13` and `docs/driver-app-store.md`. #209 refreshes the changed screenshots for build 13. The owner reported blank fields in App Store Connect, so the repository notes are **not proof** the values are saved in Apple. |
 
-**Submission blockers:**
-1. A driver build with AI consent and labeling (#210 merge and approval).
-2. Device tests: push and locked screen.
-3. Privacy policy (#207) not published.
-4. App Store Connect listing fields to re-enter and confirm.
-5. Owner approval to submit.
+**Submission of 1.0 (13): authorized 2026-10-11.** Remaining steps, all done by the owner in App Store Connect:
+1. Enter and save the listing fields.
+2. Upload the replacement screenshots.
+3. Complete App Privacy.
+4. Fill in App Review contact and sign-in details.
+5. Add for Review → Submit.
+
+Still unverified on devices: push notifications and locked-screen tracking. These are not Apple submission requirements, but they affect the review experience.
 
 ## 8. Next actions
 
