@@ -21,7 +21,8 @@ Labels: **[Verified]** checked on the date shown · **[Owner decision]** · **[R
 |---|---|---|
 | **Built** | **1.0.0 (13)** from `main` at `ac45c9a` on 2026-10-08. Earlier builds: 5, 6, 12. | **versionCode 11** (1.0.0) AAB from the same commit on 2026-10-08. Earlier: 6, 10. |
 | **Uploaded** | 1.0.0 (13) uploaded to App Store Connect. Shown as **Complete**, with the approved Driver icon. **[Verified 2026-10-10, owner screenshot]** | AAB uploaded to Play Console |
-| **Attached / internal testing** | 1.0.0 (13) attached to version 1.0, **Manual release** selected and saved, **not submitted for review**. **[Verified 2026-10-10, owner]** | **Released to internal testing** 2026-10-08 at 9:16 AM CDT, list "Harvey Taxi Testers" (3 users). **[Verified 2026-10-08, owner]** |
+| **Attached / internal testing** | 1.0.0 (13) attached to version 1.0, **Manual release** selected. **[Verified 2026-10-10, owner]** |
+| **Submitted for review** | Version 1.0 **submitted by the owner 2026-10-11 at 11:15 AM (local); status "Waiting for Review"**. **[Verified 2026-10-11, owner screenshot]** The rider consent package was not deployed first; none of it changes build 13, which makes no third-party AI calls, and none of the website pages build 13 opens loads the old OpenAI widget **[Verified 2026-10-11, live page scan]**. | **Released to internal testing** 2026-10-08 at 9:16 AM CDT, list "Harvey Taxi Testers" (3 users). **[Verified 2026-10-08, owner]** |
 | **Installed** | **[Unresolved]** for build 13 | Installed on the owner's Android phone, signed in as the review driver; push registrations arrived 2026-10-08 14:22 UTC. **[Verified]** |
 | **Publicly released** | **No** | **No** |
 
@@ -114,8 +115,9 @@ Still unverified on devices: push notifications and locked-screen tracking. Thes
 2. **[Owner decision needed]** Approve a driver iOS build with consent in the 1 November allowance. An Android build could use one of the 3 remaining builds before then, after #210.
 3. **[Owner]** Run the push and locked-screen tests (D4a–D4d, D11, D13) on Android build 11.
 4. **[Owner]** Re-enter the listing fields from #209 and confirm they saved.
-5. **[Owner decision needed]** Approve #220 (admin-home Approve Driver fix). Until then, approve drivers from `admin-dashboard.html`, which uses the correct route.
-6. **[Owner]** Confirm `ENABLE_CHECKR` / `ENABLE_PERSONA` in Render. 27 approved non-review accounts lack a Checkr clear or a Persona verification **[Verified 2026-10-11, read-only query]**; 0 online, 0 real rides in 90 days. See project-status §6.
+5. **Done:** #220 merged and live (`8bee024`). Production `ENABLE_CHECKR` and `ENABLE_PERSONA` are on **[Verified 2026-10-11]**; none of the 27 unverified accounts can go online. The review driver passes because its own record is verified, and it gets only review rides (two-way isolation, tests pass).
+6. **[Owner decision needed]** The 27-account cleanup proposal (project-status §6, item 8).
+7. **[Owner]** Watch App Review for 1.0 and reply to any question; don't release (Manual release).
 
 ## 9. Session handoff (2026-10-11)
 
@@ -131,4 +133,4 @@ Still unverified on devices: push notifications and locked-screen tracking. Thes
 - Device tests.
 - Listing fields.
 
-**Next authorized action:** submission of 1.0 (13) by the owner in App Store Connect, only after the rider consent package (§6 of project-status) is approved and deployed. No build, merge or release is authorized.
+**Next authorized action:** none. Version 1.0 (13) is with Apple (Waiting for Review, submitted by the owner 2026-10-11). Release stays manual; no build, merge or release is authorized.

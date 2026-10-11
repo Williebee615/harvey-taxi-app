@@ -41,6 +41,8 @@ Rules for every update:
 | HTAF SMS sending, HTAF assistant, reviewer demos | Off | **[Owner decision]**, repeated 2026-10-08 |
 | HTAF ride creation and external AI triage | Blocked by default (#205) | Merged 2026-10-08 |
 | Payment automation, refunds, reconciliation, hold sweeps | Off | **[Owner decision 2026-10-09]** |
+| Driver verification gate | `ENABLE_CHECKR` = on, `ENABLE_PERSONA` = on in production | **[Verified 2026-10-11]** via the public `/api/config/public` (`checkr_enabled`, `persona_enabled`), read only, nothing changed |
+| Admin pages | `admin-home.html` approves through `PATCH /api/admin/drivers/:id/approve`; `/admin` and `/admin.html` redirect (301) to `admin-dashboard.html`; admin APIs return 401 without a session | **[Owner decision 2026-10-11]** #220 approved; merged as `8bee024`; **[Verified 2026-10-11]** live by HTTP checks |
 | Old website chat endpoint `/api/ai/support` (OpenAI) | Enabled state **[Unresolved]**. It is not exposed publicly. Confirm via admin `/api/health` → `integrations.openai`, or `OPENAI_API_KEY` on Render. | Checked 2026-10-10 |
 
 ## 2. Pull requests
@@ -71,7 +73,6 @@ Combined local run of #212 + #210 + #214 + #215: 34/34 browser tests passed with
 | PR | Status |
 |---|---|
 | #219 | Old website chat `/api/ai/support`: no OpenAI call unless the flag `legacy_ai_support_enabled` = true (off by default). CI pending; 3 new tests pass; unit suite 1,799 passed. Part of the rider consent fix; needs owner approval. |
-| #220 | `admin-home.html` Approve Driver fix. The old page sent POST `/api/admin/approve-driver` (no such route) and read `driver.name` (showed "null"). Now uses PATCH `/api/admin/drivers/:id/approve`, real names and escaping; approved drivers show "Approved" with no button. 2 new browser tests pass (both fail on the old page); unit suite 1,796 passed **[Verified 2026-10-11, local]**. Website-only; needs owner approval. `admin.html` (old routes `/api/approve-driver`, `/api/reject-driver`, `/api/drivers`) is still broken and unchanged. |
 | #207 | Draft privacy policy (Harvey Assistant AI section). **Do not merge or publish**; it awaits the owner's Anthropic Console checks and wording approval. |
 | #209 | Driver listing materials for build 1.0.0 (13); ready for review |
 | #203 | Driver build-candidate CI check only; **keep unmerged** (owner, 2026-10-08) |
@@ -159,8 +160,11 @@ Key blockers:
 5. Driver iOS build with AI consent (after #210): approve the build in the 1 November allowance.
 6. Old `/api/ai/support` endpoint: confirm its status; decide whether to turn it off or delete it after #214/#215.
 7. Supabase plan and staging project decision.
-8. #220 (admin-home approve fix): approve the merge. Decide whether to retire or redirect the broken `admin.html`.
-9. **Driver compliance** **[Verified 2026-10-11, read-only production query]**: every driver record is already `approved`; none are pending. 27 approved non-review driver accounts have no Checkr clear or no Persona verification (many are duplicates of the same email). 0 are online and there were 0 non-review rides in the last 90 days. Whether going online is blocked for them depends on `ENABLE_CHECKR` / `ENABLE_PERSONA` in the Render environment, whose production values are **[Unresolved]**. **[Recommendation]** The owner confirms both are on in Render, and decides whether to reset these accounts to pending or remove duplicate test accounts. Nothing has been changed.
+8. **Driver account cleanup (27 approved, unverified, non-review accounts)** **[Verified 2026-10-11, read-only production queries]**. Production has both checks on, and none of the 27 can go online: all have Persona pending, and 26 also lack email or phone verification. Only `POST /api/driver/status` sets a driver online, and it enforces the checks. Classification (names and emails are kept out of this record):
+   - 2 confirmed test accounts (`driver_1`, `DRIVER-QAETATEST1`);
+   - 6 owner accounts (two owner email addresses, one with 5 records);
+   - 19 records for 8 apparent real applicants (11 of them duplicates; same email, phone and plate).
+   None has rides or offers. **[Recommendation]** No deletion. Deactivate the 2 test accounts; return each applicant's newest record to pending verification and deactivate the older duplicates; the owner chooses which owner records to keep. Every change needs the owner's approval. **[Recommendation]** Add a compliance re-check at offer matching (`nearest_drivers` / `dispatch_ride_atomic` check online, active and approved only).
 
 ## 7. Scheduled checks **[Verified 2026-10-11, Routines]**
 
@@ -176,13 +180,14 @@ Key blockers:
 - Drafts #212–#217 prepared. The #210/#212 conflict is resolved.
 - #217 safeguards added.
 - These three records created.
-- #220 opened (admin-home approve fix) and the driver compliance query above.
+- #220 merged (`8bee024`) and verified live; production Checkr/Persona flags read; online gate and review isolation verified; 27 accounts classified.
 
 **Remaining:**
 - Owner reviews of Stack A and Stack B.
 - Privacy checks.
 - Provider and tax confirmations.
 - Device tests (see the app files).
-- #220 approval; the `ENABLE_CHECKR` / `ENABLE_PERSONA` check.
+- Owner decision on the 27-account cleanup.
+- Rider: the Harvey Taxi (6761441561) 1.0.1 submission of 11:45 AM showed "Waiting for Review" in the owner's 4:24 PM screenshot; removal not yet confirmed.
 
 **Next authorized action:** the 1 November rider iOS build check (scheduled). Nothing else is authorized to merge, deploy, build, upload or submit.
