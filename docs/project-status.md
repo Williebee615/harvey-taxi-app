@@ -160,11 +160,11 @@ Key blockers:
 5. Driver iOS build with AI consent (after #210): approve the build in the 1 November allowance.
 6. Old `/api/ai/support` endpoint: confirm its status; decide whether to turn it off or delete it after #214/#215.
 7. Supabase plan and staging project decision.
-8. **Driver account cleanup (27 approved, unverified, non-review accounts)** **[Verified 2026-10-11, read-only production queries]**. Production has both checks on, and none of the 27 can go online: all have Persona pending, and 26 also lack email or phone verification. Only `POST /api/driver/status` sets a driver online, and it enforces the checks. Classification (names and emails are kept out of this record):
-   - 2 confirmed test accounts (`driver_1`, `DRIVER-QAETATEST1`);
-   - 6 owner accounts (two owner email addresses, one with 5 records);
-   - 19 records for 8 apparent real applicants (11 of them duplicates; same email, phone and plate).
-   None has rides or offers. **[Recommendation]** No deletion. Deactivate the 2 test accounts; return each applicant's newest record to pending verification and deactivate the older duplicates; the owner chooses which owner records to keep. Every change needs the owner's approval. **[Recommendation]** Add a compliance re-check at offer matching (`nearest_drivers` / `dispatch_ride_atomic` check online, active and approved only).
+8. **Driver account cleanup (27 approved, unverified, non-review accounts)** **[Verified 2026-10-11, read-only production queries]**. Production has both checks on; none of the 27 can go online. No record has rides, offers, sign-in sessions, Checkr/Persona IDs, recorded terms or background-check consent. One owner record shows Checkr "clear" with no Checkr candidate or report ID on file, so it isn't evidence of a completed check **[Unresolved]**. Sign-up still allows duplicates (no email or phone check, no unique index) **[Verified in code 2026-10-11]**.
+   **[Owner decision 2026-10-11]** Prepare the cleanup: choose the record kept for each person by verified information and completeness, not simply the newest; deactivate duplicates; preserve history.
+   **[Recommendation, prepared, not run]** 9 kept records return to pending verification (8 applicants: earliest record kept because their records are identical on every measure; owner: the most verified record). 15 duplicates and 2 test accounts are deactivated, nothing is deleted, and each change writes an audit row. The owner's second-email record is left for the owner to decide. The SQL is held outside the repository because it lists personal records. It was dry-run on a disposable local database (9 / 15 / 2, 26 audit rows; a second run is blocked by its guard). It needs owner approval to run on production.
+9. **Offer-time verification recheck:** draft PR #221. Offers, acceptance and admin assignment now re-check verification; dispatch fails closed; trips under way are untouched. 6 new tests (4 fail without the change); full suite 1,905 passed **[Verified 2026-10-11, local]**. Needs merge approval.
+10. **Privacy policy (#207) providers** **[Verified 2026-10-11, code and live page scan]**: the draft didn't name Google Analytics (G-814LXYV9DN) or Google Ads (AW-18161547185), whose tags are live on the home and Settings pages; Google Maps Platform (Routes API, used when `GOOGLE_ROUTES_API_KEY` is set; production value **[Unresolved]**); Google Fonts; browser push services; or Render and Supabase by name. Added to the draft (`c85d78b`). **[Unresolved, legal]** Whether the Google Ads tag is consistent with "We do not sell personal information" (sharing for advertising) and whether a cookie notice is needed.
 
 ## 7. Scheduled checks **[Verified 2026-10-11, Routines]**
 
@@ -188,6 +188,7 @@ Key blockers:
 - Provider and tax confirmations.
 - Device tests (see the app files).
 - Owner decision on the 27-account cleanup.
-- Rider: the Harvey Taxi (6761441561) 1.0.1 submission of 11:45 AM showed "Waiting for Review" in the owner's 4:24 PM screenshot; removal not yet confirmed.
+- Rider: the Harvey Taxi (6761441561) 1.0.1 submission of 11:45 AM: the owner is removing it **[Owner decision 2026-10-11]**; removal not yet confirmed.
+- Owner decisions: cleanup SQL, #221, the #207 wording and the Google Ads question, and whether the rider review account keeps Claude answers before #210 ships.
 
 **Next authorized action:** the 1 November rider iOS build check (scheduled). Nothing else is authorized to merge, deploy, build, upload or submit.

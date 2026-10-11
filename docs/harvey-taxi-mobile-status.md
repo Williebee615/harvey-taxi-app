@@ -20,6 +20,9 @@ Labels: **[Verified]** checked on the date shown · **[Owner decision]** · **[R
 - 11:37 AM, iOS 1.0.1: **Removed**.
 - 11:45 AM, iOS 1.0.1: **Waiting for Review**. The owner described the 1.0.1 (9) submission as accidental and cancelled. The screenshot shows a second 1.0.1 submission still active, so the cancellation is **[Unresolved]** until a new screenshot shows it removed.
 - The screenshot doesn't show the Apple ID; it is matched to 6761441561 by app name only **[Unresolved]**.
+- **[Owner decision 2026-10-11]** Remove the 11:45 AM submission; removal not yet confirmed.
+- A review-rider sign-in at 16:52 UTC was rejected with `account_not_found`: the email used doesn't match the review rider account **[Verified 2026-10-11, audit log]**. Check the rider record's App Review Information before any future submission.
+- Rider AI: the review rider account currently gets Claude answers with no consent prompt (`agent_model_mode` = `test_accounts`, list = the review rider) **[Verified 2026-10-11]**. **[Owner decision 2026-10-11]** Consent comes before external AI answers; the owner decides whether to empty the list until #210 ships.
 - **[Recommendation]** No rider submission until 1.0.2 (11) exists for Harvey Taxi Mobile (6761548295, `com.harveytaxi.HarveyTaxi`), built with the iOS 26 SDK (scheduled 2026-11-01). No such build exists today.
 
 ## 2. Versions (each state separately)

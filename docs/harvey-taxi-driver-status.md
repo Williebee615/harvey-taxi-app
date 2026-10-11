@@ -117,7 +117,9 @@ Still unverified on devices: push notifications and locked-screen tracking. Thes
 4. **[Owner]** Re-enter the listing fields from #209 and confirm they saved.
 5. **Done:** #220 merged and live (`8bee024`). Production `ENABLE_CHECKR` and `ENABLE_PERSONA` are on **[Verified 2026-10-11]**; none of the 27 unverified accounts can go online. The review driver passes because its own record is verified, and it gets only review rides (two-way isolation, tests pass).
 6. **[Owner decision needed]** The 27-account cleanup proposal (project-status §6, item 8).
-7. **[Owner]** Watch App Review for 1.0 and reply to any question; don't release (Manual release).
+7. **[Owner]** Watch App Review for 1.0 and reply to any question; don't release (Manual release). **[Owner decision 2026-10-11]** Leave it in review provided the attached build is 1.0.0 (13); the owner confirms the build on the version page **[Unresolved]**.
+8. **[Owner, urgent]** At 2026-10-11 16:20 UTC a sign-in with the **review driver's email and a wrong password** was rejected (audit `review_driver_login_rejected`, reason `invalid_credentials`) **[Verified 2026-10-11, audit log]**. Whether it was Apple or a test is unknown. The owner signs in once on the driver app with exactly the credentials in App Store Connect → App Review Information, and corrects that field if it fails. Credentials are never recorded here.
+9. **[Owner decision needed]** Merge #221 (offer-time verification recheck).
 
 ## 9. Session handoff (2026-10-11)
 
