@@ -117,7 +117,11 @@ describeWithBrowser("admin markets preview (test mode)", () => {
       // eslint-disable-next-line no-await-in-loop
       const text = await page.textContent(`[data-testid=cash-preview-result-${id}]`);
       expect(text).toContain("SANDBOX — no money moves");
-      expect(text).toMatch(/Test values only/);
+      expect(await page.textContent(`[data-testid=cash-preview-result-${id}] [data-testid=demo-rate]`)).toMatch(/^Demonstration rate 15% .*not approved rates/);
+      expect(text).toMatch(/Demonstration values only/);
+      expect(text).toMatch(/owed like cash/);
+      expect(text).toMatch(/collection of the commission is verified/);
+      expect(text).toMatch(/still counts toward the unpaid limit/);
       expect(text).toMatch(/blocked: settle/);
       expect(text).toMatch(/never interrupted/);
       expect(text).toMatch(/Duplicate payment prevented/);
