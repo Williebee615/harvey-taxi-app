@@ -18,13 +18,17 @@ let mockSupabaseClient;
 const mockCreate = jest.fn(async () => ({ choices: [{ message: { role: "assistant", content: "model reply" } }] }));
 
 jest.mock("@supabase/supabase-js", () => ({ createClient: () => mockSupabaseClient }));
-jest.mock("openai", () => jest.fn().mockImplementation(() => ({ chat: { completions: { create: mockCreate } } })), { virtual: true });
 
 const request = require("supertest");
 
 let app;
 beforeAll(() => {
   mockSupabaseClient = createFakeSupabase({ riders: [], drivers: [], system_flags: [] });
+  // A fake OpenAI client, registered right before the server loads so it is
+  // the one the server constructs, whatever ran earlier in this worker.
+  jest.resetModules();
+  jest.doMock("openai", () => function FakeOpenAI() { return { chat: { completions: { create: mockCreate } } }; }, { virtual: true });
+  jest.doMock("@supabase/supabase-js", () => ({ createClient: () => mockSupabaseClient }));
   // eslint-disable-next-line global-require
   ({ app } = require("../server"));
 });
