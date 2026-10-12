@@ -352,8 +352,8 @@
   <div class="at-text" id="aiTeaserText">Good day! Need a ride, food, or groceries? Ask me anything.</div>
 </div>
 
-<!-- Real AI assistant, same backend-connected widget used elsewhere in the app -->
-<script src="/ai-support-widget.js" onerror="console.warn('AI widget failed to load')"></script>
+<!-- Harvey Assistant (agent-assist.js), the same assistant as the rest of the site -->
+<script src="/agent-assist.js?v=20261012-shared" data-role="rider" defer></script>
 
 <script>
 (function () {
@@ -607,18 +607,7 @@
 
   /* ---------------- AI teaser bubble opens the real widget ---------------- */
   $("aiTeaser").addEventListener("click", () => {
-    const trigger = document.querySelector("#harvey-ai-chat-root button, #harvey-ai-chat-root [role='button']");
-    if (trigger) {
-      trigger.click();
-    } else {
-      showLater();
-    }
-    function showLater() {
-      setTimeout(() => {
-        const btn = document.querySelector("#harvey-ai-chat-root button");
-        if (btn) btn.click();
-      }, 300);
-    }
+    if (window.HarveyAssistant && typeof window.HarveyAssistant.open === "function") window.HarveyAssistant.open();
   });
 })();
 </script>

@@ -244,9 +244,10 @@ describe("every HTAF page -- no advertising tags, no Harvey Taxi AI widget", () 
     }
   });
 
-  test("the Harvey Taxi widget itself is left in place for Harvey Taxi pages", () => {
-    expect(fs.existsSync(path.join(PUBLIC_DIR, "ai-support-widget.js"))).toBe(true);
-    expect(readPage("index.html")).toContain("ai-support-widget.js");
+  test("Harvey Taxi pages use Harvey Assistant; the old OpenAI widget is gone", () => {
+    expect(fs.existsSync(path.join(PUBLIC_DIR, "ai-support-widget.js"))).toBe(false);
+    expect(readPage("index.html")).toContain("agent-assist.js");
+    expect(readPage("index.html")).not.toMatch(/<(script|link)[^>]+ai-support-widget/);
   });
 });
 

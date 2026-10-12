@@ -63,7 +63,10 @@ test("correct credentials: HttpOnly session cookie, accepted by the session chec
 
   const model = await request(app).get("/api/admin/agent/model").set("Cookie", jar);
   expect(model.status).toBe(200);
-  expect(model.body.mode).toBe("test_accounts");
+  // Locked off until the consent step is live; the saved mode is kept.
+  expect(model.body.mode).toBe("off");
+  expect(model.body.stored_mode).toBe("test_accounts");
+  expect(model.body.consent_ready).toBe(false);
   expect(model.body.public_approved).toBe(false);
   expect(model.body.budget.budget_usd).toBeLessThanOrEqual(10);
 });
