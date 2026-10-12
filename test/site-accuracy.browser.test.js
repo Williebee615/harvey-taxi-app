@@ -128,6 +128,45 @@ describeWithBrowser("public pages on phones", () => {
     expect(text).toContain("7 min");
   });
 
+  for (const width of [360, 390]) {
+    test(`with Larger Text on at ${width}px, the assistant button sits in the bottom bar and covers nothing`, async () => {
+      const { page, context } = await openPage("/", width);
+      await page.click("#text-toggle");
+      await page.waitForSelector(".harvey-ai-launch", { state: "visible", timeout: 10000 });
+      const r = await page.evaluate(() => {
+        const box = (el) => el.getBoundingClientRect().toJSON();
+        const hit = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+        const launch = box(document.querySelector(".harvey-ai-launch"));
+        const nav = box(document.querySelector(".bottom-nav"));
+        const navButtons = [...document.querySelectorAll(".bottom-nav .nav-btn")].map(box);
+        const teaser = document.getElementById("aiTeaserBubble");
+        return {
+          largeText: document.body.classList.contains("large-text"),
+          insideBar: launch.top >= nav.top - 1 && launch.bottom <= nav.bottom + 1,
+          coversNavButton: navButtons.some((b) => hit(b, launch)),
+          navLabelsFit: [...document.querySelectorAll(".bottom-nav .nav-btn")].every((b) => b.scrollWidth <= b.clientWidth + 1),
+          teaserShown: !!teaser && getComputedStyle(teaser).display !== "none",
+          overflow: document.documentElement.scrollWidth - window.innerWidth
+        };
+      });
+      await context.close();
+      expect(r.largeText).toBe(true);
+      expect(r.insideBar).toBe(true);
+      expect(r.coversNavButton).toBe(false);
+      expect(r.navLabelsFit).toBe(true);
+      expect(r.teaserShown).toBe(false);
+      expect(r.overflow).toBeLessThanOrEqual(1);
+    });
+  }
+
+  test("the welcome note sits in the page and is gone after about 4 seconds", async () => {
+    const { page, context } = await openPage("/", 390);
+    const shown = await page.$eval(".welcome-banner", (el) => getComputedStyle(el).position);
+    await page.waitForSelector(".welcome-banner", { state: "detached", timeout: 7000 });
+    await context.close();
+    expect(shown).not.toBe("fixed");
+  });
+
   test("waitlist buttons open an email to support with a subject", async () => {
     const { page, context } = await openPage("/", 390);
     const hrefs = await page.$$eval('a[data-intent^="waitlist_"]', (els) => els.map((e) => e.getAttribute("href")));

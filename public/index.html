@@ -897,7 +897,6 @@
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      min-height: 250px;
       transition: all var(--dur) var(--ease);
     }
     .service-card:hover { transform: translateY(-4px); border-color: var(--line-strong); background: rgba(255,255,255,0.05); }
@@ -1040,13 +1039,13 @@
        TOAST / WELCOME BANNER
        ============================================================ */
     .welcome-banner {
-      position: fixed;
-      top: 18px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 99999;
+      position: relative;
+      margin: 12px auto 0;
       max-width: 520px;
-      width: calc(100vw - 24px);
+      width: calc(100% - 32px);
+      overflow: hidden;
+      max-height: 120px;
+      transition: opacity .3s ease, max-height .35s ease, margin .35s ease, padding .35s ease;
       padding: 16px 20px;
       border-radius: var(--radius-xl);
       background: var(--grad-cyan);
@@ -1058,9 +1057,8 @@
       justify-content: space-between;
       align-items: center;
       gap: 14px;
-      animation: slideDown 0.35s var(--ease);
     }
-    @keyframes slideDown { from { opacity: 0; transform: translateX(-50%) translateY(-20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+    .welcome-banner.closing { opacity: 0; max-height: 0; margin-top: 0; padding-top: 0; padding-bottom: 0; }
     .welcome-banner-sub { font-size: 12px; font-weight: 600; margin-top: 4px; opacity: 0.75; }
     .welcome-close {
       border: none;
@@ -1123,6 +1121,25 @@
       .btn { font-size: 13px; padding-left: 14px; padding-right: 14px; }
       .top-link { padding: 8px 12px; font-size: 12px; }
       .nav-btn { font-size: 10px; min-width: 56px; padding: 9px 8px; }
+    }
+
+    /* Phones: the assistant button sits inside the bottom bar, in space the
+       bar reserves for it, so it can't cover page content or a nav button.
+       The floating "Need a ride?" bubble is hidden on phones for the same
+       reason. "html body" outranks the styles the chat widget adds to the
+       page after this stylesheet. */
+    @media (max-width: 640px) {
+      html body #harvey-ai-chat-root {
+        right: 10px !important;
+        left: auto !important;
+        bottom: calc((var(--nav-h) - 52px) / 2 + env(safe-area-inset-bottom, 0px)) !important;
+      }
+      html body #harvey-ai-chat-root .harvey-ai-launch { width: 52px !important; height: 52px !important; font-size: 20px !important; }
+      .bottom-nav { padding-right: 72px; justify-content: space-between; }
+      .bottom-nav .nav-btn { min-width: 0; flex: 1 1 0; padding: 8px 2px; }
+      .ai-teaser-bubble { display: none !important; }
+      .service-card { padding: 20px; }
+      .service-card p { flex-grow: 0; margin-bottom: 14px; }
     }
   </style>
 </head>
@@ -1233,8 +1250,8 @@
               <span class="gradient-text" data-i18n="heroTitleB">Reimagined</span>
             </h1>
 
-            <p class="hero-copy" data-i18n="heroCopy">
-              Harvey Taxi combines rider access, driver opportunities, transportation assistance, AI support, and future mobility services into one connected Tennessee platform.
+            <p class="hero-copy">
+              Request a ride with a Harvey Taxi driver in Nashville, or apply to drive. Rides are in early access, so a driver may not be available every time.
             </p>
 
             <div class="action-box" role="group" aria-labelledby="action-box-label">
@@ -1245,10 +1262,6 @@
               </div>
               <div class="secondary-actions">
                 <a class="btn ghost" href="rider-signup.html" data-intent="rider_signup_start" data-i18n="riderSignup">Rider Signup</a>
-                <a class="btn autonomous" href="#services" data-intent="autonomous_info">
-                  <span>🤖 Autonomous</span>
-                  <span class="pilot-tag">PLANNED</span>
-                </a>
                 <a class="btn foundation" href="foundation.html" data-track="foundation_button" data-i18n="foundationEmoji">❤️ Foundation</a>
               </div>
             </div>
@@ -1334,7 +1347,7 @@
           </div>
           <div class="mini-stat">
             <strong data-i18n="stat3Title">Multi-Service Vision</strong>
-            <span data-i18n="stat3Body">Transportation, delivery, and mobility assistance under one platform.</span>
+            <span>Rides today; delivery is planned.</span>
           </div>
           <div class="mini-stat">
             <strong data-i18n="stat4Title">Tennessee Focus</strong>
@@ -1432,8 +1445,8 @@
               <span>Harvey Assistant gives automated answers; staff handle support requests by email. In an emergency, call 911.</span>
             </div>
             <div class="list-item">
-              <strong>Future-Ready Platform</strong>
-              <span>Architecture designed for transportation, delivery, logistics, and future mobility.</span>
+              <strong>Clear service status</strong>
+              <span>Planned services are labelled as planned and can't be booked until they're available.</span>
             </div>
           </div>
         </div>
@@ -1503,7 +1516,7 @@
         <div class="grid-4">
           <div class="tile"><strong>Nashville</strong><span>Early-access launch area.</span></div>
           <div class="tile"><strong>Davidson County</strong><span>Driver sign-up and onboarding focus.</span></div>
-          <div class="tile"><strong>Airport trips</strong><span>Not offered at this time.</span></div>
+          <div class="tile"><strong>Airport trips</strong><span>Available. Request an airport trip the same way as any other ride.</span></div>
           <div class="tile"><strong>Statewide</strong><span>Planned. No date set.</span></div>
         </div>
         <div class="grid-3" style="margin-top:16px;">
@@ -1517,19 +1530,17 @@
       <section class="section" aria-labelledby="company-heading">
         <div class="section-hd">
           <h2 id="company-heading" data-i18n="companyTitle">Company &amp; Community Support</h2>
-          <p class="lead" data-i18n="companyLead">Harvey Taxi Service LLC connects transportation, technology, driver opportunity, logistics innovation, and community mobility assistance.</p>
+          <p class="lead">Harvey Taxi is operated by Harvey Taxi Service LLC.</p>
         </div>
         <div class="grid-info">
           <div class="highlight">
             <h3>Harvey Taxi Service LLC</h3>
-            <p>Harvey Taxi is building a technology-enabled transportation ecosystem focused on safer rides, driver opportunities, AI-powered support, future logistics, and mobility innovation.</p>
+            <p>Harvey Taxi offers rides with Harvey Taxi drivers in Nashville (early access), driver sign-up, and automated help through Harvey Assistant.</p>
             <div class="pill-row">
               <div class="pill">Safe Rides</div>
               <div class="pill">Driver Opportunity</div>
               <div class="pill">AI Support</div>
               <div class="pill">Community Mobility</div>
-              <div class="pill">Logistics</div>
-              <div class="pill">Future Mobility</div>
             </div>
           </div>
           <div class="list-items">
@@ -1558,8 +1569,8 @@
       <!-- APP ECOSYSTEM -->
       <section class="section" aria-labelledby="ecosystem-heading">
         <div class="section-hd">
-          <h2 id="ecosystem-heading">Harvey Taxi Ecosystem</h2>
-          <p class="lead">Transportation, logistics, driver opportunity, community mobility, and future innovation — connected through one platform.</p>
+          <h2 id="ecosystem-heading">At a glance</h2>
+          <p class="lead">What you can do with Harvey Taxi today, and what is planned.</p>
         </div>
         <div class="grid-3">
           <div class="card"><strong>📱 Mobile Platform</strong><span>Use Harvey Taxi in your phone's browser at harveytaxiservice.com. App store availability will be listed here once each app is published.</span></div>
@@ -1567,7 +1578,7 @@
           <div class="card"><strong>🤝 Driver Opportunity</strong><span>Create earning opportunities while serving communities across Tennessee.</span></div>
           <div class="card"><strong>❤️ Foundation Support</strong><span>Transportation assistance applications through HTAF, a separate organization.</span></div>
           <div class="card"><strong>🧠 AI Assistance</strong><span>Harvey Assistant: automated answers for riders and drivers.</span></div>
-          <div class="card"><strong>🚀 Future Mobility</strong><span>Delivery and autonomous rides are planned, not available.</span></div>
+          <div class="card"><strong>🚀 Planned</strong><span>Delivery and autonomous rides are planned, not available.</span></div>
         </div>
       </section>
 
@@ -1575,7 +1586,7 @@
       <footer class="footer">
         <div>
           <span class="footer-title">Harvey Taxi Service LLC</span>
-          <p>Tennessee transportation, driver opportunities, AI support, future logistics, autonomous mobility initiatives, and community transportation assistance through the Harvey Transportation Assistance Foundation.</p>
+          <p>Rides in Nashville (early access) and driver sign-up. The Harvey Transportation Assistance Foundation (HTAF) is a separate nonprofit organization.</p>
         </div>
         <div class="footer-actions">
           <a class="btn ghost" href="privacy.html">Privacy</a>
@@ -1669,7 +1680,6 @@
         medicalCalloutTitle: "Need a ride to a medical appointment?",
         heroTitleA: "Tennessee Transportation",
         heroTitleB: "Reimagined",
-        heroCopy: "Harvey Taxi combines rider access, driver opportunities, transportation assistance, AI support, and future mobility services into one connected Tennessee platform.",
         startJourney: "Start Your Journey",
         requestRideEmoji: "🚖 Request Ride",
         becomeDriver: "🤝 Become A Driver",
@@ -1689,7 +1699,6 @@
         stat1Body: "Driver matching and mission-based ride assignments.",
         stat2Body: "Rider and driver onboarding built around approval workflows.",
         stat3Title: "Multi-Service Vision",
-        stat3Body: "Transportation, delivery, and mobility assistance under one platform.",
         stat4Title: "Tennessee Focus",
         stat4Body: "Local growth with plans for statewide expansion.",
         supportTitle: "Need Help Right Now?",
@@ -1729,7 +1738,6 @@
         accountabilityCopy: "Harvey Taxi separates rider, driver, support, and foundation workflows to create a cleaner, more transparent experience.",
         servicesTitle: "Harvey Platform Services",
         companyTitle: "Company & Community Support",
-        companyLead: "Harvey Taxi Service LLC connects transportation, technology, driver opportunity, logistics innovation, and community mobility assistance."
       },
       es: {
         metaTitle: "Harvey Taxi — Rides in Nashville, Tennessee",
@@ -1752,7 +1760,6 @@
         inclusiveCopy: "Harvey Taxi respeta todas las etnias, culturas, idiomas, familias, personas mayores, trabajadores, estudiantes, personas con discapacidades, inmigrantes, visitantes y comunidades desatendidas que buscan transporte seguro.",
         heroTitleA: "Transporte en Tennessee",
         heroTitleB: "Reimaginado",
-        heroCopy: "Harvey Taxi combina acceso para pasajeros, oportunidades para conductores, asistencia de transporte, soporte de IA y servicios de movilidad futura en una sola plataforma de Tennessee.",
         startJourney: "Comienza Tu Viaje",
         requestRideEmoji: "🚖 Solicitar Viaje",
         becomeDriver: "🤝 Ser Conductor",
@@ -1772,7 +1779,6 @@
         stat1Body: "Emparejamiento de conductores y asignaciones de viajes basadas en misiones.",
         stat2Body: "Incorporación de pasajeros y conductores basada en procesos de aprobación.",
         stat3Title: "Visión Multiservicio",
-        stat3Body: "Transporte, entrega y asistencia de movilidad bajo una sola plataforma.",
         stat4Title: "Enfoque en Tennessee",
         stat4Body: "Crecimiento local con planes de expansión estatal.",
         supportTitle: "¿Necesitas Ayuda Ahora?",
@@ -1812,7 +1818,6 @@
         accountabilityCopy: "Harvey Taxi separa los procesos de pasajeros, conductores, soporte y fundación para crear una experiencia más clara y transparente.",
         servicesTitle: "Servicios de la Plataforma Harvey",
         companyTitle: "Apoyo Empresarial y Comunitario",
-        companyLead: "Harvey Taxi Service LLC conecta transporte, tecnología, oportunidades para conductores, innovación logística y asistencia de movilidad comunitaria."
       },
       fr: {
         metaTitle: "Harvey Taxi — Rides in Nashville, Tennessee",
@@ -1835,7 +1840,6 @@
         inclusiveCopy: "Harvey Taxi respecte toutes les ethnies, cultures, langues, familles, personnes âgées, travailleurs, étudiants, personnes handicapées, immigrants, visiteurs et communautés mal desservies cherchant un transport sûr.",
         heroTitleA: "Transport au Tennessee",
         heroTitleB: "Réinventé",
-        heroCopy: "Harvey Taxi combine l'accès des passagers, les opportunités pour conducteurs, l'assistance au transport, le support IA et les services de mobilité future en une seule plateforme du Tennessee.",
         startJourney: "Commencez Votre Voyage",
         requestRideEmoji: "🚖 Demander un Trajet",
         becomeDriver: "🤝 Devenir Conducteur",
@@ -1855,7 +1859,6 @@
         stat1Body: "Jumelage de conducteurs et affectations de trajets basées sur des missions.",
         stat2Body: "Intégration des passagers et conducteurs basée sur des processus d'approbation.",
         stat3Title: "Vision Multi-Services",
-        stat3Body: "Transport, livraison et assistance à la mobilité sur une seule plateforme.",
         stat4Title: "Focus Tennessee",
         stat4Body: "Croissance locale avec des plans d'expansion à l'échelle de l'État.",
         supportTitle: "Besoin d'aide maintenant ?",
@@ -1895,7 +1898,6 @@
         accountabilityCopy: "Harvey Taxi sépare les processus de passagers, conducteurs, support et fondation pour créer une expérience plus claire et transparente.",
         servicesTitle: "Services de la Plateforme Harvey",
         companyTitle: "Soutien aux Entreprises et à la Communauté",
-        companyLead: "Harvey Taxi Service LLC relie le transport, la technologie, les opportunités pour conducteurs, l'innovation logistique et l'assistance à la mobilité communautaire."
       },
       ar: {
         metaTitle: "Harvey Taxi — Rides in Nashville, Tennessee",
@@ -1918,7 +1920,6 @@
         inclusiveCopy: "هارفي تاكسي يحترم جميع الأعراق والثقافات واللغات والعائلات وكبار السن والعمال والطلاب وذوي الإعاقات والمهاجرين والزوار والمجتمعات المحرومة الباحثة عن نقل آمن.",
         heroTitleA: "النقل في تينيسي",
         heroTitleB: "بحلة جديدة",
-        heroCopy: "يجمع هارفي تاكسي بين وصول الركاب وفرص السائقين ومساعدة النقل ودعم الذكاء الاصطناعي وخدمات التنقل المستقبلية في منصة واحدة لولاية تينيسي.",
         startJourney: "ابدأ رحلتك",
         requestRideEmoji: "🚖 طلب رحلة",
         becomeDriver: "🤝 كن سائقاً",
@@ -1938,7 +1939,6 @@
         stat1Body: "مطابقة السائقين وتعيينات الرحلات القائمة على المهام.",
         stat2Body: "تسجيل الركاب والسائقين مبني على عمليات الموافقة.",
         stat3Title: "رؤية متعددة الخدمات",
-        stat3Body: "النقل والتوصيل ومساعدة التنقل ضمن منصة واحدة.",
         stat4Title: "التركيز على تينيسي",
         stat4Body: "نمو محلي مع خطط للتوسع على مستوى الولاية.",
         supportTitle: "هل تحتاج مساعدة الآن؟",
@@ -1978,7 +1978,6 @@
         accountabilityCopy: "يفصل هارفي تاكسي بين عمليات الركاب والسائقين والدعم والمؤسسة لخلق تجربة أوضح وأكثر شفافية.",
         servicesTitle: "خدمات منصة هارفي",
         companyTitle: "دعم الشركة والمجتمع",
-        companyLead: "تربط هارفي تاكسي سيرفيس إل إل سي بين النقل والتكنولوجيا وفرص السائقين والابتكار اللوجستي ومساعدة التنقل المجتمعي."
       },
       sw: {
         metaTitle: "Harvey Taxi — Rides in Nashville, Tennessee",
@@ -2001,7 +2000,6 @@
         inclusiveCopy: "Harvey Taxi inaheshimu makabila yote, tamaduni, lugha, familia, wazee, wafanyakazi, wanafunzi, watu wenye ulemavu, wahamiaji, wageni, na jamii zisizohudumiwa zinazotafuta usafiri salama.",
         heroTitleA: "Usafiri wa Tennessee",
         heroTitleB: "Umebuniwa Upya",
-        heroCopy: "Harvey Taxi inachanganya ufikiaji wa abiria, fursa za madereva, msaada wa usafiri, msaada wa AI, na huduma za uhamasishaji za baadaye katika jukwaa moja la Tennessee.",
         startJourney: "Anza Safari Yako",
         requestRideEmoji: "🚖 Omba Safari",
         becomeDriver: "🤝 Kuwa Dereva",
@@ -2021,7 +2019,6 @@
         stat1Body: "Ulinganishaji wa madereva na ugawaji wa safari unaotegemea misheni.",
         stat2Body: "Usajili wa abiria na madereva uliojengwa kuzunguka taratibu za idhini.",
         stat3Title: "Maono ya Huduma Nyingi",
-        stat3Body: "Usafiri, uwasilishaji, na msaada wa uhamasishaji chini ya jukwaa moja.",
         stat4Title: "Lengo la Tennessee",
         stat4Body: "Ukuaji wa ndani na mipango ya upanuzi wa jimbo zima.",
         supportTitle: "Unahitaji Msaada Sasa Hivi?",
@@ -2061,7 +2058,6 @@
         accountabilityCopy: "Harvey Taxi inatenganisha taratibu za abiria, dereva, msaada, na wakfu ili kuunda uzoefu safi na wenye uwazi zaidi.",
         servicesTitle: "Huduma za Jukwaa la Harvey",
         companyTitle: "Msaada wa Kampuni na Jamii",
-        companyLead: "Harvey Taxi Service LLC inaunganisha usafiri, teknolojia, fursa za madereva, ubunifu wa vifaa, na msaada wa uhamasishaji wa jamii."
       },
       zh: {
         metaTitle: "Harvey Taxi — Rides in Nashville, Tennessee",
@@ -2084,7 +2080,6 @@
         inclusiveCopy: "Harvey Taxi 尊重所有种族、文化、语言、家庭、老年人、工作者、学生、残障人士、移民、访客以及寻求安全出行的弱势社区。",
         heroTitleA: "田纳西出行",
         heroTitleB: "全新构想",
-        heroCopy: "Harvey Taxi 将乘客接入、司机机会、出行援助、AI支持与未来出行服务整合到一个统一的田纳西平台中。",
         startJourney: "开始您的旅程",
         requestRideEmoji: "🚖 立即叫车",
         becomeDriver: "🤝 成为司机",
@@ -2104,7 +2099,6 @@
         stat1Body: "司机匹配与基于任务的乘车分配。",
         stat2Body: "围绕审批流程构建的乘客与司机加入机制。",
         stat3Title: "多元服务愿景",
-        stat3Body: "出行、配送与出行援助整合于同一平台。",
         stat4Title: "聚焦田纳西",
         stat4Body: "本地化增长，并计划向全州扩展。",
         supportTitle: "现在需要帮助吗？",
@@ -2144,7 +2138,6 @@
         accountabilityCopy: "Harvey Taxi 将乘客、司机、客服与基金会流程分离管理，打造更清晰、更透明的使用体验。",
         servicesTitle: "Harvey 平台服务",
         companyTitle: "企业与社区支持",
-        companyLead: "Harvey Taxi Service LLC 连接出行、技术、司机机会、物流创新与社区出行援助。"
       },
       hi: {
         metaTitle: "Harvey Taxi — Rides in Nashville, Tennessee",
@@ -2167,7 +2160,6 @@
         inclusiveCopy: "Harvey Taxi सभी जातियों, संस्कृतियों, भाषाओं, परिवारों, वरिष्ठ नागरिकों, श्रमिकों, छात्रों, विकलांग व्यक्तियों, आप्रवासियों, आगंतुकों और सुरक्षित परिवहन की तलाश में वंचित समुदायों का सम्मान करता है।",
         heroTitleA: "टेनेसी परिवहन",
         heroTitleB: "नए सिरे से कल्पना की गई",
-        heroCopy: "Harvey Taxi सवार पहुंच, ड्राइवर अवसर, परिवहन सहायता, AI सहायता और भविष्य की गतिशीलता सेवाओं को एक जुड़े टेनेसी प्लेटफ़ॉर्म में जोड़ता है।",
         startJourney: "अपनी यात्रा शुरू करें",
         requestRideEmoji: "🚖 सवारी का अनुरोध करें",
         becomeDriver: "🤝 ड्राइवर बनें",
@@ -2187,7 +2179,6 @@
         stat1Body: "ड्राइवर मिलान और मिशन-आधारित सवारी असाइनमेंट।",
         stat2Body: "अनुमोदन प्रक्रियाओं के आसपास निर्मित सवार और ड्राइवर ऑनबोर्डिंग।",
         stat3Title: "बहु-सेवा दृष्टि",
-        stat3Body: "एक प्लेटफ़ॉर्म के तहत परिवहन, डिलीवरी और गतिशीलता सहायता।",
         stat4Title: "टेनेसी फोकस",
         stat4Body: "राज्यव्यापी विस्तार की योजनाओं के साथ स्थानीय विकास।",
         supportTitle: "अभी मदद चाहिए?",
@@ -2227,7 +2218,6 @@
         accountabilityCopy: "Harvey Taxi एक स्पष्ट, अधिक पारदर्शी अनुभव बनाने के लिए सवार, ड्राइवर, सहायता और फाउंडेशन वर्कफ़्लो को अलग करता है।",
         servicesTitle: "Harvey प्लेटफ़ॉर्म सेवाएं",
         companyTitle: "कंपनी और सामुदायिक सहायता",
-        companyLead: "Harvey Taxi Service LLC परिवहन, प्रौद्योगिकी, ड्राइवर अवसर, लॉजिस्टिक्स नवाचार और सामुदायिक गतिशीलता सहायता को जोड़ता है।"
       },
       pt: {
         metaTitle: "Harvey Taxi — Rides in Nashville, Tennessee",
@@ -2250,7 +2240,6 @@
         inclusiveCopy: "A Harvey Taxi respeita todas as etnias, culturas, idiomas, famílias, idosos, trabalhadores, estudantes, pessoas com deficiência, imigrantes, visitantes e comunidades carentes em busca de transporte seguro.",
         heroTitleA: "Transporte no Tennessee",
         heroTitleB: "Reimaginado",
-        heroCopy: "A Harvey Taxi combina acesso para passageiros, oportunidades para motoristas, assistência de transporte, suporte de IA e serviços de mobilidade futura em uma única plataforma do Tennessee.",
         startJourney: "Comece Sua Jornada",
         requestRideEmoji: "🚖 Solicitar Corrida",
         becomeDriver: "🤝 Tornar-se Motorista",
@@ -2270,7 +2259,6 @@
         stat1Body: "Combinação de motoristas e atribuições de corridas baseadas em missões.",
         stat2Body: "Integração de passageiros e motoristas construída em torno de processos de aprovação.",
         stat3Title: "Visão Multisserviço",
-        stat3Body: "Transporte, entrega e assistência de mobilidade em uma única plataforma.",
         stat4Title: "Foco no Tennessee",
         stat4Body: "Crescimento local com planos de expansão em todo o estado.",
         supportTitle: "Precisa de Ajuda Agora?",
@@ -2310,7 +2298,6 @@
         accountabilityCopy: "A Harvey Taxi separa os fluxos de passageiros, motoristas, suporte e fundação para criar uma experiência mais clara e transparente.",
         servicesTitle: "Serviços da Plataforma Harvey",
         companyTitle: "Suporte Empresarial e Comunitário",
-        companyLead: "A Harvey Taxi Service LLC conecta transporte, tecnologia, oportunidades para motoristas, inovação logística e assistência de mobilidade comunitária."
       },
       ht: {
         metaTitle: "Harvey Taxi — Rides in Nashville, Tennessee",
@@ -2333,7 +2320,6 @@
         inclusiveCopy: "Harvey Taxi respekte tout etnisite, kilti, lang, fanmi, granmoun aje, travayè, etidyan, moun ki gen andikap, imigran, vizitè, ak kominote ki pa byen sèvi k ap chèche transpò an sekirite.",
         heroTitleA: "Transpò Tennessee",
         heroTitleB: "Reimajine",
-        heroCopy: "Harvey Taxi konbine aksè pasaje, opòtinite chofè, asistans transpò, sipò AI, ak sèvis mobilite nan lavni nan yon sèl platfòm Tennessee konekte.",
         startJourney: "Kòmanse Vwayaj Ou",
         requestRideEmoji: "🚖 Mande yon Vwayaj",
         becomeDriver: "🤝 Vin Chofè",
@@ -2353,7 +2339,6 @@
         stat1Body: "Matche chofè ak asiyasyon vwayaj ki baze sou misyon.",
         stat2Body: "Enskripsyon pasaje ak chofè ki bati alantou pwosesis apwobasyon.",
         stat3Title: "Vizyon Plizyè Sèvis",
-        stat3Body: "Transpò, livrezon, ak asistans mobilite anba yon sèl platfòm.",
         stat4Title: "Konsantre sou Tennessee",
         stat4Body: "Kwasans lokal ak plan pou ekspansyon nan tout eta a.",
         supportTitle: "Ou Bezwen Èd Kounye a?",
@@ -2393,7 +2378,6 @@
         accountabilityCopy: "Harvey Taxi separe pwosesis pasaje, chofè, sipò, ak fondasyon pou kreye yon eksperyans pi klè ak pi transparan.",
         servicesTitle: "Sèvis Platfòm Harvey",
         companyTitle: "Sipò Konpayi ak Kominote",
-        companyLead: "Harvey Taxi Service LLC konekte transpò, teknoloji, opòtinite chofè, inovasyon lojistik, ak asistans mobilite kominotè."
       },
       yo: {
         metaTitle: "Harvey Taxi — Rides in Nashville, Tennessee",
@@ -2416,7 +2400,6 @@
         inclusiveCopy: "Harvey Taxi bọ̀wọ̀ fún gbogbo ẹ̀yà, àṣà, èdè, ìdílé, àgbàlagbà, òṣìṣẹ́, akẹ́kọ̀ọ́, àwọn aláàbọ̀, àwọn aṣíkiri, àlejò, àti àwọn àwùjọ tí kò gba ìrànlọ́wọ́ tó tó tí ń wá ìrìnnà ààbò.",
         heroTitleA: "Ìrìnnà Tennessee",
         heroTitleB: "Tí a Tún Rò Padà",
-        heroCopy: "Harvey Taxi ń ṣàkójọpọ̀ wíwọlé arìnrìn-àjò, àǹfààní awakọ̀, ìrànlọ́wọ́ ìrìnnà, ìrànlọ́wọ́ AI, àti àwọn iṣẹ́ ìrìnnà ọjọ́ iwájú sí inú pẹpẹ Tennessee kan ṣoṣo tí ó so pọ̀.",
         startJourney: "Bẹ̀rẹ̀ Ìrìn Àjò Rẹ",
         requestRideEmoji: "🚖 Béèrè Ìrìn",
         becomeDriver: "🤝 Di Awakọ̀",
@@ -2436,7 +2419,6 @@
         stat1Body: "Ìbáradọ́gba awakọ̀ àti pípín ìrìn tí a dá lórí iṣẹ́-àyànṣe.",
         stat2Body: "Ìforúkọsílẹ̀ arìnrìn-àjò àti awakọ̀ tí a kọ́ yí ìlànà ìfọwọ́sí ká.",
         stat3Title: "Ìríran Iṣẹ́ Púpọ̀",
-        stat3Body: "Ìrìnnà, ìfìjíṣẹ́, àti ìrànlọ́wọ́ ìrìnnà lábẹ́ pẹpẹ kan ṣoṣo.",
         stat4Title: "Ìfojúsùn Tennessee",
         stat4Body: "Ìdàgbàsókè àdúgbò pẹ̀lú àwọn ètò ìmúgbòòrò ní gbogbo ìpínlẹ̀.",
         supportTitle: "Ṣé O Nílò Ìrànlọ́wọ́ Nísinsìnyí?",
@@ -2476,7 +2458,6 @@
         accountabilityCopy: "Harvey Taxi ya àwọn ìṣàn iṣẹ́ arìnrìn-àjò, awakọ̀, ìrànlọ́wọ́, àti ìpilẹ̀ṣẹ̀ sọ́tọ̀ láti dá ìrírí tí ó mọ́ kedere àti tí ó ṣe kedere sílẹ̀.",
         servicesTitle: "Àwọn Iṣẹ́ Pẹpẹ Harvey",
         companyTitle: "Ìrànlọ́wọ́ Ilé-iṣẹ́ àti Àwùjọ",
-        companyLead: "Harvey Taxi Service LLC so ìrìnnà, ìmọ̀-ẹ̀rọ, àǹfààní awakọ̀, ìmúdàgbàsókè amáwòrán, àti ìrànlọ́wọ́ ìrìnnà àwùjọ pọ̀."
       }
     };
 
@@ -2739,7 +2720,7 @@
         </div>
         <div class="grid-3">
           <button class="card" type="button" onclick="openHarveyAiChat();" style="text-align:left;cursor:pointer;">
-            <strong>💬 Open AI Chat</strong><span>Launch Harvey AI Support instantly.</span>
+            <strong>💬 Open AI Chat</strong><span>Open Harvey AI Support.</span>
           </button>
           <button class="card" type="button" onclick="applyBatteryOptimizer();" style="text-align:left;cursor:pointer;">
             <strong>🔋 Battery Optimizer</strong><span>Reduce motion and optimize performance for lower-power devices.</span>
@@ -2813,13 +2794,19 @@
       banner.setAttribute("aria-live", "polite");
       banner.innerHTML = `
         <div>
-          <div>Harvey Taxi Platform Loaded ✓</div>
-          <div class="welcome-banner-sub">AI Support · Driver Access · Foundation · Tennessee Mobility</div>
+          <div>Welcome to Harvey Taxi</div>
+          <div class="welcome-banner-sub">Rides in Nashville · Early access</div>
         </div>
         <button class="welcome-close" id="close-welcome" aria-label="Close welcome banner">×</button>`;
-      document.body.appendChild(banner);
-      document.getElementById("close-welcome")?.addEventListener("click", () => banner.remove());
-      setTimeout(() => { banner?.remove(); }, 7000);
+      const main = document.getElementById("main-content");
+      if (main) main.prepend(banner); else document.body.prepend(banner);
+      const close = () => {
+        if (!banner.isConnected || banner.classList.contains("closing")) return;
+        banner.classList.add("closing");
+        setTimeout(() => banner.remove(), 400);
+      };
+      document.getElementById("close-welcome")?.addEventListener("click", close);
+      setTimeout(close, 4000);
     }
 
     /* ---- Defensive init wrapper: one failing subsystem can no longer

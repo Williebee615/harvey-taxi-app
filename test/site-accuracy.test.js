@@ -70,7 +70,12 @@ describe("home page claims", () => {
     "NEMT",
     "apps.apple.com",
     "HTAF Assisted Rides",
-    "Not connected"
+    "Not connected",
+    "Platform Loaded",
+    "future mobility services",
+    "Not offered at this time",
+    "autonomous_info",
+    "logistics innovation"
   ])("does not contain %p", (phrase) => {
     expect(html).not.toContain(phrase);
   });
@@ -87,7 +92,7 @@ describe("home page claims", () => {
 
   test("planned services and areas are labelled as planned", () => {
     expect(html).toContain("Food and grocery delivery");
-    expect((html.match(/PLANNED/g) || []).length).toBeGreaterThanOrEqual(3);
+    expect((html.match(/PLANNED/g) || []).length).toBeGreaterThanOrEqual(2);
     expect(html).toContain("Planned: Knoxville and Chattanooga.");
   });
 
@@ -99,6 +104,16 @@ describe("home page claims", () => {
   test("translations are labelled automatic, and support is described as English", () => {
     expect(html).toContain("Translations are automatic");
     expect(html).not.toContain("Spanish rider and driver support");
+  });
+
+  test("airport trips are listed as available without naming permits, terminals or pickup zones", () => {
+    expect(html).toContain("<strong>Airport trips</strong><span>Available. Request an airport trip the same way as any other ride.</span>");
+    expect(html).not.toMatch(/BNA|permit|curbside|terminal|pickup zone/i);
+  });
+
+  test("the welcome note is part of the page, not an overlay, and closes itself", () => {
+    expect(html).toMatch(/\.welcome-banner \{\s*position: relative;/);
+    expect(html).toContain("setTimeout(close, 4000)");
   });
 
   test("the ride request remains available", () => {
