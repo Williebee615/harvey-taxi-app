@@ -23837,7 +23837,12 @@ app.post(
       return fail(res, "Message required.", 400);
     }
 
-    if (!openai) {
+    // The old website chat sends messages to OpenAI with no consent step,
+    // so it makes no model call unless the owner turns it back on
+    // (system flag legacy_ai_support_enabled = "true"). Riders use Harvey
+    // Assistant, which asks for consent before any AI answer.
+    const legacyAiOn = (await getSystemFlag("legacy_ai_support_enabled", "false")) === "true";
+    if (!openai || !legacyAiOn) {
       return ok(res, {
         reply:
           "Harvey AI Support is currently limited. Please contact support for help.",
