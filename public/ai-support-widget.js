@@ -31,7 +31,7 @@
       emergencyNotice:
         "Harvey Taxi AI Support provides platform guidance only. For emergencies, contact local emergency services immediately.",
       systemLine:
-        "Harvey Taxi AI Support can explain rides, rider approval, driver onboarding, dispatch, mission status, payment authorization, autonomous pilot guidance, and foundation support."
+        "Harvey Taxi AI Support can explain rides, rider approval, driver onboarding, dispatch, mission status, payment authorization, and foundation support."
     };
 
     injectStyles();
@@ -112,7 +112,7 @@
     function getWelcomeTextByPage(pageContext) {
       const map = {
         general:
-          "Hi, I’m Harvey Taxi AI Support. I can help with rides, rider approval, driver onboarding, payment authorization, dispatch, mission flow, autonomous pilot guidance, and Harvey Transportation Assistance Foundation questions.",
+          "Hi, I’m Harvey Taxi AI Support. I can help with rides, rider approval, driver onboarding, payment authorization, dispatch, and Harvey Transportation Assistance Foundation questions.",
         rider:
           "Hi, I’m Harvey Taxi AI Support. I can help explain rider signup, rider approval, payment authorization, ride access, and account support.",
         driver:
@@ -120,7 +120,7 @@
         request:
           "Hi, I’m Harvey Taxi AI Support. I can help with fare estimates, payment authorization, ride requests, dispatch flow, trip updates, and ride availability.",
         support:
-          "Hi, I’m Harvey Taxi AI Support. I can help with support questions about accounts, rides, approvals, dispatch, payments, autonomous pilot mode, and foundation access.",
+          "Hi, I’m Harvey Taxi AI Support. I can help with support questions about accounts, rides, approvals, dispatch, payments, and foundation access.",
         admin:
           "Hi, I’m Harvey Taxi AI Support. I can help explain rider access rules, driver activation flow, dispatch logic, payment holds, trip operations, and support processes.",
         foundation:
@@ -136,7 +136,7 @@
           "How do I request a ride?",
           "How do I sign up as a driver?",
           "What is Harvey Taxi?",
-          "What is autonomous pilot mode?",
+          "How do I contact support?",
           "How do I support the foundation?"
         ],
         rider: [
@@ -161,7 +161,7 @@
           "How do I request a ride?",
           "How do I sign up as a driver?",
           "What is Harvey Taxi?",
-          "What is autonomous pilot mode?",
+          "How do I contact support?",
           "How do I support the foundation?"
         ],
         admin: [
@@ -202,7 +202,7 @@
         general: [
           { label: "Request Ride", action: "link", href: "rider-dashboard.html?screen=book&mode=driver" },
           { label: "Driver Signup", action: "link", href: "driver-signup.html" },
-          { label: "Ask About Pilot", action: "message", message: "What is autonomous pilot mode?" }
+          { label: "Join a Waitlist", action: "link", href: "index.html#services" }
         ],
         rider: [
           { label: "Rider Status", action: "message", message: "How do I check my rider status?" },
@@ -851,10 +851,18 @@
         };
       }
 
+      if (message.includes("delivery") || message.includes("grocery") || message.includes("food")) {
+        return {
+          reply:
+            "Food and grocery delivery are planned and can't be ordered yet. To be told when they start, email support@harveytaxiservice.com with the subject \"Waitlist: food delivery\" or \"Waitlist: grocery delivery\".",
+          card: null
+        };
+      }
+
       if (message.includes("pilot") || message.includes("autonomous")) {
         return {
           reply:
-            "Autonomous Pilot is a clearly labeled pilot experience. Standard Harvey rides are fulfilled by human drivers today, and pilot experiences should only be used where available.",
+            "Harvey Taxi does not offer autonomous rides. They are planned and can't be booked. All Harvey Taxi rides are with a human driver. To be told if this changes, email support@harveytaxiservice.com with the subject \"Waitlist: autonomous rides\".",
           card: null
         };
       }
