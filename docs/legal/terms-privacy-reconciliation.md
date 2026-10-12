@@ -75,7 +75,8 @@ Labels: **[Verified]** (with how) · **[Unresolved]** · **[Recommendation]** ·
 
 **Not drafted because they need owner documents first:**
 - **Insurance:** what coverage applies, during which trip periods.
-- **Operating authorization:** what state or Metro Nashville permit or license is held for passenger transport, and whether airport pickups are authorized.
+- **Operating authorization:** what state or Metro Nashville permit or license is held for passenger transport.
+- **Airport:** **[Owner decision 2026-10-12]** Airport service is available through Harvey Taxi Service (owner-confirmed). The site says only "Available. Request an airport trip the same way as any other ride." **[Unresolved]** The permit or agreement and its scope (which airport, pickups and/or drop-offs, pickup locations, conditions). No airport name, pickup location or permit coverage is published until that is documented.
 - **Governing law and dispute resolution.**
 
 ## 5. Owner documents needed to support public claims
@@ -85,7 +86,8 @@ Labels: **[Verified]** (with how) · **[Unresolved]** · **[Recommendation]** ·
 | HTAF is a 501(c)(3) public charity, EIN 41-5115030 | **Received 2026-10-12:** IRS Letter 947 dated 2026-04-15 (photo). Keep the original on file. |
 | HTAF governance and board | Bylaws, board roster, minutes, conflict-of-interest policy |
 | Harvey Taxi Service LLC organization and good standing | Tennessee Secretary of State record |
-| Authority to carry passengers for hire in Nashville; airport pickups | State or Metro Nashville permit or license, and any airport agreement |
+| Authority to carry passengers for hire in Nashville | State or Metro Nashville permit or license |
+| Airport trips (availability owner-confirmed 2026-10-12) | Airport permit or operating agreement, with its scope: which airport, pickups and/or drop-offs, locations, conditions, expiry |
 | Insurance | Commercial auto or TNC policy declarations and the trip periods covered |
 | Driver screening | Active Checkr and Persona accounts, and the compliance terms of each (FCRA flow) |
 | AI provider terms | Anthropic Console data settings and commercial terms; OpenAI account status (or its removal) |
