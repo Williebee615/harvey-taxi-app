@@ -1064,6 +1064,15 @@ app.get(["/admin.html", "/admin"], (req, res) => {
   res.redirect(301, "/admin-dashboard.html");
 });
 
+// Admin pages are page shells only: every admin read and action goes
+// through /api/admin/* routes, which check the admin session or token on
+// the server. These headers just keep the shells out of search results
+// (robots.txt also disallows /admin).
+app.use((req, res, next) => {
+  if (/^\/admin[^/]*$/.test(req.path)) res.setHeader("X-Robots-Tag", "noindex, nofollow");
+  next();
+});
+
 app.use(
 
   express.static(PUBLIC_DIR, {
