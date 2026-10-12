@@ -46,7 +46,7 @@ describeWithBrowser("public pages on phones", () => {
   let base;
 
   beforeAll(async () => {
-    mockSupabaseClient = createFakeSupabase({ drivers: [], rides: [], riders: [], system_flags: [], audit_logs: [] });
+    mockSupabaseClient = createFakeSupabase({ drivers: [], rides: [], riders: [], audit_logs: [], system_flags: [{ key: "agent_assist_enabled", value: "true" }, { key: "agent_kill_switch", value: "false" }] });
     // eslint-disable-next-line global-require
     const { app } = require("../server");
     server = await new Promise((resolve) => {
@@ -129,33 +129,37 @@ describeWithBrowser("public pages on phones", () => {
   });
 
   for (const width of [360, 390]) {
-    test(`with Larger Text on at ${width}px, the assistant button sits in the bottom bar and covers nothing`, async () => {
+    test(`with Larger Text on at ${width}px, the assistant opens from the bottom bar and nothing floats over the page`, async () => {
       const { page, context } = await openPage("/", width);
       await page.click("#text-toggle");
-      await page.waitForSelector(".harvey-ai-launch", { state: "visible", timeout: 10000 });
+      await page.waitForFunction(() => window.HarveyAssistant && typeof window.HarveyAssistant.open === "function", null, { timeout: 15000 });
       const r = await page.evaluate(() => {
         const box = (el) => el.getBoundingClientRect().toJSON();
-        const hit = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
-        const launch = box(document.querySelector(".harvey-ai-launch"));
+        const shown = (el) => !!el && getComputedStyle(el).display !== "none" && el.getBoundingClientRect().width > 0;
         const nav = box(document.querySelector(".bottom-nav"));
-        const navButtons = [...document.querySelectorAll(".bottom-nav .nav-btn")].map(box);
-        const teaser = document.getElementById("aiTeaserBubble");
+        const tab = document.querySelector('[data-testid="nav-assistant"]');
+        const tabBox = tab && box(tab);
         return {
           largeText: document.body.classList.contains("large-text"),
-          insideBar: launch.top >= nav.top - 1 && launch.bottom <= nav.bottom + 1,
-          coversNavButton: navButtons.some((b) => hit(b, launch)),
-          navLabelsFit: [...document.querySelectorAll(".bottom-nav .nav-btn")].every((b) => b.scrollWidth <= b.clientWidth + 1),
-          teaserShown: !!teaser && getComputedStyle(teaser).display !== "none",
+          tabInBar: !!tabBox && shown(tab) && tabBox.top >= nav.top - 1 && tabBox.bottom <= nav.bottom + 1,
+          floatingLauncher: [...document.querySelectorAll('[data-testid="hta-launcher"]')].some(shown),
+          legacyWidget: !!document.getElementById("harvey-ai-chat-root"),
+          navLabelsFit: [...document.querySelectorAll(".bottom-nav .nav-btn")].filter(shown).every((b) => b.scrollWidth <= b.clientWidth + 1),
+          teaserShown: shown(document.getElementById("aiTeaserBubble")),
           overflow: document.documentElement.scrollWidth - window.innerWidth
         };
       });
+      await page.click('[data-testid="nav-assistant"]');
+      const opened = await page.waitForSelector("#htaPanel.open", { timeout: 5000 }).then(() => true, () => false);
       await context.close();
       expect(r.largeText).toBe(true);
-      expect(r.insideBar).toBe(true);
-      expect(r.coversNavButton).toBe(false);
+      expect(r.tabInBar).toBe(true);
+      expect(r.floatingLauncher).toBe(false);
+      expect(r.legacyWidget).toBe(false);
       expect(r.navLabelsFit).toBe(true);
       expect(r.teaserShown).toBe(false);
       expect(r.overflow).toBeLessThanOrEqual(1);
+      expect(opened).toBe(true);
     });
   }
 

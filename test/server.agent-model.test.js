@@ -6,6 +6,7 @@
 // - safety boundaries never reach the model;
 // - the $10 monthly budget, durable spending ledger and provider limit;
 // - admin settings ("all" refused before privacy approval) and Try console.
+process.env.AGENT_MODEL_CONSENT_READY = "true"; // these tests cover the model path once consent is live
 process.env.SUPABASE_URL = "http://localhost:54321";
 process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
 process.env.RIDER_SESSION_SECRET = "test-rider-session-secret";

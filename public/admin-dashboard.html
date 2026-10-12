@@ -104,7 +104,7 @@
       <button class="primary" id="manualRefreshBtn">Refresh Dashboard</button>
       <button class="neutral" id="toggleAutoRefreshBtn">Auto Refresh: On</button>
       <button class="gold" id="loadFinanceBtn">Load Financials</button>
-      <button class="ai" id="quickAiReviewBtn">AI Review Now</button>
+      <button class="ai" id="quickAiReviewBtn" type="button">Harvey Assistant</button>
     </div>
   </section>
 
@@ -226,20 +226,16 @@
       <section class="card">
         <div class="card-head">
           <div>
-            <div class="title">AI Operations Brain</div>
-            <div class="sub">Uses your `/api/ai/support` endpoint safely.</div>
+            <div class="title">Harvey Assistant</div>
+            <div class="sub">The same assistant riders and drivers use. Opened here it answers as a signed-out visitor: rules and approved pages only, no AI model.</div>
           </div>
-          <span class="badge blue">AI</span>
-        </div>
-        <div class="field">
-          <label>AI Command</label>
-          <textarea id="aiCommandInput" placeholder="Review riders, drivers, rides, HTAF applications, payments, and flag urgent admin issues."></textarea>
+          <span class="badge blue">Assistant</span>
         </div>
         <div class="actions">
-          <button class="ai" id="runAiBrainBtn">Run AI Brain</button>
-          <button class="neutral" id="clearAiBrainBtn">Clear</button>
+          <button class="ai" id="openAssistantBtn" type="button">Open Harvey Assistant</button>
+          <a class="neutral" href="admin-agent.html" style="display:inline-flex;align-items:center;justify-content:center;text-decoration:none;">Agent Command Center</a>
         </div>
-        <div id="aiBrainResult" class="item-sub" style="margin-top:12px;"></div>
+        <div class="item-sub" style="margin-top:12px;">Knowledge articles, specialists, escalations and AI settings are managed in the Agent Command Center.</div>
       </section>
 
       <section class="card">
@@ -304,7 +300,7 @@ const $ = id => document.getElementById(id);
 const els = {
   result:$("resultBox"), error:$("errorBox"), riders:$("pendingRidersList"),
   drivers:$("pendingDriversList"), rides:$("ridesList"), htaf:$("htafList"),
-  financial:$("financialList"), aiInput:$("aiCommandInput"), aiResult:$("aiBrainResult"),
+  financial:$("financialList"),
   activeRiders:$("activeRidersList"), activeDrivers:$("activeDriversList")
 };
 
@@ -598,14 +594,11 @@ async function approveRider(id){await api(`/api/admin/riders/${id}/approve`,{met
 async function approveDriver(id){await api(`/api/admin/drivers/${id}/approve`,{method:"PATCH",body:"{}"});showResult("Driver approved.");loadDashboard();}
 async function setRideStatus(id,status){await api(`/api/admin/rides/${id}/status`,{method:"PATCH",body:JSON.stringify({status})});showResult("Ride updated.");loadDashboard();}
 
-async function runAI(){
-  const msg = els.aiInput.value.trim();
-  if(!msg) return showError("Enter an AI command first.");
-  els.aiResult.innerHTML = "Running AI review...";
-  try{
-    const data = await api("/api/ai/support",{method:"POST",body:JSON.stringify({page:"admin-dashboard",role:"admin",message:msg})});
-    els.aiResult.innerHTML = `<strong>AI Review:</strong><br><br>${esc(data.reply || "No response.")}`;
-  }catch(e){els.aiResult.innerHTML = `<span style="color:#ff7e97">${esc(e.message)}</span>`;}
+// Harvey Assistant (agent-assist.js). Replaces the old "AI Operations
+// Brain", which sent admin commands to the retired OpenAI chat endpoint.
+function openAssistant(){
+  if(window.HarveyAssistant && typeof window.HarveyAssistant.open === "function"){ window.HarveyAssistant.open(); return; }
+  window.location.href = "admin-agent.html";
 }
 
 function loadFinance(){
@@ -779,9 +772,8 @@ $("resumeDispatchBtn").onclick=()=>setDispatchPaused(false);
 $("refreshSystemBtn").onclick=refreshSystemStatus;
 $("loadPaymentConfigBtn").onclick=loadPaymentConfig;
 $("copyPaymentConfigBtn").onclick=copyPaymentConfig;
-$("runAiBrainBtn").onclick=runAI;
-$("quickAiReviewBtn").onclick=()=>{els.aiInput.value="Review current Harvey Taxi admin data: riders, drivers, rides, HTAF applications, revenue, and urgent operational risks.";runAI();}
-$("clearAiBrainBtn").onclick=()=>{els.aiInput.value="";els.aiResult.innerHTML="";};
+$("openAssistantBtn").onclick=openAssistant;
+$("quickAiReviewBtn").onclick=openAssistant;
 
 $("adminEmail").value = localStorage.getItem("harvey_admin_email") || "";
 
@@ -800,5 +792,8 @@ setInterval(async ()=>{
   if(signedIn && state.auto) loadDashboard();
 }, 10000);
 </script>
+<!-- Harvey Assistant, signed-out visitor view on this page (no rider
+     session here, so answers come from rules and approved pages only). -->
+<script src="/agent-assist.js?v=20261012-shared" data-role="rider" data-launcher="none" defer></script>
 </body>
 </html>

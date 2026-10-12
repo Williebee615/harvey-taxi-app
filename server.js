@@ -23846,7 +23846,12 @@ app.post(
       return fail(res, "Message required.", 400);
     }
 
-    if (!openai) {
+    // The old website chat sends messages to OpenAI with no consent step,
+    // so it makes no model call unless the owner turns it back on
+    // (system flag legacy_ai_support_enabled = "true"). Riders use Harvey
+    // Assistant, which asks for consent before any AI answer.
+    const legacyAiOn = (await getSystemFlag("legacy_ai_support_enabled", "false")) === "true";
+    if (!openai || !legacyAiOn) {
       return ok(res, {
         reply:
           "Harvey AI Support is currently limited. Please contact support for help.",
@@ -25450,6 +25455,7 @@ function modelStatus(state) {
     mode: state.model.mode,
     stored_mode: state.model.stored_mode,
     public_approved: state.model.public_approved,
+    consent_ready: state.model.consent_ready,
     test_accounts: state.model.test_accounts,
     driver_scope: state.model.driver_scope,
     specialist_scope: state.model.specialist_scope,
@@ -25528,6 +25534,9 @@ app.post(
     if (!actorId || !message.trim()) return fail(res, "role, actor_id and message are required.", 400);
     const state = await loadAgentState();
     if (!state.mode.assist_enabled) return fail(res, "The assistant is switched off.", 409);
+    if (!state.model.consent_ready) {
+      return fail(res, "AI answers are off until the consent step is live (AGENT_MODEL_CONSENT_READY).", 409);
+    }
     if (!state.model.test_accounts.includes(`${role}:${actorId}`)) {
       return fail(res, "Only accounts on the model test list can be tried here.", 403);
     }
