@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Harvey Taxi | Tennessee Mobility Platform – Rides, Drivers, AI Support &amp; Foundation</title>
-  <meta name="description" content="Harvey Taxi Service LLC helps Tennessee riders request safe rides, connect with qualified drivers, access AI live support, and explore driver, delivery, foundation, and future mobility services." />
+  <title>Harvey Taxi — Rides in Nashville, Tennessee</title>
+  <meta name="description" content="Harvey Taxi, from Harvey Taxi Service LLC: request a ride with a Harvey Taxi driver in Nashville, Tennessee (early access), or apply to drive." />
   <meta name="theme-color" content="#040814" />
   <meta name="robots" content="index, follow" />
   <meta name="application-name" content="Harvey Taxi" />
@@ -18,13 +18,13 @@
 
   <!-- Open Graph -->
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="Harvey Taxi | Tennessee Mobility Platform" />
-  <meta property="og:description" content="Rides, driver access, AI support, delivery, and community foundation — one Tennessee platform." />
+  <meta property="og:title" content="Harvey Taxi | Rides in Nashville, Tennessee" />
+  <meta property="og:description" content="Request a ride with a Harvey Taxi driver in Nashville (early access), or apply to drive." />
   <meta property="og:url" content="https://harveytaxiservice.com/" />
   <meta property="og:image" content="https://harveytaxiservice.com/og-image.png" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Harvey Taxi | Tennessee Mobility Platform" />
-  <meta name="twitter:description" content="Rides, driver access, AI support, and community foundation — one Tennessee platform." />
+  <meta name="twitter:title" content="Harvey Taxi | Rides in Nashville, Tennessee" />
+  <meta name="twitter:description" content="Request a ride with a Harvey Taxi driver in Nashville (early access), or apply to drive." />
 
   <!-- Structured Data -->
   <script type="application/ld+json">
@@ -33,14 +33,13 @@
     "@type": "LocalBusiness",
     "name": "Harvey Taxi Service LLC",
     "url": "https://harveytaxiservice.com",
-    "description": "Tennessee mobility platform combining rideshare, NEMT, AI support, and community transportation assistance.",
+    "description": "Ride requests with Harvey Taxi drivers in Nashville, Tennessee (early access).",
     "areaServed": "Tennessee",
     "email": "support@harveytaxiservice.com",
     "founder": {
       "@type": "Person",
       "name": "Willie Harvey IV"
-    },
-    "sameAs": ["https://apps.apple.com/us/app/harvey-taxi-mobile"]
+    }
   }
   </script>
 
@@ -688,6 +687,8 @@
     /* ============================================================
        MISSION CONTROL — sticky glass chip bar (live platform snapshot)
        ============================================================ */
+    .lang-note { display:block; font-size:12px; opacity:.85; margin-top:4px; }
+    .mc-bar[hidden], .mc-chip[hidden] { display: none !important; }
     .mc-bar {
       position: sticky;
       top: 90px;
@@ -1136,6 +1137,7 @@
       <div class="lang-panel-copy">
         <strong data-i18n="languageTitle">Language &amp; Accessibility</strong>
         <span data-i18n="languageCopy">Harvey Taxi welcomes every rider, driver, family, culture, and community.</span>
+        <span class="lang-note">Translations are automatic, may contain errors and don't cover every page. Support, policies and legal terms are in English.</span>
       </div>
       <div class="lang-controls">
         <select id="language-select" class="lang-select" aria-label="Choose language">
@@ -1185,33 +1187,18 @@
     </section>
 
     <!-- TODAY'S MOBILITY (Mission Control live snapshot) -->
-    <section class="mc-bar" id="mission-control" aria-label="Live platform snapshot">
+    <section class="mc-bar" id="mission-control" aria-label="Drivers online now" hidden>
       <div class="mc-chip mc-live" id="mcDriversTile">
         <span class="mc-dot" aria-hidden="true"></span>
         <span class="mc-icon" aria-hidden="true">🚕</span>
-        <span class="mc-label">Drivers Nearby</span>
+        <span class="mc-label">Drivers online</span>
         <span class="mc-value" id="mcDriversValue">—</span>
       </div>
       <div class="mc-chip mc-live" id="mcWaitTile">
         <span class="mc-dot" aria-hidden="true"></span>
         <span class="mc-icon" aria-hidden="true">⏱</span>
-        <span class="mc-label">Average Pickup</span>
+        <span class="mc-label">Average wait</span>
         <span class="mc-value" id="mcWaitValue">—</span>
-      </div>
-      <div class="mc-chip">
-        <span class="mc-icon" aria-hidden="true">❤️</span>
-        <span class="mc-label">HTAF Assisted Rides</span>
-        <span class="mc-value">Available</span>
-      </div>
-      <div class="mc-chip mc-chip-pending">
-        <span class="mc-icon" aria-hidden="true">🍔🛒</span>
-        <span class="mc-label">Restaurants &amp; Grocery</span>
-        <span class="mc-value">Coming Soon</span>
-      </div>
-      <div class="mc-chip mc-chip-pending">
-        <span class="mc-icon" aria-hidden="true">🚦</span>
-        <span class="mc-label">Traffic</span>
-        <span class="mc-value">Not connected</span>
       </div>
     </section>
 
@@ -1234,19 +1221,12 @@
             <div class="medical-callout">
               <div>
                 <strong data-i18n="medicalCalloutTitle">Need a ride to a medical appointment?</strong>
-                <span data-i18n="medicalCalloutCopy">Harvey Transportation Assistance Foundation (HTAF) provides transportation assistance for medical visits — separate from the rideshare app below.</span>
+                <span>Harvey Transportation Assistance Foundation (HTAF) accepts applications for transportation assistance. HTAF is a separate organization from the Harvey Taxi app below, and each application is reviewed before any help is arranged.</span>
               </div>
-              <a class="btn foundation" href="foundation.html" data-intent="medical_ride_entry" data-i18n="medicalCalloutCta">❤️ Request Medical Transportation</a>
+              <a class="btn foundation" href="foundation.html" data-intent="medical_ride_entry">❤️ About HTAF assistance</a>
             </div>
 
-            <div class="hero-badge" aria-label="Platform live status" data-i18n="heroBadge">
-              <span class="live-pulse" aria-hidden="true">
-                <span class="live-pulse-dot"></span>
-                <span class="live-pulse-ring"></span>
-                <span class="live-pulse-ring"></span>
-              </span>
-              VERIFIED OPERATIONS · LIVE SUPPORT
-            </div>
+            <div class="hero-badge hero-badge-plain">Nashville, Tennessee · Early access</div>
 
             <h1 class="hero-title" id="hero-heading">
               <span data-i18n="heroTitleA">Tennessee Transportation</span><br>
@@ -1265,9 +1245,9 @@
               </div>
               <div class="secondary-actions">
                 <a class="btn ghost" href="rider-signup.html" data-intent="rider_signup_start" data-i18n="riderSignup">Rider Signup</a>
-                <a class="btn autonomous" href="rider-dashboard.html?screen=book&mode=autonomous">
-                  <span data-i18n="autonomous">🤖 Autonomous</span>
-                  <span class="pilot-tag" data-i18n="pilot">PILOT</span>
+                <a class="btn autonomous" href="#services" data-intent="autonomous_info">
+                  <span>🤖 Autonomous</span>
+                  <span class="pilot-tag">PLANNED</span>
                 </a>
                 <a class="btn foundation" href="foundation.html" data-track="foundation_button" data-i18n="foundationEmoji">❤️ Foundation</a>
               </div>
@@ -1280,8 +1260,8 @@
                 <span data-i18n="point1Body">Riders and drivers move through structured onboarding and approval workflows.</span>
               </div>
               <div class="hero-point">
-                <strong data-i18n="point2Title">AI Support System</strong>
-                <span data-i18n="point2Body">Built-in support helps riders, drivers, and community members find answers instantly.</span>
+                <strong>Automated help</strong>
+                <span>Harvey Assistant answers common questions automatically. Staff respond to support requests by email.</span>
               </div>
               <div class="hero-point">
                 <strong data-i18n="point3Title">Driver Opportunity</strong>
@@ -1299,29 +1279,25 @@
 
             <!-- STATUS CARD -->
             <div class="side-card">
-              <span class="eyebrow" data-i18n="platformStatus">Platform Status</span>
-              <h3 data-i18n="liveOverview">Live System Overview</h3>
-              <p data-i18n="liveOverviewCopy">Active services clearly separated from pilot and future services.</p>
+              <span class="eyebrow">Service status</span>
+              <h3>What's available today</h3>
+              <p>Updated when a service changes. Planned services are not bookable yet.</p>
               <div class="status-list" role="list">
                 <div class="status-item" role="listitem">
-                  <span data-i18n="driverRides">Driver Rides</span>
-                  <div class="status-pill live">LIVE</div>
+                  <span>Rides with a driver</span>
+                  <div class="status-pill pilot">EARLY ACCESS</div>
                 </div>
                 <div class="status-item" role="listitem">
-                  <span data-i18n="aiSupport">AI Support</span>
-                  <div class="status-pill online">ONLINE</div>
+                  <span>Harvey Assistant (automated answers)</span>
+                  <div class="status-pill online">AVAILABLE</div>
                 </div>
                 <div class="status-item" role="listitem">
-                  <span data-i18n="autonomousHub">Autonomous Hub</span>
-                  <div class="status-pill pilot">PILOT</div>
+                  <span>Food and grocery delivery</span>
+                  <div class="status-pill pilot">PLANNED</div>
                 </div>
                 <div class="status-item" role="listitem">
-                  <span data-i18n="foodDelivery">Food Delivery</span>
-                  <div class="status-pill pilot">PILOT</div>
-                </div>
-                <div class="status-item" role="listitem">
-                  <span data-i18n="groceryDelivery">Grocery Delivery</span>
-                  <div class="status-pill pilot">PILOT</div>
+                  <span>Autonomous rides</span>
+                  <div class="status-pill pilot">PLANNED</div>
                 </div>
               </div>
             </div>
@@ -1380,18 +1356,18 @@
       <!-- GLOBAL LANGUAGE SUPPORT -->
       <section class="section" aria-labelledby="lang-heading">
         <div class="section-hd">
-          <h2 id="lang-heading" data-i18n="globalLanguageTitle">Global Language Support</h2>
-          <p class="lead" data-i18n="globalLanguageLead">Harvey Taxi supports multilingual communities, diverse cultures, and inclusive transportation access.</p>
+          <h2 id="lang-heading">Website languages</h2>
+          <p class="lead">Parts of this website can be shown in the languages below. These translations were produced automatically, may contain errors, and don't cover every page. Support replies, policies and legal terms are in English.</p>
         </div>
         <div class="grid-4">
-          <div class="lang-tile"><h4>English</h4><p data-i18n="languageEnglish">Primary operational language.</p></div>
-          <div class="lang-tile"><h4>Español</h4><p data-i18n="languageSpanish">Spanish rider and driver support.</p></div>
-          <div class="lang-tile"><h4>Français</h4><p data-i18n="languageFrench">French accessibility support.</p></div>
-          <div class="lang-tile"><h4>العربية</h4><p data-i18n="languageArabic">Arabic right-to-left support.</p></div>
-          <div class="lang-tile"><h4>Kiswahili</h4><p data-i18n="languageSwahili">East African community support.</p></div>
-          <div class="lang-tile"><h4>中文</h4><p data-i18n="languageChinese">Chinese language accessibility.</p></div>
-          <div class="lang-tile"><h4>हिन्दी</h4><p data-i18n="languageHindi">Hindi language support.</p></div>
-          <div class="lang-tile"><h4>Português</h4><p data-i18n="languagePortuguese">Portuguese language support.</p></div>
+          <div class="lang-tile"><h4>English</h4><p>Support, policies and legal terms.</p></div>
+          <div class="lang-tile"><h4>Español</h4><p>Website text, automatic translation.</p></div>
+          <div class="lang-tile"><h4>Français</h4><p>Website text, automatic translation.</p></div>
+          <div class="lang-tile"><h4>العربية</h4><p>Website text, automatic translation, right-to-left layout.</p></div>
+          <div class="lang-tile"><h4>Kiswahili</h4><p>Website text, automatic translation.</p></div>
+          <div class="lang-tile"><h4>中文</h4><p>Website text, automatic translation.</p></div>
+          <div class="lang-tile"><h4>हिन्दी</h4><p>Website text, automatic translation.</p></div>
+          <div class="lang-tile"><h4>Português</h4><p>Website text, automatic translation.</p></div>
         </div>
       </section>
 
@@ -1440,7 +1416,7 @@
             <div class="pill-row">
               <div class="pill">Driver Approval</div>
               <div class="pill">Rider Approval</div>
-              <div class="pill">Live Support</div>
+              <div class="pill">Email Support</div>
               <div class="pill">Trip Tracking</div>
               <div class="pill">Mission Dispatch</div>
               <div class="pill">Identity Verification</div>
@@ -1448,12 +1424,12 @@
           </div>
           <div class="list-items">
             <div class="list-item">
-              <strong>Verified Drivers</strong>
-              <span>Driver onboarding may include identity verification, documentation review, and platform approval.</span>
+              <strong>Driver checks</strong>
+              <span>Drivers can't go online until their identity check (Persona) and background check (Checkr) are complete and their account is approved.</span>
             </div>
             <div class="list-item">
               <strong>Support Access</strong>
-              <span>Harvey AI and support tools help riders and drivers receive guidance when needed.</span>
+              <span>Harvey Assistant gives automated answers; staff handle support requests by email. In an emergency, call 911.</span>
             </div>
             <div class="list-item">
               <strong>Future-Ready Platform</strong>
@@ -1467,41 +1443,41 @@
       <section class="section" id="services" aria-labelledby="services-heading">
         <div class="section-hd">
           <h2 id="services-heading" data-i18n="servicesTitle">Harvey Platform Services</h2>
-          <p class="lead" data-i18n="servicesLead">Transportation is the primary active service while logistics, delivery, and autonomous features continue development.</p>
+          <p class="lead">Rides with a driver are in early access in Nashville. Delivery and autonomous rides are planned and can't be booked yet.</p>
         </div>
         <div class="grid-4">
           <div class="service-card">
             <div>
               <h3>🚖 Standard Driver Ride</h3>
-              <p>Request rides through the active Harvey Taxi transportation platform.</p>
+              <p>Request a ride with a Harvey Taxi driver. Early access: drivers may not be available at every time or place.</p>
             </div>
             <a class="btn primary" href="rider-dashboard.html?screen=book&mode=driver" data-intent="service_standard_ride">Book Ride</a>
           </div>
           <div class="service-card">
             <div>
-              <h3>🤖 Autonomous Pilot</h3>
-              <p>Explore future autonomous ride experiences through Harvey Taxi's pilot initiative.</p>
+              <h3>🤖 Autonomous rides</h3>
+              <p>Planned. Harvey Taxi does not operate autonomous vehicles today, and no autonomous ride can be booked.</p>
             </div>
-            <a class="btn autonomous" href="rider-dashboard.html?screen=book&mode=autonomous">Open Pilot</a>
+            <a class="btn autonomous" href="mailto:support@harveytaxiservice.com?subject=Waitlist%3A%20autonomous%20rides&body=Please%20add%20me%20to%20the%20autonomous%20rides%20waitlist.%20My%20city%3A%20" data-intent="waitlist_autonomous">Join the waitlist by email</a>
           </div>
           <div class="service-card">
             <div>
-              <h3>🍔 Food Delivery</h3>
-              <p>Pilot food pickup and delivery through the same secure Harvey Taxi request and dispatch flow.</p>
+              <h3>🍔 Food delivery</h3>
+              <p>Planned. Food orders can't be placed yet.</p>
             </div>
-            <a class="btn success" href="rider-dashboard.html?screen=book&mode=food">Order Food</a>
+            <a class="btn success" href="mailto:support@harveytaxiservice.com?subject=Waitlist%3A%20food%20delivery&body=Please%20add%20me%20to%20the%20food%20delivery%20waitlist.%20My%20city%3A%20" data-intent="waitlist_food">Join the waitlist by email</a>
           </div>
           <div class="service-card">
             <div>
-              <h3>🛒 Grocery Delivery</h3>
-              <p>Pilot grocery pickup and delivery through the same secure Harvey Taxi request and dispatch flow.</p>
+              <h3>🛒 Grocery delivery</h3>
+              <p>Planned. Grocery orders can't be placed yet.</p>
             </div>
-            <a class="btn success" href="rider-dashboard.html?screen=book&mode=grocery">Order Groceries</a>
+            <a class="btn success" href="mailto:support@harveytaxiservice.com?subject=Waitlist%3A%20grocery%20delivery&body=Please%20add%20me%20to%20the%20grocery%20delivery%20waitlist.%20My%20city%3A%20" data-intent="waitlist_grocery">Join the waitlist by email</a>
           </div>
           <div class="service-card">
             <div>
               <h3>❤️ HTAF Transportation</h3>
-              <p>Assisted transportation for medical visits, work, and essential needs — application and approval required.</p>
+              <p>Run by the Harvey Transportation Assistance Foundation (HTAF), a separate organization. Apply online; each application is reviewed before any help is arranged.</p>
             </div>
             <a class="btn foundation" href="htaf-application.html" data-intent="service_htaf_apply">Apply for HTAF</a>
           </div>
@@ -1509,11 +1485,11 @@
 
         <!-- PLATFORM HUBS -->
         <div class="grid-3" style="margin-top:16px;">
-          <a class="card" href="driver-dashboard.html"><strong>Driver Dashboard</strong><span>Availability, earnings, missions, dispatch, and driver tools.</span></a>
+          <a class="card" href="driver-dashboard.html"><strong>Driver Dashboard</strong><span>For approved drivers: availability, offers, trips and earnings.</span></a>
           <a class="card" href="rider-dashboard.html"><strong>Rider Dashboard</strong><span>Ride activity, account readiness, and trip history.</span></a>
           <a class="card" href="support.html"><strong>Harvey Support Center</strong><span>Rider, driver, payment, foundation, and account support.</span></a>
-          <a class="card" href="foundation.html"><strong>Foundation Hub</strong><span>Transportation assistance applications, donations, and community programs.</span></a>
-          <a class="card" href="settings.html"><strong>Settings Center</strong><span>Accessibility, battery optimization, safety settings, and account tools.</span></a>
+          <a class="card" href="foundation.html"><strong>Foundation Hub</strong><span>Harvey Transportation Assistance Foundation: applications and contact.</span></a>
+          <a class="card" href="settings.html"><strong>Settings Center</strong><span>Accessibility, language and account settings.</span></a>
           <a class="card" href="driver-signup.html"><strong>Driver Signup</strong><span>Begin the Harvey Taxi driver onboarding process.</span></a>
         </div>
       </section>
@@ -1521,19 +1497,19 @@
       <!-- TENNESSEE COVERAGE -->
       <section class="section" aria-labelledby="coverage-heading">
         <div class="section-hd">
-          <h2 id="coverage-heading" data-i18n="coverageTitle">Tennessee Coverage Focus</h2>
-          <p class="lead" data-i18n="coverageLead">Harvey Taxi is focused on Tennessee mobility with a Nashville-first growth strategy and future statewide expansion.</p>
+          <h2 id="coverage-heading">Where we're starting</h2>
+          <p class="lead">Early access starts in Nashville. Other areas are plans, not current service.</p>
         </div>
         <div class="grid-4">
-          <div class="tile"><strong>Nashville</strong><span>Primary operating market and transportation launch region.</span></div>
-          <div class="tile"><strong>Davidson County</strong><span>Early growth, rider support, and driver onboarding focus.</span></div>
-          <div class="tile"><strong>Airport Access</strong><span>BNA transportation support, travel routes, and airport trips.</span></div>
-          <div class="tile"><strong>Statewide Expansion</strong><span>Long-term Tennessee mobility expansion strategy.</span></div>
+          <div class="tile"><strong>Nashville</strong><span>Early-access launch area.</span></div>
+          <div class="tile"><strong>Davidson County</strong><span>Driver sign-up and onboarding focus.</span></div>
+          <div class="tile"><strong>Airport trips</strong><span>Not offered at this time.</span></div>
+          <div class="tile"><strong>Statewide</strong><span>Planned. No date set.</span></div>
         </div>
         <div class="grid-3" style="margin-top:16px;">
-          <div class="card"><strong>Middle Tennessee</strong><span>Nashville, Murfreesboro, Smyrna, Franklin, and surrounding areas.</span></div>
-          <div class="card"><strong>East Tennessee</strong><span>Future support for Knoxville, Chattanooga, and regional transportation.</span></div>
-          <div class="card"><strong>West Tennessee</strong><span>Long-term service planning including Memphis transportation corridors.</span></div>
+          <div class="card"><strong>Middle Tennessee</strong><span>Planned: Murfreesboro, Smyrna, Franklin and nearby areas.</span></div>
+          <div class="card"><strong>East Tennessee</strong><span>Planned: Knoxville and Chattanooga.</span></div>
+          <div class="card"><strong>West Tennessee</strong><span>Planned: Memphis.</span></div>
         </div>
       </section>
 
@@ -1569,12 +1545,11 @@
           <a class="btn ghost" href="settings.html">Settings</a>
           <a class="btn success" href="support.html">Support Center</a>
           <a class="btn foundation" href="foundation.html">Foundation Hub</a>
-          <a class="btn ghost" href="admin-dashboard.html">Admin</a>
         </div>
         <div class="support-callout" style="margin-top:24px;">
           <div>
             <strong>Harvey Transportation Assistance Foundation</strong>
-            <span>Supporting transportation access for healthcare appointments, employment opportunities, education programs, and essential mobility needs throughout Tennessee.</span>
+            <span>A separate organization that accepts applications for transportation assistance.</span>
           </div>
           <a class="btn foundation" href="foundation.html">Explore Foundation</a>
         </div>
@@ -1587,12 +1562,12 @@
           <p class="lead">Transportation, logistics, driver opportunity, community mobility, and future innovation — connected through one platform.</p>
         </div>
         <div class="grid-3">
-          <div class="card"><strong>📱 Mobile Platform</strong><span>Access Harvey Taxi services directly from your smartphone. Live on the Apple App Store.</span></div>
-          <div class="card"><strong>🚖 Transportation</strong><span>Safe transportation access through Harvey Taxi's verified driver network.</span></div>
+          <div class="card"><strong>📱 Mobile Platform</strong><span>Use Harvey Taxi in your phone's browser at harveytaxiservice.com. App store availability will be listed here once each app is published.</span></div>
+          <div class="card"><strong>🚖 Transportation</strong><span>Rides with drivers who have passed an identity check and a background check.</span></div>
           <div class="card"><strong>🤝 Driver Opportunity</strong><span>Create earning opportunities while serving communities across Tennessee.</span></div>
-          <div class="card"><strong>❤️ Foundation Support</strong><span>Transportation assistance through HTAF programs and community initiatives.</span></div>
-          <div class="card"><strong>🧠 AI Assistance</strong><span>Intelligent support for riders, drivers, and community partners.</span></div>
-          <div class="card"><strong>🚀 Future Mobility</strong><span>Autonomous and logistics innovation initiatives in active development.</span></div>
+          <div class="card"><strong>❤️ Foundation Support</strong><span>Transportation assistance applications through HTAF, a separate organization.</span></div>
+          <div class="card"><strong>🧠 AI Assistance</strong><span>Harvey Assistant: automated answers for riders and drivers.</span></div>
+          <div class="card"><strong>🚀 Future Mobility</strong><span>Delivery and autonomous rides are planned, not available.</span></div>
         </div>
       </section>
 
@@ -1693,9 +1668,6 @@
         inclusiveTitle: "Built for every community.",
         inclusiveCopy: "Harvey Taxi respects all ethnicities, cultures, languages, families, seniors, workers, students, people with disabilities, immigrants, visitors, and underserved communities seeking safe transportation access.",
         medicalCalloutTitle: "Need a ride to a medical appointment?",
-        medicalCalloutCopy: "Harvey Transportation Assistance Foundation (HTAF) provides transportation assistance for medical visits — separate from the rideshare app below.",
-        medicalCalloutCta: "❤️ Request Medical Transportation",
-        heroBadge: "VERIFIED OPERATIONS · LIVE SUPPORT",
         heroTitleA: "Tennessee Transportation",
         heroTitleB: "Reimagined",
         heroCopy: "Harvey Taxi combines rider access, driver opportunities, transportation assistance, AI support, and future mobility services into one connected Tennessee platform.",
@@ -1703,25 +1675,13 @@
         requestRideEmoji: "🚖 Request Ride",
         becomeDriver: "🤝 Become A Driver",
         riderSignup: "Rider Signup",
-        autonomous: "🤖 Autonomous",
-        pilot: "PILOT",
         foundationEmoji: "❤️ Foundation",
         point1Title: "Approval-Based Access",
         point1Body: "Riders and drivers move through structured onboarding and approval workflows.",
-        point2Title: "AI Support System",
-        point2Body: "Built-in support helps riders, drivers, and community members find answers instantly.",
         point3Title: "Driver Opportunity",
         point3Body: "Create income opportunities while supporting local transportation needs.",
         point4Title: "Community Mobility",
         point4Body: "Transportation assistance supports access to work, education, and healthcare.",
-        platformStatus: "Platform Status",
-        liveOverview: "Live System Overview",
-        liveOverviewCopy: "Active services clearly separated from pilot and future services.",
-        driverRides: "Driver Rides",
-        aiSupport: "AI Support",
-        autonomousHub: "Autonomous Hub",
-        foodDelivery: "Food Delivery",
-        groceryDelivery: "Grocery Delivery",
         communityImpact: "Community Impact",
         foundationTitle: "Harvey Transportation Assistance Foundation",
         foundationCopy: "Removing transportation barriers for medical visits, employment, education, and essential mobility needs.",
@@ -1737,16 +1697,6 @@
         supportTitle: "Need Help Right Now?",
         supportCopy: "Open Harvey AI Support for rider help, driver onboarding, account questions, or foundation assistance.",
         openAiSupport: "Open AI Support",
-        globalLanguageTitle: "Global Language Support",
-        globalLanguageLead: "Harvey Taxi supports multilingual communities, diverse cultures, and inclusive transportation access.",
-        languageEnglish: "Primary operational language.",
-        languageSpanish: "Spanish rider and driver support.",
-        languageFrench: "French accessibility support.",
-        languageArabic: "Arabic right-to-left support.",
-        languageSwahili: "East African community support.",
-        languageChinese: "Chinese language accessibility.",
-        languageHindi: "Hindi language support.",
-        languagePortuguese: "Portuguese language support.",
         communityInclusionTitle: "Community Inclusion",
         communityInclusionLead: "Transportation should remain accessible, respectful, and welcoming to everyone.",
         familiesTitle: "Families & Children",
@@ -1780,9 +1730,6 @@
         accountabilityTitle: "Designed For Accountability",
         accountabilityCopy: "Harvey Taxi separates rider, driver, support, and foundation workflows to create a cleaner, more transparent experience.",
         servicesTitle: "Harvey Platform Services",
-        servicesLead: "Transportation is the primary active service while logistics, delivery, and autonomous features continue development.",
-        coverageTitle: "Tennessee Coverage Focus",
-        coverageLead: "Harvey Taxi is focused on Tennessee mobility with a Nashville-first growth strategy and future statewide expansion.",
         companyTitle: "Company & Community Support",
         companyLead: "Harvey Taxi Service LLC connects transportation, technology, driver opportunity, logistics innovation, and community mobility assistance."
       },
@@ -1806,7 +1753,6 @@
         requestRide: "Solicitar Viaje",
         inclusiveTitle: "Construido para cada comunidad.",
         inclusiveCopy: "Harvey Taxi respeta todas las etnias, culturas, idiomas, familias, personas mayores, trabajadores, estudiantes, personas con discapacidades, inmigrantes, visitantes y comunidades desatendidas que buscan transporte seguro.",
-        heroBadge: "OPERACIONES VERIFICADAS · SOPORTE EN VIVO",
         heroTitleA: "Transporte en Tennessee",
         heroTitleB: "Reimaginado",
         heroCopy: "Harvey Taxi combina acceso para pasajeros, oportunidades para conductores, asistencia de transporte, soporte de IA y servicios de movilidad futura en una sola plataforma de Tennessee.",
@@ -1814,25 +1760,13 @@
         requestRideEmoji: "🚖 Solicitar Viaje",
         becomeDriver: "🤝 Ser Conductor",
         riderSignup: "Registro de Pasajero",
-        autonomous: "🤖 Autónomo",
-        pilot: "PILOTO",
         foundationEmoji: "❤️ Fundación",
         point1Title: "Acceso Basado en Aprobación",
         point1Body: "Pasajeros y conductores pasan por procesos estructurados de incorporación y aprobación.",
-        point2Title: "Sistema de Soporte con IA",
-        point2Body: "El soporte integrado ayuda a pasajeros, conductores y miembros de la comunidad a encontrar respuestas al instante.",
         point3Title: "Oportunidad para Conductores",
         point3Body: "Crea oportunidades de ingresos mientras apoyas las necesidades de transporte local.",
         point4Title: "Movilidad Comunitaria",
         point4Body: "La asistencia de transporte apoya el acceso al trabajo, la educación y la atención médica.",
-        platformStatus: "Estado de la Plataforma",
-        liveOverview: "Resumen del Sistema en Vivo",
-        liveOverviewCopy: "Los servicios activos están claramente separados de los servicios piloto y futuros.",
-        driverRides: "Viajes con Conductor",
-        aiSupport: "Soporte de IA",
-        autonomousHub: "Centro Autónomo",
-        foodDelivery: "Entrega de Comida",
-        groceryDelivery: "Entrega de Comestibles",
         communityImpact: "Impacto Comunitario",
         foundationTitle: "Fundación de Asistencia de Transporte Harvey",
         foundationCopy: "Eliminando barreras de transporte para citas médicas, empleo, educación y necesidades esenciales de movilidad.",
@@ -1848,16 +1782,6 @@
         supportTitle: "¿Necesitas Ayuda Ahora?",
         supportCopy: "Abre el Soporte de IA Harvey para ayuda con viajes, incorporación de conductores, preguntas de cuenta o asistencia de la fundación.",
         openAiSupport: "Abrir Soporte IA",
-        globalLanguageTitle: "Soporte Multilingüe Global",
-        globalLanguageLead: "Harvey Taxi está diseñado para apoyar a comunidades multilingües, culturas diversas y acceso inclusivo al transporte.",
-        languageEnglish: "Idioma operativo principal.",
-        languageSpanish: "Soporte en español para pasajeros y conductores.",
-        languageFrench: "Soporte de accesibilidad en francés.",
-        languageArabic: "Soporte en árabe de derecha a izquierda.",
-        languageSwahili: "Soporte para la comunidad del África Oriental.",
-        languageChinese: "Accesibilidad en idioma chino.",
-        languageHindi: "Soporte en idioma hindi.",
-        languagePortuguese: "Soporte en idioma portugués.",
         communityInclusionTitle: "Inclusión Comunitaria",
         communityInclusionLead: "El transporte debe permanecer accesible, respetuoso y acogedor para todos.",
         familiesTitle: "Familias y Niños",
@@ -1891,9 +1815,6 @@
         accountabilityTitle: "Diseñado Para la Responsabilidad",
         accountabilityCopy: "Harvey Taxi separa los procesos de pasajeros, conductores, soporte y fundación para crear una experiencia más clara y transparente.",
         servicesTitle: "Servicios de la Plataforma Harvey",
-        servicesLead: "El transporte es el servicio activo principal mientras la logística, la entrega y las funciones autónomas continúan en desarrollo.",
-        coverageTitle: "Enfoque de Cobertura en Tennessee",
-        coverageLead: "Harvey Taxi se enfoca en la movilidad de Tennessee con una estrategia de crecimiento centrada primero en Nashville y futura expansión estatal.",
         companyTitle: "Apoyo Empresarial y Comunitario",
         companyLead: "Harvey Taxi Service LLC conecta transporte, tecnología, oportunidades para conductores, innovación logística y asistencia de movilidad comunitaria."
       },
@@ -1917,7 +1838,6 @@
         requestRide: "Demander un Trajet",
         inclusiveTitle: "Construit pour chaque communauté.",
         inclusiveCopy: "Harvey Taxi respecte toutes les ethnies, cultures, langues, familles, personnes âgées, travailleurs, étudiants, personnes handicapées, immigrants, visiteurs et communautés mal desservies cherchant un transport sûr.",
-        heroBadge: "OPÉRATIONS VÉRIFIÉES · SUPPORT EN DIRECT",
         heroTitleA: "Transport au Tennessee",
         heroTitleB: "Réinventé",
         heroCopy: "Harvey Taxi combine l'accès des passagers, les opportunités pour conducteurs, l'assistance au transport, le support IA et les services de mobilité future en une seule plateforme du Tennessee.",
@@ -1925,25 +1845,13 @@
         requestRideEmoji: "🚖 Demander un Trajet",
         becomeDriver: "🤝 Devenir Conducteur",
         riderSignup: "Inscription Passager",
-        autonomous: "🤖 Autonome",
-        pilot: "PILOTE",
         foundationEmoji: "❤️ Fondation",
         point1Title: "Accès Basé sur l'Approbation",
         point1Body: "Passagers et conducteurs suivent des processus structurés d'intégration et d'approbation.",
-        point2Title: "Système de Support IA",
-        point2Body: "Le support intégré aide les passagers, conducteurs et membres de la communauté à trouver des réponses instantanément.",
         point3Title: "Opportunité pour Conducteurs",
         point3Body: "Créez des opportunités de revenus tout en soutenant les besoins de transport locaux.",
         point4Title: "Mobilité Communautaire",
         point4Body: "L'assistance au transport soutient l'accès au travail, à l'éducation et aux soins de santé.",
-        platformStatus: "État de la Plateforme",
-        liveOverview: "Aperçu du Système en Direct",
-        liveOverviewCopy: "Les services actifs sont clairement séparés des services pilotes et futurs.",
-        driverRides: "Trajets avec Conducteur",
-        aiSupport: "Support IA",
-        autonomousHub: "Centre Autonome",
-        foodDelivery: "Livraison de Repas",
-        groceryDelivery: "Livraison d'Épicerie",
         communityImpact: "Impact Communautaire",
         foundationTitle: "Fondation d'Assistance au Transport Harvey",
         foundationCopy: "Éliminer les obstacles au transport pour les rendez-vous médicaux, l'emploi, l'éducation et les besoins essentiels de mobilité.",
@@ -1959,16 +1867,6 @@
         supportTitle: "Besoin d'aide maintenant ?",
         supportCopy: "Ouvrez le support IA Harvey pour l'aide aux passagers, l'intégration des conducteurs, les questions de compte ou l'assistance de la fondation.",
         openAiSupport: "Ouvrir le Support IA",
-        globalLanguageTitle: "Support Linguistique Mondial",
-        globalLanguageLead: "Harvey Taxi est conçu pour soutenir les communautés multilingues, les cultures diverses et l'accès inclusif au transport.",
-        languageEnglish: "Langue opérationnelle principale.",
-        languageSpanish: "Support en espagnol pour passagers et conducteurs.",
-        languageFrench: "Support d'accessibilité en français.",
-        languageArabic: "Support en arabe de droite à gauche.",
-        languageSwahili: "Support pour la communauté est-africaine.",
-        languageChinese: "Accessibilité en langue chinoise.",
-        languageHindi: "Support en langue hindi.",
-        languagePortuguese: "Support en langue portugaise.",
         communityInclusionTitle: "Inclusion Communautaire",
         communityInclusionLead: "Le transport doit rester accessible, respectueux et accueillant pour tous.",
         familiesTitle: "Familles et Enfants",
@@ -2002,9 +1900,6 @@
         accountabilityTitle: "Conçu Pour la Responsabilité",
         accountabilityCopy: "Harvey Taxi sépare les processus de passagers, conducteurs, support et fondation pour créer une expérience plus claire et transparente.",
         servicesTitle: "Services de la Plateforme Harvey",
-        servicesLead: "Le transport est le service actif principal tandis que la logistique, la livraison et les fonctionnalités autonomes continuent leur développement.",
-        coverageTitle: "Focus de Couverture au Tennessee",
-        coverageLead: "Harvey Taxi se concentre sur la mobilité du Tennessee avec une stratégie de croissance axée d'abord sur Nashville et une future expansion à l'échelle de l'État.",
         companyTitle: "Soutien aux Entreprises et à la Communauté",
         companyLead: "Harvey Taxi Service LLC relie le transport, la technologie, les opportunités pour conducteurs, l'innovation logistique et l'assistance à la mobilité communautaire."
       },
@@ -2028,7 +1923,6 @@
         requestRide: "طلب رحلة",
         inclusiveTitle: "مبني لكل مجتمع.",
         inclusiveCopy: "هارفي تاكسي يحترم جميع الأعراق والثقافات واللغات والعائلات وكبار السن والعمال والطلاب وذوي الإعاقات والمهاجرين والزوار والمجتمعات المحرومة الباحثة عن نقل آمن.",
-        heroBadge: "عمليات موثقة · دعم مباشر",
         heroTitleA: "النقل في تينيسي",
         heroTitleB: "بحلة جديدة",
         heroCopy: "يجمع هارفي تاكسي بين وصول الركاب وفرص السائقين ومساعدة النقل ودعم الذكاء الاصطناعي وخدمات التنقل المستقبلية في منصة واحدة لولاية تينيسي.",
@@ -2036,25 +1930,13 @@
         requestRideEmoji: "🚖 طلب رحلة",
         becomeDriver: "🤝 كن سائقاً",
         riderSignup: "تسجيل الراكب",
-        autonomous: "🤖 ذاتي القيادة",
-        pilot: "تجريبي",
         foundationEmoji: "❤️ المؤسسة",
         point1Title: "وصول قائم على الموافقة",
         point1Body: "يمر الركاب والسائقون عبر عمليات تسجيل وموافقة منظمة.",
-        point2Title: "نظام دعم بالذكاء الاصطناعي",
-        point2Body: "يساعد الدعم المدمج الركاب والسائقين وأفراد المجتمع في إيجاد الإجابات فوراً.",
         point3Title: "فرصة للسائقين",
         point3Body: "اخلق فرص دخل مع دعم احتياجات النقل المحلية.",
         point4Title: "التنقل المجتمعي",
         point4Body: "تدعم مساعدة النقل الوصول إلى العمل والتعليم والرعاية الصحية.",
-        platformStatus: "حالة المنصة",
-        liveOverview: "نظرة عامة على النظام المباشر",
-        liveOverviewCopy: "الخدمات النشطة منفصلة بوضوح عن الخدمات التجريبية والمستقبلية.",
-        driverRides: "رحلات السائقين",
-        aiSupport: "دعم الذكاء الاصطناعي",
-        autonomousHub: "مركز القيادة الذاتية",
-        foodDelivery: "توصيل الطعام",
-        groceryDelivery: "توصيل البقالة",
         communityImpact: "الأثر المجتمعي",
         foundationTitle: "مؤسسة هارفي لمساعدة النقل",
         foundationCopy: "إزالة حواجز النقل للزيارات الطبية والتوظيف والتعليم واحتياجات التنقل الأساسية.",
@@ -2070,16 +1952,6 @@
         supportTitle: "هل تحتاج مساعدة الآن؟",
         supportCopy: "افتح دعم الذكاء الاصطناعي هارفي للمساعدة في الرحلات وتأهيل السائقين وأسئلة الحساب أو مساعدة المؤسسة.",
         openAiSupport: "فتح دعم الذكاء الاصطناعي",
-        globalLanguageTitle: "دعم لغوي عالمي",
-        globalLanguageLead: "صُمم هارفي تاكسي لدعم المجتمعات متعددة اللغات والثقافات المتنوعة والوصول الشامل للنقل.",
-        languageEnglish: "اللغة التشغيلية الأساسية.",
-        languageSpanish: "دعم باللغة الإسبانية للركاب والسائقين.",
-        languageFrench: "دعم إمكانية الوصول بالفرنسية.",
-        languageArabic: "دعم اللغة العربية من اليمين إلى اليسار.",
-        languageSwahili: "دعم لمجتمع شرق أفريقيا.",
-        languageChinese: "إمكانية الوصول باللغة الصينية.",
-        languageHindi: "دعم اللغة الهندية.",
-        languagePortuguese: "دعم اللغة البرتغالية.",
         communityInclusionTitle: "الشمول المجتمعي",
         communityInclusionLead: "يجب أن يظل النقل متاحاً ومحترماً ومرحباً بالجميع.",
         familiesTitle: "العائلات والأطفال",
@@ -2113,9 +1985,6 @@
         accountabilityTitle: "مصمم للمساءلة",
         accountabilityCopy: "يفصل هارفي تاكسي بين عمليات الركاب والسائقين والدعم والمؤسسة لخلق تجربة أوضح وأكثر شفافية.",
         servicesTitle: "خدمات منصة هارفي",
-        servicesLead: "النقل هو الخدمة النشطة الأساسية بينما تستمر الخدمات اللوجستية والتوصيل والميزات ذاتية القيادة في التطوير.",
-        coverageTitle: "التركيز على تغطية تينيسي",
-        coverageLead: "يركز هارفي تاكسي على التنقل في تينيسي باستراتيجية نمو تبدأ من ناشفيل وتوسع مستقبلي على مستوى الولاية.",
         companyTitle: "دعم الشركة والمجتمع",
         companyLead: "تربط هارفي تاكسي سيرفيس إل إل سي بين النقل والتكنولوجيا وفرص السائقين والابتكار اللوجستي ومساعدة التنقل المجتمعي."
       },
@@ -2139,7 +2008,6 @@
         requestRide: "Omba Safari",
         inclusiveTitle: "Imejengwa kwa kila jamii.",
         inclusiveCopy: "Harvey Taxi inaheshimu makabila yote, tamaduni, lugha, familia, wazee, wafanyakazi, wanafunzi, watu wenye ulemavu, wahamiaji, wageni, na jamii zisizohudumiwa zinazotafuta usafiri salama.",
-        heroBadge: "SHUGHULI ZILIZOTHIBITISHWA · MSAADA WA MOJA KWA MOJA",
         heroTitleA: "Usafiri wa Tennessee",
         heroTitleB: "Umebuniwa Upya",
         heroCopy: "Harvey Taxi inachanganya ufikiaji wa abiria, fursa za madereva, msaada wa usafiri, msaada wa AI, na huduma za uhamasishaji za baadaye katika jukwaa moja la Tennessee.",
@@ -2147,25 +2015,13 @@
         requestRideEmoji: "🚖 Omba Safari",
         becomeDriver: "🤝 Kuwa Dereva",
         riderSignup: "Usajili wa Abiria",
-        autonomous: "🤖 Kujiendesha",
-        pilot: "RUBANI",
         foundationEmoji: "❤️ Wakfu",
         point1Title: "Ufikiaji Unaotegemea Idhini",
         point1Body: "Abiria na madereva hupitia taratibu zilizopangwa za usajili na idhini.",
-        point2Title: "Mfumo wa Msaada wa AI",
-        point2Body: "Msaada uliojengwa ndani husaidia abiria, madereva, na wanajamii kupata majibu mara moja.",
         point3Title: "Fursa ya Dereva",
         point3Body: "Unda fursa za mapato huku ukisaidia mahitaji ya usafiri ya ndani.",
         point4Title: "Uhamasishaji wa Jamii",
         point4Body: "Msaada wa usafiri unasaidia ufikiaji wa kazi, elimu, na huduma za afya.",
-        platformStatus: "Hali ya Jukwaa",
-        liveOverview: "Muhtasari wa Mfumo wa Moja kwa Moja",
-        liveOverviewCopy: "Huduma zinazoendelea zimetenganishwa wazi na huduma za majaribio na za baadaye.",
-        driverRides: "Safari za Dereva",
-        aiSupport: "Msaada wa AI",
-        autonomousHub: "Kituo cha Kujiendesha",
-        foodDelivery: "Uwasilishaji wa Chakula",
-        groceryDelivery: "Uwasilishaji wa Mahitaji ya Nyumbani",
         communityImpact: "Athari kwa Jamii",
         foundationTitle: "Wakfu wa Msaada wa Usafiri wa Harvey",
         foundationCopy: "Kuondoa vikwazo vya usafiri kwa ajili ya ziara za matibabu, ajira, elimu, na mahitaji muhimu ya uhamasishaji.",
@@ -2181,16 +2037,6 @@
         supportTitle: "Unahitaji Msaada Sasa Hivi?",
         supportCopy: "Fungua Msaada wa AI wa Harvey kwa msaada wa abiria, usajili wa madereva, maswali ya akaunti, au msaada wa wakfu.",
         openAiSupport: "Fungua Msaada wa AI",
-        globalLanguageTitle: "Msaada wa Lugha Kimataifa",
-        globalLanguageLead: "Harvey Taxi imeundwa kusaidia jamii zenye lugha nyingi, tamaduni mbalimbali, na ufikiaji wa usafiri unaojumuisha wote.",
-        languageEnglish: "Lugha kuu ya uendeshaji.",
-        languageSpanish: "Msaada wa Kihispania kwa abiria na madereva.",
-        languageFrench: "Msaada wa ufikiaji wa Kifaransa.",
-        languageArabic: "Msaada wa Kiarabu wa kulia kwenda kushoto.",
-        languageSwahili: "Msaada wa jamii ya Afrika Mashariki.",
-        languageChinese: "Ufikiaji wa lugha ya Kichina.",
-        languageHindi: "Msaada wa lugha ya Kihindi.",
-        languagePortuguese: "Msaada wa lugha ya Kireno.",
         communityInclusionTitle: "Ujumuishaji wa Jamii",
         communityInclusionLead: "Usafiri unapaswa kubaki wenye ufikiaji, heshima, na karibu kwa kila mtu.",
         familiesTitle: "Familia na Watoto",
@@ -2224,9 +2070,6 @@
         accountabilityTitle: "Iliyoundwa Kwa Ajili ya Uwajibikaji",
         accountabilityCopy: "Harvey Taxi inatenganisha taratibu za abiria, dereva, msaada, na wakfu ili kuunda uzoefu safi na wenye uwazi zaidi.",
         servicesTitle: "Huduma za Jukwaa la Harvey",
-        servicesLead: "Usafiri ndio huduma kuu inayoendelea wakati huduma za vifaa, uwasilishaji, na vipengele vya kujiendesha vinaendelea kutengenezwa.",
-        coverageTitle: "Lengo la Ufunikaji wa Tennessee",
-        coverageLead: "Harvey Taxi inalenga uhamasishaji wa Tennessee na mkakati wa ukuaji unaoanzia Nashville na upanuzi wa baadaye wa jimbo zima.",
         companyTitle: "Msaada wa Kampuni na Jamii",
         companyLead: "Harvey Taxi Service LLC inaunganisha usafiri, teknolojia, fursa za madereva, ubunifu wa vifaa, na msaada wa uhamasishaji wa jamii."
       },
@@ -2250,7 +2093,6 @@
         requestRide: "立即叫车",
         inclusiveTitle: "为每一个社区而建。",
         inclusiveCopy: "Harvey Taxi 尊重所有种族、文化、语言、家庭、老年人、工作者、学生、残障人士、移民、访客以及寻求安全出行的弱势社区。",
-        heroBadge: "已验证运营 · 实时支持",
         heroTitleA: "田纳西出行",
         heroTitleB: "全新构想",
         heroCopy: "Harvey Taxi 将乘客接入、司机机会、出行援助、AI支持与未来出行服务整合到一个统一的田纳西平台中。",
@@ -2258,25 +2100,13 @@
         requestRideEmoji: "🚖 立即叫车",
         becomeDriver: "🤝 成为司机",
         riderSignup: "乘客注册",
-        autonomous: "🤖 自动驾驶",
-        pilot: "试点",
         foundationEmoji: "❤️ 基金会",
         point1Title: "审批准入机制",
         point1Body: "乘客与司机均需通过结构化的加入与审批流程。",
-        point2Title: "AI支持系统",
-        point2Body: "内置支持帮助乘客、司机和社区成员即时获得解答。",
         point3Title: "司机赚钱机会",
         point3Body: "在支持本地出行需求的同时创造收入机会。",
         point4Title: "社区出行",
         point4Body: "出行援助助力获得工作、教育与医疗服务的机会。",
-        platformStatus: "平台状态",
-        liveOverview: "实时系统概览",
-        liveOverviewCopy: "已上线服务与试点及未来服务明确区分。",
-        driverRides: "司机乘车服务",
-        aiSupport: "AI支持",
-        autonomousHub: "自动驾驶中心",
-        foodDelivery: "餐饮配送",
-        groceryDelivery: "生鲜配送",
         communityImpact: "社区影响力",
         foundationTitle: "Harvey 出行援助基金会",
         foundationCopy: "消除就医、就业、教育及基本出行需求方面的交通障碍。",
@@ -2292,16 +2122,6 @@
         supportTitle: "现在需要帮助吗？",
         supportCopy: "打开 Harvey AI 支持，获取乘车帮助、司机入驻指导、账户问题解答或基金会援助信息。",
         openAiSupport: "打开AI支持",
-        globalLanguageTitle: "全球语言支持",
-        globalLanguageLead: "Harvey Taxi 致力于支持多语言社区、多元文化与包容性出行服务。",
-        languageEnglish: "主要运营语言。",
-        languageSpanish: "为乘客与司机提供西班牙语支持。",
-        languageFrench: "提供法语无障碍支持。",
-        languageArabic: "提供阿拉伯语从右到左支持。",
-        languageSwahili: "为东非社区提供支持。",
-        languageChinese: "提供中文语言无障碍服务。",
-        languageHindi: "提供印地语支持。",
-        languagePortuguese: "提供葡萄牙语支持。",
         communityInclusionTitle: "社区包容性",
         communityInclusionLead: "出行服务应始终保持可及性、尊重性，并对所有人敞开怀抱。",
         familiesTitle: "家庭与儿童",
@@ -2335,9 +2155,6 @@
         accountabilityTitle: "以问责制为核心设计",
         accountabilityCopy: "Harvey Taxi 将乘客、司机、客服与基金会流程分离管理，打造更清晰、更透明的使用体验。",
         servicesTitle: "Harvey 平台服务",
-        servicesLead: "出行服务为当前核心业务，物流、配送与自动驾驶功能仍在持续开发中。",
-        coverageTitle: "田纳西服务覆盖重点",
-        coverageLead: "Harvey Taxi 专注于田纳西州出行服务，以纳什维尔为起点，逐步推进全州扩展战略。",
         companyTitle: "企业与社区支持",
         companyLead: "Harvey Taxi Service LLC 连接出行、技术、司机机会、物流创新与社区出行援助。"
       },
@@ -2361,7 +2178,6 @@
         requestRide: "सवारी का अनुरोध करें",
         inclusiveTitle: "हर समुदाय के लिए बनाया गया।",
         inclusiveCopy: "Harvey Taxi सभी जातियों, संस्कृतियों, भाषाओं, परिवारों, वरिष्ठ नागरिकों, श्रमिकों, छात्रों, विकलांग व्यक्तियों, आप्रवासियों, आगंतुकों और सुरक्षित परिवहन की तलाश में वंचित समुदायों का सम्मान करता है।",
-        heroBadge: "सत्यापित संचालन · लाइव सहायता",
         heroTitleA: "टेनेसी परिवहन",
         heroTitleB: "नए सिरे से कल्पना की गई",
         heroCopy: "Harvey Taxi सवार पहुंच, ड्राइवर अवसर, परिवहन सहायता, AI सहायता और भविष्य की गतिशीलता सेवाओं को एक जुड़े टेनेसी प्लेटफ़ॉर्म में जोड़ता है।",
@@ -2369,25 +2185,13 @@
         requestRideEmoji: "🚖 सवारी का अनुरोध करें",
         becomeDriver: "🤝 ड्राइवर बनें",
         riderSignup: "सवार साइनअप",
-        autonomous: "🤖 स्वायत्त",
-        pilot: "पायलट",
         foundationEmoji: "❤️ फाउंडेशन",
         point1Title: "अनुमोदन-आधारित पहुंच",
         point1Body: "सवार और ड्राइवर संरचित ऑनबोर्डिंग और अनुमोदन प्रक्रियाओं से गुजरते हैं।",
-        point2Title: "AI सहायता प्रणाली",
-        point2Body: "अंतर्निहित सहायता सवारों, ड्राइवरों और समुदाय के सदस्यों को तुरंत उत्तर खोजने में मदद करती है।",
         point3Title: "ड्राइवर अवसर",
         point3Body: "स्थानीय परिवहन आवश्यकताओं का समर्थन करते हुए आय के अवसर बनाएं।",
         point4Title: "सामुदायिक गतिशीलता",
         point4Body: "परिवहन सहायता कार्य, शिक्षा और स्वास्थ्य सेवा तक पहुंच का समर्थन करती है।",
-        platformStatus: "प्लेटफ़ॉर्म स्थिति",
-        liveOverview: "लाइव सिस्टम अवलोकन",
-        liveOverviewCopy: "सक्रिय सेवाएं पायलट और भविष्य की सेवाओं से स्पष्ट रूप से अलग हैं।",
-        driverRides: "ड्राइवर सवारी",
-        aiSupport: "AI सहायता",
-        autonomousHub: "स्वायत्त केंद्र",
-        foodDelivery: "भोजन डिलीवरी",
-        groceryDelivery: "किराना डिलीवरी",
         communityImpact: "सामुदायिक प्रभाव",
         foundationTitle: "Harvey परिवहन सहायता फाउंडेशन",
         foundationCopy: "चिकित्सा यात्राओं, रोजगार, शिक्षा और आवश्यक गतिशीलता आवश्यकताओं के लिए परिवहन बाधाओं को दूर करना।",
@@ -2403,16 +2207,6 @@
         supportTitle: "अभी मदद चाहिए?",
         supportCopy: "सवार सहायता, ड्राइवर ऑनबोर्डिंग, खाता प्रश्नों, या फाउंडेशन सहायता के लिए Harvey AI सहायता खोलें।",
         openAiSupport: "AI सहायता खोलें",
-        globalLanguageTitle: "वैश्विक भाषा समर्थन",
-        globalLanguageLead: "Harvey Taxi बहुभाषी समुदायों, विविध संस्कृतियों और समावेशी परिवहन पहुंच का समर्थन करने के लिए डिज़ाइन किया गया है।",
-        languageEnglish: "प्राथमिक संचालन भाषा।",
-        languageSpanish: "सवार और ड्राइवर के लिए स्पेनिश समर्थन।",
-        languageFrench: "फ्रेंच सुगमता समर्थन।",
-        languageArabic: "अरबी दाएं-से-बाएं समर्थन।",
-        languageSwahili: "पूर्वी अफ्रीकी समुदाय समर्थन।",
-        languageChinese: "चीनी भाषा सुगमता।",
-        languageHindi: "हिंदी भाषा समर्थन।",
-        languagePortuguese: "पुर्तगाली भाषा समर्थन।",
         communityInclusionTitle: "सामुदायिक समावेशन",
         communityInclusionLead: "परिवहन सभी के लिए सुलभ, सम्मानजनक और स्वागत योग्य बना रहना चाहिए।",
         familiesTitle: "परिवार और बच्चे",
@@ -2446,9 +2240,6 @@
         accountabilityTitle: "जवाबदेही के लिए डिज़ाइन किया गया",
         accountabilityCopy: "Harvey Taxi एक स्पष्ट, अधिक पारदर्शी अनुभव बनाने के लिए सवार, ड्राइवर, सहायता और फाउंडेशन वर्कफ़्लो को अलग करता है।",
         servicesTitle: "Harvey प्लेटफ़ॉर्म सेवाएं",
-        servicesLead: "परिवहन प्राथमिक सक्रिय सेवा है जबकि लॉजिस्टिक्स, डिलीवरी और स्वायत्त सुविधाएं विकास जारी रखती हैं।",
-        coverageTitle: "टेनेसी कवरेज फोकस",
-        coverageLead: "Harvey Taxi नैशविले-प्रथम विकास रणनीति और भविष्य के राज्यव्यापी विस्तार के साथ टेनेसी गतिशीलता पर केंद्रित है।",
         companyTitle: "कंपनी और सामुदायिक सहायता",
         companyLead: "Harvey Taxi Service LLC परिवहन, प्रौद्योगिकी, ड्राइवर अवसर, लॉजिस्टिक्स नवाचार और सामुदायिक गतिशीलता सहायता को जोड़ता है।"
       },
@@ -2472,7 +2263,6 @@
         requestRide: "Solicitar Corrida",
         inclusiveTitle: "Construído para cada comunidade.",
         inclusiveCopy: "A Harvey Taxi respeita todas as etnias, culturas, idiomas, famílias, idosos, trabalhadores, estudantes, pessoas com deficiência, imigrantes, visitantes e comunidades carentes em busca de transporte seguro.",
-        heroBadge: "OPERAÇÕES VERIFICADAS · SUPORTE AO VIVO",
         heroTitleA: "Transporte no Tennessee",
         heroTitleB: "Reimaginado",
         heroCopy: "A Harvey Taxi combina acesso para passageiros, oportunidades para motoristas, assistência de transporte, suporte de IA e serviços de mobilidade futura em uma única plataforma do Tennessee.",
@@ -2480,25 +2270,13 @@
         requestRideEmoji: "🚖 Solicitar Corrida",
         becomeDriver: "🤝 Tornar-se Motorista",
         riderSignup: "Cadastro de Passageiro",
-        autonomous: "🤖 Autônomo",
-        pilot: "PILOTO",
         foundationEmoji: "❤️ Fundação",
         point1Title: "Acesso Baseado em Aprovação",
         point1Body: "Passageiros e motoristas passam por processos estruturados de integração e aprovação.",
-        point2Title: "Sistema de Suporte com IA",
-        point2Body: "O suporte integrado ajuda passageiros, motoristas e membros da comunidade a encontrar respostas instantaneamente.",
         point3Title: "Oportunidade para Motoristas",
         point3Body: "Crie oportunidades de renda enquanto apoia as necessidades de transporte local.",
         point4Title: "Mobilidade Comunitária",
         point4Body: "A assistência de transporte apoia o acesso ao trabalho, educação e saúde.",
-        platformStatus: "Status da Plataforma",
-        liveOverview: "Visão Geral do Sistema ao Vivo",
-        liveOverviewCopy: "Os serviços ativos são claramente separados dos serviços piloto e futuros.",
-        driverRides: "Corridas com Motorista",
-        aiSupport: "Suporte de IA",
-        autonomousHub: "Central Autônoma",
-        foodDelivery: "Entrega de Comida",
-        groceryDelivery: "Entrega de Mercado",
         communityImpact: "Impacto Comunitário",
         foundationTitle: "Fundação de Assistência de Transporte Harvey",
         foundationCopy: "Eliminando barreiras de transporte para consultas médicas, emprego, educação e necessidades essenciais de mobilidade.",
@@ -2514,16 +2292,6 @@
         supportTitle: "Precisa de Ajuda Agora?",
         supportCopy: "Abra o Suporte de IA Harvey para ajuda ao passageiro, integração de motoristas, dúvidas sobre conta ou assistência da fundação.",
         openAiSupport: "Abrir Suporte de IA",
-        globalLanguageTitle: "Suporte Linguístico Global",
-        globalLanguageLead: "A Harvey Taxi é projetada para apoiar comunidades multilíngues, culturas diversas e acesso inclusivo ao transporte.",
-        languageEnglish: "Idioma operacional principal.",
-        languageSpanish: "Suporte em espanhol para passageiros e motoristas.",
-        languageFrench: "Suporte de acessibilidade em francês.",
-        languageArabic: "Suporte em árabe da direita para a esquerda.",
-        languageSwahili: "Suporte para a comunidade da África Oriental.",
-        languageChinese: "Acessibilidade em idioma chinês.",
-        languageHindi: "Suporte em idioma hindi.",
-        languagePortuguese: "Suporte em idioma português.",
         communityInclusionTitle: "Inclusão Comunitária",
         communityInclusionLead: "O transporte deve permanecer acessível, respeitoso e acolhedor para todos.",
         familiesTitle: "Famílias e Crianças",
@@ -2557,9 +2325,6 @@
         accountabilityTitle: "Projetado para Responsabilidade",
         accountabilityCopy: "A Harvey Taxi separa os fluxos de passageiros, motoristas, suporte e fundação para criar uma experiência mais clara e transparente.",
         servicesTitle: "Serviços da Plataforma Harvey",
-        servicesLead: "O transporte é o serviço ativo principal, enquanto logística, entrega e recursos autônomos continuam em desenvolvimento.",
-        coverageTitle: "Foco de Cobertura no Tennessee",
-        coverageLead: "A Harvey Taxi está focada na mobilidade do Tennessee com uma estratégia de crescimento centrada em Nashville e futura expansão em todo o estado.",
         companyTitle: "Suporte Empresarial e Comunitário",
         companyLead: "A Harvey Taxi Service LLC conecta transporte, tecnologia, oportunidades para motoristas, inovação logística e assistência de mobilidade comunitária."
       },
@@ -2583,7 +2348,6 @@
         requestRide: "Mande yon Vwayaj",
         inclusiveTitle: "Konstwi pou chak kominote.",
         inclusiveCopy: "Harvey Taxi respekte tout etnisite, kilti, lang, fanmi, granmoun aje, travayè, etidyan, moun ki gen andikap, imigran, vizitè, ak kominote ki pa byen sèvi k ap chèche transpò an sekirite.",
-        heroBadge: "OPERASYON VERIFYE · SIPÒ AN DIRÈK",
         heroTitleA: "Transpò Tennessee",
         heroTitleB: "Reimajine",
         heroCopy: "Harvey Taxi konbine aksè pasaje, opòtinite chofè, asistans transpò, sipò AI, ak sèvis mobilite nan lavni nan yon sèl platfòm Tennessee konekte.",
@@ -2591,25 +2355,13 @@
         requestRideEmoji: "🚖 Mande yon Vwayaj",
         becomeDriver: "🤝 Vin Chofè",
         riderSignup: "Enskripsyon Pasaje",
-        autonomous: "🤖 Otonòm",
-        pilot: "PILÒT",
         foundationEmoji: "❤️ Fondasyon",
         point1Title: "Aksè ki Baze sou Apwobasyon",
         point1Body: "Pasaje ak chofè pase nan pwosesis estriktire pou enskripsyon ak apwobasyon.",
-        point2Title: "Sistèm Sipò AI",
-        point2Body: "Sipò entegre ede pasaje, chofè, ak manm kominote a jwenn repons imedyatman.",
         point3Title: "Opòtinite pou Chofè",
         point3Body: "Kreye opòtinite revni pandan w ap sipòte bezwen transpò lokal yo.",
         point4Title: "Mobilite Kominotè",
         point4Body: "Asistans transpò sipòte aksè nan travay, edikasyon, ak swen sante.",
-        platformStatus: "Estati Platfòm",
-        liveOverview: "Apèsi Sistèm An Dirèk",
-        liveOverviewCopy: "Sèvis aktif yo separe klèman ak sèvis pilòt ak sèvis nan lavni.",
-        driverRides: "Vwayaj ak Chofè",
-        aiSupport: "Sipò AI",
-        autonomousHub: "Sant Otonòm",
-        foodDelivery: "Livrezon Manje",
-        groceryDelivery: "Livrezon Makèt",
         communityImpact: "Enpak nan Kominote a",
         foundationTitle: "Fondasyon Asistans Transpò Harvey",
         foundationCopy: "K ap retire baryè transpò pou vizit medikal, travay, edikasyon, ak bezwen mobilite esansyèl yo.",
@@ -2625,16 +2377,6 @@
         supportTitle: "Ou Bezwen Èd Kounye a?",
         supportCopy: "Ouvri Sipò AI Harvey pou èd pasaje, enskripsyon chofè, kesyon sou kont, oswa asistans fondasyon.",
         openAiSupport: "Ouvri Sipò AI",
-        globalLanguageTitle: "Sipò Lang Mondyal",
-        globalLanguageLead: "Harvey Taxi fèt pou sipòte kominote miltilengwistik, kilti divès, ak aksè transpò ki enklizif.",
-        languageEnglish: "Lang operasyonèl prensipal.",
-        languageSpanish: "Sipò an Panyòl pou pasaje ak chofè.",
-        languageFrench: "Sipò aksesibilite an Fransè.",
-        languageArabic: "Sipò Arab dwat-a-gòch.",
-        languageSwahili: "Sipò pou kominote Afrik Lès la.",
-        languageChinese: "Aksesibilite nan lang Chinwa.",
-        languageHindi: "Sipò nan lang Endi.",
-        languagePortuguese: "Sipò nan lang Pòtigè.",
         communityInclusionTitle: "Enklizyon Kominotè",
         communityInclusionLead: "Transpò ta dwe rete aksesib, respektye, e akeyan pou tout moun.",
         familiesTitle: "Fanmi ak Timoun",
@@ -2668,9 +2410,6 @@
         accountabilityTitle: "Fèt Pou Responsabilite",
         accountabilityCopy: "Harvey Taxi separe pwosesis pasaje, chofè, sipò, ak fondasyon pou kreye yon eksperyans pi klè ak pi transparan.",
         servicesTitle: "Sèvis Platfòm Harvey",
-        servicesLead: "Transpò se sèvis aktif prensipal la pandan lojistik, livrezon, ak karakteristik otonòm yo kontinye devlope.",
-        coverageTitle: "Konsantre sou Kouvèti Tennessee",
-        coverageLead: "Harvey Taxi konsantre sou mobilite Tennessee ak yon estrateji kwasans ki kòmanse ak Nashville e ki gen ekspansyon nan tout eta a nan lavni.",
         companyTitle: "Sipò Konpayi ak Kominote",
         companyLead: "Harvey Taxi Service LLC konekte transpò, teknoloji, opòtinite chofè, inovasyon lojistik, ak asistans mobilite kominotè."
       },
@@ -2694,7 +2433,6 @@
         requestRide: "Béèrè Ìrìn",
         inclusiveTitle: "A kọ́ ọ fún gbogbo àwùjọ.",
         inclusiveCopy: "Harvey Taxi bọ̀wọ̀ fún gbogbo ẹ̀yà, àṣà, èdè, ìdílé, àgbàlagbà, òṣìṣẹ́, akẹ́kọ̀ọ́, àwọn aláàbọ̀, àwọn aṣíkiri, àlejò, àti àwọn àwùjọ tí kò gba ìrànlọ́wọ́ tó tó tí ń wá ìrìnnà ààbò.",
-        heroBadge: "ÀWỌN ÌGBÉṢÉ TÍ A FÌDÍ RÚ · ÌRÀNLỌ́WỌ́ ÀKÓKÒ-ÌGBÉSẸ̀",
         heroTitleA: "Ìrìnnà Tennessee",
         heroTitleB: "Tí a Tún Rò Padà",
         heroCopy: "Harvey Taxi ń ṣàkójọpọ̀ wíwọlé arìnrìn-àjò, àǹfààní awakọ̀, ìrànlọ́wọ́ ìrìnnà, ìrànlọ́wọ́ AI, àti àwọn iṣẹ́ ìrìnnà ọjọ́ iwájú sí inú pẹpẹ Tennessee kan ṣoṣo tí ó so pọ̀.",
@@ -2702,25 +2440,13 @@
         requestRideEmoji: "🚖 Béèrè Ìrìn",
         becomeDriver: "🤝 Di Awakọ̀",
         riderSignup: "Forúkọsílẹ̀ Arìnrìn-àjò",
-        autonomous: "🤖 Ara-ẹni",
-        pilot: "AYÁWÒRAN",
         foundationEmoji: "❤️ Ìpilẹ̀ṣẹ̀",
         point1Title: "Wíwọlé Tí a Fọwọ́sí",
         point1Body: "Arìnrìn-àjò àti awakọ̀ ń gba ìlànà ìforúkọsílẹ̀ àti ìfọwọ́sí tí a ṣètò.",
-        point2Title: "Ètò Ìrànlọ́wọ́ AI",
-        point2Body: "Ìrànlọ́wọ́ tí a kọ́ sínú ń ran arìnrìn-àjò, awakọ̀, àti àwọn ọmọ ẹgbẹ́ àwùjọ lọ́wọ́ láti rí ìdáhùn lẹ́sẹ̀kẹsẹ̀.",
         point3Title: "Àǹfààní Awakọ̀",
         point3Body: "Dá àǹfààní owó-ọ̀yà sílẹ̀ nígbà tí o bá ń ṣètìlẹyìn fún àwọn àìní ìrìnnà àdúgbò.",
         point4Title: "Ìrìnnà Àwùjọ",
         point4Body: "Ìrànlọ́wọ́ ìrìnnà ń ṣètìlẹyìn fún wíwọlé sí iṣẹ́, ẹ̀kọ́, àti ìtọ́jú ìlera.",
-        platformStatus: "Ipò Pẹpẹ",
-        liveOverview: "Àkíyèsí Ètò Àkókò-Gidi",
-        liveOverviewCopy: "Àwọn iṣẹ́ tí ń ṣiṣẹ́ ti yà sọ́tọ̀ kedere kúrò nínú àwọn iṣẹ́ ayáwòran àti ọjọ́ iwájú.",
-        driverRides: "Ìrìn Awakọ̀",
-        aiSupport: "Ìrànlọ́wọ́ AI",
-        autonomousHub: "Ibùdó Ara-ẹni",
-        foodDelivery: "Ìfìjíṣẹ́ Oúnjẹ",
-        groceryDelivery: "Ìfìjíṣẹ́ Ọjà",
         communityImpact: "Ipa Lórí Àwùjọ",
         foundationTitle: "Ìpilẹ̀ṣẹ̀ Ìrànlọ́wọ́ Ìrìnnà Harvey",
         foundationCopy: "Yíyọ àwọn ìdènà ìrìnnà kúrò fún ìbẹ̀wò ìlera, iṣẹ́, ẹ̀kọ́, àti àwọn àìní ìrìnnà pàtàkì.",
@@ -2736,16 +2462,6 @@
         supportTitle: "Ṣé O Nílò Ìrànlọ́wọ́ Nísinsìnyí?",
         supportCopy: "Ṣí Ìrànlọ́wọ́ AI Harvey fún ìrànlọ́wọ́ arìnrìn-àjò, ìforúkọsílẹ̀ awakọ̀, àwọn ìbéèrè àkọọ́lẹ̀, tàbí ìrànlọ́wọ́ ìpilẹ̀ṣẹ̀.",
         openAiSupport: "Ṣí Ìrànlọ́wọ́ AI",
-        globalLanguageTitle: "Ìrànlọ́wọ́ Èdè Àgbáyé",
-        globalLanguageLead: "A ṣe Harvey Taxi láti ṣètìlẹyìn fún àwọn àwùjọ oníyebíye èdè, àṣà oríṣiríṣi, àti wíwọlé ìrìnnà tí ó kárí gbogbo ènìyàn.",
-        languageEnglish: "Èdè iṣẹ́ àkọ́kọ́.",
-        languageSpanish: "Ìrànlọ́wọ́ Sípáníìṣì fún arìnrìn-àjò àti awakọ̀.",
-        languageFrench: "Ìrànlọ́wọ́ wíwọlé Faransé.",
-        languageArabic: "Ìrànlọ́wọ́ Lárúbáwá láti ọwọ́ ọ̀tún sí òsì.",
-        languageSwahili: "Ìrànlọ́wọ́ fún àwùjọ Ìlà-oòrùn Áfríkà.",
-        languageChinese: "Wíwọlé èdè Ṣáínà.",
-        languageHindi: "Ìrànlọ́wọ́ èdè Híńdì.",
-        languagePortuguese: "Ìrànlọ́wọ́ èdè Pọ́túgí.",
         communityInclusionTitle: "Ìkáwọ́ Àwùjọ",
         communityInclusionLead: "Ìrìnnà gbọ́dọ̀ jẹ́ èyí tí ó wọlé, tí ó bọ̀wọ̀, àti tí ó kí gbogbo ènìyàn káàbọ̀.",
         familiesTitle: "Ìdílé àti Àwọn Ọmọdé",
@@ -2779,9 +2495,6 @@
         accountabilityTitle: "A Ṣe é Fún Ìṣirò",
         accountabilityCopy: "Harvey Taxi ya àwọn ìṣàn iṣẹ́ arìnrìn-àjò, awakọ̀, ìrànlọ́wọ́, àti ìpilẹ̀ṣẹ̀ sọ́tọ̀ láti dá ìrírí tí ó mọ́ kedere àti tí ó ṣe kedere sílẹ̀.",
         servicesTitle: "Àwọn Iṣẹ́ Pẹpẹ Harvey",
-        servicesLead: "Ìrìnnà ni iṣẹ́ àkọ́kọ́ tí ń ṣiṣẹ́ nígbà tí àwọn ohun amáwòrán, ìfìjíṣẹ́, àti àwọn ẹyà ara-ẹni ń bá a lọ ní ìdàgbàsókè.",
-        coverageTitle: "Ìfojúsùn Ìbòmọlẹ̀ Tennessee",
-        coverageLead: "Harvey Taxi ń fojú sí ìrìnnà Tennessee pẹ̀lú ọgbọ́n ìdàgbàsókè tí ó bẹ̀rẹ̀ ní Nashville àti ìmúgbòòrò ní gbogbo ìpínlẹ̀ ní ọjọ́ iwájú.",
         companyTitle: "Ìrànlọ́wọ́ Ilé-iṣẹ́ àti Àwùjọ",
         companyLead: "Harvey Taxi Service LLC so ìrìnnà, ìmọ̀-ẹ̀rọ, àǹfààní awakọ̀, ìmúdàgbàsókè amáwòrán, àti ìrànlọ́wọ́ ìrìnnà àwùjọ pọ̀."
       }
@@ -2911,26 +2624,37 @@
       }
     }
 
-    /* ---- Today's Mobility: real live counts, no fabricated numbers ---- */
+    /* ---- Drivers online now: shown only when the count is real and above
+       zero. Nothing is shown when no driver is online or the count can't be
+       read, so the page never displays an empty or made-up statistic. ---- */
     async function refreshMissionControl() {
-      const driversTile = document.getElementById("mcDriversTile");
-      const waitTile = document.getElementById("mcWaitTile");
+      const bar = document.getElementById("mission-control");
       const driversValue = document.getElementById("mcDriversValue");
+      const waitTile = document.getElementById("mcWaitTile");
       const waitValue = document.getElementById("mcWaitValue");
-      if (!driversValue || !waitValue) return;
+      if (!bar || !driversValue || !waitValue) return;
 
       try {
         const res = await fetch(`${window.HARVEY_API_BASE}/api/public/mission-control`, { cache: "no-store" });
         const data = await res.json();
         if (!res.ok || data.ok === false) throw new Error(data.error || "request failed");
 
-        driversValue.textContent = data.online_drivers != null ? data.online_drivers : "0";
-        waitValue.textContent = data.avg_wait_minutes != null ? `${data.avg_wait_minutes} min` : "No active rides";
+        const online = Number(data.online_drivers);
+        if (!Number.isFinite(online) || online <= 0) {
+          bar.hidden = true;
+          return;
+        }
+        driversValue.textContent = String(online);
+        const wait = Number(data.avg_wait_minutes);
+        if (data.avg_wait_minutes != null && Number.isFinite(wait)) {
+          waitValue.textContent = `${wait} min`;
+          if (waitTile) waitTile.hidden = false;
+        } else if (waitTile) {
+          waitTile.hidden = true;
+        }
+        bar.hidden = false;
       } catch (err) {
-        if (driversTile) driversTile.classList.remove("mc-live");
-        if (waitTile) waitTile.classList.remove("mc-live");
-        driversValue.textContent = "Unavailable";
-        waitValue.textContent = "Unavailable";
+        bar.hidden = true;
       }
     }
 
@@ -3044,7 +2768,7 @@
             <strong>🔔 Notifications</strong><span>Allow important ride, driver, and support alerts.</span>
           </button>
           <a class="card" href="settings.html"><strong>⚙ Settings</strong><span>Open app settings, accessibility, and preferences.</span></a>
-          <a class="card" href="delete-account.html"><strong>🗑 Delete Account</strong><span>Request account deletion or data removal.</span></a>
+          <a class="card" href="settings.html#account-deletion"><strong>🗑 Delete Account</strong><span>Request account deletion or data removal.</span></a>
           <a class="card" href="support.html"><strong>🛟 Support Center</strong><span>Open Harvey Taxi support for help.</span></a>
         </div>`;
       const main = document.getElementById("main-content");
