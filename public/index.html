@@ -14,7 +14,6 @@
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icon-192.png" />
   <link rel="icon" href="/favicon.ico" sizes="any" />
-  <link rel="stylesheet" href="/ai-support-widget.css" />
 
   <!-- Open Graph -->
   <meta property="og:type" content="website" />
@@ -757,7 +756,9 @@
     }
     .ai-teaser-bubble .at-text { font-size: 13.5px; font-weight: 700; line-height: 1.4; color: var(--text); }
     @keyframes aiTeaserFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
-    @media (max-width: 640px) { .ai-teaser-bubble { left: 16px; right: 16px; max-width: none; bottom: 16px; } }
+    /* Phones: the round Harvey Assistant button is the entry point; the
+       full-width teaser used to sit on top of the bottom navigation. */
+    @media (max-width: 640px) { .ai-teaser-bubble { display: none; } }
 
     /* ============================================================
        SUPPORT CALLOUT
@@ -998,6 +999,15 @@
     .nav-btn svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
     .nav-btn.active, .nav-btn:hover, .nav-btn:focus-visible { color: var(--cyan); background: rgba(93,245,255,0.08); }
     .nav-btn:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+    /* Harvey Assistant lives in the bottom nav on phones (no floating button
+       over the page there); on wider screens its own launcher is used. Six
+       tabs share the width evenly on phones. */
+    .nav-btn.nav-assistant { display: none; }
+    @media (max-width: 599px) {
+      .nav-btn.nav-assistant { display: flex; }
+      .bottom-nav { padding-left: 4px; padding-right: 4px; }
+      .nav-btn { min-width: 0; flex: 1 1 0; padding: 8px 2px; font-size: 10.5px; white-space: nowrap; }
+    }
 
     /* ============================================================
        MODALS
@@ -1038,6 +1048,10 @@
     /* ============================================================
        TOAST / WELCOME BANNER
        ============================================================ */
+    /* While Harvey Assistant is open, the welcome toast and the teaser
+       bubble would sit on top of its header and 911 line. Hide them. */
+    body:has(#htaPanel.open) .welcome-banner,
+    body:has(#htaPanel.open) .ai-teaser-bubble { display: none; }
     .welcome-banner {
       position: fixed;
       top: 18px;
@@ -1624,6 +1638,10 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
       Trips
     </button>
+    <button class="nav-btn nav-assistant" type="button" onclick="openHarveyAiChat();" aria-label="Harvey Assistant" aria-controls="htaPanel" data-testid="nav-assistant">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.2 3.6A.5.5 0 0 1 5 19.2V16h-.5A.5.5 0 0 1 4 15.5z"/></svg>
+      Assistant
+    </button>
     <button class="nav-btn" onclick="safeGo('foundation.html','bottom_foundation')" aria-label="Foundation">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>
       HTAF
@@ -1644,13 +1662,15 @@
   <!-- AI TEASER BUBBLE — opens the same real, server-backed AI widget as the
        "Open AI Support" button above (openHarveyAiChat()), just a friendlier
        time-of-day-aware entry point. -->
-  <div class="ai-teaser-bubble" id="aiTeaserBubble" role="button" tabindex="0" aria-label="Open Harvey AI Support">
-    <div class="at-eyebrow">Harvey AI</div>
+  <div class="ai-teaser-bubble" id="aiTeaserBubble" role="button" tabindex="0" aria-label="Open Harvey Assistant">
+    <div class="at-eyebrow">Harvey Assistant</div>
     <div class="at-text" id="aiTeaserText">Need a ride? Ask me anything.</div>
   </div>
 
-  <!-- AI widget (optional external) -->
-  <script src="/ai-support-widget.js" onerror="console.warn('AI widget not available — using built-in chat')"></script>
+  <!-- Harvey Assistant: the same assistant as the rider dashboard (rules
+       and approved pages; consent-gated AI where enabled). Replaces the old
+       ai-support-widget.js, which called /api/ai/support (OpenAI). -->
+  <script src="/agent-assist.js?v=20261010-index2" data-role="rider" data-launcher="desktop" defer></script>
 
   <!-- ============================================================
        ALL APP JS — single block, correct declaration order
@@ -2994,20 +3014,21 @@
       document.getElementById("modal-root").innerHTML = "";
     }
 
-    /* ---- AI Chat: delegates to the server-backed widget (ai-support-widget.js),
-       which calls /api/ai/support. No client-side model calls happen on this page. ---- */
+    /* ---- AI Chat: opens Harvey Assistant (agent-assist.js), the same
+       assistant as the rider dashboard. If it isn't available (switched
+       off, or still loading), the support page is the fallback. ---- */
     function openHarveyAiChat() {
       trackEvent("ai_support_open");
-      if (window.HarveyAI && typeof window.HarveyAI.open === "function") {
-        window.HarveyAI.open();
+      if (window.HarveyAssistant && typeof window.HarveyAssistant.open === "function") {
+        window.HarveyAssistant.open();
         return;
       }
       window.location.href = "support.html";
     }
 
     function closeHarveyAiChat() {
-      if (window.HarveyAI && typeof window.HarveyAI.close === "function") {
-        window.HarveyAI.close();
+      if (window.HarveyAssistant && typeof window.HarveyAssistant.close === "function") {
+        window.HarveyAssistant.close();
       }
     }
 
@@ -3080,7 +3101,7 @@
       let totalChecks = 0;
       const timer = setInterval(() => {
         totalChecks++;
-        const loaded = window.HarveyAI || document.querySelector(".harvey-ai-launch");
+        const loaded = window.HarveyAssistant || document.querySelector("[data-testid=hta-launcher]");
         if (loaded) { failures = 0; if (totalChecks >= 5) { clearInterval(timer); } return; }
         failures++;
         if (failures >= 3) {
