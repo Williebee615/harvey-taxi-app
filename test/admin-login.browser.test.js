@@ -124,7 +124,7 @@ describeWithBrowser("admin sign-in", () => {
 
     await signIn(page, "test-fixture-admin-password");
     await page.waitForURL(/\/admin-agent\.html$/);
-    await page.waitForFunction(() => /Mode: test_accounts/.test((document.getElementById("claudeStatus") || {}).textContent));
+    await page.waitForFunction(() => /Mode: off \(saved as test_accounts; AI answers are locked off/.test((document.getElementById("claudeStatus") || {}).textContent));
     expect(await page.isHidden("#authNotice")).toBe(true);
     expect(await page.textContent("#claudeStatus")).toMatch(/^Not connected: no API key is set on the server/);
     expect(await page.textContent("#modelBudget")).toMatch(/Monthly budget\$10\.00/);
@@ -145,7 +145,7 @@ describeWithBrowser("admin sign-in", () => {
 
     // Persists across a reload and to other admin pages.
     await page.reload();
-    await page.waitForFunction(() => /Mode: test_accounts/.test((document.getElementById("claudeStatus") || {}).textContent));
+    await page.waitForFunction(() => /Mode: off \(saved as test_accounts; AI answers are locked off/.test((document.getElementById("claudeStatus") || {}).textContent));
     expect(await page.isHidden("#authNotice")).toBe(true);
     const other = await newPage(context);
     await other.goto(`${base}/admin-login.html?next=/admin-knowledge.html`);

@@ -10,6 +10,8 @@ process.env.RIDE_QUOTE_SECRET = "test-ride-quote-secret";
 process.env.ADMIN_API_TOKEN = "test-admin-token";
 process.env.NODE_ENV = "test";
 process.env.OPENAI_API_KEY = "test-openai-key-not-real";
+// If the real OpenAI library were ever loaded, it would still have nowhere to go.
+process.env.OPENAI_BASE_URL = "http://127.0.0.1:9/v1";
 process.env.ENABLE_AI_SUPPORT = "true";
 
 const { createFakeSupabase } = require("./fakeSupabase");
@@ -27,7 +29,7 @@ beforeAll(() => {
   // A fake OpenAI client, registered right before the server loads so it is
   // the one the server constructs, whatever ran earlier in this worker.
   jest.resetModules();
-  jest.doMock("openai", () => function FakeOpenAI() { return { chat: { completions: { create: mockCreate } } }; }, { virtual: true });
+  jest.doMock("openai", () => function FakeOpenAI() { return { chat: { completions: { create: mockCreate } } }; });
   jest.doMock("@supabase/supabase-js", () => ({ createClient: () => mockSupabaseClient }));
   // eslint-disable-next-line global-require
   ({ app } = require("../server"));

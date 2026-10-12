@@ -19,6 +19,9 @@
   // its bottom navigation that calls HarveyAssistant.open()), so the round
   // floating button is left out below 600px and never sits over the page.
   var desktopLauncherOnly = Boolean(script && script.dataset.launcher === "desktop");
+  // data-launcher="none": the page opens the assistant from its own button
+  // (HarveyAssistant.open()), so no floating button is shown at any width.
+  var noLauncher = Boolean(script && script.dataset.launcher === "none");
   if (window.__harveyAgentAssist) return;
   window.__harveyAgentAssist = true;
 
@@ -93,7 +96,8 @@
     ".hta-btn-text{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}" +
     ".hta-btn-icon{display:block;width:26px;height:26px}" +
     ".hta-btn.hta-desktop-only{display:none}" +
-    "}";
+    "}" +
+    ".hta-btn.hta-no-launcher{display:none!important}";
 
   // Look shared with the rider pages and the driver app's assistant: the
   // site font, cyan accents, bordered answer bubbles, a title with a
@@ -167,7 +171,7 @@
     style.textContent = css;
     document.head.appendChild(style);
 
-    var btn = el("button", { type: "button", class: desktopLauncherOnly ? "hta-btn hta-desktop-only" : "hta-btn", "aria-expanded": "false", "aria-controls": "htaPanel", "aria-label": "Harvey Assistant", "data-testid": "hta-launcher" });
+    var btn = el("button", { type: "button", class: noLauncher ? "hta-btn hta-no-launcher" : desktopLauncherOnly ? "hta-btn hta-desktop-only" : "hta-btn", "aria-expanded": "false", "aria-controls": "htaPanel", "aria-label": "Harvey Assistant", "data-testid": "hta-launcher" });
     btn.appendChild(el("span", { class: "hta-btn-text" }, "Harvey Assistant"));
     // Chat bubble icon, shown on phones only.
     var svgNs = "http://www.w3.org/2000/svg";
