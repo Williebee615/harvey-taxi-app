@@ -180,6 +180,15 @@ Key blockers:
 - PR #222 (draft): website accuracy fixes, waitlists, admin noindex, broken-link fixes, `docs/htaf-separation-plan.md` and `docs/legal/terms-privacy-reconciliation.md`. Full suite 1,989 passed. Needs owner approval.
 - **[Verified 2026-10-12]** Production returns 404 for `delete-account.html` (linked from the home page), `manifest.json`, the icons and the share image. Fixed in #222.
 - **[Verified 2026-10-12]** Two Harvey Taxi privacy policies are live: `/privacy.html` (footer) and `/privacy-policy.html` (driver app, store listing, #207). `robots.txt` blocks the latter. **[Recommendation]** Single policy after #207.
+- **[Owner decision 2026-10-12]** Airport service is available through Harvey Taxi Service (owner-confirmed). #222 lists "Airport trips: Available. Request an airport trip the same way as any other ride." **[Unresolved, outstanding item]** Permit or agreement documentation and its scope. Until it is documented, no airport name, pickup location or permit coverage is claimed.
+- #222 follow-ups (2026-10-12):
+  - hero and footer copy describe today's service;
+  - the welcome note sits in the page and closes after 4 s;
+  - on phones the assistant button is docked in the bottom bar;
+  - service cards are tighter;
+  - the old chat widget no longer offers "autonomous pilot".
+  Tested with Larger Text on at 360 and 390 px. Full suite 1,999 passed.
+- **[Verified 2026-10-12, owner screenshot]** The staging project `harvey-taxi-staging-pr130` was restored by the owner and is online. Not used by this session.
 - **[Unresolved]** The Supabase connector failed (503) on 2026-10-12. The approved removal of the review rider from the AI test list is not yet applied.
 
 ## 7. Scheduled checks **[Verified 2026-10-11, Routines]**
