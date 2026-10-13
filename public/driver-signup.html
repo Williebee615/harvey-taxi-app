@@ -365,6 +365,7 @@
       .mini { width: 100%; }
     }
   </style>
+  <script src="/language-pref.js"></script>
 </head>
 
 <body>
@@ -1532,11 +1533,9 @@
 
   /* ---- Language application (child-node-aware, matches index.html
      pattern — avoids destroying elements that have child nodes) ---- */
+  // One preference for the whole site; see /language-pref.js.
   function detectPreferredLanguage() {
-    const saved = safeGet("harvey_driver_language");
-    if (saved && translations[saved]) return saved;
-    const browserLang = (navigator.language || "en").slice(0, 2).toLowerCase();
-    return translations[browserLang] ? browserLang : "en";
+    return window.HarveyLanguage ? HarveyLanguage.resolve(Object.keys(translations)) : "en";
   }
 
   function applyLanguage(lang) {
@@ -1565,7 +1564,6 @@
     if ($("languageDisplay")) $("languageDisplay").textContent = dict.name || lang.toUpperCase();
     if ($("currentLanguageLabel")) $("currentLanguageLabel").textContent = dict.name || lang.toUpperCase();
 
-    safeSet("harvey_driver_language", lang);
     trackEvent("language_changed", { lang });
   }
 
@@ -1590,7 +1588,10 @@
 
     if (languageSelect) {
       languageSelect.value = preferred;
-      languageSelect.addEventListener("change", () => applyLanguage(languageSelect.value));
+      languageSelect.addEventListener("change", () => {
+        if (window.HarveyLanguage) HarveyLanguage.choose(languageSelect.value);
+        applyLanguage(languageSelect.value);
+      });
     }
 
     $("contrastBtn")?.addEventListener("click", () => {
