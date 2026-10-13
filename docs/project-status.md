@@ -1,6 +1,6 @@
 # Harvey Taxi platform: project status (shared record)
 
-**Last updated: 2026-10-11 (UTC)** by Claude Code (session `session_01NLS9NQfpaLwc6iu7ve7HfQ`).
+**Last updated: 2026-10-13 (UTC)** by Claude Code (session `session_01NLS9NQfpaLwc6iu7ve7HfQ`).
 
 App records: [Harvey Taxi Mobile (rider)](harvey-taxi-mobile-status.md) · [Harvey Taxi Driver](harvey-taxi-driver-status.md).
 
@@ -25,8 +25,8 @@ Rules for every update:
 
 | Item | Status |
 |---|---|
-| `main` | `47f63b4` (#211, rider layout fix) **[Verified 2026-10-11, Git]** |
-| Production web/API (Render, harveytaxiservice.com) | Running `47f63b4`. Render showed it live at about 13:30 UTC on 2026-10-10, and `/api/health` returned healthy. **[Verified 2026-10-10]** |
+| `main` | `3cd8763` (#221, offer-time verification recheck) **[Verified 2026-10-13, Git]** |
+| Production web/API (Render, harveytaxiservice.com) | Website files from #224–#227 are live: the changed pages are byte-identical to their merge commits, the last being `5b24bad` (#226) **[Verified 2026-10-13]**. **#221 (`3cd8763`) production deployment: [Unresolved]** until Render shows `3cd8763` live. #221 changes server code only, so no public page shows it. Public pages and `/api/health` returned 200 after the merge **[Verified 2026-10-13, about 16:38 UTC]**. |
 | Database | Supabase project `harvey-taxi-app` (`orgahzncmzptljapqffj`). The Pro/Micro upgrade was approved 2026-10-04, but **whether it was applied is [Unresolved]**. The owner is handling the billing decision separately. The staging project `harvey-taxi-staging-pr130` stays intact. |
 
 ### Production switches (as last recorded; recheck before relying on them)
@@ -41,13 +41,15 @@ Rules for every update:
 | HTAF SMS sending, HTAF assistant, reviewer demos | Off | **[Owner decision]**, repeated 2026-10-08 |
 | HTAF ride creation and external AI triage | Blocked by default (#205) | Merged 2026-10-08 |
 | Payment automation, refunds, reconciliation, hold sweeps | Off | **[Owner decision 2026-10-09]** |
+| Offer-time verification recheck (#221) | Merged as `3cd8763`; deployment **[Unresolved]** (see above) | **[Owner decision 2026-10-13]** |
+| Harvey Assistant answer mode | Rules-only (no Claude, no OpenAI) | **[Owner decision 2026-10-12, repeated 2026-10-13]** |
 | Driver verification gate | `ENABLE_CHECKR` = on, `ENABLE_PERSONA` = on in production | **[Verified 2026-10-11]** via the public `/api/config/public` (`checkr_enabled`, `persona_enabled`), read only, nothing changed |
 | Admin pages | `admin-home.html` approves through `PATCH /api/admin/drivers/:id/approve`; `/admin` and `/admin.html` redirect (301) to `admin-dashboard.html`; admin APIs return 401 without a session | **[Owner decision 2026-10-11]** #220 approved; merged as `8bee024`; **[Verified 2026-10-11]** live by HTTP checks |
 | Old website chat endpoint `/api/ai/support` (OpenAI) | Enabled state **[Unresolved]**. It is not exposed publicly. Confirm via admin `/api/health` → `integrations.openai`, or `OPENAI_API_KEY` on Render. | Checked 2026-10-10 |
 
 ## 2. Pull requests
 
-Nothing below is merged. **[Verified 2026-10-11, GitHub]**
+As recorded on 2026-10-11 **[Verified 2026-10-11, GitHub]**. Since then, #212, #214, #215 and #219 were folded into #223 (merged 2026-10-12), and #220–#227 are merged. See §6 for the dated updates.
 
 ### Stack A: assistant and rider chat (merge order #212 → #210 → #214 → #215)
 
@@ -163,7 +165,7 @@ Key blockers:
 8. **Driver account cleanup (27 approved, unverified, non-review accounts)** **[Verified 2026-10-11, read-only production queries]**. Production has both checks on; none of the 27 can go online. No record has rides, offers, sign-in sessions, Checkr/Persona IDs, recorded terms or background-check consent. One owner record shows Checkr "clear" with no Checkr candidate or report ID on file, so it isn't evidence of a completed check **[Unresolved]**. Sign-up still allows duplicates (no email or phone check, no unique index) **[Verified in code 2026-10-11]**.
    **[Owner decision 2026-10-11]** Prepare the cleanup: choose the record kept for each person by verified information and completeness, not simply the newest; deactivate duplicates; preserve history.
    **[Recommendation, prepared, not run]** 9 kept records return to pending verification (8 applicants: earliest record kept because their records are identical on every measure; owner: the most verified record). 15 duplicates and 2 test accounts are deactivated, nothing is deleted, and each change writes an audit row. The owner's second-email record is left for the owner to decide. The SQL is held outside the repository because it lists personal records. It was dry-run on a disposable local database (9 / 15 / 2, 26 audit rows; a second run is blocked by its guard). It needs owner approval to run on production.
-9. **Offer-time verification recheck:** PR #221, **ready for review** (2026-10-12). All 6 checks pass on its final commit `4c28aaa`; the branch is current with `main`. The deployment and rollback plan is in the PR. Merge awaits the owner. Offers, acceptance and admin assignment now re-check verification; dispatch fails closed; trips under way are untouched. 6 new tests (4 fail without the change); full suite 1,905 passed **[Verified 2026-10-11, local]**. Needs merge approval.
+9. **Offer-time verification recheck:** PR #221 is **merged** as `3cd8763` (2026-10-13, owner-approved). Its **production deployment is [Unresolved]** until Render shows `3cd8763` live. Offers, acceptance and admin assignment re-check verification; dispatch fails closed; trips under way are untouched. Details in the 2026-10-13 updates below.
 10. **Privacy policy (#207) providers** **[Verified 2026-10-11, code and live page scan]**: the draft didn't name Google Analytics (G-814LXYV9DN) or Google Ads (AW-18161547185), whose tags are live on the home and Settings pages; Google Maps Platform (Routes API, used when `GOOGLE_ROUTES_API_KEY` is set; production value **[Unresolved]**); Google Fonts; browser push services; or Render and Supabase by name. Added to the draft (`c85d78b`). **[Unresolved, legal]** Whether the Google Ads tag is consistent with "We do not sell personal information" (sharing for advertising) and whether a cookie notice is needed.
 
 
@@ -200,6 +202,48 @@ Key blockers:
   - 229 review-flow, site, assistant, admin-protection and handoff tests pass on `9bb286c`.
 - **[Unresolved]** The Supabase connector failed (503) on 2026-10-12. The approved removal of the review rider from the AI test list is not yet applied.
 
+**2026-10-13 updates**
+- **#224 Rider dashboard "Home"** goes to the site home page on the website; inside the rider app, the dashboard stays home.
+  - **[Owner decision 2026-10-13]** Approved.
+  - **[Verified 2026-10-13]** All 6 checks passed on `f090487`. Squash-merged as `5ece5a5`. The live `rider-dashboard.html` is byte-identical to `5ece5a5`.
+  - **[Unresolved]** The owner's check of the live sign-in screen on a phone.
+- **#225 Languages:**
+  - owner wording for the home-page Languages section, and tiles that switch the language;
+  - one language preference (`harvey_language`, stored in the browser), set in Settings and followed by the home page, Settings and both sign-up pages; English where a page lacks the translation;
+  - "Open AI Support" renamed "Open Harvey Assistant".
+  - **[Owner decision 2026-10-13]** Approved to merge once checks pass. The rename was added after the approval and before the merge, and the owner was told.
+  - **[Verified 2026-10-13]** All 6 checks passed on `842d509`. Squash-merged as `10c3ec3`. 6 changed files are byte-identical live.
+- **#227 Rider pages cleanup:**
+  - Settings "Ask AI Support", "AI Support" and "Open AI" renamed Harvey Assistant (en/es/fr/ar);
+  - the Driver tab and driver-dashboard links removed from the home page, Settings and rider dashboard (driver sign-up, account deletion and every page the Driver app opens are kept);
+  - Settings bottom-bar labels wrap instead of being cut off;
+  - translation gaps filled on Settings (es/fr/ar) and in the home-page notice, app card and bottom bar (10 languages). "DELETE" stays literal.
+  - **[Owner decision 2026-10-13]** Approved.
+  - **[Verified 2026-10-13]** All 6 checks passed on `639e1fb`. Squash-merged as `3db813a`. `index.html`, `settings.html` and `rider-dashboard.html` are byte-identical live. The 6 pages the Driver app opens return 200.
+  - **[Verified, by design]** Most of the home-page body has no translations and stays English. The Settings activity log stays English.
+- **#226 HTAF "Partner With Us"** section and HTAF contact form (`POST /api/foundation/inquiry`):
+  - emailed to HTAF's inbox, with HTAF as the sender name and the visitor as reply-to;
+  - nothing stored; the audit log keeps the topic and outcome only;
+  - fails closed;
+  - a sentence added to the HTAF privacy policy.
+  - **[Owner decision 2026-10-13]** Approved.
+  - **[Verified 2026-10-13]** All 6 checks passed on `a23b5c2`. Combined with #227, the full suite passed (2,089). Squash-merged as `5b24bad`.
+  - **[Verified 2026-10-13]** Live checks through harveytaxiservice.com: `foundation.html` and `contact.html` are byte-identical. The inquiry route is live: an incomplete submission returned 400 with per-field messages and sent nothing.
+  - **[Unresolved]** `harveytransportationfoundation.com` couldn't be fetched from this environment (blocked by the network policy). The owner views the page.
+  - **[Unresolved]** Production email delivery. It depends on `SENDGRID_API_KEY`, `ENABLE_REAL_EMAIL`, and `HTAF_INQUIRY_EMAIL` or `HTAF_ADMIN_EMAIL` (Render environment; names only). The owner sends one labelled test inquiry and confirms receipt.
+  - **[Unresolved]** The sender address is the existing Harvey Taxi SendGrid sender (HTAF display name). An HTAF-domain sender is part of `docs/htaf-separation-plan.md`.
+- **#221 Offer-time verification recheck:**
+  - Brought up to date with `main` twice (`b0b2637`, `161e388`), with no conflicting lines. The full suite passed locally (2,095).
+  - **[Owner decision 2026-10-13]** Approved.
+  - **[Verified 2026-10-13]** All 6 checks passed on `161e388`. Squash-merged as `3cd8763` at about 16:29 UTC.
+  - **Production deployment of `3cd8763`: [Unresolved]** until Render shows `3cd8763` live (Render → Events). It is a server-only change and isn't observable from outside.
+  - **[Verified 2026-10-13, read-only]** After the merge: public pages and `/api/health` return 200; `checkr_enabled` and `persona_enabled` are true; `DRIVER_GPLAY_REVIEWER` passes readiness (email and phone verified, Persona `verified`, Checkr `clear`, approved, vehicle on file).
+  - **[Unresolved, owner]** Review ride check with the test accounts only.
+- **Server errors:** 26 `server_error` entries ("CORS origin blocked", `/api/health`) between 16:29 and 16:38 UTC were caused by this session's blocked-origin requests, which tried to read the deployed version **[Verified 2026-10-13, audit log]**. **[Owner decision 2026-10-13]** No more such requests. **[Recommendation]** Blocked origins currently return 500 and are logged as server errors; a small separate fix could return 403 without an error entry.
+- **`driver_1`** **[Verified 2026-10-13, read-only]**: marked online and approved; created and last seen 2026-04-12; no email, phone, Persona or Checkr verification; no vehicle; no location. **[Owner decision 2026-10-13]** Leave it unchanged for now. Once #221 is deployed, it can't be offered or assigned rides.
+- **[Owner decision 2026-10-13]** Harvey Assistant stays rules-only.
+- **[Unresolved, owner]** Review ride result; HTAF test-inquiry receipt.
+
 ## 7. Scheduled checks **[Verified 2026-10-11, Routines]**
 
 | Routine | When | What it does |
@@ -207,22 +251,21 @@ Key blockers:
 | `trig_01EQw4n15urNHMHP1dz5SrRz` "Rider iOS 1.0.2 (11) cloud build day" | 2026-11-01 14:05 UTC | Checks the allowance reset ($0), signing, main settings and tests, and stored build number 10. Then it starts exactly one rider iOS build. It never uploads or submits. It starts a driver build only with explicit owner approval. |
 | `trig_018F8fjW1v3aiHoGsBSHu3Je` "HTAF Grant Pipeline Watch" | Monthly, 1st, 14:00 UTC | HTAF grant openings (separate from Harvey Taxi) |
 
-## 8. Session handoff (2026-10-11, updated)
+## 8. Session handoff (2026-10-13)
 
-**Completed this session (2026-10-10 to 2026-10-11):**
-- #211 merged and live.
-- Drafts #212–#217 prepared. The #210/#212 conflict is resolved.
-- #217 safeguards added.
-- These three records created.
-- #220 merged (`8bee024`) and verified live; production Checkr/Persona flags read; online gate and review isolation verified; 27 accounts classified.
+**Completed (2026-10-12 to 2026-10-13):**
+- #220, #222, #223, #224, #225, #226, #227 and #221 merged.
+- Website changes from #222–#227 verified live, byte-identical.
+- #221's deployment is not yet confirmed (see §1).
 
 **Remaining:**
-- Owner reviews of Stack A and Stack B.
-- Privacy checks.
-- Provider and tax confirmations.
-- Device tests (see the app files).
-- Owner decision on the 27-account cleanup.
-- Rider: the Harvey Taxi (6761441561) 1.0.1 submission of 11:45 AM: the owner is removing it **[Owner decision 2026-10-11]**; removal not yet confirmed.
-- Owner decisions: cleanup SQL, #221, the #207 wording and the Google Ads question, and whether the rider review account keeps Claude answers before #210 ships.
+- **[Owner]** Confirm in Render that `3cd8763` is live; then mark #221 deployed here.
+- **[Owner]** Review ride with the test accounts.
+- **[Owner]** HTAF:
+  - send a labelled test inquiry and confirm receipt;
+  - view `harveytransportationfoundation.com`.
+- **[Owner decision]** `driver_1` (left unchanged); the 27-account cleanup SQL (not run); the DRV-85708D8A35 Checkr reset.
+- Earlier items still open: #210 consent (migration and deploy) before any external AI; #207 privacy wording; Stack B; Supabase plan; staging deletion (separate); airport permit documentation; HTAF governance documents.
+- Rider iOS submission of 11:45 AM: removal not yet confirmed.
 
-**Next authorized action:** the 1 November rider iOS build check (scheduled). Nothing else is authorized to merge, deploy, build, upload or submit.
+**Next authorized action:** none beyond the 1 November rider iOS build check (scheduled). Harvey Assistant stays rules-only. Nothing else is authorized to merge, deploy, build, upload, submit or change in production data.

@@ -84,17 +84,27 @@ The rider app shows the website, so **website changes ship with a deploy and nee
 3. **Scheduled, 2026-11-01:** one rider iOS build. Then the owner downloads the IPA and runs `verify-ipa.sh`. Upload to TestFlight only with approval, then the iPad matrix and N1–N12 on the device.
 4. **[Unresolved]** Android: confirm the Play Console app, package, signing and highest versionCode before any Android rider build.
 
-## 8. Session handoff (2026-10-11)
+## 7a. Updates 2026-10-13
+
+These supersede the older lines above about the old OpenAI widget. #223 (merged 2026-10-12, `252d8d4`) replaced it with Harvey Assistant on every public page, and the widget files return 404 **[Verified 2026-10-12]**.
+
+- **#224** **[Verified 2026-10-13, merged `5ece5a5`, live file byte-identical]**: rider dashboard "Home" goes to the site home page on the website; inside the rider app (user agent `HarveyTaxiRider/…`), the dashboard stays home. This is website only, with no rider build. **[Unresolved]** The owner's phone check.
+- **#225** **[Verified 2026-10-13, merged `10c3ec3`, live]**: one language preference, set in Settings, followed by the home page, Settings and both sign-up pages. The rider app loads the same domain, so the preference should carry inside the app; **[Unresolved]** not tested on a device. "Open AI Support" is renamed "Open Harvey Assistant".
+- **#227** **[Verified 2026-10-13, merged `3db813a`, live]**:
+  - no Driver tab or driver-dashboard link on the home page, Settings or rider dashboard (the rider app already hands driver pages to Harvey Taxi Driver, so no build is needed);
+  - Settings labels say Harvey Assistant;
+  - bottom-bar labels fit at 360 px in 10 languages;
+  - Settings deletion steps translated (es/fr/ar).
+- **Harvey Assistant:** rules-only **[Owner decision 2026-10-13]**.
+
+## 8. Session handoff (2026-10-13)
 
 **Completed:**
-- #211 live.
-- #212, #214 and #215 drafted with previews.
-- Old widget pages identified.
-- This record created.
+- #222–#227 merged and verified live (website only, no rider build).
 
 **Remaining:**
-- Owner approvals.
+- The owner's device checks: Home button, language carry-over in the app, Android review ride.
 - The 1 November build.
-- Device tests.
+- iPad matrix and N1–N12.
 
 **Next authorized action:** the 1 November rider iOS build check (build only; no upload or submission).
