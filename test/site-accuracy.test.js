@@ -105,7 +105,7 @@ describe("home page claims", () => {
   });
 
   test("translations are labelled automatic, and support is described as English", () => {
-    expect(html).toContain("Translations are automatic");
+    expect(html).toContain("Translations are automated");
     expect(html).not.toContain("Spanish rider and driver support");
   });
 
