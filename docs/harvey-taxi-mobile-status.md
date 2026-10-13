@@ -95,7 +95,7 @@ These supersede the older lines above about the old OpenAI widget. #223 (merged 
   - Settings labels say Harvey Assistant;
   - bottom-bar labels fit at 360 px in 10 languages;
   - Settings deletion steps translated (es/fr/ar).
-- **#229** **[Verified 2026-10-13, merged `6fb8494`]**: the language list grows to 15 (adds Hausa, Igbo, chiShona, isiNdebele, Twi; Chinese labelled Simplified, Portuguese labelled Brazil). Home and Settings selectors fit at 360 px in all 15; website only, no rider build. **[Unresolved]** not tested on a device; translations not reviewed by fluent speakers.
+- **#229** **[Verified 2026-10-13, merged `6fb8494`, live files byte-identical]**: the language list grows to 15 (adds Hausa, Igbo, chiShona, isiNdebele, Twi; Chinese labelled Simplified, Portuguese labelled Brazil). Home and Settings selectors fit at 360 px in all 15; website only, no rider build. **[Unresolved]** not tested on a device; translations not reviewed by fluent speakers.
 - **Harvey Assistant:** rules-only **[Owner decision 2026-10-13]**.
 
 ## 8. Session handoff (2026-10-13)
