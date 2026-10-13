@@ -920,6 +920,11 @@
 
     /* Language tiles */
     .lang-tile {
+      display: block;
+      width: 100%;
+      font: inherit;
+      color: inherit;
+      cursor: pointer;
       padding: 22px;
       border-radius: var(--radius-xl);
       text-align: center;
@@ -928,8 +933,10 @@
       transition: all var(--dur) var(--ease);
     }
     .lang-tile:hover { transform: translateY(-3px); border-color: rgba(93,245,255,0.28); background: rgba(93,245,255,0.07); }
-    .lang-tile h4 { color: var(--cyan); font-size: 15px; font-weight: 900; margin-bottom: 7px; }
-    .lang-tile p { color: var(--muted); font-size: 13px; line-height: 1.6; }
+    .lang-tile .lang-name { display: block; color: var(--cyan); font-size: 15px; font-weight: 900; margin-bottom: 7px; }
+    .lang-tile .lang-desc { display: block; color: var(--muted); font-size: 13px; line-height: 1.6; }
+    .lang-tile[aria-pressed="true"] { border-color: var(--cyan); background: rgba(93,245,255,0.10); }
+    .lang-tile:focus-visible { outline: 3px solid var(--cyan); outline-offset: 2px; }
 
     /* Community tiles */
     .community-tile {
@@ -1373,18 +1380,20 @@
       <!-- GLOBAL LANGUAGE SUPPORT -->
       <section class="section" aria-labelledby="lang-heading">
         <div class="section-hd">
-          <h2 id="lang-heading">Website languages</h2>
-          <p class="lead">Parts of this website can be shown in the languages below. These translations were produced automatically, may contain errors, and don't cover every page. Support replies, policies and legal terms are in English.</p>
+          <h2 id="lang-heading">Languages</h2>
+          <p class="lead">Choose a language for available content. Translations are automated and may contain errors. Some screens, support responses, policies, and legal terms are available only in English.</p>
         </div>
         <div class="grid-4">
-          <div class="lang-tile"><h4>English</h4><p>Support, policies and legal terms.</p></div>
-          <div class="lang-tile"><h4>Español</h4><p>Website text, automatic translation.</p></div>
-          <div class="lang-tile"><h4>Français</h4><p>Website text, automatic translation.</p></div>
-          <div class="lang-tile"><h4>العربية</h4><p>Website text, automatic translation, right-to-left layout.</p></div>
-          <div class="lang-tile"><h4>Kiswahili</h4><p>Website text, automatic translation.</p></div>
-          <div class="lang-tile"><h4>中文</h4><p>Website text, automatic translation.</p></div>
-          <div class="lang-tile"><h4>हिन्दी</h4><p>Website text, automatic translation.</p></div>
-          <div class="lang-tile"><h4>Português</h4><p>Website text, automatic translation.</p></div>
+          <button type="button" class="lang-tile" data-lang="en" aria-pressed="false"><span class="lang-name">English</span><span class="lang-desc">Support, policies and legal terms.</span></button>
+          <button type="button" class="lang-tile" data-lang="es" aria-pressed="false"><span class="lang-name">Español</span><span class="lang-desc">Automated translation.</span></button>
+          <button type="button" class="lang-tile" data-lang="fr" aria-pressed="false"><span class="lang-name">Français</span><span class="lang-desc">Automated translation.</span></button>
+          <button type="button" class="lang-tile" data-lang="ar" aria-pressed="false"><span class="lang-name">العربية</span><span class="lang-desc">Automated translation, right-to-left layout.</span></button>
+          <button type="button" class="lang-tile" data-lang="sw" aria-pressed="false"><span class="lang-name">Kiswahili</span><span class="lang-desc">Automated translation.</span></button>
+          <button type="button" class="lang-tile" data-lang="zh" aria-pressed="false"><span class="lang-name">中文</span><span class="lang-desc">Automated translation.</span></button>
+          <button type="button" class="lang-tile" data-lang="hi" aria-pressed="false"><span class="lang-name">हिन्दी</span><span class="lang-desc">Automated translation.</span></button>
+          <button type="button" class="lang-tile" data-lang="pt" aria-pressed="false"><span class="lang-name">Português</span><span class="lang-desc">Automated translation.</span></button>
+          <button type="button" class="lang-tile" data-lang="ht" aria-pressed="false"><span class="lang-name">Kreyòl Ayisyen</span><span class="lang-desc">Automated translation.</span></button>
+          <button type="button" class="lang-tile" data-lang="yo" aria-pressed="false"><span class="lang-name">Yorùbá</span><span class="lang-desc">Automated translation.</span></button>
         </div>
       </section>
 
@@ -2513,6 +2522,7 @@
       });
       document.documentElement.lang = lang;
       document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+      document.querySelectorAll(".lang-tile[data-lang]").forEach(t => t.setAttribute("aria-pressed", String(t.dataset.lang === lang)));
       safeSet(STORAGE_KEYS.language, lang);
       trackEvent("language_changed", { lang });
     }
@@ -2523,6 +2533,14 @@
       const saved = safeGet(STORAGE_KEYS.language, "en");
       sel.value = TRANSLATIONS[saved] ? saved : "en";
       sel.addEventListener("change", function () { applyLanguage(this.value); });
+      // The tiles in the Languages section switch the language too.
+      document.querySelectorAll(".lang-tile[data-lang]").forEach(tile => {
+        tile.addEventListener("click", () => {
+          if (!TRANSLATIONS[tile.dataset.lang]) return;
+          sel.value = tile.dataset.lang;
+          applyLanguage(sel.value);
+        });
+      });
       applyLanguage(sel.value);
     }
 
