@@ -24,7 +24,9 @@ It answers only from HTAF's published pages: the home page, application, contact
 
 ## Records
 - **Unanswered questions:** a redacted excerpt only, with no IP and no identity, goes to `htaf_assistant_questions`.
-  - Emails, phone numbers, card and long numbers, SSN-like numbers and HTAF application codes are removed.
+  - Removed before storage: emails, phone numbers, card and long numbers, SSN-like numbers, HTAF application codes, street addresses and PO boxes, ZIP codes, dates (such as birth dates), and names given after "my name is", "name:", "I am", "this is", "my mother/father/…" or "for".
+  - Redaction runs on the whole message before it is cut to 200 characters.
+  - Names typed with no such lead-in can't be detected reliably, so the chat also asks visitors not to share personal, medical or financial details.
   - Staff see the list in the HTAF admin page, under "HTAF Assistant: unanswered questions" (`GET /api/admin/htaf/assistant-questions`, admin only).
 - **Answered questions:** not stored.
 - **Conversations:** kept in the visitor's page only, never stored.
@@ -40,6 +42,17 @@ It answers only from HTAF's published pages: the home page, application, contact
 
 ## Adding an approved answer
 Publish the text on an HTAF page (with the owner's approval). The assistant picks it up on the next deploy. A new common-question topic is added in `TOPICS`, quoting the published sentences exactly; a test checks they match the page.
+
+### Owner-approved answers (2026-10-13)
+`APPROVED_ANSWERS` in `lib/htafAssistant.js` holds answers the owner approved in their own words. Each links to its supporting page, and is used only while that page still supports it (a required phrase is checked at startup); otherwise it is dropped and the question is handled as before.
+
+| Question | Answer (owner's wording) | Source link | Checked on startup |
+|---|---|---|---|
+| Partnering, sponsoring | "Please contact HTAF through our Contact page to discuss partnership opportunities and how you could help remove transportation barriers." | `/contact.html?topic=partnership#inquiry` | "Partner With HTAF" (home), "Partnership inquiry" (contact form) |
+| Hausa | "Yes. Select Hausa from the Language menu. Translations are automated and may contain errors. Legal, privacy and consent statements remain in English." | `/` (Language menu) | Hausa (`ha`) in `language-pref.js`; the home page's language selector and translation note |
+| Is HTAF a 501(c)(3) / nonprofit / charity? | "Yes. Harvey Transportation Assistance Foundation is a 501(c)(3) public charity focused on removing transportation barriers." | `/` (Nonprofit Status) | the IRS 501(c)(3) sentence and "Removing transportation barriers" on the home page |
+
+The Hausa answer does not mention staff: HTAF has not said Hausa-speaking staff are available. Donation and EIN questions still get the quoted "Nonprofit Status" text.
 
 ## Program categories (owner confirmed 2026-10-07)
 The approved programs are Medical Transportation, Employment Access, Education Access, Senior Assistance, Disability Assistance and Veteran Assistance.
