@@ -239,6 +239,11 @@ Key blockers:
   - **Deployed, owner-confirmed by Render screenshot (2026-10-13)**: Render's deploy list shows `3cd8763` as the current live deploy (auto-deploy, 47.3 s).
   - **[Verified 2026-10-13, read-only]** After the merge: public pages and `/api/health` return 200; `checkr_enabled` and `persona_enabled` are true; `DRIVER_GPLAY_REVIEWER` passes readiness (email and phone verified, Persona `verified`, Checkr `clear`, approved, vehicle on file).
   - **[Unresolved, owner]** Review ride check with the test accounts only.
+- **#228 HTAF application page dashboard:** the four cards (submitted, pending review, approved, scheduled) now read `GET /api/foundation/public-stats` (counts only, from `htaf_applications`), so status changes in the HTAF admin portal show there. Previously they counted only this browser's submissions. If the totals can't be read, the cards show "—".
+  - **[Owner decision 2026-10-13]** Approved.
+  - **[Verified 2026-10-13]** All 6 checks passed on `1266a7d`. Squash-merged as `25d2b36`. The live `htaf-application.html` is byte-identical.
+  - **[Verified 2026-10-13]** `/api/foundation/public-stats` returns 6 submitted, 6 pending review, 0 approved, 0 scheduled.
+  - **[Unresolved, owner]** All 6 applications (received 2026-07-06 to 2026-08-19) are still "submitted". Whether any are tests, and their review, are for HTAF in the admin portal.
 - **Server errors:** 26 `server_error` entries ("CORS origin blocked", `/api/health`) between 16:29 and 16:38 UTC were caused by this session's blocked-origin requests, which tried to read the deployed version **[Verified 2026-10-13, audit log]**. **[Owner decision 2026-10-13]** No more such requests. **[Recommendation]** Blocked origins currently return 500 and are logged as server errors; a small separate fix could return 403 without an error entry.
 - **`driver_1`** **[Verified 2026-10-13, read-only]**: marked online and approved; created and last seen 2026-04-12; no email, phone, Persona or Checkr verification; no vehicle; no location. **[Owner decision 2026-10-13]** Leave it unchanged for now. Once #221 is deployed, it can't be offered or assigned rides.
 - **[Owner decision 2026-10-13]** Harvey Assistant stays rules-only.
@@ -254,7 +259,7 @@ Key blockers:
 ## 8. Session handoff (2026-10-13)
 
 **Completed (2026-10-12 to 2026-10-13):**
-- #220, #222, #223, #224, #225, #226, #227 and #221 merged.
+- #220, #222, #223, #224, #225, #226, #227, #221 and #228 merged.
 - Website changes from #222–#227 verified live, byte-identical.
 - #221 deployed (`3cd8763`), owner-confirmed by Render screenshot.
 
@@ -266,5 +271,6 @@ Key blockers:
 - **[Owner decision]** `driver_1` (left unchanged); the 27-account cleanup SQL (not run); the DRV-85708D8A35 Checkr reset.
 - Earlier items still open: #210 consent (migration and deploy) before any external AI; #207 privacy wording; Stack B; Supabase plan; staging deletion (separate); airport permit documentation; HTAF governance documents.
 - Rider iOS submission of 11:45 AM: removal not yet confirmed.
+- **[Owner]** Review the 6 HTAF applications still in "submitted" status (the page now shows these counts publicly).
 
 **Next authorized action:** none beyond the 1 November rider iOS build check (scheduled). Harvey Assistant stays rules-only. Nothing else is authorized to merge, deploy, build, upload, submit or change in production data.
