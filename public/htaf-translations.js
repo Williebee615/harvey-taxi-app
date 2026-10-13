@@ -3,7 +3,7 @@
    home, application and contact pages. Values follow HTAF_LANGS order.
    English is the source and the fallback. Generated; edit with care. */
 window.HTAF_TRANSLATIONS = {
-  langs: ["es", "fr", "ar", "sw", "zh", "hi", "pt", "ht", "yo"],
+  langs: ["es", "fr", "ar", "sw", "zh", "hi", "pt", "ht", "yo", "ha", "ig", "sn", "nd", "ak"],
   t: {
 "Skip to content": [
 "Saltar al contenido",
@@ -14,7 +14,12 @@ window.HTAF_TRANSLATIONS = {
 "सामग्री पर जाएँ",
 "Pular para o conteúdo",
 "Ale nan kontni an",
-"Fò lọ sí àkóónú"
+"Fò lọ sí àkóónú",
+"Tsallaka zuwa abun ciki",
+"Gaa na ọdịnaya",
+"Svetukira kune zviri mukati",
+"Yeqela kokuqukethweyo",
+"Kɔ nsɛm no so tẽẽ"
 ],
 "Transportation Access • Community Impact • Mobility Support": [
 "Acceso al transporte • Impacto comunitario • Apoyo a la movilidad",
@@ -25,7 +30,12 @@ window.HTAF_TRANSLATIONS = {
 "परिवहन तक पहुँच • सामुदायिक प्रभाव • आवागमन सहायता",
 "Acesso ao transporte • Impacto comunitário • Apoio à mobilidade",
 "Aksè nan transpò • Enpak nan kominote • Sipò pou deplase",
-"Ìráàyè sí ìrìnnà • Ipa lórí àwùjọ • Àtìlẹ́yìn ìrìn"
+"Ìráàyè sí ìrìnnà • Ipa lórí àwùjọ • Àtìlẹ́yìn ìrìn",
+"Samun Sufuri • Tasiri ga Al'umma • Tallafin Zirga-zirga",
+"Nnweta Njem • Mmetụta n'Obodo • Nkwado Mmegharị",
+"Kuwana Kufamba • Kubatsira Nzanga • Rutsigiro Rwekufamba",
+"Ukufinyelela Ukuhamba • Umthelela Emphakathini • Ukusekela Ukuhamba",
+"Akwantuo Nnya • Mpɔtam Nkɛntɛnsoɔ • Akwantuo Mmoa"
 ],
 "Home": [
 "Inicio",
@@ -36,7 +46,12 @@ window.HTAF_TRANSLATIONS = {
 "होम",
 "Início",
 "Akèy",
-"Ilé"
+"Ilé",
+"Gida",
+"Ụlọ",
+"Kumba",
+"Ekhaya",
+"Fie"
 ],
 "Apply": [
 "Solicitar",
@@ -47,7 +62,12 @@ window.HTAF_TRANSLATIONS = {
 "आवेदन करें",
 "Candidatar-se",
 "Aplike",
-"Béèrè"
+"Béèrè",
+"Nema",
+"Tinye Akwụkwọ",
+"Nyorera",
+"Faka Isicelo",
+"Srɛ"
 ],
 "Leadership": [
 "Liderazgo",
@@ -58,7 +78,12 @@ window.HTAF_TRANSLATIONS = {
 "नेतृत्व",
 "Liderança",
 "Lidèchip",
-"Àwọn adarí"
+"Àwọn adarí",
+"Shugabanci",
+"Ndị Ndu",
+"Hutungamiri",
+"Ubukhokheli",
+"Akannifoɔ"
 ],
 "Contact": [
 "Contacto",
@@ -69,7 +94,12 @@ window.HTAF_TRANSLATIONS = {
 "संपर्क",
 "Contato",
 "Kontak",
-"Kàn sí wa"
+"Kàn sí wa",
+"Tuntuɓa",
+"Kpọtụrụ Anyị",
+"Taura Nesu",
+"Xhumana Lathi",
+"Ne Yɛn Nkitahodi"
 ],
 "Donate": [
 "Donar",
@@ -80,7 +110,12 @@ window.HTAF_TRANSLATIONS = {
 "दान करें",
 "Doar",
 "Fè yon don",
-"Ṣètọrẹ"
+"Ṣètọrẹ",
+"Ba da Gudummawa",
+"Nye Onyinye",
+"Pa Chipo",
+"Nikela",
+"Ma Ayɛyɛdeɛ"
 ],
 "Accessibility": [
 "Accesibilidad",
@@ -91,7 +126,12 @@ window.HTAF_TRANSLATIONS = {
 "सुगम्यता",
 "Acessibilidade",
 "Aksesiblite",
-"Ìráàyè"
+"Ìráàyè",
+"Sauƙin Amfani",
+"Nnweta Ọrụ",
+"Kuwanikwa",
+"Ukufinyeleleka",
+"Mmerɛwyɛ"
 ],
 "Adjust display settings for easier reading.": [
 "Ajuste la pantalla para leer con más facilidad.",
@@ -102,7 +142,12 @@ window.HTAF_TRANSLATIONS = {
 "आसानी से पढ़ने के लिए डिस्प्ले सेटिंग बदलें।",
 "Ajuste a tela para ler com mais facilidade.",
 "Ajiste afichaj la pou li pi fasil.",
-"Ṣàtúnṣe ìfihàn kí kíkà lè rọrùn."
+"Ṣàtúnṣe ìfihàn kí kíkà lè rọrùn.",
+"Daidaita nuni don karatu cikin sauƙi.",
+"Hazie ngosi ka ọgụgụ dị mfe.",
+"Gadzirisa chiratidziro kuti kuverenga kuve nyore.",
+"Lungisa isibonisi ukuze ukubala kube lula.",
+"Sesa nhwɛsoɔ no na akenkan ayɛ mmerɛw."
 ],
 "High Contrast": [
 "Alto contraste",
@@ -113,7 +158,12 @@ window.HTAF_TRANSLATIONS = {
 "उच्च कंट्रास्ट",
 "Alto contraste",
 "Kontras wo",
-"Ìyàtọ̀ àwọ̀ gíga"
+"Ìyàtọ̀ àwọ̀ gíga",
+"Bambancin Launi Mai Ƙarfi",
+"Ọdịiche Agba Siri Ike",
+"Mavara Akajeka",
+"Imibala Ecacileyo",
+"Kɔla a Ɛda Nsow"
 ],
 "Larger Text": [
 "Texto más grande",
@@ -124,7 +174,12 @@ window.HTAF_TRANSLATIONS = {
 "बड़ा टेक्स्ट",
 "Texto maior",
 "Tèks pi gwo",
-"Ọ̀rọ̀ tó tóbi jù"
+"Ọ̀rọ̀ tó tóbi jù",
+"Babban Rubutu",
+"Mkpụrụedemede Buru Ibu",
+"Mavara Makuru",
+"Umbhalo Omkhulu",
+"Nkyerɛwde Akɛse"
 ],
 "Reduce Motion": [
 "Reducir movimiento",
@@ -135,7 +190,12 @@ window.HTAF_TRANSLATIONS = {
 "गति कम करें",
 "Reduzir movimento",
 "Diminye mouvman",
-"Dín ìṣípò kù"
+"Dín ìṣípò kù",
+"Rage Motsi",
+"Belata Mmegharị",
+"Deredza Kufamba",
+"Nciphisa Ukunyakaza",
+"Te Ahotutuo So"
 ],
 "Tennessee-Based 501(c)(3) Public Charity": [
 "Organización benéfica pública 501(c)(3) con sede en Tennessee",
@@ -146,7 +206,12 @@ window.HTAF_TRANSLATIONS = {
 "टेनेसी स्थित 501(c)(3) सार्वजनिक धर्मार्थ संस्था",
 "Instituição de caridade pública 501(c)(3) sediada no Tennessee",
 "Òganizasyon charitab piblik 501(c)(3) ki baze nan Tennessee",
-"Àjọ aláàánú gbogbogbò 501(c)(3) tó wà ní Tennessee"
+"Àjọ aláàánú gbogbogbò 501(c)(3) tó wà ní Tennessee",
+"Ƙungiyar Agaji ta Jama'a 501(c)(3) da ke Tennessee",
+"Òtù Ebere Ọha 501(c)(3) Dị na Tennessee",
+"Sangano Rerubatsiro Reruzhinji 501(c)(3) RemuTennessee",
+"Inhlangano Yosizo Yomphakathi 501(c)(3) eseTennessee",
+"Ɔmanfoɔ Mmoa Kuo 501(c)(3) a Ɛwɔ Tennessee"
 ],
 "Removing transportation barriers for Tennesseans in need.": [
 "Eliminamos las barreras de transporte para los habitantes de Tennessee que lo necesitan.",
@@ -157,7 +222,12 @@ window.HTAF_TRANSLATIONS = {
 "ज़रूरतमंद टेनेसी निवासियों के लिए परिवहन की बाधाएँ दूर करना।",
 "Removendo barreiras de transporte para moradores do Tennessee que precisam.",
 "N ap retire obstak transpò pou moun nan Tennessee ki nan bezwen.",
-"À ń mú ìdènà ìrìnnà kúrò fún àwọn ará Tennessee tó nílò ìrànlọ́wọ́."
+"À ń mú ìdènà ìrìnnà kúrò fún àwọn ará Tennessee tó nílò ìrànlọ́wọ́.",
+"Cire shingayen sufuri ga mazauna Tennessee masu buƙata.",
+"Iwepụ ihe mgbochi njem maka ndị Tennessee nọ na mkpa.",
+"Kubvisa zvipingamupinyi zvekufamba kuvagari veTennessee vanoshaya.",
+"Ukususa izithiyo zokuhamba kubahlali beTennessee abaswelayo.",
+"Yɛyi akwantuo nkwanssiane firi hɔ ma Tennessee atenafoɔ a wɔhia mmoa."
 ],
 "Harvey Transportation Assistance Foundation (HTAF) helps eligible Tennessee residents reach the healthcare, employment, education, and community resources they need, when a lack of reliable transportation stands in the way.": [
 "Harvey Transportation Assistance Foundation (HTAF) ayuda a los residentes elegibles de Tennessee a llegar a la atención médica, el empleo, la educación y los recursos comunitarios que necesitan cuando la falta de transporte confiable se lo impide.",
@@ -168,7 +238,12 @@ window.HTAF_TRANSLATIONS = {
 "जब भरोसेमंद परिवहन की कमी आड़े आती है, तब Harvey Transportation Assistance Foundation (HTAF) पात्र टेनेसी निवासियों को ज़रूरी स्वास्थ्य सेवा, रोज़गार, शिक्षा और सामुदायिक संसाधनों तक पहुँचने में मदद करता है।",
 "A Harvey Transportation Assistance Foundation (HTAF) ajuda moradores elegíveis do Tennessee a chegar aos serviços de saúde, emprego, educação e recursos comunitários de que precisam quando a falta de transporte confiável é um obstáculo.",
 "Harvey Transportation Assistance Foundation (HTAF) ede moun ki kalifye nan Tennessee rive jwenn swen sante, travay, edikasyon ak resous kominotè yo bezwen, lè yo pa gen transpò ki serye.",
-"Harvey Transportation Assistance Foundation (HTAF) ń ran àwọn olùgbé Tennessee tó yẹ lọ́wọ́ láti dé ibi ìtọ́jú ìlera, iṣẹ́, ẹ̀kọ́ àti àwọn ohun èlò àwùjọ tí wọ́n nílò, nígbà tí àìsí ìrìnnà tó ṣeé gbẹ́kẹ̀lé bá dí wọn lọ́wọ́."
+"Harvey Transportation Assistance Foundation (HTAF) ń ran àwọn olùgbé Tennessee tó yẹ lọ́wọ́ láti dé ibi ìtọ́jú ìlera, iṣẹ́, ẹ̀kọ́ àti àwọn ohun èlò àwùjọ tí wọ́n nílò, nígbà tí àìsí ìrìnnà tó ṣeé gbẹ́kẹ̀lé bá dí wọn lọ́wọ́.",
+"Harvey Transportation Assistance Foundation (HTAF) na taimaka wa mazauna Tennessee da suka cancanta su kai ga kiwon lafiya, aiki, ilimi da albarkatun al'umma da suke buƙata, idan rashin sufuri mai dogaro ya hana su.",
+"Harvey Transportation Assistance Foundation (HTAF) na-enyere ndị bi na Tennessee tozuru etozu aka iru ahụike, ọrụ, agụmakwụkwọ na akụ obodo ha chọrọ, mgbe enweghị njem a pụrụ ịtụkwasị obi gbochiri ha.",
+"Harvey Transportation Assistance Foundation (HTAF) inobatsira vagari veTennessee vanokodzera kusvika kuutano, basa, dzidzo nezviwanikwa zvenzanga zvavanoda, kana kushaya kufamba kwakavimbika kuchivadzivisa.",
+"Harvey Transportation Assistance Foundation (HTAF) isiza abahlali beTennessee abafaneleyo ukufinyelela ezempilakahle, emsebenzini, emfundweni lezinsiza zomphakathi abazidingayo, nxa ukuswela ukuhamba okuthembekileyo kubavimba.",
+"Harvey Transportation Assistance Foundation (HTAF) boa Tennessee atenafoɔ a wɔfata ma wɔnya apɔmuden, adwuma, nwomasua ne mpɔtam nneɛma a wɔhia, bere a akwantuo a wotumi de wo ho to so nni hɔ."
 ],
 "Apply For Assistance": [
 "Solicitar asistencia",
@@ -179,7 +254,12 @@ window.HTAF_TRANSLATIONS = {
 "सहायता के लिए आवेदन करें",
 "Solicitar assistência",
 "Mande asistans",
-"Béèrè fún ìrànlọ́wọ́"
+"Béèrè fún ìrànlọ́wọ́",
+"Nemi Taimako",
+"Rịọ Enyemaka",
+"Kumbira Rubatsiro",
+"Cela Usizo",
+"Srɛ Mmoa"
 ],
 "Contact HTAF": [
 "Contactar a HTAF",
@@ -190,7 +270,12 @@ window.HTAF_TRANSLATIONS = {
 "HTAF से संपर्क करें",
 "Contatar a HTAF",
 "Kontakte HTAF",
-"Kàn sí HTAF"
+"Kàn sí HTAF",
+"Tuntuɓi HTAF",
+"Kpọtụrụ HTAF",
+"Taura neHTAF",
+"Xhumana leHTAF",
+"Ne HTAF Nkitahodi"
 ],
 "Partner With Us": [
 "Colabore con nosotros",
@@ -201,7 +286,12 @@ window.HTAF_TRANSLATIONS = {
 "हमारे साथ साझेदारी करें",
 "Seja nosso parceiro",
 "Fè patenarya avèk nou",
-"Bá wa ṣiṣẹ́ pọ̀"
+"Bá wa ṣiṣẹ́ pọ̀",
+"Yi Haɗin Gwiwa da Mu",
+"Soro Anyị Rụkọọ Ọrụ",
+"Shanda Nesu",
+"Sebenza Lathi",
+"Ne Yɛn Nyɛ Adwuma"
 ],
 "Medical Transportation": [
 "Transporte médico",
@@ -212,7 +302,12 @@ window.HTAF_TRANSLATIONS = {
 "चिकित्सा परिवहन",
 "Transporte médico",
 "Transpò medikal",
-"Ìrìnnà ìtọ́jú ìlera"
+"Ìrìnnà ìtọ́jú ìlera",
+"Sufurin Kiwon Lafiya",
+"Njem Ahụike",
+"Kufamba Kwekurapwa",
+"Ukuhamba Kwezempilakahle",
+"Ayaresa Akwantuo"
 ],
 "Healthcare appointments, treatment, and pharmacy access.": [
 "Citas médicas, tratamientos y acceso a farmacias.",
@@ -223,7 +318,12 @@ window.HTAF_TRANSLATIONS = {
 "स्वास्थ्य अपॉइंटमेंट, इलाज और फ़ार्मेसी तक पहुँच।",
 "Consultas médicas, tratamentos e acesso à farmácia.",
 "Randevou swen sante, tretman ak aksè nan famasi.",
-"Ìpàdé ìtọ́jú ìlera, ìtọ́jú àti ìráàyè sí ilé ìtajà oògùn."
+"Ìpàdé ìtọ́jú ìlera, ìtọ́jú àti ìráàyè sí ilé ìtajà oògùn.",
+"Ganin likita, magani da zuwa kantin magani.",
+"Ịhụ dọkịta, ọgwụgwọ na ịga ụlọ ahịa ọgwụ.",
+"Kuona chiremba, kurapwa nekuenda kufamasi.",
+"Ukubona udokotela, ukwelatshwa lokuya ekhemisi.",
+"Ayaresabea nhyiamu, ayaresa ne aduruyɛfo dan."
 ],
 "Employment Access": [
 "Acceso al empleo",
@@ -234,7 +334,12 @@ window.HTAF_TRANSLATIONS = {
 "रोज़गार तक पहुँच",
 "Acesso ao emprego",
 "Aksè nan travay",
-"Ìráàyè sí iṣẹ́"
+"Ìráàyè sí iṣẹ́",
+"Samun Aiki",
+"Nnweta Ọrụ",
+"Kuwana Basa",
+"Ukuthola Umsebenzi",
+"Adwuma Nnya"
 ],
 "Workforce participation and interview transportation.": [
 "Transporte para trabajar y para entrevistas de empleo.",
@@ -245,7 +350,12 @@ window.HTAF_TRANSLATIONS = {
 "काम और नौकरी के इंटरव्यू के लिए परिवहन।",
 "Transporte para o trabalho e entrevistas de emprego.",
 "Transpò pou travay ak pou entèvyou travay.",
-"Ìrìnnà lọ síbi iṣẹ́ àti ìfọ̀rọ̀wánilẹ́nuwò."
+"Ìrìnnà lọ síbi iṣẹ́ àti ìfọ̀rọ̀wánilẹ́nuwò.",
+"Sufuri zuwa wurin aiki da hira ta neman aiki.",
+"Njem gaa ọrụ na ajụjụ ọnụ maka ọrụ.",
+"Kufamba kuenda kubasa nekubvunzurudzwa kwebasa.",
+"Ukuhamba ukuya emsebenzini lekuhlolweni komsebenzi.",
+"Akwantuo kɔ adwuma ne adwuma ho nkitahodi."
 ],
 "Community Mobility": [
 "Movilidad comunitaria",
@@ -256,7 +366,12 @@ window.HTAF_TRANSLATIONS = {
 "सामुदायिक आवागमन",
 "Mobilidade comunitária",
 "Mobilite nan kominote",
-"Ìrìn àwùjọ"
+"Ìrìn àwùjọ",
+"Zirga-zirgar Al'umma",
+"Mmegharị Obodo",
+"Kufamba Munharaunda",
+"Ukuhamba Emphakathini",
+"Mpɔtam Akwantuo"
 ],
 "Supporting transportation access across Tennessee.": [
 "Apoyamos el acceso al transporte en todo Tennessee.",
@@ -267,7 +382,12 @@ window.HTAF_TRANSLATIONS = {
 "पूरे टेनेसी में परिवहन तक पहुँच का समर्थन।",
 "Apoiando o acesso ao transporte em todo o Tennessee.",
 "N ap sipòte aksè nan transpò toupatou nan Tennessee.",
-"A ń ṣe àtìlẹ́yìn fún ìráàyè sí ìrìnnà káàkiri Tennessee."
+"A ń ṣe àtìlẹ́yìn fún ìráàyè sí ìrìnnà káàkiri Tennessee.",
+"Tallafa wa samun sufuri a duk faɗin Tennessee.",
+"Ịkwado nnweta njem n'ofe Tennessee.",
+"Kutsigira kuwana kufamba muTennessee yese.",
+"Ukusekela ukuthola ukuhamba kulo lonke iTennessee.",
+"Yɛboa ma akwantuo yɛ mmerɛw wɔ Tennessee nyinaa."
 ],
 "Legal Identity": [
 "Identidad legal",
@@ -278,7 +398,12 @@ window.HTAF_TRANSLATIONS = {
 "कानूनी पहचान",
 "Identidade jurídica",
 "Idantite legal",
-"Ìdánimọ̀ lábẹ́ òfin"
+"Ìdánimọ̀ lábẹ́ òfin",
+"Shaidar Doka",
+"Njirimara Iwu",
+"Chiziviso Chemutemo",
+"Ubunjalo Ngokomthetho",
+"Mmara mu Nipasu"
 ],
 "Organization": [
 "Organización",
@@ -289,7 +414,12 @@ window.HTAF_TRANSLATIONS = {
 "संगठन",
 "Organização",
 "Òganizasyon",
-"Àjọ"
+"Àjọ",
+"Ƙungiya",
+"Òtù",
+"Sangano",
+"Inhlangano",
+"Kuo"
 ],
 "Status": [
 "Estatus",
@@ -300,7 +430,12 @@ window.HTAF_TRANSLATIONS = {
 "स्थिति",
 "Status",
 "Estati",
-"Ipò"
+"Ipò",
+"Matsayi",
+"Ọnọdụ",
+"Chimiro",
+"Isimo",
+"Tebea"
 ],
 "501(c)(3) public charity": [
 "Organización benéfica pública 501(c)(3)",
@@ -311,7 +446,12 @@ window.HTAF_TRANSLATIONS = {
 "501(c)(3) सार्वजनिक धर्मार्थ संस्था",
 "Instituição de caridade pública 501(c)(3)",
 "Òganizasyon charitab piblik 501(c)(3)",
-"Àjọ aláàánú gbogbogbò 501(c)(3)"
+"Àjọ aláàánú gbogbogbò 501(c)(3)",
+"Ƙungiyar agaji ta jama'a 501(c)(3)",
+"Òtù ebere ọha 501(c)(3)",
+"Sangano rerubatsiro reruzhinji 501(c)(3)",
+"Inhlangano yosizo yomphakathi 501(c)(3)",
+"Ɔmanfoɔ mmoa kuo 501(c)(3)"
 ],
 "Service Area": [
 "Área de servicio",
@@ -322,7 +462,12 @@ window.HTAF_TRANSLATIONS = {
 "सेवा क्षेत्र",
 "Área de atendimento",
 "Zòn sèvis",
-"Agbègbè iṣẹ́"
+"Agbègbè iṣẹ́",
+"Yankin Hidima",
+"Mpaghara Ọrụ",
+"Nharaunda Yebasa",
+"Indawo Yenkonzo",
+"Ɔsom Beaeɛ"
 ],
 "Tennessee, statewide": [
 "Tennessee, todo el estado",
@@ -333,7 +478,12 @@ window.HTAF_TRANSLATIONS = {
 "टेनेसी, पूरे राज्य में",
 "Tennessee, em todo o estado",
 "Tennessee, nan tout eta a",
-"Tennessee, káàkiri ìpínlẹ̀"
+"Tennessee, káàkiri ìpínlẹ̀",
+"Tennessee, duk jihar",
+"Tennessee, steeti niile",
+"Tennessee, dunhu rese",
+"Tennessee, ilizwe lonke",
+"Tennessee, ɔman no nyinaa"
 ],
 "Official Domain": [
 "Dominio oficial",
@@ -344,7 +494,12 @@ window.HTAF_TRANSLATIONS = {
 "आधिकारिक डोमेन",
 "Domínio oficial",
 "Domèn ofisyèl",
-"Àdírẹ́sì ayélujára osise"
+"Àdírẹ́sì ayélujára osise",
+"Adireshin Yanar Gizo na Hukuma",
+"Adreesị Weebụ Gọọmentị",
+"Webhusaiti Yepamutemo",
+"Iwebhusayithi Esemthethweni",
+"Wɛbsaet a Ɛyɛ Ampa"
 ],
 "harveytransportationfoundation.com is HTAF's official website. HTAF is a separate 501(c)(3) charitable organization and is not the same legal entity as Harvey Taxi Service LLC, a separate for-profit transportation company.": [
 "harveytransportationfoundation.com es el sitio web oficial de HTAF. HTAF es una organización benéfica 501(c)(3) independiente y no es la misma entidad legal que Harvey Taxi Service LLC, una empresa de transporte con fines de lucro distinta.",
@@ -355,7 +510,12 @@ window.HTAF_TRANSLATIONS = {
 "harveytransportationfoundation.com HTAF की आधिकारिक वेबसाइट है। HTAF एक अलग 501(c)(3) धर्मार्थ संगठन है और Harvey Taxi Service LLC, जो एक अलग लाभकारी परिवहन कंपनी है, के समान कानूनी इकाई नहीं है।",
 "harveytransportationfoundation.com é o site oficial da HTAF. A HTAF é uma organização beneficente 501(c)(3) independente e não é a mesma entidade jurídica que a Harvey Taxi Service LLC, uma empresa de transporte com fins lucrativos distinta.",
 "harveytransportationfoundation.com se sit ofisyèl HTAF. HTAF se yon òganizasyon charitab 501(c)(3) separe, li pa menm antite legal ak Harvey Taxi Service LLC, yon lòt konpayi transpò ki fè benefis.",
-"harveytransportationfoundation.com ni ojú-òpó wẹ́ẹ̀bù osise HTAF. HTAF jẹ́ àjọ aláàánú 501(c)(3) tó dá dúró, kì í sì í ṣe ẹ̀ka òfin kan náà pẹ̀lú Harvey Taxi Service LLC, ilé-iṣẹ́ ìrìnnà mìíràn tó ń wá èrè."
+"harveytransportationfoundation.com ni ojú-òpó wẹ́ẹ̀bù osise HTAF. HTAF jẹ́ àjọ aláàánú 501(c)(3) tó dá dúró, kì í sì í ṣe ẹ̀ka òfin kan náà pẹ̀lú Harvey Taxi Service LLC, ilé-iṣẹ́ ìrìnnà mìíràn tó ń wá èrè.",
+"harveytransportationfoundation.com shi ne shafin yanar gizon hukuma na HTAF. HTAF ƙungiyar agaji ce ta 501(c)(3) mai zaman kanta, kuma ba ɗaya take a doka da Harvey Taxi Service LLC ba, wanda wani kamfanin sufuri ne na riba daban.",
+"harveytransportationfoundation.com bụ weebụsaịtị gọọmentị nke HTAF. HTAF bụ òtù ebere 501(c)(3) kwụụrụ onwe ya, ọ bụghị otu ụlọ ọrụ n'iwu na Harvey Taxi Service LLC, nke bụ ụlọ ọrụ njem ọzọ na-achọ uru.",
+"harveytransportationfoundation.com ndiyo webhusaiti yepamutemo yeHTAF. HTAF isangano rerubatsiro 501(c)(3) rakazvimirira, uye harisi sangano rimwe chete pamutemo neHarvey Taxi Service LLC, kambani yekufambisa inotsvaga purofiti yakasiyana.",
+"harveytransportationfoundation.com yiwebhusayithi esemthethweni yeHTAF. HTAF yinhlangano yosizo 501(c)(3) ezimeleyo, njalo ayisiyo inhlangano eyodwa ngokomthetho leHarvey Taxi Service LLC, inkampani yokuthutha ehlukileyo edinga inzuzo.",
+"harveytransportationfoundation.com ne HTAF wɛbsaet ankasa. HTAF yɛ mmoa kuo 501(c)(3) a ɛgyina ne ho, na ɛnyɛ kuo baako wɔ mmara mu ne Harvey Taxi Service LLC, akwantuo adwumakuo foforɔ a ɛhwehwɛ mfasoɔ."
 ],
 "Address": [
 "Dirección",
@@ -366,7 +526,12 @@ window.HTAF_TRANSLATIONS = {
 "पता",
 "Endereço",
 "Adrès",
-"Àdírẹ́sì"
+"Àdírẹ́sì",
+"Adireshi",
+"Adreesị",
+"Kero",
+"Ikheli",
+"Address"
 ],
 "Our Mission": [
 "Nuestra misión",
@@ -377,7 +542,12 @@ window.HTAF_TRANSLATIONS = {
 "हमारा मिशन",
 "Nossa missão",
 "Misyon nou",
-"Iṣẹ́ àfojúsùn wa"
+"Iṣẹ́ àfojúsùn wa",
+"Manufarmu",
+"Ebumnuche Anyị",
+"Chinangwa Chedu",
+"Inhloso Yethu",
+"Yɛn Botaeɛ"
 ],
 "Harvey Transportation Assistance Foundation (HTAF) is a 501(c)(3) public charity established to remove transportation barriers that keep individuals and families from reaching the healthcare, employment, education, and community resources they need. Transportation is one of the most common — and most overlooked — obstacles standing between Tennesseans and the services that support their health and independence. HTAF exists to close that gap.": [
 "Harvey Transportation Assistance Foundation (HTAF) es una organización benéfica pública 501(c)(3) creada para eliminar las barreras de transporte que impiden a personas y familias llegar a la atención médica, el empleo, la educación y los recursos comunitarios que necesitan. El transporte es uno de los obstáculos más comunes, y más ignorados, entre los habitantes de Tennessee y los servicios que apoyan su salud e independencia. HTAF existe para cerrar esa brecha.",
@@ -388,7 +558,12 @@ window.HTAF_TRANSLATIONS = {
 "Harvey Transportation Assistance Foundation (HTAF) एक 501(c)(3) सार्वजनिक धर्मार्थ संस्था है, जिसकी स्थापना उन परिवहन बाधाओं को दूर करने के लिए हुई है जो लोगों और परिवारों को ज़रूरी स्वास्थ्य सेवा, रोज़गार, शिक्षा और सामुदायिक संसाधनों तक पहुँचने से रोकती हैं। परिवहन टेनेसी निवासियों और उनके स्वास्थ्य व आत्मनिर्भरता में सहायक सेवाओं के बीच सबसे आम, और सबसे अनदेखी, बाधाओं में से एक है। HTAF इसी कमी को दूर करने के लिए है।",
 "A Harvey Transportation Assistance Foundation (HTAF) é uma instituição de caridade pública 501(c)(3) criada para remover as barreiras de transporte que impedem pessoas e famílias de chegar aos serviços de saúde, emprego, educação e recursos comunitários de que precisam. O transporte é um dos obstáculos mais comuns, e mais ignorados, entre os moradores do Tennessee e os serviços que apoiam sua saúde e independência. A HTAF existe para eliminar essa lacuna.",
 "Harvey Transportation Assistance Foundation (HTAF) se yon òganizasyon charitab piblik 501(c)(3) ki te kreye pou retire obstak transpò ki anpeche moun ak fanmi rive jwenn swen sante, travay, edikasyon ak resous kominotè yo bezwen. Transpò se youn nan obstak ki pi komen, e ke moun pi souvan bliye, ant moun Tennessee yo ak sèvis ki sipòte sante ak otonomi yo. HTAF la pou ranpli twou sa a.",
-"Harvey Transportation Assistance Foundation (HTAF) jẹ́ àjọ aláàánú gbogbogbò 501(c)(3) tí a dá sílẹ̀ láti mú ìdènà ìrìnnà kúrò, èyí tí ń dí àwọn ènìyàn àti ìdílé lọ́wọ́ láti dé ibi ìtọ́jú ìlera, iṣẹ́, ẹ̀kọ́ àti àwọn ohun èlò àwùjọ tí wọ́n nílò. Ìrìnnà jẹ́ ọ̀kan lára àwọn ìdènà tó wọ́pọ̀ jùlọ, tí a sì máa ń gbójú fò jùlọ, láàrin àwọn ará Tennessee àti àwọn iṣẹ́ tó ń ṣe àtìlẹ́yìn fún ìlera àti òmìnira wọn. HTAF wà láti dí àlàfo yẹn."
+"Harvey Transportation Assistance Foundation (HTAF) jẹ́ àjọ aláàánú gbogbogbò 501(c)(3) tí a dá sílẹ̀ láti mú ìdènà ìrìnnà kúrò, èyí tí ń dí àwọn ènìyàn àti ìdílé lọ́wọ́ láti dé ibi ìtọ́jú ìlera, iṣẹ́, ẹ̀kọ́ àti àwọn ohun èlò àwùjọ tí wọ́n nílò. Ìrìnnà jẹ́ ọ̀kan lára àwọn ìdènà tó wọ́pọ̀ jùlọ, tí a sì máa ń gbójú fò jùlọ, láàrin àwọn ará Tennessee àti àwọn iṣẹ́ tó ń ṣe àtìlẹ́yìn fún ìlera àti òmìnira wọn. HTAF wà láti dí àlàfo yẹn.",
+"Harvey Transportation Assistance Foundation (HTAF) ƙungiyar agaji ce ta jama'a ta 501(c)(3) da aka kafa don cire shingayen sufuri da ke hana mutane da iyalai kai wa ga kiwon lafiya, aiki, ilimi da albarkatun al'umma da suke buƙata. Sufuri na ɗaya daga cikin shingaye mafi yawa, kuma mafi saurin mantawa, tsakanin mazauna Tennessee da ayyukan da ke tallafa wa lafiyarsu da 'yancinsu. HTAF tana nan don cike wannan giɓi.",
+"Harvey Transportation Assistance Foundation (HTAF) bụ òtù ebere ọha 501(c)(3) e hiwere iji wepụ ihe mgbochi njem na-egbochi ndị mmadụ na ezinụlọ iru ahụike, ọrụ, agụmakwụkwọ na akụ obodo ha chọrọ. Njem bụ otu n'ime ihe mgbochi kacha ewu ewu, nke a na-eleghara anya, n'etiti ndị Tennessee na ọrụ na-akwado ahụike na nnwere onwe ha. HTAF dị iji mechie oghere ahụ.",
+"Harvey Transportation Assistance Foundation (HTAF) isangano rerubatsiro reruzhinji 501(c)(3) rakavambwa kubvisa zvipingamupinyi zvekufamba zvinotadzisa vanhu nemhuri kusvika kuutano, basa, dzidzo nezviwanikwa zvenzanga zvavanoda. Kufamba ndechimwe chezvipingamupinyi zvinowanzoitika, uye zvinowanzofuratirwa, pakati pevagari veTennessee nemasevhisi anotsigira utano nekuzvimirira kwavo. HTAF iripo kuvhara mukaha uyu.",
+"Harvey Transportation Assistance Foundation (HTAF) yinhlangano yosizo yomphakathi 501(c)(3) eyasungulwa ukususa izithiyo zokuhamba ezivimba abantu lemuli ukufinyelela ezempilakahle, emsebenzini, emfundweni lezinsiza zomphakathi abazidingayo. Ukuhamba kungesinye sezithiyo ezivame kakhulu, njalo ezivame ukunganakwa, phakathi kwabahlali beTennessee lezinkonzo ezisekela impilakahle lokuzimela kwabo. HTAF ikhona ukuvala igebe leli.",
+"Harvey Transportation Assistance Foundation (HTAF) yɛ ɔmanfoɔ mmoa kuo 501(c)(3) a wɔde sii hɔ sɛ ɛbɛyi akwantuo nkwanssiane a ɛsiw nnipa ne mmusua kwan ma wɔnnya apɔmuden, adwuma, nwomasua ne mpɔtam nneɛma a wɔhia. Akwantuo yɛ nkwanssiane a ɛtaa ba, na nnipa nhwɛ no yie, wɔ Tennessee atenafoɔ ne nnwuma a ɛboa wɔn apɔmuden ne ahofadi ntam. HTAF wɔ hɔ sɛ ɛbɛto saa tokuro no mu."
 ],
 "As a registered 501(c)(3) public charity, HTAF relies on donations and community partnerships to fund the transportation assistance it provides. Every application is reviewed individually against program eligibility, supporting documentation, and available funding — submitting an application is not a guarantee of assistance, but every request receives real review.": [
 "Como organización benéfica pública 501(c)(3) registrada, HTAF depende de donaciones y alianzas comunitarias para financiar la asistencia de transporte que ofrece. Cada solicitud se revisa de forma individual según la elegibilidad del programa, la documentación de respaldo y los fondos disponibles. Enviar una solicitud no garantiza la asistencia, pero cada solicitud recibe una revisión real.",
@@ -399,7 +574,12 @@ window.HTAF_TRANSLATIONS = {
 "एक पंजीकृत 501(c)(3) सार्वजनिक धर्मार्थ संस्था के रूप में HTAF अपनी परिवहन सहायता के लिए दान और सामुदायिक साझेदारियों पर निर्भर है। हर आवेदन की कार्यक्रम पात्रता, सहायक दस्तावेज़ों और उपलब्ध धनराशि के आधार पर अलग-अलग समीक्षा होती है। आवेदन करने से सहायता की गारंटी नहीं मिलती, लेकिन हर अनुरोध की वास्तविक समीक्षा होती है।",
 "Como instituição de caridade pública 501(c)(3) registrada, a HTAF depende de doações e parcerias comunitárias para financiar a assistência de transporte que oferece. Cada pedido é analisado individualmente com base na elegibilidade ao programa, na documentação comprobatória e nos recursos disponíveis. Enviar um pedido não garante assistência, mas todo pedido recebe uma análise real.",
 "Kòm yon òganizasyon charitab piblik 501(c)(3) ki anrejistre, HTAF depann de don ak patenarya kominotè pou finanse asistans transpò li bay. Yo revize chak aplikasyon apa, selon kalifikasyon pwogram nan, dokiman sipò yo ak lajan ki disponib. Soumèt yon aplikasyon pa garanti asistans, men yo revize chak demann tout bon.",
-"Gẹ́gẹ́ bí àjọ aláàánú gbogbogbò 501(c)(3) tí a forúkọ rẹ̀ sílẹ̀, HTAF gbára lé ọrẹ àti ìbáṣepọ̀ àwùjọ láti san owó ìrànlọ́wọ́ ìrìnnà tí ó ń pèsè. A máa ń ṣàyẹ̀wò ìbéèrè kọ̀ọ̀kan lọ́tọ̀ọ̀tọ̀ gẹ́gẹ́ bí ìyẹ fún ètò náà, ìwé àtìlẹ́yìn àti owó tó wà. Fífi ìbéèrè sílẹ̀ kò fi dájú pé a ó ràn ọ́ lọ́wọ́, ṣùgbọ́n a máa ń ṣàyẹ̀wò ìbéèrè kọ̀ọ̀kan dáadáa."
+"Gẹ́gẹ́ bí àjọ aláàánú gbogbogbò 501(c)(3) tí a forúkọ rẹ̀ sílẹ̀, HTAF gbára lé ọrẹ àti ìbáṣepọ̀ àwùjọ láti san owó ìrànlọ́wọ́ ìrìnnà tí ó ń pèsè. A máa ń ṣàyẹ̀wò ìbéèrè kọ̀ọ̀kan lọ́tọ̀ọ̀tọ̀ gẹ́gẹ́ bí ìyẹ fún ètò náà, ìwé àtìlẹ́yìn àti owó tó wà. Fífi ìbéèrè sílẹ̀ kò fi dájú pé a ó ràn ọ́ lọ́wọ́, ṣùgbọ́n a máa ń ṣàyẹ̀wò ìbéèrè kọ̀ọ̀kan dáadáa.",
+"A matsayinta na ƙungiyar agaji ta jama'a ta 501(c)(3) mai rajista, HTAF tana dogara ga gudummawa da haɗin gwiwar al'umma don biyan kuɗin taimakon sufurin da take bayarwa. Ana duba kowace buƙata ɗaya bayan ɗaya bisa cancantar shirin, takardun tallafi da kuɗin da ake da shi. Neman taimako ba tabbacin samun taimako ba ne, amma ana duba kowace buƙata da gaske.",
+"Dịka òtù ebere ọha 501(c)(3) edebanyere aha, HTAF na-adabere n'onyinye na mmekọrịta obodo iji kwụọ ụgwọ enyemaka njem ọ na-enye. A na-enyocha arịrịọ ọ bụla n'otu n'otu dabere n'ịtozu mmemme, akwụkwọ nkwado na ego dịnụ. Itinye akwụkwọ anaghị ekwe nkwa enyemaka, mana a na-enyocha arịrịọ ọ bụla n'ezie.",
+"Sesangano rerubatsiro reruzhinji 501(c)(3) rakanyoreswa, HTAF inovimba nezvipo nekubatana nenzanga kubhadhara rubatsiro rwekufamba rwainopa. Chikumbiro chimwe nechimwe chinoongororwa chega zvichienderana nekukodzera kuchirongwa, magwaro anotsigira nemari iripo. Kunyorera hakuvimbisi rubatsiro, asi chikumbiro chimwe nechimwe chinoongororwa zvechokwadi.",
+"Njengenhlangano yosizo yomphakathi 501(c)(3) ebhalisiweyo, HTAF ithembele eminikelweni lokubambisana lomphakathi ukubhadala usizo lokuhamba eliphanayo. Isicelo ngasinye sihlolwa sodwa ngokufaneleka ohlelweni, imibhalo esekelayo lemali ekhona. Ukufaka isicelo akuqinisekisi usizo, kodwa isicelo ngasinye sihlolwa ngempela.",
+"Sɛ ɔmanfoɔ mmoa kuo 501(c)(3) a wɔakyerɛw ne din no, HTAF de ne ho to ayɛyɛdeɛ ne mpɔtam nkabom so de tua akwantuo mmoa a ɛde ma no ho ka. Wɔhwɛ abisadeɛ biara mu ankasa ɛgyina dwumadi no mfatoɔ, nkrataa a ɛboa ne sika a ɛwɔ hɔ so. Abisadeɛ nkyerɛ sɛ wobɛnya mmoa, nanso wɔhwɛ abisadeɛ biara mu ampa."
 ],
 "Programs": [
 "Programas",
@@ -410,7 +590,12 @@ window.HTAF_TRANSLATIONS = {
 "कार्यक्रम",
 "Programas",
 "Pwogram",
-"Àwọn ètò"
+"Àwọn ètò",
+"Shirye-shirye",
+"Mmemme",
+"Zvirongwa",
+"Izinhlelo",
+"Dwumadi"
 ],
 "HTAF reviews transportation-assistance requests across the following categories.": [
 "HTAF revisa solicitudes de asistencia de transporte en las siguientes categorías.",
@@ -421,7 +606,12 @@ window.HTAF_TRANSLATIONS = {
 "HTAF निम्नलिखित श्रेणियों में परिवहन सहायता अनुरोधों की समीक्षा करता है।",
 "A HTAF analisa pedidos de assistência de transporte nas seguintes categorias.",
 "HTAF revize demann asistans transpò nan kategori sa yo.",
-"HTAF ń ṣàyẹ̀wò ìbéèrè ìrànlọ́wọ́ ìrìnnà ní àwọn ẹ̀ka wọ̀nyí."
+"HTAF ń ṣàyẹ̀wò ìbéèrè ìrànlọ́wọ́ ìrìnnà ní àwọn ẹ̀ka wọ̀nyí.",
+"HTAF na duba buƙatun taimakon sufuri a cikin waɗannan rukunoni.",
+"HTAF na-enyocha arịrịọ enyemaka njem n'ụdị ndị a.",
+"HTAF inoongorora zvikumbiro zverubatsiro rwekufamba muzvikamu zvinotevera.",
+"HTAF ihlola izicelo zosizo lokuhamba ezigabeni ezilandelayo.",
+"HTAF hwɛ akwantuo mmoa abisadeɛ mu wɔ akuo a ɛdidi so yi mu."
 ],
 "Doctor appointments, treatment, rehabilitation, counseling, and pharmacy access.": [
 "Citas médicas, tratamientos, rehabilitación, consejería y acceso a farmacias.",
@@ -432,7 +622,12 @@ window.HTAF_TRANSLATIONS = {
 "डॉक्टर के अपॉइंटमेंट, इलाज, पुनर्वास, परामर्श और फ़ार्मेसी तक पहुँच।",
 "Consultas médicas, tratamentos, reabilitação, aconselhamento e acesso à farmácia.",
 "Randevou doktè, tretman, reyabilitasyon, konsèy ak aksè nan famasi.",
-"Ìpàdé dókítà, ìtọ́jú, àtúnṣe ara, ìgbaninímọ̀ràn àti ìráàyè sí ilé ìtajà oògùn."
+"Ìpàdé dókítà, ìtọ́jú, àtúnṣe ara, ìgbaninímọ̀ràn àti ìráàyè sí ilé ìtajà oògùn.",
+"Ganin likita, magani, gyaran jiki, shawarwari da zuwa kantin magani.",
+"Ịhụ dọkịta, ọgwụgwọ, mweghachi ahụ, ndụmọdụ na ịga ụlọ ahịa ọgwụ.",
+"Kuona chiremba, kurapwa, kudzoreredzwa kwemuviri, kupanwa mazano nekuenda kufamasi.",
+"Ukubona udokotela, ukwelatshwa, ukubuyiselwa kwempilo, ukwelulekwa lokuya ekhemisi.",
+"Ayaresabea nhyiamu, ayaresa, ahoɔden san ba, afotuo ne aduruyɛfo dan."
 ],
 "Interviews, onboarding, workforce training, and employment transportation.": [
 "Entrevistas, incorporación laboral, capacitación y transporte al trabajo.",
@@ -443,7 +638,12 @@ window.HTAF_TRANSLATIONS = {
 "इंटरव्यू, नौकरी की शुरुआत, कार्यबल प्रशिक्षण और काम पर आने-जाने का परिवहन।",
 "Entrevistas, integração, capacitação profissional e transporte para o trabalho.",
 "Entèvyou, kòmansman travay, fòmasyon pou travay ak transpò pou travay.",
-"Ìfọ̀rọ̀wánilẹ́nuwò, ìbẹ̀rẹ̀ iṣẹ́, ìdálẹ́kọ̀ọ́ iṣẹ́ àti ìrìnnà lọ síbi iṣẹ́."
+"Ìfọ̀rọ̀wánilẹ́nuwò, ìbẹ̀rẹ̀ iṣẹ́, ìdálẹ́kọ̀ọ́ iṣẹ́ àti ìrìnnà lọ síbi iṣẹ́.",
+"Hira ta aiki, fara aiki, horon aiki da sufuri zuwa wurin aiki.",
+"Ajụjụ ọnụ ọrụ, mmalite ọrụ, ọzụzụ ọrụ na njem gaa ọrụ.",
+"Kubvunzurudzwa, kutanga basa, kudzidziswa basa nekufamba kuenda kubasa.",
+"Ukuhlolwa komsebenzi, ukuqala umsebenzi, ukuqeqetshwa lokuhamba ukuya emsebenzini.",
+"Adwuma ho nkitahodi, adwuma mfitiaseɛ, adwuma ho ntetee ne akwantuo kɔ adwuma."
 ],
 "Education Access": [
 "Acceso a la educación",
@@ -454,7 +654,12 @@ window.HTAF_TRANSLATIONS = {
 "शिक्षा तक पहुँच",
 "Acesso à educação",
 "Aksè nan edikasyon",
-"Ìráàyè sí ẹ̀kọ́"
+"Ìráàyè sí ẹ̀kọ́",
+"Samun Ilimi",
+"Nnweta Agụmakwụkwọ",
+"Kuwana Dzidzo",
+"Ukuthola Imfundo",
+"Nwomasua Nnya"
 ],
 "School transportation, certification programs, and workforce education.": [
 "Transporte escolar, programas de certificación y formación laboral.",
@@ -465,7 +670,12 @@ window.HTAF_TRANSLATIONS = {
 "स्कूल परिवहन, प्रमाणन कार्यक्रम और कार्यबल शिक्षा।",
 "Transporte escolar, programas de certificação e educação profissional.",
 "Transpò lekòl, pwogram sètifikasyon ak edikasyon pou travay.",
-"Ìrìnnà ilé-ìwé, àwọn ètò ìwé-ẹ̀rí àti ẹ̀kọ́ iṣẹ́."
+"Ìrìnnà ilé-ìwé, àwọn ètò ìwé-ẹ̀rí àti ẹ̀kọ́ iṣẹ́.",
+"Sufurin makaranta, shirye-shiryen takardar shaida da ilimin aiki.",
+"Njem ụlọ akwụkwọ, mmemme asambodo na agụmakwụkwọ ọrụ.",
+"Kufamba kuenda kuchikoro, zvirongwa zvezvitupa nedzidzo yebasa.",
+"Ukuhamba ukuya esikolo, izinhlelo zezitifiketi lemfundo yomsebenzi.",
+"Sukuu akwantuo, adansedie dwumadi ne adwuma ho nwomasua."
 ],
 "Senior Assistance": [
 "Asistencia para personas mayores",
@@ -476,7 +686,12 @@ window.HTAF_TRANSLATIONS = {
 "वरिष्ठ नागरिक सहायता",
 "Assistência a idosos",
 "Asistans pou granmoun",
-"Ìrànlọ́wọ́ fún àgbàlagbà"
+"Ìrànlọ́wọ́ fún àgbàlagbà",
+"Taimakon Tsofaffi",
+"Enyemaka Ndị Agadi",
+"Rubatsiro Kuvakwegura",
+"Usizo Kwabadala",
+"Mpanimfoɔ Mmoa"
 ],
 "Transportation support for older Tennesseans maintaining independence.": [
 "Apoyo de transporte para que las personas mayores de Tennessee mantengan su independencia.",
@@ -487,7 +702,12 @@ window.HTAF_TRANSLATIONS = {
 "आत्मनिर्भर रहने के लिए टेनेसी के बुज़ुर्गों को परिवहन सहायता।",
 "Apoio de transporte para idosos do Tennessee manterem sua independência.",
 "Sipò transpò pou granmoun nan Tennessee kontinye otonòm.",
-"Àtìlẹ́yìn ìrìnnà fún àgbàlagbà Tennessee láti máa dá dúró."
+"Àtìlẹ́yìn ìrìnnà fún àgbàlagbà Tennessee láti máa dá dúró.",
+"Tallafin sufuri ga tsofaffin Tennessee don su ci gaba da dogaro da kansu.",
+"Nkwado njem maka ndị agadi Tennessee ka ha nọgide na-adabere n'onwe ha.",
+"Rutsigiro rwekufamba kuvakwegura veTennessee kuti varambe vachizvimirira.",
+"Ukusekela ukuhamba kwabadala beTennessee ukuze baqhubeke bezimela.",
+"Akwantuo mmoa ma Tennessee mpanimfoɔ ma wɔtumi gyina wɔn ho."
 ],
 "Disability Assistance": [
 "Asistencia por discapacidad",
@@ -498,7 +718,12 @@ window.HTAF_TRANSLATIONS = {
 "दिव्यांगजन सहायता",
 "Assistência a pessoas com deficiência",
 "Asistans pou moun ki gen andikap",
-"Ìrànlọ́wọ́ fún àwọn aláàbọ̀ ara"
+"Ìrànlọ́wọ́ fún àwọn aláàbọ̀ ara",
+"Taimakon Masu Nakasa",
+"Enyemaka Ndị Nwere Nkwarụ",
+"Rubatsiro Kuvakaremara",
+"Usizo Kwabalokukhubazeka",
+"Dɛmdifoɔ Mmoa"
 ],
 "Accessible transportation for residents with disabilities.": [
 "Transporte accesible para residentes con discapacidad.",
@@ -509,7 +734,12 @@ window.HTAF_TRANSLATIONS = {
 "दिव्यांग निवासियों के लिए सुलभ परिवहन।",
 "Transporte acessível para moradores com deficiência.",
 "Transpò aksesib pou moun ki gen andikap.",
-"Ìrìnnà tó ṣeé lò fún àwọn olùgbé aláàbọ̀ ara."
+"Ìrìnnà tó ṣeé lò fún àwọn olùgbé aláàbọ̀ ara.",
+"Sufuri mai sauƙin amfani ga mazauna masu nakasa.",
+"Njem dị mfe iji maka ndị bi nwere nkwarụ.",
+"Kufamba kuri nyore kuvagari vakaremara.",
+"Ukuhamba okufinyelelekayo kubahlali abalokukhubazeka.",
+"Akwantuo a ɛyɛ mmerɛw ma atenafoɔ a dɛm wɔ wɔn so."
 ],
 "Veteran Assistance": [
 "Asistencia para veteranos",
@@ -520,7 +750,12 @@ window.HTAF_TRANSLATIONS = {
 "पूर्व सैनिक सहायता",
 "Assistência a veteranos",
 "Asistans pou veteran",
-"Ìrànlọ́wọ́ fún àwọn ológun àtijọ́"
+"Ìrànlọ́wọ́ fún àwọn ológun àtijọ́",
+"Taimakon Tsofaffin Sojoji",
+"Enyemaka Ndị Agha Ochie",
+"Rubatsiro Kuvaimbova Mauto",
+"Usizo Kwabake Baba Ngamasotsha",
+"Asraafoɔ Dedaw Mmoa"
 ],
 "Transportation support for Tennessee veterans.": [
 "Apoyo de transporte para veteranos de Tennessee.",
@@ -531,7 +766,12 @@ window.HTAF_TRANSLATIONS = {
 "टेनेसी के पूर्व सैनिकों के लिए परिवहन सहायता।",
 "Apoio de transporte para veteranos do Tennessee.",
 "Sipò transpò pou veteran Tennessee yo.",
-"Àtìlẹ́yìn ìrìnnà fún àwọn ológun àtijọ́ ní Tennessee."
+"Àtìlẹ́yìn ìrìnnà fún àwọn ológun àtijọ́ ní Tennessee.",
+"Tallafin sufuri ga tsofaffin sojojin Tennessee.",
+"Nkwado njem maka ndị agha ochie Tennessee.",
+"Rutsigiro rwekufamba kuvaimbova mauto veTennessee.",
+"Ukusekela ukuhamba kwabake baba ngamasotsha eTennessee.",
+"Akwantuo mmoa ma Tennessee asraafoɔ dedaw."
 ],
 "Partner With HTAF": [
 "Colabore con HTAF",
@@ -542,7 +782,12 @@ window.HTAF_TRANSLATIONS = {
 "HTAF के साथ साझेदारी करें",
 "Seja parceiro da HTAF",
 "Fè patenarya ak HTAF",
-"Bá HTAF ṣiṣẹ́ pọ̀"
+"Bá HTAF ṣiṣẹ́ pọ̀",
+"Yi Haɗin Gwiwa da HTAF",
+"Soro HTAF Rụkọọ Ọrụ",
+"Shanda neHTAF",
+"Sebenza leHTAF",
+"Ne HTAF Nyɛ Adwuma"
 ],
 "Help remove transportation barriers across Tennessee. We welcome inquiries from healthcare providers, employers, schools, community organizations, transportation providers, and sponsors.": [
 "Ayude a eliminar las barreras de transporte en todo Tennessee. Recibimos consultas de proveedores de salud, empleadores, escuelas, organizaciones comunitarias, proveedores de transporte y patrocinadores.",
@@ -553,7 +798,12 @@ window.HTAF_TRANSLATIONS = {
 "पूरे टेनेसी में परिवहन बाधाएँ दूर करने में मदद करें। हम स्वास्थ्य सेवा प्रदाताओं, नियोक्ताओं, स्कूलों, सामुदायिक संगठनों, परिवहन प्रदाताओं और प्रायोजकों की पूछताछ का स्वागत करते हैं।",
 "Ajude a remover barreiras de transporte em todo o Tennessee. Recebemos contatos de prestadores de saúde, empregadores, escolas, organizações comunitárias, prestadores de transporte e patrocinadores.",
 "Ede retire obstak transpò toupatou nan Tennessee. Nou akeyi demann ki soti nan founisè swen sante, anplwayè, lekòl, òganizasyon kominotè, founisè transpò ak sponsò.",
-"Ràn wá lọ́wọ́ láti mú ìdènà ìrìnnà kúrò káàkiri Tennessee. A gba ìbéèrè láti ọ̀dọ̀ àwọn olùpèsè ìtọ́jú ìlera, agbanisíṣẹ́, ilé-ìwé, àjọ àwùjọ, olùpèsè ìrìnnà àti àwọn onígbọ̀wọ́."
+"Ràn wá lọ́wọ́ láti mú ìdènà ìrìnnà kúrò káàkiri Tennessee. A gba ìbéèrè láti ọ̀dọ̀ àwọn olùpèsè ìtọ́jú ìlera, agbanisíṣẹ́, ilé-ìwé, àjọ àwùjọ, olùpèsè ìrìnnà àti àwọn onígbọ̀wọ́.",
+"Taimaka wajen cire shingayen sufuri a duk faɗin Tennessee. Muna maraba da tambayoyi daga masu ba da kiwon lafiya, masu ɗaukar aiki, makarantu, ƙungiyoyin al'umma, masu ba da sufuri da masu ɗaukar nauyi.",
+"Nyere aka wepụ ihe mgbochi njem n'ofe Tennessee. Anyị na-anabata ajụjụ sitere n'aka ndị na-enye ahụike, ndị were n'ọrụ, ụlọ akwụkwọ, òtù obodo, ndị na-enye njem na ndị nkwado.",
+"Batsira kubvisa zvipingamupinyi zvekufamba muTennessee yese. Tinogamuchira mibvunzo kubva kuvapi veutano, vashandirwi, zvikoro, masangano enzanga, vapi vekufamba nevatsigiri.",
+"Siza ukususa izithiyo zokuhamba kulo lonke iTennessee. Siyayamukela imibuzo evela kubanikazi bezempilakahle, abaqhatshi, izikolo, izinhlangano zomphakathi, abanikazi bokuthutha labaxhasi.",
+"Boa ma yɛnyi akwantuo nkwanssiane firi Tennessee nyinaa. Yɛgye nsɛmmisa firi apɔmuden adwumayɛfoɔ, adwumawuranom, sukuu, mpɔtam akuo, akwantuo adwumakuo ne mmoafoɔ hɔ."
 ],
 "Ways to collaborate include:": [
 "Formas de colaborar:",
@@ -564,7 +814,12 @@ window.HTAF_TRANSLATIONS = {
 "सहयोग के तरीकों में शामिल हैं:",
 "Formas de colaborar:",
 "Fason pou kolabore gen ladan:",
-"Àwọn ọ̀nà ìfọwọ́sowọ́pọ̀ ni:"
+"Àwọn ọ̀nà ìfọwọ́sowọ́pọ̀ ni:",
+"Hanyoyin haɗin gwiwa sun haɗa da:",
+"Ụzọ isi rụkọọ ọrụ gụnyere:",
+"Nzira dzekushanda pamwe dzinosanganisira:",
+"Izindlela zokubambisana zihlanganisa:",
+"Akwan a yɛbɛfa so ayɛ adwuma bom no bi ne:"
 ],
 "Referring people for assistance": [
 "Remitir a personas para recibir asistencia",
@@ -575,7 +830,12 @@ window.HTAF_TRANSLATIONS = {
 "लोगों को सहायता के लिए भेजना",
 "Encaminhar pessoas para assistência",
 "Voye moun vin chèche asistans",
-"Títọ́ àwọn ènìyàn wá fún ìrànlọ́wọ́"
+"Títọ́ àwọn ènìyàn wá fún ìrànlọ́wọ́",
+"Tura mutane don samun taimako",
+"Iziga ndị mmadụ maka enyemaka",
+"Kutumira vanhu kuti vabatsirwe",
+"Ukuthumela abantu ukuthi bancediswe",
+"Nnipa a wɔde wɔn kɔ ma wɔnya mmoa"
 ],
 "Sponsoring transportation": [
 "Patrocinar transporte",
@@ -586,7 +846,12 @@ window.HTAF_TRANSLATIONS = {
 "परिवहन प्रायोजित करना",
 "Patrocinar transporte",
 "Sponsorize transpò",
-"Ṣíṣe onígbọ̀wọ́ ìrìnnà"
+"Ṣíṣe onígbọ̀wọ́ ìrìnnà",
+"Ɗaukar nauyin sufuri",
+"Ịkwado ụgwọ njem",
+"Kubhadharira kufamba",
+"Ukuxhasa ukuhamba",
+"Akwantuo ho ka a wobɛtua"
 ],
 "Coordinating community programs": [
 "Coordinar programas comunitarios",
@@ -597,7 +862,12 @@ window.HTAF_TRANSLATIONS = {
 "सामुदायिक कार्यक्रमों का समन्वय",
 "Coordenar programas comunitários",
 "Kowòdone pwogram kominotè",
-"Ṣíṣètò àwọn ètò àwùjọ"
+"Ṣíṣètò àwọn ètò àwùjọ",
+"Haɗa shirye-shiryen al'umma",
+"Ịhazi mmemme obodo",
+"Kuronga zvirongwa zvenzanga",
+"Ukuhlela izinhlelo zomphakathi",
+"Mpɔtam dwumadi nhyehyɛeɛ"
 ],
 "Providing transportation resources": [
 "Aportar recursos de transporte",
@@ -608,7 +878,12 @@ window.HTAF_TRANSLATIONS = {
 "परिवहन संसाधन उपलब्ध कराना",
 "Oferecer recursos de transporte",
 "Bay resous transpò",
-"Pípèsè ohun èlò ìrìnnà"
+"Pípèsè ohun èlò ìrìnnà",
+"Samar da albarkatun sufuri",
+"Inye akụrụngwa njem",
+"Kupa zviwanikwa zvekufamba",
+"Ukunika izinsiza zokuhamba",
+"Akwantuo nneɛma a wobɛma"
 ],
 "Discuss a Partnership": [
 "Hablar de una colaboración",
@@ -619,7 +894,12 @@ window.HTAF_TRANSLATIONS = {
 "साझेदारी पर चर्चा करें",
 "Conversar sobre uma parceria",
 "Pale sou yon patenarya",
-"Jíròrò ìbáṣepọ̀"
+"Jíròrò ìbáṣepọ̀",
+"Tattauna Haɗin Gwiwa",
+"Kparịta Maka Mmekọrịta",
+"Kurukurai Nezvekushanda Pamwe",
+"Khulumani Ngokubambisana",
+"Susu Nkabom Ho"
 ],
 "Governance": [
 "Gobernanza",
@@ -630,7 +910,12 @@ window.HTAF_TRANSLATIONS = {
 "शासन",
 "Governança",
 "Gouvènans",
-"Ìṣàkóso"
+"Ìṣàkóso",
+"Gudanarwa",
+"Nchịkwa",
+"Kutonga",
+"Ukubusa",
+"Nniso"
 ],
 "HTAF is governed by a Board of Directors responsible for the Foundation's mission, finances, and program oversight.": [
 "HTAF está dirigida por una Junta Directiva responsable de la misión, las finanzas y la supervisión de los programas de la Fundación.",
@@ -641,7 +926,12 @@ window.HTAF_TRANSLATIONS = {
 "HTAF का संचालन एक निदेशक मंडल करता है, जो फ़ाउंडेशन के मिशन, वित्त और कार्यक्रम निगरानी के लिए ज़िम्मेदार है।",
 "A HTAF é dirigida por um Conselho de Administração responsável pela missão, pelas finanças e pela supervisão dos programas da Fundação.",
 "Se yon Konsèy Administrasyon ki dirije HTAF, e li responsab misyon, finans ak siveyans pwogram Fondasyon an.",
-"Ìgbìmọ̀ Olùdarí ló ń darí HTAF, ó sì ń bójú tó iṣẹ́ àfojúsùn, owó àti àbójútó ètò Àjọ náà."
+"Ìgbìmọ̀ Olùdarí ló ń darí HTAF, ó sì ń bójú tó iṣẹ́ àfojúsùn, owó àti àbójútó ètò Àjọ náà.",
+"Kwamitin Daraktoci ne ke gudanar da HTAF, kuma shi ke da alhakin manufar Gidauniyar, kuɗaɗenta da sa ido kan shirye-shirye.",
+"Ndị Isi Nchịkwa na-achị HTAF, ha na-ahụ maka ebumnuche, ego na nlekọta mmemme nke Ntọala ahụ.",
+"HTAF inotongwa neDare reVatungamiri rinoona nezvechinangwa, mari nekutarisira zvirongwa zveSangano.",
+"HTAF iphethwe yiBhodi yaBaqondisi elandela inhloso, imali lokukhangela izinhlelo zeSisekelo.",
+"Akannifoɔ Badwa na ɛdi HTAF so, na ɛhwɛ Fapem no botaeɛ, ne sika ne ne dwumadi."
 ],
 "Board of Directors sets program policy and approves the annual budget.": [
 "La Junta Directiva define la política de los programas y aprueba el presupuesto anual.",
@@ -652,7 +942,12 @@ window.HTAF_TRANSLATIONS = {
 "निदेशक मंडल कार्यक्रम नीति तय करता है और वार्षिक बजट को मंज़ूरी देता है।",
 "O Conselho de Administração define a política dos programas e aprova o orçamento anual.",
 "Konsèy Administrasyon an fikse politik pwogram yo epi apwouve bidjè anyèl la.",
-"Ìgbìmọ̀ Olùdarí ń ṣe ìlànà ètò, ó sì ń fọwọ́ sí ìṣúná ọdọọdún."
+"Ìgbìmọ̀ Olùdarí ń ṣe ìlànà ètò, ó sì ń fọwọ́ sí ìṣúná ọdọọdún.",
+"Kwamitin Daraktoci na tsara manufofin shirye-shirye kuma yana amincewa da kasafin kuɗin shekara.",
+"Ndị Isi Nchịkwa na-esetịpụ iwu mmemme ma na-akwado mmefu ego kwa afọ.",
+"Dare reVatungamiri rinoisa mitemo yezvirongwa uye rinobvumidza bhajeti yegore.",
+"IBhodi yaBaqondisi ibeka imigomo yezinhlelo njalo ivumela isabelomali somnyaka.",
+"Akannifoɔ Badwa no hyehyɛ dwumadi mmara na ɛpene afe sika nhyehyɛeɛ so."
 ],
 "Applications are reviewed under written eligibility criteria.": [
 "Las solicitudes se revisan según criterios de elegibilidad por escrito.",
@@ -663,7 +958,12 @@ window.HTAF_TRANSLATIONS = {
 "आवेदनों की समीक्षा लिखित पात्रता मानदंडों के अनुसार होती है।",
 "Os pedidos são analisados segundo critérios de elegibilidade por escrito.",
 "Yo revize aplikasyon yo selon kritè kalifikasyon ki ekri.",
-"A ń ṣàyẹ̀wò ìbéèrè gẹ́gẹ́ bí ìlànà ìyẹ tí a kọ sílẹ̀."
+"A ń ṣàyẹ̀wò ìbéèrè gẹ́gẹ́ bí ìlànà ìyẹ tí a kọ sílẹ̀.",
+"Ana duba buƙatu bisa rubutattun sharuɗɗan cancanta.",
+"A na-enyocha arịrịọ dabere n'ụkpụrụ ịtozu e dere ede.",
+"Zvikumbiro zvinoongororwa zvichienderana nemitemo yekukodzera yakanyorwa.",
+"Izicelo zihlolwa ngemibandela yokufaneleka ebhaliweyo.",
+"Wɔhwɛ abisadeɛ mu de gyina mfatoɔ nhyehyɛeɛ a wɔakyerɛw so."
 ],
 "Funds are used for transportation assistance and reasonable program operating costs.": [
 "Los fondos se destinan a la asistencia de transporte y a costos operativos razonables del programa.",
@@ -674,7 +974,12 @@ window.HTAF_TRANSLATIONS = {
 "धनराशि का उपयोग परिवहन सहायता और उचित कार्यक्रम संचालन लागत के लिए होता है।",
 "Os recursos são usados para assistência de transporte e custos operacionais razoáveis dos programas.",
 "Yo itilize lajan an pou asistans transpò ak frè fonksyònman pwogram ki rezonab.",
-"A ń lo owó fún ìrànlọ́wọ́ ìrìnnà àti iye owó ìṣiṣẹ́ ètò tó bọ́gbọ́n mu."
+"A ń lo owó fún ìrànlọ́wọ́ ìrìnnà àti iye owó ìṣiṣẹ́ ètò tó bọ́gbọ́n mu.",
+"Ana amfani da kuɗaɗe don taimakon sufuri da kuɗin gudanar da shirye-shirye masu dacewa.",
+"A na-eji ego maka enyemaka njem na ụgwọ ọrụ mmemme kwesịrị ekwesị.",
+"Mari inoshandiswa kurubatsiro rwekufamba nemari inodiwa kumhanyisa zvirongwa.",
+"Imali isetshenziselwa usizo lokuhamba lezindleko ezifaneleyo zokuqhuba izinhlelo.",
+"Wɔde sika no yɛ akwantuo mmoa ne dwumadi ho ka a ɛfata."
 ],
 "Meet The Board": [
 "Conozca a la Junta",
@@ -685,7 +990,12 @@ window.HTAF_TRANSLATIONS = {
 "मंडल से मिलें",
 "Conheça o Conselho",
 "Rankontre Konsèy la",
-"Pàdé Ìgbìmọ̀"
+"Pàdé Ìgbìmọ̀",
+"Haɗu da Kwamitin",
+"Zute Ndị Isi",
+"Sangana neDare",
+"Hlangana leBhodi",
+"Hyia Badwa No"
 ],
 "Nonprofit Status": [
 "Estatus sin fines de lucro",
@@ -696,7 +1006,12 @@ window.HTAF_TRANSLATIONS = {
 "गैर-लाभकारी स्थिति",
 "Status de organização sem fins lucrativos",
 "Estati san bi likratif",
-"Ipò àjọ tí kì í wá èrè"
+"Ipò àjọ tí kì í wá èrè",
+"Matsayin Rashin Riba",
+"Ọnọdụ Enweghị Uru",
+"Chimiro Chisiri Chepurofiti",
+"Isimo Esingesikho Senzuzo",
+"Mfasoɔ a Ɛnhwehwɛ Tebea"
 ],
 "Harvey Transportation Assistance Foundation is recognized by the IRS as a 501(c)(3) public charity (EIN 41-5115030). Donations to HTAF may be tax-deductible to the extent allowed by law. Consult a tax advisor regarding your specific circumstances.": [
 "El IRS reconoce a Harvey Transportation Assistance Foundation como organización benéfica pública 501(c)(3) (EIN 41-5115030). Las donaciones a HTAF pueden ser deducibles de impuestos en la medida permitida por la ley. Consulte a un asesor fiscal sobre su situación particular.",
@@ -707,7 +1022,12 @@ window.HTAF_TRANSLATIONS = {
 "IRS ने Harvey Transportation Assistance Foundation को 501(c)(3) सार्वजनिक धर्मार्थ संस्था (EIN 41-5115030) के रूप में मान्यता दी है। कानून द्वारा अनुमत सीमा तक HTAF को दिया गया दान कर-कटौती योग्य हो सकता है। अपनी स्थिति के लिए किसी कर सलाहकार से परामर्श करें।",
 "O IRS reconhece a Harvey Transportation Assistance Foundation como instituição de caridade pública 501(c)(3) (EIN 41-5115030). Doações à HTAF podem ser dedutíveis de impostos na medida permitida por lei. Consulte um consultor tributário sobre sua situação.",
 "IRS rekonèt Harvey Transportation Assistance Foundation kòm yon òganizasyon charitab piblik 501(c)(3) (EIN 41-5115030). Don ou bay HTAF ka dedwi nan taks dapre sa lalwa pèmèt. Konsilte yon konseye taks pou sitiyasyon pa w.",
-"IRS mọ Harvey Transportation Assistance Foundation sí àjọ aláàánú gbogbogbò 501(c)(3) (EIN 41-5115030). Ọrẹ sí HTAF lè dín owó-orí kù dé ibi tí òfin bá gbà. Bá olùgbaninímọ̀ràn owó-orí sọ̀rọ̀ nípa ipò rẹ."
+"IRS mọ Harvey Transportation Assistance Foundation sí àjọ aláàánú gbogbogbò 501(c)(3) (EIN 41-5115030). Ọrẹ sí HTAF lè dín owó-orí kù dé ibi tí òfin bá gbà. Bá olùgbaninímọ̀ràn owó-orí sọ̀rọ̀ nípa ipò rẹ.",
+"Hukumar IRS ta amince da Harvey Transportation Assistance Foundation a matsayin ƙungiyar agaji ta jama'a ta 501(c)(3) (EIN 41-5115030). Gudummawa ga HTAF na iya rage haraji gwargwadon abin da doka ta yarda. Tuntuɓi mai ba da shawara kan haraji game da yanayinka.",
+"IRS ghọtara Harvey Transportation Assistance Foundation dịka òtù ebere ọha 501(c)(3) (EIN 41-5115030). Onyinye nye HTAF nwere ike belata ụtụ isi ruo ókè iwu kwere. Gakwuru onye ndụmọdụ ụtụ isi maka ọnọdụ gị.",
+"IRS inocherekedza Harvey Transportation Assistance Foundation sesangano rerubatsiro reruzhinji 501(c)(3) (EIN 41-5115030). Zvipo kuHTAF zvinogona kuderedza mutero zvichienderana nezvinobvumidzwa nemutemo. Bvunza chipangamazano chemutero nezvemamiriro ako.",
+"I-IRS iyayamukela iHarvey Transportation Assistance Foundation njengenhlangano yosizo yomphakathi 501(c)(3) (EIN 41-5115030). Iminikelo kuHTAF ingehlisa intela ngokuvunyelwa ngumthetho. Buza umeluleki wentela ngesimo sakho.",
+"IRS gye Harvey Transportation Assistance Foundation tom sɛ ɔmanfoɔ mmoa kuo 501(c)(3) (EIN 41-5115030). Ayɛyɛdeɛ a wode ma HTAF betumi atew w'apoobɔ so sɛnea mmara ma kwan. Bisa apoobɔ ho ɔfotufo fa wo tebea ho."
 ],
 "Frequently Asked Questions": [
 "Preguntas frecuentes",
@@ -718,7 +1038,12 @@ window.HTAF_TRANSLATIONS = {
 "अक्सर पूछे जाने वाले प्रश्न",
 "Perguntas frequentes",
 "Kesyon yo poze souvan",
-"Àwọn ìbéèrè tí a máa ń béèrè"
+"Àwọn ìbéèrè tí a máa ń béèrè",
+"Tambayoyin da Ake Yawan Yi",
+"Ajụjụ A Na-ajụkarị",
+"Mibvunzo Inowanzobvunzwa",
+"Imibuzo Evame Ukubuzwa",
+"Nsɛmmisa a Wɔtaa Bisa"
 ],
 "Does submitting an application guarantee assistance?": [
 "¿Enviar una solicitud garantiza la asistencia?",
@@ -729,7 +1054,12 @@ window.HTAF_TRANSLATIONS = {
 "क्या आवेदन करने से सहायता की गारंटी मिलती है?",
 "Enviar um pedido garante assistência?",
 "Èske soumèt yon aplikasyon garanti asistans?",
-"Ṣé fífi ìbéèrè sílẹ̀ fi dájú pé a ó ràn ọ́ lọ́wọ́?"
+"Ṣé fífi ìbéèrè sílẹ̀ fi dájú pé a ó ràn ọ́ lọ́wọ́?",
+"Shin neman taimako yana tabbatar da samun taimako?",
+"Ọ bụ na itinye akwụkwọ na-ekwe nkwa enyemaka?",
+"Kunyorera kunovimbisa rubatsiro here?",
+"Ukufaka isicelo kuyaqinisekisa usizo yini?",
+"Sɛ meyɛ abisadeɛ a, ɛkyerɛ sɛ mɛnya mmoa?"
 ],
 "No. Applying does not guarantee approval, funding, transportation, or scheduling. Assistance depends on eligibility, documentation, transportation availability, and funding resources.": [
 "No. Presentar una solicitud no garantiza la aprobación, los fondos, el transporte ni la programación. La asistencia depende de la elegibilidad, la documentación, la disponibilidad de transporte y los fondos.",
@@ -740,7 +1070,12 @@ window.HTAF_TRANSLATIONS = {
 "नहीं। आवेदन करने से मंज़ूरी, धनराशि, परिवहन या समय-निर्धारण की गारंटी नहीं मिलती। सहायता पात्रता, दस्तावेज़, परिवहन की उपलब्धता और धनराशि पर निर्भर करती है।",
 "Não. Candidatar-se não garante aprovação, recursos, transporte ou agendamento. A assistência depende da elegibilidade, da documentação, da disponibilidade de transporte e dos recursos.",
 "Non. Aplike pa garanti apwobasyon, finansman, transpò oswa orè. Asistans depann de kalifikasyon, dokiman, disponibilite transpò ak lajan ki genyen.",
-"Rárá. Bíbéèrè kò fi dájú pé a ó fọwọ́ sí i, pé owó máa wà, pé ìrìnnà máa wà tàbí pé a ó ṣètò àkókò. Ìrànlọ́wọ́ dá lórí ìyẹ, ìwé, wíwà ìrìnnà àti owó."
+"Rárá. Bíbéèrè kò fi dájú pé a ó fọwọ́ sí i, pé owó máa wà, pé ìrìnnà máa wà tàbí pé a ó ṣètò àkókò. Ìrànlọ́wọ́ dá lórí ìyẹ, ìwé, wíwà ìrìnnà àti owó.",
+"A'a. Nema baya tabbatar da amincewa, kuɗi, sufuri ko tsara lokaci. Taimako ya dogara da cancanta, takardu, samuwar sufuri da kuɗaɗen da ake da su.",
+"Mba. Itinye akwụkwọ anaghị ekwe nkwa nkwado, ego, njem ma ọ bụ nhazi oge. Enyemaka dabere n'ịtozu, akwụkwọ, njem dịnụ na ego dịnụ.",
+"Kwete. Kunyorera hakuvimbisi kubvumidzwa, mari, kufamba kana kurongwa kwenguva. Rubatsiro runoenderana nekukodzera, magwaro, kuwanikwa kwekufamba nemari iripo.",
+"Hatshi. Ukufaka isicelo akuqinisekisi ukuvunyelwa, imali, ukuhamba kumbe ukuhlelwa kwesikhathi. Usizo luncike ekufanelekeni, emibhalweni, ekutholakaleni kokuhamba lemalini ekhona.",
+"Daabi. Abisadeɛ nkyerɛ sɛ wɔbɛpene so, sika, akwantuo anaa bere nhyehyɛeɛ. Mmoa gyina mfatoɔ, nkrataa, akwantuo a ɛwɔ hɔ ne sika a ɛwɔ hɔ so."
 ],
 "Who can apply?": [
 "¿Quién puede presentar una solicitud?",
@@ -751,7 +1086,12 @@ window.HTAF_TRANSLATIONS = {
 "कौन आवेदन कर सकता है?",
 "Quem pode se candidatar?",
 "Kiyès ki ka aplike?",
-"Ta ló lè béèrè?"
+"Ta ló lè béèrè?",
+"Wa zai iya nema?",
+"Onye nwere ike itinye akwụkwọ?",
+"Ndiani anogona kunyorera?",
+"Ngubani ongafaka isicelo?",
+"Hena na ɔtumi srɛ?"
 ],
 "Tennessee residents seeking transportation support for essential needs, or a parent, guardian, caregiver, or case worker applying on their behalf.": [
 "Residentes de Tennessee que buscan apoyo de transporte para necesidades esenciales, o un padre, tutor, cuidador o trabajador social que presente la solicitud en su nombre.",
@@ -762,7 +1102,12 @@ window.HTAF_TRANSLATIONS = {
 "आवश्यक ज़रूरतों के लिए परिवहन सहायता चाहने वाले टेनेसी निवासी, या उनकी ओर से आवेदन करने वाले माता-पिता, अभिभावक, देखभालकर्ता या केस वर्कर।",
 "Moradores do Tennessee que buscam apoio de transporte para necessidades essenciais, ou um pai, mãe, responsável, cuidador ou assistente social que se candidate em nome deles.",
 "Moun ki rete nan Tennessee ki bezwen sipò transpò pou bezwen esansyèl, oswa yon paran, gadyen, moun k ap pran swen oswa travayè sosyal k ap aplike pou yo.",
-"Àwọn olùgbé Tennessee tó nílò àtìlẹ́yìn ìrìnnà fún àìní pàtàkì, tàbí òbí, alágbàtọ́, olùtọ́jú tàbí òṣìṣẹ́ àwùjọ tó ń béèrè fún wọn."
+"Àwọn olùgbé Tennessee tó nílò àtìlẹ́yìn ìrìnnà fún àìní pàtàkì, tàbí òbí, alágbàtọ́, olùtọ́jú tàbí òṣìṣẹ́ àwùjọ tó ń béèrè fún wọn.",
+"Mazauna Tennessee da ke neman tallafin sufuri don muhimman bukatu, ko iyaye, mai kula, mai renon yara ko jami'in jin daɗin jama'a da ke nema a madadinsu.",
+"Ndị bi na Tennessee na-achọ nkwado njem maka mkpa dị mkpa, ma ọ bụ nne na nna, onye nlekọta, onye na-elekọta ma ọ bụ onye ọrụ ọdịmma na-etinye akwụkwọ n'aha ha.",
+"Vagari veTennessee vanotsvaga rutsigiro rwekufamba kuzvinhu zvakakosha, kana mubereki, muchengeti, mutarisiri kana mushandi wezvemagariro anonyorera panzvimbo yavo.",
+"Abahlali beTennessee abadinga ukusekelwa ukuhamba kwezidingo eziqakathekileyo, kumbe umzali, umgcini, umnakekeli kumbe isisebenzi sezenhlalakahle esifaka isicelo egameni labo.",
+"Tennessee atenafoɔ a wɔhwehwɛ akwantuo mmoa ma ahiadeɛ titire, anaa ɔwofo, ɔhwɛfo, ɔboafo anaa mmoa adwumayɛni a ɔsrɛ ma wɔn."
 ],
 "What documentation may be required?": [
 "¿Qué documentación se puede requerir?",
@@ -773,7 +1118,12 @@ window.HTAF_TRANSLATIONS = {
 "कौन-से दस्तावेज़ माँगे जा सकते हैं?",
 "Que documentação pode ser exigida?",
 "Ki dokiman yo ka mande?",
-"Ìwé wo ni a lè béèrè?"
+"Ìwé wo ni a lè béèrè?",
+"Wane takardu za a iya buƙata?",
+"Kedu akwụkwọ a ga-achọ?",
+"Ndeapi magwaro angangodiwa?",
+"Yiphi imibhalo engadingwa?",
+"Nkrataa bɛn na wɔbɛhia?"
 ],
 "HTAF may request supporting records, such as an appointment confirmation, after reviewing an application. Do not upload documents through the online application. If supporting documentation is needed, HTAF will contact you with instructions for submitting it securely.": [
 "Después de revisar una solicitud, HTAF puede pedir documentos de respaldo, como la confirmación de una cita. No suba documentos a través de la solicitud en línea. Si se necesita documentación, HTAF se comunicará con usted con instrucciones para enviarla de forma segura.",
@@ -784,7 +1134,12 @@ window.HTAF_TRANSLATIONS = {
 "आवेदन की समीक्षा के बाद HTAF सहायक दस्तावेज़, जैसे अपॉइंटमेंट की पुष्टि, माँग सकता है। ऑनलाइन आवेदन से दस्तावेज़ अपलोड न करें। दस्तावेज़ ज़रूरी होने पर HTAF आपको सुरक्षित रूप से भेजने के निर्देशों के साथ संपर्क करेगा।",
 "Depois de analisar um pedido, a HTAF pode solicitar documentos comprobatórios, como a confirmação de uma consulta. Não envie documentos pelo pedido on-line. Se for necessário, a HTAF entrará em contato com instruções para enviá-los com segurança.",
 "Apre li fin revize yon aplikasyon, HTAF ka mande dokiman sipò, tankou yon konfimasyon randevou. Pa telechaje dokiman nan aplikasyon an liy lan. Si yo bezwen dokiman, HTAF ap kontakte w ak enstriksyon pou voye yo an sekirite.",
-"Lẹ́yìn tí HTAF bá ṣàyẹ̀wò ìbéèrè, ó lè béèrè ìwé àtìlẹ́yìn, bí ìjẹ́rìísí ìpàdé. Má ṣe gbé ìwé sókè nípasẹ̀ ìbéèrè orí ayélujára. Bí a bá nílò ìwé, HTAF yóò kàn sí ọ pẹ̀lú ìtọ́sọ́nà láti fi ránṣẹ́ láìléwu."
+"Lẹ́yìn tí HTAF bá ṣàyẹ̀wò ìbéèrè, ó lè béèrè ìwé àtìlẹ́yìn, bí ìjẹ́rìísí ìpàdé. Má ṣe gbé ìwé sókè nípasẹ̀ ìbéèrè orí ayélujára. Bí a bá nílò ìwé, HTAF yóò kàn sí ọ pẹ̀lú ìtọ́sọ́nà láti fi ránṣẹ́ láìléwu.",
+"HTAF na iya neman takardun tallafi, kamar tabbacin ganawa, bayan duba buƙata. Kada ka loda takardu ta hanyar buƙatar kan layi. Idan ana buƙatar takardu, HTAF za ta tuntuɓe ka da umarnin aika su cikin aminci.",
+"HTAF nwere ike ịrịọ akwụkwọ nkwado, dịka nkwenye nhọpụta, mgbe ọ nyochachara arịrịọ. Ebugoli akwụkwọ site na arịrịọ ịntanetị. Ọ bụrụ na achọrọ akwụkwọ, HTAF ga-akpọtụrụ gị wee nye ntụziaka maka iziga ya n'udo.",
+"HTAF inogona kukumbira magwaro anotsigira, sechisimbiso chekuona chiremba, mushure mekuongorora chikumbiro. Usaisa magwaro kuburikidza nechikumbiro chepamhepo. Kana magwaro achidiwa, HTAF ichataura newe nemirairo yekuatumira zvakachengeteka.",
+"HTAF ingacela imibhalo esekelayo, njengesiqinisekiso sokubona udokotela, ngemva kokuhlola isicelo. Ungalayishi imibhalo ngesicelo se-inthanethi. Nxa imibhalo idingeka, HTAF izaxhumana lawe ngemilayo yokuyithumela ngokuphepha.",
+"HTAF betumi asrɛ nkrataa a ɛboa, te sɛ nhyiamu ho adansedie, bere a ɛhwɛɛ abisadeɛ mu wie. Mfa nkrataa mfa intanɛt abisadeɛ no so. Sɛ wɔhia nkrataa a, HTAF bɛne wo adi nkitaho na ama wo akwankyerɛ sɛnea wobɛsoma no wɔ ahobammɔ mu."
 ],
 "Foundation": [
 "Fundación",
@@ -795,7 +1150,12 @@ window.HTAF_TRANSLATIONS = {
 "फ़ाउंडेशन",
 "Fundação",
 "Fondasyon",
-"Àjọ"
+"Àjọ",
+"Gidauniya",
+"Ntọala",
+"Sangano",
+"Isisekelo",
+"Fapem"
 ],
 "About": [
 "Acerca de",
@@ -806,7 +1166,12 @@ window.HTAF_TRANSLATIONS = {
 "परिचय",
 "Sobre",
 "Konsènan",
-"Nípa wa"
+"Nípa wa",
+"Game da Mu",
+"Maka Anyị",
+"Nezvedu",
+"Ngathi",
+"Yɛn Ho Nsɛm"
 ],
 "Privacy": [
 "Privacidad",
@@ -817,7 +1182,12 @@ window.HTAF_TRANSLATIONS = {
 "गोपनीयता",
 "Privacidade",
 "Vi prive",
-"Àṣírí"
+"Àṣírí",
+"Sirri",
+"Nzuzo",
+"Zvakavanzika",
+"Imfihlo",
+"Kokoamsɛm"
 ],
 "Terms": [
 "Términos",
@@ -828,7 +1198,12 @@ window.HTAF_TRANSLATIONS = {
 "शर्तें",
 "Termos",
 "Tèm",
-"Àwọn òfin"
+"Àwọn òfin",
+"Sharuɗɗa",
+"Usoro",
+"Mitemo",
+"Imibandela",
+"Mmara"
 ],
 "Service Providers": [
 "Proveedores de servicios",
@@ -839,7 +1214,12 @@ window.HTAF_TRANSLATIONS = {
 "सेवा प्रदाता",
 "Prestadores de serviços",
 "Founisè sèvis",
-"Àwọn olùpèsè iṣẹ́"
+"Àwọn olùpèsè iṣẹ́",
+"Masu Ba da Hidima",
+"Ndị Na-enye Ọrụ",
+"Vapi veMasevhisi",
+"Abanikazi Benkonzo",
+"Nnwuma Adwumafoɔ"
 ],
 "Support": [
 "Ayuda",
@@ -850,7 +1230,12 @@ window.HTAF_TRANSLATIONS = {
 "सहायता",
 "Suporte",
 "Sipò",
-"Ìrànlọ́wọ́"
+"Ìrànlọ́wọ́",
+"Tallafi",
+"Enyemaka",
+"Rubatsiro",
+"Usizo",
+"Mmoa"
 ],
 "FAQ": [
 "Preguntas frecuentes",
@@ -861,7 +1246,12 @@ window.HTAF_TRANSLATIONS = {
 "सामान्य प्रश्न",
 "Perguntas",
 "Kesyon",
-"Ìbéèrè"
+"Ìbéèrè",
+"Tambayoyi",
+"Ajụjụ",
+"Mibvunzo",
+"Imibuzo",
+"Nsɛmmisa"
 ],
 "Accessibility & Applicant Support": [
 "Accesibilidad y apoyo al solicitante",
@@ -872,7 +1262,12 @@ window.HTAF_TRANSLATIONS = {
 "सुगम्यता और आवेदक सहायता",
 "Acessibilidade e apoio ao candidato",
 "Aksesiblite ak sipò pou aplikan",
-"Ìráàyè àti ìrànlọ́wọ́ fún olùbéèrè"
+"Ìráàyè àti ìrànlọ́wọ́ fún olùbéèrè",
+"Sauƙin Amfani da Tallafin Mai Nema",
+"Nnweta Ọrụ na Nkwado Onye Na-arịọ",
+"Kuwanikwa neRubatsiro Kumunyoreri",
+"Ukufinyeleleka Losizo Lomfaki Wesicelo",
+"Mmerɛwyɛ ne Ɔsrɛfo Mmoa"
 ],
 "Use the display controls below, save a draft, or print your application. For help,": [
 "Use los controles de pantalla, guarde un borrador o imprima su solicitud. Si necesita ayuda,",
@@ -883,7 +1278,12 @@ window.HTAF_TRANSLATIONS = {
 "नीचे दिए डिस्प्ले नियंत्रण इस्तेमाल करें, ड्राफ़्ट सहेजें या आवेदन प्रिंट करें। सहायता के लिए",
 "Use os controles de exibição abaixo, salve um rascunho ou imprima seu pedido. Para obter ajuda,",
 "Sèvi ak kontwòl afichaj ki anba yo, sove yon bouyon oswa enprime aplikasyon w lan. Pou jwenn èd,",
-"Lo àwọn ìdarí ìfihàn ní ìsàlẹ̀, fi àkọsílẹ̀ pamọ́, tàbí tẹ ìbéèrè rẹ jáde. Fún ìrànlọ́wọ́,"
+"Lo àwọn ìdarí ìfihàn ní ìsàlẹ̀, fi àkọsílẹ̀ pamọ́, tàbí tẹ ìbéèrè rẹ jáde. Fún ìrànlọ́wọ́,",
+"Yi amfani da sarrafa nuni da ke ƙasa, adana daftari, ko buga buƙatarka. Don taimako,",
+"Jiri njikwa ngosi dị n'okpuru, chekwaa ihe edemede, ma ọ bụ bipụta arịrịọ gị. Maka enyemaka,",
+"Shandisa zvidzoreso zvechiratidziro zviri pazasi, chengeta chinyorwa, kana dhinda chikumbiro chako. Kuti ubatsirwe,",
+"Sebenzisa izilawuli zesibonisi ezingezansi, gcina okubhaliweyo, kumbe ugqibe isicelo sakho ephepheni. Ukuthola usizo,",
+"Fa nhwɛsoɔ nhyehyɛeɛ a ɛwɔ aseɛ ha no di dwuma, kora krataa no, anaa tintim w'abisadeɛ. Sɛ wohia mmoa a,"
 ],
 "contact HTAF": [
 "comuníquese con HTAF",
@@ -894,7 +1294,12 @@ window.HTAF_TRANSLATIONS = {
 "HTAF से संपर्क करें",
 "entre em contato com a HTAF",
 "kontakte HTAF",
-"kàn sí HTAF"
+"kàn sí HTAF",
+"tuntuɓi HTAF",
+"kpọtụrụ HTAF",
+"taura neHTAF",
+"xhumana leHTAF",
+"ne HTAF nkitahodi"
 ],
 "Tennessee Transportation Assistance Application": [
 "Solicitud de asistencia de transporte de Tennessee",
@@ -905,7 +1310,12 @@ window.HTAF_TRANSLATIONS = {
 "टेनेसी परिवहन सहायता आवेदन",
 "Pedido de assistência de transporte do Tennessee",
 "Aplikasyon pou asistans transpò Tennessee",
-"Ìbéèrè ìrànlọ́wọ́ ìrìnnà Tennessee"
+"Ìbéèrè ìrànlọ́wọ́ ìrìnnà Tennessee",
+"Buƙatar Taimakon Sufuri ta Tennessee",
+"Arịrịọ Enyemaka Njem nke Tennessee",
+"Chikumbiro Cherubatsiro Rwekufamba cheTennessee",
+"Isicelo Sosizo Lokuhamba seTennessee",
+"Tennessee Akwantuo Mmoa Abisadeɛ"
 ],
 "Apply for transportation assistance through HTAF.": [
 "Solicite asistencia de transporte a través de HTAF.",
@@ -916,7 +1326,12 @@ window.HTAF_TRANSLATIONS = {
 "HTAF के माध्यम से परिवहन सहायता के लिए आवेदन करें।",
 "Solicite assistência de transporte pela HTAF.",
 "Aplike pou asistans transpò atravè HTAF.",
-"Béèrè ìrànlọ́wọ́ ìrìnnà nípasẹ̀ HTAF."
+"Béèrè ìrànlọ́wọ́ ìrìnnà nípasẹ̀ HTAF.",
+"Nemi taimakon sufuri ta hanyar HTAF.",
+"Rịọ enyemaka njem site na HTAF.",
+"Kumbira rubatsiro rwekufamba kuburikidza neHTAF.",
+"Cela usizo lokuhamba ngeHTAF.",
+"Srɛ akwantuo mmoa firi HTAF hɔ."
 ],
 "Harvey Transportation Assistance Foundation helps eligible Tennessee residents access healthcare, employment, education, disability services, veteran resources, senior support, and essential transportation needs.": [
 "Harvey Transportation Assistance Foundation ayuda a los residentes elegibles de Tennessee a acceder a atención médica, empleo, educación, servicios para personas con discapacidad, recursos para veteranos, apoyo para personas mayores y necesidades esenciales de transporte.",
@@ -927,7 +1342,12 @@ window.HTAF_TRANSLATIONS = {
 "Harvey Transportation Assistance Foundation पात्र टेनेसी निवासियों को स्वास्थ्य सेवा, रोज़गार, शिक्षा, दिव्यांग सेवाओं, पूर्व सैनिक संसाधनों, वरिष्ठ नागरिक सहायता और आवश्यक परिवहन ज़रूरतों तक पहुँचने में मदद करता है।",
 "A Harvey Transportation Assistance Foundation ajuda moradores elegíveis do Tennessee a acessar saúde, emprego, educação, serviços para pessoas com deficiência, recursos para veteranos, apoio a idosos e necessidades essenciais de transporte.",
 "Harvey Transportation Assistance Foundation ede moun ki kalifye nan Tennessee jwenn swen sante, travay, edikasyon, sèvis pou moun ki gen andikap, resous pou veteran, sipò pou granmoun ak bezwen transpò esansyèl.",
-"Harvey Transportation Assistance Foundation ń ran àwọn olùgbé Tennessee tó yẹ lọ́wọ́ láti rí ìtọ́jú ìlera, iṣẹ́, ẹ̀kọ́, iṣẹ́ fún aláàbọ̀ ara, ohun èlò fún ológun àtijọ́, àtìlẹ́yìn fún àgbàlagbà àti àìní ìrìnnà pàtàkì."
+"Harvey Transportation Assistance Foundation ń ran àwọn olùgbé Tennessee tó yẹ lọ́wọ́ láti rí ìtọ́jú ìlera, iṣẹ́, ẹ̀kọ́, iṣẹ́ fún aláàbọ̀ ara, ohun èlò fún ológun àtijọ́, àtìlẹ́yìn fún àgbàlagbà àti àìní ìrìnnà pàtàkì.",
+"Harvey Transportation Assistance Foundation na taimaka wa mazauna Tennessee da suka cancanta su sami kiwon lafiya, aiki, ilimi, ayyukan masu nakasa, albarkatun tsofaffin sojoji, tallafin tsofaffi da muhimman bukatun sufuri.",
+"Harvey Transportation Assistance Foundation na-enyere ndị bi na Tennessee tozuru etozu aka inweta ahụike, ọrụ, agụmakwụkwọ, ọrụ maka ndị nwere nkwarụ, akụ ndị agha ochie, nkwado ndị agadi na mkpa njem dị mkpa.",
+"Harvey Transportation Assistance Foundation inobatsira vagari veTennessee vanokodzera kuwana utano, basa, dzidzo, masevhisi evakaremara, zviwanikwa zvevaimbova mauto, rutsigiro rwevakwegura nezvinodiwa zvekufamba zvakakosha.",
+"Harvey Transportation Assistance Foundation isiza abahlali beTennessee abafaneleyo ukuthola ezempilakahle, umsebenzi, imfundo, inkonzo zabalokukhubazeka, izinsiza zabake baba ngamasotsha, ukusekelwa kwabadala lezidingo zokuhamba eziqakathekileyo.",
+"Harvey Transportation Assistance Foundation boa Tennessee atenafoɔ a wɔfata ma wɔnya apɔmuden, adwuma, nwomasua, dɛmdifoɔ nnwuma, asraafoɔ dedaw nneɛma, mpanimfoɔ mmoa ne akwantuo ahiadeɛ titire."
 ],
 "Start Application": [
 "Comenzar solicitud",
@@ -938,7 +1358,12 @@ window.HTAF_TRANSLATIONS = {
 "आवेदन शुरू करें",
 "Iniciar pedido",
 "Kòmanse aplikasyon",
-"Bẹ̀rẹ̀ ìbéèrè"
+"Bẹ̀rẹ̀ ìbéèrè",
+"Fara Buƙata",
+"Bido Arịrịọ",
+"Tanga Chikumbiro",
+"Qala Isicelo",
+"Hyɛ Abisadeɛ Ase"
 ],
 "Return To Foundation": [
 "Volver a la Fundación",
@@ -949,7 +1374,12 @@ window.HTAF_TRANSLATIONS = {
 "फ़ाउंडेशन पर लौटें",
 "Voltar à Fundação",
 "Retounen nan Fondasyon an",
-"Padà sí Àjọ"
+"Padà sí Àjọ",
+"Koma Gidauniya",
+"Laghachi na Ntọala",
+"Dzokera kuSangano",
+"Buyela eSisekelweni",
+"San Kɔ Fapem"
 ],
 "Eligibility Overview": [
 "Resumen de elegibilidad",
@@ -960,7 +1390,12 @@ window.HTAF_TRANSLATIONS = {
 "पात्रता का सार",
 "Visão geral da elegibilidade",
 "Apèsi sou kalifikasyon",
-"Àkópọ̀ ìyẹ"
+"Àkópọ̀ ìyẹ",
+"Taƙaitaccen Bayanin Cancanta",
+"Nchịkọta Ịtozu",
+"Pfupiso Yekukodzera",
+"Isifinyezo Sokufaneleka",
+"Mfatoɔ Ho Nsɛm Tiawa"
 ],
 "Applications are reviewed using transportation need, supporting documentation, funding availability, and overall program eligibility.": [
 "Las solicitudes se revisan según la necesidad de transporte, la documentación de respaldo, los fondos disponibles y la elegibilidad general del programa.",
@@ -971,7 +1406,12 @@ window.HTAF_TRANSLATIONS = {
 "आवेदनों की समीक्षा परिवहन ज़रूरत, सहायक दस्तावेज़ों, धनराशि की उपलब्धता और समग्र कार्यक्रम पात्रता के आधार पर होती है।",
 "Os pedidos são analisados com base na necessidade de transporte, na documentação, na disponibilidade de recursos e na elegibilidade geral ao programa.",
 "Yo revize aplikasyon yo selon bezwen transpò, dokiman sipò, lajan ki disponib ak kalifikasyon jeneral pou pwogram nan.",
-"A ń ṣàyẹ̀wò ìbéèrè nípa àìní ìrìnnà, ìwé àtìlẹ́yìn, wíwà owó àti ìyẹ gbogbogbò fún ètò náà."
+"A ń ṣàyẹ̀wò ìbéèrè nípa àìní ìrìnnà, ìwé àtìlẹ́yìn, wíwà owó àti ìyẹ gbogbogbò fún ètò náà.",
+"Ana duba buƙatu bisa bukatar sufuri, takardun tallafi, samuwar kuɗi da cancantar shirin gaba ɗaya.",
+"A na-enyocha arịrịọ dabere na mkpa njem, akwụkwọ nkwado, ego dịnụ na ịtozu mmemme n'ozuzu.",
+"Zvikumbiro zvinoongororwa zvichienderana nekudiwa kwekufamba, magwaro anotsigira, kuwanikwa kwemari nekukodzera kuchirongwa kwese.",
+"Izicelo zihlolwa ngokudinga ukuhamba, imibhalo esekelayo, ukutholakala kwemali lokufaneleka ohlelweni kukonke.",
+"Wɔhwɛ abisadeɛ mu de gyina akwantuo ahiadeɛ, nkrataa a ɛboa, sika a ɛwɔ hɔ ne dwumadi mfatoɔ nyinaa so."
 ],
 "Tennessee Residents": [
 "Residentes de Tennessee",
@@ -982,7 +1422,12 @@ window.HTAF_TRANSLATIONS = {
 "टेनेसी निवासी",
 "Moradores do Tennessee",
 "Moun ki rete Tennessee",
-"Àwọn olùgbé Tennessee"
+"Àwọn olùgbé Tennessee",
+"Mazauna Tennessee",
+"Ndị Bi na Tennessee",
+"Vagari veTennessee",
+"Abahlali beTennessee",
+"Tennessee Atenafoɔ"
 ],
 "Priority consideration for Tennessee applicants.": [
 "Consideración prioritaria para solicitantes de Tennessee.",
@@ -993,7 +1438,12 @@ window.HTAF_TRANSLATIONS = {
 "टेनेसी के आवेदकों को प्राथमिकता।",
 "Prioridade para candidatos do Tennessee.",
 "Priyorite pou aplikan Tennessee yo.",
-"Àkọ́kọ́ ni àwọn olùbéèrè láti Tennessee."
+"Àkọ́kọ́ ni àwọn olùbéèrè láti Tennessee.",
+"Fifiko ga masu nema daga Tennessee.",
+"A na-ebute ndị na-arịọ si Tennessee ụzọ.",
+"Vanyoreri veTennessee vanotangira.",
+"Abafaka izicelo beTennessee bayaphambiliswa.",
+"Wɔde Tennessee asrɛfoɔ di kan."
 ],
 "Program Review": [
 "Revisión del programa",
@@ -1004,7 +1454,12 @@ window.HTAF_TRANSLATIONS = {
 "कार्यक्रम समीक्षा",
 "Análise do programa",
 "Revizyon pwogram",
-"Àyẹ̀wò ètò"
+"Àyẹ̀wò ètò",
+"Duba Shiri",
+"Nyocha Mmemme",
+"Kuongorora Chirongwa",
+"Ukuhlola Uhlelo",
+"Dwumadi Nhwehwɛmu"
 ],
 "Every request receives individual review.": [
 "Cada solicitud recibe una revisión individual.",
@@ -1015,7 +1470,12 @@ window.HTAF_TRANSLATIONS = {
 "हर अनुरोध की अलग समीक्षा होती है।",
 "Cada pedido é analisado individualmente.",
 "Yo revize chak demann apa.",
-"A ń ṣàyẹ̀wò ìbéèrè kọ̀ọ̀kan lọ́tọ̀ọ̀tọ̀."
+"A ń ṣàyẹ̀wò ìbéèrè kọ̀ọ̀kan lọ́tọ̀ọ̀tọ̀.",
+"Ana duba kowace buƙata ɗaya bayan ɗaya.",
+"A na-enyocha arịrịọ ọ bụla n'otu n'otu.",
+"Chikumbiro chimwe nechimwe chinoongororwa chega.",
+"Isicelo ngasinye sihlolwa sodwa.",
+"Wɔhwɛ abisadeɛ biara mu ankasa."
 ],
 "Documentation": [
 "Documentación",
@@ -1026,7 +1486,12 @@ window.HTAF_TRANSLATIONS = {
 "दस्तावेज़",
 "Documentação",
 "Dokiman",
-"Ìwé"
+"Ìwé",
+"Takardu",
+"Akwụkwọ",
+"Magwaro",
+"Imibhalo",
+"Nkrataa"
 ],
 "HTAF will contact you if supporting records are needed.": [
 "HTAF se comunicará con usted si se necesitan documentos de respaldo.",
@@ -1037,7 +1502,12 @@ window.HTAF_TRANSLATIONS = {
 "सहायक दस्तावेज़ों की ज़रूरत होने पर HTAF आपसे संपर्क करेगा।",
 "A HTAF entrará em contato se forem necessários documentos.",
 "HTAF ap kontakte w si yo bezwen dokiman sipò.",
-"HTAF yóò kàn sí ọ bí a bá nílò ìwé àtìlẹ́yìn."
+"HTAF yóò kàn sí ọ bí a bá nílò ìwé àtìlẹ́yìn.",
+"HTAF za ta tuntuɓe ka idan ana buƙatar takardun tallafi.",
+"HTAF ga-akpọtụrụ gị ma ọ bụrụ na achọrọ akwụkwọ nkwado.",
+"HTAF ichataura newe kana magwaro anotsigira achidiwa.",
+"HTAF izaxhumana lawe nxa imibhalo esekelayo idingeka.",
+"HTAF bɛne wo adi nkitaho sɛ wɔhia nkrataa a ɛboa a."
 ],
 "Funding Dependent": [
 "Sujeto a fondos",
@@ -1048,7 +1518,12 @@ window.HTAF_TRANSLATIONS = {
 "धनराशि पर निर्भर",
 "Depende de recursos",
 "Depann de lajan",
-"Ó dá lórí owó"
+"Ó dá lórí owó",
+"Ya Dogara da Kuɗi",
+"Dabere n'Ego",
+"Zvinoenderana neMari",
+"Kuncike Emalini",
+"Ɛgyina Sika So"
 ],
 "Assistance depends on available resources.": [
 "La asistencia depende de los recursos disponibles.",
@@ -1059,7 +1534,12 @@ window.HTAF_TRANSLATIONS = {
 "सहायता उपलब्ध संसाधनों पर निर्भर करती है।",
 "A assistência depende dos recursos disponíveis.",
 "Asistans depann de resous ki disponib.",
-"Ìrànlọ́wọ́ dá lórí ohun èlò tó wà."
+"Ìrànlọ́wọ́ dá lórí ohun èlò tó wà.",
+"Taimako ya dogara da albarkatun da ake da su.",
+"Enyemaka dabere n'akụ dịnụ.",
+"Rubatsiro runoenderana nezviwanikwa zviripo.",
+"Usizo luncike ezinsizeni ezikhona.",
+"Mmoa gyina nneɛma a ɛwɔ hɔ so."
 ],
 "HTAF Program Portal": [
 "Portal de programas de HTAF",
@@ -1070,7 +1550,12 @@ window.HTAF_TRANSLATIONS = {
 "HTAF कार्यक्रम पोर्टल",
 "Portal de programas da HTAF",
 "Pòtay pwogram HTAF",
-"Ojú-ọ̀nà ètò HTAF"
+"Ojú-ọ̀nà ètò HTAF",
+"Shafin Shirye-shiryen HTAF",
+"Ọnụ Ụzọ Mmemme HTAF",
+"Peji yeZvirongwa zveHTAF",
+"Ikhasi Lezinhlelo zeHTAF",
+"HTAF Dwumadi Kratafa"
 ],
 "Before You Apply": [
 "Antes de presentar la solicitud",
@@ -1081,7 +1566,12 @@ window.HTAF_TRANSLATIONS = {
 "आवेदन से पहले",
 "Antes de se candidatar",
 "Anvan ou aplike",
-"Kí o tó béèrè"
+"Kí o tó béèrè",
+"Kafin Ka Nema",
+"Tupu Ị Tinye Akwụkwọ",
+"Usati Wanyorera",
+"Ungakafaki Isicelo",
+"Ansa Na Wobɛsrɛ"
 ],
 "Prepare transportation details, appointment information, and destination addresses.": [
 "Tenga a mano los detalles del transporte, la información de la cita y las direcciones de destino.",
@@ -1092,7 +1582,12 @@ window.HTAF_TRANSLATIONS = {
 "परिवहन विवरण, अपॉइंटमेंट की जानकारी और गंतव्य के पते तैयार रखें।",
 "Tenha em mãos os detalhes do transporte, as informações da consulta e os endereços de destino.",
 "Prepare detay transpò, enfòmasyon randevou ak adrès kote w prale.",
-"Ṣètò àlàyé ìrìnnà, ìsọfúnni ìpàdé àti àdírẹ́sì ibi tí o ń lọ."
+"Ṣètò àlàyé ìrìnnà, ìsọfúnni ìpàdé àti àdírẹ́sì ibi tí o ń lọ.",
+"Shirya bayanan sufuri, bayanan ganawa da adireshin inda za ka.",
+"Kwadebe nkọwa njem, ozi nhọpụta na adreesị ebe ị na-aga.",
+"Gadzirira ruzivo rwekufamba, ruzivo rwekuona chiremba nekero yekwaunoenda.",
+"Lungisa imininingwane yokuhamba, ulwazi lokubona udokotela lekheli lalapho oya khona.",
+"Siesie akwantuo ho nsɛm, nhyiamu ho nsɛm ne beaeɛ a worekɔ address."
 ],
 "Transportation Assistance Request": [
 "Solicitud de asistencia de transporte",
@@ -1103,7 +1598,12 @@ window.HTAF_TRANSLATIONS = {
 "परिवहन सहायता अनुरोध",
 "Pedido de assistência de transporte",
 "Demann asistans transpò",
-"Ìbéèrè ìrànlọ́wọ́ ìrìnnà"
+"Ìbéèrè ìrànlọ́wọ́ ìrìnnà",
+"Buƙatar Taimakon Sufuri",
+"Arịrịọ Enyemaka Njem",
+"Chikumbiro Cherubatsiro Rwekufamba",
+"Isicelo Sosizo Lokuhamba",
+"Akwantuo Mmoa Abisadeɛ"
 ],
 "Complete all required sections to submit your application.": [
 "Complete todas las secciones obligatorias para enviar su solicitud.",
@@ -1114,7 +1614,12 @@ window.HTAF_TRANSLATIONS = {
 "आवेदन जमा करने के लिए सभी ज़रूरी हिस्से भरें।",
 "Preencha todas as seções obrigatórias para enviar seu pedido.",
 "Ranpli tout seksyon obligatwa yo pou soumèt aplikasyon w lan.",
-"Parí gbogbo apá tí a béèrè kí o tó fi ìbéèrè rẹ ránṣẹ́."
+"Parí gbogbo apá tí a béèrè kí o tó fi ìbéèrè rẹ ránṣẹ́.",
+"Kammala dukkan sassan da ake buƙata don aika buƙatarka.",
+"Mezue ngalaba niile achọrọ iji zipu arịrịọ gị.",
+"Pedzisa zvikamu zvese zvinodiwa kuti utumire chikumbiro chako.",
+"Qedela zonke izingxenye ezidingekayo ukuze uthumele isicelo sakho.",
+"Wie afã a ɛhia nyinaa na woatumi asoma w'abisadeɛ."
 ],
 "Transportation Assistance Application": [
 "Solicitud de asistencia de transporte",
@@ -1125,7 +1630,12 @@ window.HTAF_TRANSLATIONS = {
 "परिवहन सहायता आवेदन",
 "Pedido de assistência de transporte",
 "Aplikasyon pou asistans transpò",
-"Fọ́ọ̀mù ìbéèrè ìrànlọ́wọ́ ìrìnnà"
+"Fọ́ọ̀mù ìbéèrè ìrànlọ́wọ́ ìrìnnà",
+"Fom ɗin Buƙatar Taimakon Sufuri",
+"Fọm Arịrịọ Enyemaka Njem",
+"Fomu Yechikumbiro Cherubatsiro Rwekufamba",
+"Ifomu Lesicelo Sosizo Lokuhamba",
+"Akwantuo Mmoa Abisadeɛ Krataa"
 ],
 "Submit a transportation assistance request directly to Harvey Transportation Assistance Foundation.": [
 "Envíe una solicitud de asistencia de transporte directamente a Harvey Transportation Assistance Foundation.",
@@ -1136,7 +1646,12 @@ window.HTAF_TRANSLATIONS = {
 "परिवहन सहायता अनुरोध सीधे Harvey Transportation Assistance Foundation को भेजें।",
 "Envie um pedido de assistência de transporte diretamente à Harvey Transportation Assistance Foundation.",
 "Voye yon demann asistans transpò dirèkteman bay Harvey Transportation Assistance Foundation.",
-"Fi ìbéèrè ìrànlọ́wọ́ ìrìnnà ránṣẹ́ tààrà sí Harvey Transportation Assistance Foundation."
+"Fi ìbéèrè ìrànlọ́wọ́ ìrìnnà ránṣẹ́ tààrà sí Harvey Transportation Assistance Foundation.",
+"Aika buƙatar taimakon sufuri kai tsaye zuwa Harvey Transportation Assistance Foundation.",
+"Zipu arịrịọ enyemaka njem ozugbo na Harvey Transportation Assistance Foundation.",
+"Tumira chikumbiro cherubatsiro rwekufamba zvakananga kuHarvey Transportation Assistance Foundation.",
+"Thumela isicelo sosizo lokuhamba ngqo kuHarvey Transportation Assistance Foundation.",
+"Soma akwantuo mmoa abisadeɛ tẽẽ kɔ Harvey Transportation Assistance Foundation."
 ],
 "Applicant Information": [
 "Información del solicitante",
@@ -1147,7 +1662,12 @@ window.HTAF_TRANSLATIONS = {
 "आवेदक की जानकारी",
 "Informações do candidato",
 "Enfòmasyon sou aplikan an",
-"Ìsọfúnni olùbéèrè"
+"Ìsọfúnni olùbéèrè",
+"Bayanan Mai Nema",
+"Ozi Onye Na-arịọ",
+"Ruzivo rweMunyoreri",
+"Ulwazi Lomfaki Wesicelo",
+"Ɔsrɛfo Ho Nsɛm"
 ],
 "Required": [
 "Obligatorio",
@@ -1158,7 +1678,12 @@ window.HTAF_TRANSLATIONS = {
 "ज़रूरी",
 "Obrigatório",
 "Obligatwa",
-"Dandan"
+"Dandan",
+"Wajibi",
+"Achọrọ",
+"Zvinodiwa",
+"Kuyadingeka",
+"Ɛhia"
 ],
 "First Name *": [
 "Nombre *",
@@ -1169,7 +1694,12 @@ window.HTAF_TRANSLATIONS = {
 "पहला नाम *",
 "Nome *",
 "Prenon *",
-"Orúkọ àkọ́kọ́ *"
+"Orúkọ àkọ́kọ́ *",
+"Suna na Farko *",
+"Aha Mbụ *",
+"Zita Rekutanga *",
+"Ibizo Lokuqala *",
+"Din a Edi Kan *"
 ],
 "Last Name *": [
 "Apellido *",
@@ -1180,7 +1710,12 @@ window.HTAF_TRANSLATIONS = {
 "उपनाम *",
 "Sobrenome *",
 "Non fanmi *",
-"Orúkọ ìdílé *"
+"Orúkọ ìdílé *",
+"Sunan Iyali *",
+"Aha Nna *",
+"Zita Remhuri *",
+"Isibongo *",
+"Abusua Din *"
 ],
 "Email *": [
 "Correo electrónico *",
@@ -1191,7 +1726,12 @@ window.HTAF_TRANSLATIONS = {
 "ईमेल *",
 "E-mail *",
 "Imèl *",
-"Ímeèlì *"
+"Ímeèlì *",
+"Imel *",
+"Email *",
+"Email *",
+"I-imeyili *",
+"Email *"
 ],
 "Phone *": [
 "Teléfono *",
@@ -1202,7 +1742,12 @@ window.HTAF_TRANSLATIONS = {
 "फ़ोन *",
 "Telefone *",
 "Telefòn *",
-"Fóònù *"
+"Fóònù *",
+"Waya *",
+"Ekwentị *",
+"Foni *",
+"Ifoni *",
+"Fon *"
 ],
 "County *": [
 "Condado *",
@@ -1213,7 +1758,12 @@ window.HTAF_TRANSLATIONS = {
 "काउंटी *",
 "Condado *",
 "Konte *",
-"Agbègbè ìjọba *"
+"Agbègbè ìjọba *",
+"Gunduma *",
+"Kaụntị *",
+"Dunhu *",
+"Isifunda *",
+"Mantam *"
 ],
 "City *": [
 "Ciudad *",
@@ -1224,7 +1774,12 @@ window.HTAF_TRANSLATIONS = {
 "शहर *",
 "Cidade *",
 "Vil *",
-"Ìlú *"
+"Ìlú *",
+"Birni *",
+"Obodo *",
+"Guta *",
+"Idolobho *",
+"Kuropɔn *"
 ],
 "Text message updates from HTAF (optional)": [
 "Mensajes de texto de HTAF con novedades (opcional)",
@@ -1235,7 +1790,12 @@ window.HTAF_TRANSLATIONS = {
 "HTAF से टेक्स्ट संदेश अपडेट (वैकल्पिक)",
 "Atualizações por SMS da HTAF (opcional)",
 "Mesaj tèks HTAF pou nouvèl (opsyonèl)",
-"Ìfitónilétí ọ̀rọ̀ ìfiránṣẹ́ láti HTAF (kò pọn dandan)"
+"Ìfitónilétí ọ̀rọ̀ ìfiránṣẹ́ láti HTAF (kò pọn dandan)",
+"Saƙonnin rubutu daga HTAF (na zaɓi)",
+"Ozi ederede sitere na HTAF (nhọrọ)",
+"Mameseji anobva kuHTAF (sarudzo)",
+"Imilayezo evela kuHTAF (ukukhetha)",
+"Nkrataa nkra a efi HTAF (wo pɛ)"
 ],
 "Leave this unchecked if you do not want texts. Declining texts does not affect your application.": [
 "Deje esta casilla sin marcar si no desea mensajes de texto. Rechazarlos no afecta su solicitud.",
@@ -1246,7 +1806,12 @@ window.HTAF_TRANSLATIONS = {
 "अगर आप टेक्स्ट संदेश नहीं चाहते तो इसे खाली छोड़ दें। मना करने से आपके आवेदन पर कोई असर नहीं पड़ता।",
 "Deixe esta opção desmarcada se não quiser SMS. Recusar não afeta seu pedido.",
 "Pa tcheke kaz sa a si w pa vle mesaj tèks. Refize mesaj pa afekte aplikasyon w lan.",
-"Má ṣe fi àmì síbí bí o kò bá fẹ́ ọ̀rọ̀ ìfiránṣẹ́. Kíkọ̀ kò ní ipa lórí ìbéèrè rẹ."
+"Má ṣe fi àmì síbí bí o kò bá fẹ́ ọ̀rọ̀ ìfiránṣẹ́. Kíkọ̀ kò ní ipa lórí ìbéèrè rẹ.",
+"Ka bar wannan babu alama idan ba ka son saƙonnin rubutu. Ƙin saƙonni baya shafar buƙatarka.",
+"Ahapụla igbe a na-enweghị akara ma ọ bụrụ na ịchọghị ozi ederede. Ịjụ ozi anaghị emetụta arịrịọ gị.",
+"Siya pasina chiratidzo kana usingade mameseji. Kuramba mameseji hakukanganisi chikumbiro chako.",
+"Tshiya kungelamaka nxa ungafuni imilayezo. Ukwala imilayezo akuthinti isicelo sakho.",
+"Gyaw no saa a wonhyɛ no nsɛnkyerɛnne sɛ wompɛ nkra a. Sɛ wopo nkra no a, ɛnsɛe w'abisadeɛ."
 ],
 "Transportation Program": [
 "Programa de transporte",
@@ -1257,7 +1822,12 @@ window.HTAF_TRANSLATIONS = {
 "परिवहन कार्यक्रम",
 "Programa de transporte",
 "Pwogram transpò",
-"Ètò ìrìnnà"
+"Ètò ìrìnnà",
+"Shirin Sufuri",
+"Mmemme Njem",
+"Chirongwa Chekufamba",
+"Uhlelo Lokuhamba",
+"Akwantuo Dwumadi"
 ],
 "Select One": [
 "Seleccione una opción",
@@ -1268,7 +1838,12 @@ window.HTAF_TRANSLATIONS = {
 "एक चुनें",
 "Selecione uma opção",
 "Chwazi youn",
-"Yan ọ̀kan"
+"Yan ọ̀kan",
+"Zaɓi Ɗaya",
+"Họrọ Otu",
+"Sarudza Chimwe",
+"Khetha Okukodwa",
+"Yi Baako"
 ],
 "Transportation Request": [
 "Solicitud de transporte",
@@ -1279,7 +1854,12 @@ window.HTAF_TRANSLATIONS = {
 "परिवहन अनुरोध",
 "Pedido de transporte",
 "Demann transpò",
-"Ìbéèrè ìrìnnà"
+"Ìbéèrè ìrìnnà",
+"Buƙatar Sufuri",
+"Arịrịọ Njem",
+"Chikumbiro Chekufamba",
+"Isicelo Sokuhamba",
+"Akwantuo Abisadeɛ"
 ],
 "Ride Details": [
 "Detalles del viaje",
@@ -1290,7 +1870,12 @@ window.HTAF_TRANSLATIONS = {
 "यात्रा का विवरण",
 "Detalhes da viagem",
 "Detay vwayaj la",
-"Àlàyé ìrìn"
+"Àlàyé ìrìn",
+"Bayanan Tafiya",
+"Nkọwa Njem",
+"Ruzivo Rwerwendo",
+"Imininingwane Yohambo",
+"Akwantuo Ho Nsɛm"
 ],
 "Pickup City *": [
 "Ciudad de recogida *",
@@ -1301,7 +1886,12 @@ window.HTAF_TRANSLATIONS = {
 "पिकअप शहर *",
 "Cidade de embarque *",
 "Vil kote y ap pran w *",
-"Ìlú tí a ó ti gbé ọ *"
+"Ìlú tí a ó ti gbé ọ *",
+"Birnin Ɗauka *",
+"Obodo E Si Bulite *",
+"Guta Rekutorerwa *",
+"Idolobho Lokuthathwa *",
+"Kuropɔn a Wɔbɛfa Wo *"
 ],
 "Destination *": [
 "Destino *",
@@ -1312,7 +1902,12 @@ window.HTAF_TRANSLATIONS = {
 "गंतव्य *",
 "Destino *",
 "Destinasyon *",
-"Ibi tí o ń lọ *"
+"Ibi tí o ń lọ *",
+"Inda Za a Je *",
+"Ebe A Na-aga *",
+"Kwaunoenda *",
+"Lapho Oya Khona *",
+"Beaeɛ a Worekɔ *"
 ],
 "Ride Date Needed *": [
 "Fecha del viaje *",
@@ -1323,7 +1918,12 @@ window.HTAF_TRANSLATIONS = {
 "यात्रा की ज़रूरी तारीख *",
 "Data da viagem *",
 "Dat ou bezwen vwayaj la *",
-"Ọjọ́ tí o nílò ìrìn *"
+"Ọjọ́ tí o nílò ìrìn *",
+"Ranar Tafiya da Ake Buƙata *",
+"Ụbọchị Njem Achọrọ *",
+"Zuva Rerwendo Rinodiwa *",
+"Usuku Lohambo Oludingekayo *",
+"Da a Wohia Akwantuo *"
 ],
 "Transportation Need *": [
 "Necesidad de transporte *",
@@ -1334,7 +1934,12 @@ window.HTAF_TRANSLATIONS = {
 "परिवहन की ज़रूरत *",
 "Necessidade de transporte *",
 "Bezwen transpò *",
-"Àìní ìrìnnà *"
+"Àìní ìrìnnà *",
+"Bukatar Sufuri *",
+"Mkpa Njem *",
+"Chikonzero Chekufamba *",
+"Isidingo Sokuhamba *",
+"Akwantuo Ahiadeɛ *"
 ],
 "Household Information": [
 "Información del hogar",
@@ -1345,7 +1950,12 @@ window.HTAF_TRANSLATIONS = {
 "परिवार की जानकारी",
 "Informações do domicílio",
 "Enfòmasyon sou kay la",
-"Ìsọfúnni ilé"
+"Ìsọfúnni ilé",
+"Bayanan Gida",
+"Ozi Ezinụlọ",
+"Ruzivo Rwemhuri",
+"Ulwazi Lwemuli",
+"Abusua Ho Nsɛm"
 ],
 "Optional": [
 "Opcional",
@@ -1356,7 +1966,12 @@ window.HTAF_TRANSLATIONS = {
 "वैकल्पिक",
 "Opcional",
 "Opsyonèl",
-"Kò pọn dandan"
+"Kò pọn dandan",
+"Na Zaɓi",
+"Nhọrọ",
+"Sarudzo",
+"Ukukhetha",
+"Wo Pɛ"
 ],
 "Applicant Type": [
 "Tipo de solicitante",
@@ -1367,7 +1982,12 @@ window.HTAF_TRANSLATIONS = {
 "आवेदक का प्रकार",
 "Tipo de candidato",
 "Tip aplikan",
-"Irú olùbéèrè"
+"Irú olùbéèrè",
+"Nau'in Mai Nema",
+"Ụdị Onye Na-arịọ",
+"Rudzi rweMunyoreri",
+"Uhlobo Lomfaki Wesicelo",
+"Ɔsrɛfo Ahodoɔ"
 ],
 "Select Applicant Type": [
 "Seleccione el tipo de solicitante",
@@ -1378,7 +1998,12 @@ window.HTAF_TRANSLATIONS = {
 "आवेदक का प्रकार चुनें",
 "Selecione o tipo de candidato",
 "Chwazi tip aplikan",
-"Yan irú olùbéèrè"
+"Yan irú olùbéèrè",
+"Zaɓi Nau'in Mai Nema",
+"Họrọ Ụdị Onye Na-arịọ",
+"Sarudza Rudzi rweMunyoreri",
+"Khetha Uhlobo Lomfaki Wesicelo",
+"Yi Ɔsrɛfo Ahodoɔ"
 ],
 "Self": [
 "Yo mismo",
@@ -1389,7 +2014,12 @@ window.HTAF_TRANSLATIONS = {
 "स्वयं",
 "Eu mesmo",
 "Mwen menm",
-"Èmi fúnra mi"
+"Èmi fúnra mi",
+"Ni Kaina",
+"Mụ Onwe M",
+"Ini Pachangu",
+"Mina Uqobo",
+"Me Ara"
 ],
 "Parent / Guardian": [
 "Padre, madre o tutor",
@@ -1400,7 +2030,12 @@ window.HTAF_TRANSLATIONS = {
 "माता-पिता / अभिभावक",
 "Pai, mãe ou responsável",
 "Paran / gadyen",
-"Òbí / alágbàtọ́"
+"Òbí / alágbàtọ́",
+"Iyaye / Mai Kula",
+"Nne na Nna / Onye Nlekọta",
+"Mubereki / Muchengeti",
+"Umzali / Umgcini",
+"Ɔwofo / Ɔhwɛfo"
 ],
 "Caregiver": [
 "Cuidador",
@@ -1411,7 +2046,12 @@ window.HTAF_TRANSLATIONS = {
 "देखभालकर्ता",
 "Cuidador",
 "Moun k ap pran swen",
-"Olùtọ́jú"
+"Olùtọ́jú",
+"Mai Renon Mutum",
+"Onye Na-elekọta",
+"Mutarisiri",
+"Umnakekeli",
+"Ɔboafo"
 ],
 "Case Worker": [
 "Gestor de casos",
@@ -1422,7 +2062,12 @@ window.HTAF_TRANSLATIONS = {
 "केस वर्कर",
 "Gestor de casos",
 "Travayè ka",
-"Òṣìṣẹ́ ọ̀ràn"
+"Òṣìṣẹ́ ọ̀ràn",
+"Jami'in Shari'a",
+"Onye Na-ahụ Maka Okwu",
+"Mushandi Anoona Nyaya",
+"Isisebenzi Sezindaba",
+"Asɛm Ho Adwumayɛni"
 ],
 "Social Worker": [
 "Trabajador social",
@@ -1433,7 +2078,12 @@ window.HTAF_TRANSLATIONS = {
 "सामाजिक कार्यकर्ता",
 "Assistente social",
 "Travayè sosyal",
-"Òṣìṣẹ́ àwùjọ"
+"Òṣìṣẹ́ àwùjọ",
+"Ma'aikacin Jin Daɗin Jama'a",
+"Onye Ọrụ Ọdịmma",
+"Mushandi Wezvemagariro",
+"Isisebenzi Sezenhlalakahle",
+"Mmoa Adwumayɛni"
 ],
 "Household Size": [
 "Tamaño del hogar",
@@ -1444,7 +2094,12 @@ window.HTAF_TRANSLATIONS = {
 "परिवार का आकार",
 "Tamanho do domicílio",
 "Kantite moun nan kay la",
-"Iye ènìyàn nínú ilé"
+"Iye ènìyàn nínú ilé",
+"Yawan Mutanen Gida",
+"Ọnụ Ọgụgụ Ezinụlọ",
+"Huwandu Hwemhuri",
+"Inani Lemuli",
+"Abusua Dodoɔ"
 ],
 "Monthly Income": [
 "Ingreso mensual",
@@ -1455,7 +2110,12 @@ window.HTAF_TRANSLATIONS = {
 "मासिक आय",
 "Renda mensal",
 "Revni chak mwa",
-"Owó oṣù"
+"Owó oṣù",
+"Kuɗin Shiga na Wata",
+"Ego A Na-enweta Kwa Ọnwa",
+"Mari Inowanikwa Pamwedzi",
+"Imali Engenayo Ngenyanga",
+"Bosome Biara Sika"
 ],
 "Supporting Documentation": [
 "Documentación de respaldo",
@@ -1466,7 +2126,12 @@ window.HTAF_TRANSLATIONS = {
 "सहायक दस्तावेज़",
 "Documentação comprobatória",
 "Dokiman sipò",
-"Ìwé àtìlẹ́yìn"
+"Ìwé àtìlẹ́yìn",
+"Takardun Tallafi",
+"Akwụkwọ Nkwado",
+"Magwaro Anotsigira",
+"Imibhalo Esekelayo",
+"Nkrataa a Ɛboa"
 ],
 "Not Collected Online": [
 "No se recopila en línea",
@@ -1477,7 +2142,12 @@ window.HTAF_TRANSLATIONS = {
 "ऑनलाइन नहीं लिए जाते",
 "Não coletada on-line",
 "Yo pa ranmase yo sou entènèt",
-"A kì í gbà á lórí ayélujára"
+"A kì í gbà á lórí ayélujára",
+"Ba a Karɓa ta Yanar Gizo",
+"A Naghị Anakọta n'Ịntanetị",
+"Haaunganidzwi Pamhepo",
+"Ayiqoqwa Ku-inthanethi",
+"Wɔnnye wɔ Intanɛt So"
 ],
 "Do not upload documents": [
 "No suba documentos",
@@ -1488,7 +2158,12 @@ window.HTAF_TRANSLATIONS = {
 "दस्तावेज़ अपलोड न करें",
 "Não envie documentos",
 "Pa telechaje dokiman",
-"Má ṣe gbé ìwé sókè"
+"Má ṣe gbé ìwé sókè",
+"Kada ka loda takardu",
+"Ebugoli akwụkwọ",
+"Usaisa magwaro",
+"Ungalayishi imibhalo",
+"Mfa nkrataa mfa so"
 ],
 "Do not upload documents through this application. If supporting documentation is needed, HTAF will contact you with instructions for submitting it securely.": [
 "No suba documentos en esta solicitud. Si se necesita documentación, HTAF se comunicará con usted con instrucciones para enviarla de forma segura.",
@@ -1499,7 +2174,12 @@ window.HTAF_TRANSLATIONS = {
 "इस आवेदन से दस्तावेज़ अपलोड न करें। सहायक दस्तावेज़ ज़रूरी होने पर HTAF आपको सुरक्षित रूप से भेजने के निर्देशों के साथ संपर्क करेगा।",
 "Não envie documentos por este pedido. Se for necessário, a HTAF entrará em contato com instruções para enviá-los com segurança.",
 "Pa telechaje dokiman nan aplikasyon sa a. Si yo bezwen dokiman sipò, HTAF ap kontakte w ak enstriksyon pou voye yo an sekirite.",
-"Má ṣe gbé ìwé sókè nípasẹ̀ ìbéèrè yìí. Bí a bá nílò ìwé àtìlẹ́yìn, HTAF yóò kàn sí ọ pẹ̀lú ìtọ́sọ́nà láti fi ránṣẹ́ láìléwu."
+"Má ṣe gbé ìwé sókè nípasẹ̀ ìbéèrè yìí. Bí a bá nílò ìwé àtìlẹ́yìn, HTAF yóò kàn sí ọ pẹ̀lú ìtọ́sọ́nà láti fi ránṣẹ́ láìléwu.",
+"Kada ka loda takardu ta wannan buƙata. Idan ana buƙatar takardun tallafi, HTAF za ta tuntuɓe ka da umarnin aika su cikin aminci.",
+"Ebugoli akwụkwọ site na arịrịọ a. Ọ bụrụ na achọrọ akwụkwọ nkwado, HTAF ga-akpọtụrụ gị wee nye ntụziaka maka iziga ya n'udo.",
+"Usaisa magwaro kuburikidza nechikumbiro ichi. Kana magwaro anotsigira achidiwa, HTAF ichataura newe nemirairo yekuatumira zvakachengeteka.",
+"Ungalayishi imibhalo ngalesi sicelo. Nxa imibhalo esekelayo idingeka, HTAF izaxhumana lawe ngemilayo yokuyithumela ngokuphepha.",
+"Mfa nkrataa mfa abisadeɛ yi so. Sɛ wɔhia nkrataa a ɛboa a, HTAF bɛne wo adi nkitaho na ama wo akwankyerɛ sɛnea wobɛsoma no wɔ ahobammɔ mu."
 ],
 "Applicant Certification": [
 "Certificación del solicitante",
@@ -1510,7 +2190,12 @@ window.HTAF_TRANSLATIONS = {
 "आवेदक का प्रमाणन",
 "Declaração do candidato",
 "Sètifikasyon aplikan an",
-"Ìjẹ́rìísí olùbéèrè"
+"Ìjẹ́rìísí olùbéèrè",
+"Tabbacin Mai Nema",
+"Nkwenye Onye Na-arịọ",
+"Chisimbiso cheMunyoreri",
+"Isiqinisekiso Somfaki Wesicelo",
+"Ɔsrɛfo Adansedie"
 ],
 "Certification Statement": [
 "Declaración de certificación",
@@ -1521,7 +2206,12 @@ window.HTAF_TRANSLATIONS = {
 "प्रमाणन कथन",
 "Texto da declaração",
 "Deklarasyon sètifikasyon",
-"Ọ̀rọ̀ ìjẹ́rìísí"
+"Ọ̀rọ̀ ìjẹ́rìísí",
+"Bayanin Tabbatarwa",
+"Okwu Nkwenye",
+"Chirevo Chekusimbisa",
+"Isitatimende Sesiqinisekiso",
+"Adansedie Nsɛm"
 ],
 "Application Review": [
 "Revisión de la solicitud",
@@ -1532,7 +2222,12 @@ window.HTAF_TRANSLATIONS = {
 "आवेदन की समीक्षा",
 "Revisão do pedido",
 "Revizyon aplikasyon",
-"Àyẹ̀wò ìbéèrè"
+"Àyẹ̀wò ìbéèrè",
+"Duba Buƙata",
+"Nyochaa Arịrịọ",
+"Kuongorora Chikumbiro",
+"Ukuhlola Isicelo",
+"Abisadeɛ Nhwehwɛmu"
 ],
 "Submit Application": [
 "Enviar solicitud",
@@ -1543,7 +2238,12 @@ window.HTAF_TRANSLATIONS = {
 "आवेदन जमा करें",
 "Enviar pedido",
 "Soumèt aplikasyon",
-"Fi ìbéèrè ránṣẹ́"
+"Fi ìbéèrè ránṣẹ́",
+"Aika Buƙata",
+"Zipu Arịrịọ",
+"Tumira Chikumbiro",
+"Thumela Isicelo",
+"Soma Abisadeɛ"
 ],
 "Save Draft": [
 "Guardar borrador",
@@ -1554,7 +2254,12 @@ window.HTAF_TRANSLATIONS = {
 "ड्राफ़्ट सहेजें",
 "Salvar rascunho",
 "Sove bouyon",
-"Fi àkọsílẹ̀ pamọ́"
+"Fi àkọsílẹ̀ pamọ́",
+"Adana Daftari",
+"Chekwaa Ihe Edemede",
+"Chengeta Chinyorwa",
+"Gcina Okubhaliweyo",
+"Kora Krataa No"
 ],
 "Review Application": [
 "Revisar solicitud",
@@ -1565,7 +2270,12 @@ window.HTAF_TRANSLATIONS = {
 "आवेदन देखें",
 "Revisar pedido",
 "Revize aplikasyon",
-"Ṣàyẹ̀wò ìbéèrè"
+"Ṣàyẹ̀wò ìbéèrè",
+"Duba Buƙata Kafin Aikawa",
+"Lelee Arịrịọ",
+"Ongorora Chikumbiro",
+"Hlola Isicelo",
+"Hwɛ Abisadeɛ No Mu"
 ],
 "Print Application": [
 "Imprimir solicitud",
@@ -1576,7 +2286,12 @@ window.HTAF_TRANSLATIONS = {
 "आवेदन प्रिंट करें",
 "Imprimir pedido",
 "Enprime aplikasyon",
-"Tẹ ìbéèrè jáde"
+"Tẹ ìbéèrè jáde",
+"Buga Buƙata",
+"Bipụta Arịrịọ",
+"Dhinda Chikumbiro",
+"Gqibela Isicelo Ephepheni",
+"Tintim Abisadeɛ"
 ],
 "Application Progress": [
 "Progreso de la solicitud",
@@ -1587,7 +2302,12 @@ window.HTAF_TRANSLATIONS = {
 "आवेदन की प्रगति",
 "Andamento do pedido",
 "Pwogrè aplikasyon",
-"Ìlọsíwájú ìbéèrè"
+"Ìlọsíwájú ìbéèrè",
+"Ci Gaban Buƙata",
+"Ọganihu Arịrịọ",
+"Kufambira Mberi kweChikumbiro",
+"Ukuqhubeka Kwesicelo",
+"Abisadeɛ Nkɔsoɔ"
 ],
 "Complete each section to prepare your HTAF transportation assistance request for submission.": [
 "Complete cada sección para preparar el envío de su solicitud de asistencia de transporte de HTAF.",
@@ -1598,7 +2318,12 @@ window.HTAF_TRANSLATIONS = {
 "अपना HTAF परिवहन सहायता अनुरोध जमा करने के लिए हर हिस्सा पूरा करें।",
 "Preencha cada seção para preparar o envio do seu pedido de assistência de transporte da HTAF.",
 "Ranpli chak seksyon pou prepare demann asistans transpò HTAF ou a pou soumèt.",
-"Parí apá kọ̀ọ̀kan láti ṣètò ìbéèrè ìrànlọ́wọ́ ìrìnnà HTAF rẹ fún fífiránṣẹ́."
+"Parí apá kọ̀ọ̀kan láti ṣètò ìbéèrè ìrànlọ́wọ́ ìrìnnà HTAF rẹ fún fífiránṣẹ́.",
+"Kammala kowane sashe don shirya buƙatar taimakon sufuri ta HTAF don aikawa.",
+"Mezue ngalaba ọ bụla iji kwadebe arịrịọ enyemaka njem HTAF gị maka iziga.",
+"Pedzisa chikamu chimwe nechimwe kuti ugadzirire chikumbiro chako cherubatsiro rwekufamba cheHTAF kuti chitumirwe.",
+"Qedela ingxenye ngayinye ukuze ulungisele isicelo sakho sosizo lokuhamba seHTAF ukuthi sithunyelwe.",
+"Wie afã biara na woasiesie wo HTAF akwantuo mmoa abisadeɛ ma wɔasoma."
 ],
 "Contact and residency details.": [
 "Datos de contacto y residencia.",
@@ -1609,7 +2334,12 @@ window.HTAF_TRANSLATIONS = {
 "संपर्क और निवास का विवरण।",
 "Dados de contato e residência.",
 "Detay kontak ak kote w rete.",
-"Àlàyé ìkànsí àti ibùgbé."
+"Àlàyé ìkànsí àti ibùgbé.",
+"Bayanan tuntuɓa da mazauni.",
+"Nkọwa kọntaktị na ebe obibi.",
+"Ruzivo rwekukusvikira nekwaunogara.",
+"Imininingwane yokuxhumana lendawo ohlala kuyo.",
+"Nkitahodi ne atenaeɛ ho nsɛm."
 ],
 "Program Selection": [
 "Selección del programa",
@@ -1620,7 +2350,12 @@ window.HTAF_TRANSLATIONS = {
 "कार्यक्रम का चयन",
 "Escolha do programa",
 "Chwa pwogram",
-"Yíyan ètò"
+"Yíyan ètò",
+"Zaɓin Shiri",
+"Nhọrọ Mmemme",
+"Kusarudza Chirongwa",
+"Ukukhetha Uhlelo",
+"Dwumadi Ayiyi"
 ],
 "Transportation assistance category.": [
 "Categoría de asistencia de transporte.",
@@ -1631,7 +2366,12 @@ window.HTAF_TRANSLATIONS = {
 "परिवहन सहायता की श्रेणी।",
 "Categoria de assistência de transporte.",
 "Kategori asistans transpò.",
-"Ẹ̀ka ìrànlọ́wọ́ ìrìnnà."
+"Ẹ̀ka ìrànlọ́wọ́ ìrìnnà.",
+"Rukunin taimakon sufuri.",
+"Ụdị enyemaka njem.",
+"Chikamu cherubatsiro rwekufamba.",
+"Isigaba sosizo lokuhamba.",
+"Akwantuo mmoa ahodoɔ."
 ],
 "Ride destination and need.": [
 "Destino del viaje y necesidad.",
@@ -1642,7 +2382,12 @@ window.HTAF_TRANSLATIONS = {
 "यात्रा का गंतव्य और ज़रूरत।",
 "Destino da viagem e necessidade.",
 "Destinasyon vwayaj la ak bezwen an.",
-"Ibi ìrìn àti àìní."
+"Ibi ìrìn àti àìní.",
+"Inda tafiya za ta kai da bukatar.",
+"Ebe njem na-aga na mkpa ya.",
+"Kwaunoenda nechikonzero.",
+"Lapho uhambo oluya khona lesidingo.",
+"Beaeɛ a akwantuo no rekɔ ne ahiadeɛ."
 ],
 "Review and send request.": [
 "Revise y envíe la solicitud.",
@@ -1653,7 +2398,12 @@ window.HTAF_TRANSLATIONS = {
 "समीक्षा करें और अनुरोध भेजें।",
 "Revise e envie o pedido.",
 "Revize epi voye demann lan.",
-"Ṣàyẹ̀wò kí o sì fi ìbéèrè ránṣẹ́."
+"Ṣàyẹ̀wò kí o sì fi ìbéèrè ránṣẹ́.",
+"Duba kuma aika buƙata.",
+"Nyochaa ma zipu arịrịọ.",
+"Ongorora uye utumire chikumbiro.",
+"Hlola njalo uthumele isicelo.",
+"Hwɛ mu na soma abisadeɛ."
 ],
 "HTAF Assistance Areas": [
 "Áreas de asistencia de HTAF",
@@ -1664,7 +2414,12 @@ window.HTAF_TRANSLATIONS = {
 "HTAF सहायता क्षेत्र",
 "Áreas de assistência da HTAF",
 "Domèn asistans HTAF",
-"Àwọn agbègbè ìrànlọ́wọ́ HTAF"
+"Àwọn agbègbè ìrànlọ́wọ́ HTAF",
+"Fannonin Taimakon HTAF",
+"Ngalaba Enyemaka HTAF",
+"Nzvimbo dzeRubatsiro rweHTAF",
+"Izindawo Zosizo zeHTAF",
+"HTAF Mmoa Afã"
 ],
 "Transportation programs currently focus on:": [
 "Los programas de transporte se centran actualmente en:",
@@ -1675,7 +2430,12 @@ window.HTAF_TRANSLATIONS = {
 "परिवहन कार्यक्रम अभी इन पर केंद्रित हैं:",
 "Os programas de transporte atualmente se concentram em:",
 "Pwogram transpò yo konsantre kounye a sou:",
-"Àwọn ètò ìrìnnà ń dojú kọ:"
+"Àwọn ètò ìrìnnà ń dojú kọ:",
+"Shirye-shiryen sufuri a yanzu sun mayar da hankali kan:",
+"Mmemme njem na-elekwasị anya ugbu a na:",
+"Zvirongwa zvekufamba parizvino zvakanangana ne:",
+"Izinhlelo zokuhamba khathesi zigxile ku:",
+"Akwantuo dwumadi de n'adwene si nneɛma yi so seesei:"
 ],
 "Program Categories": [
 "Categorías de programas",
@@ -1686,7 +2446,12 @@ window.HTAF_TRANSLATIONS = {
 "कार्यक्रम श्रेणियाँ",
 "Categorias de programas",
 "Kategori pwogram",
-"Àwọn ẹ̀ka ètò"
+"Àwọn ẹ̀ka ètò",
+"Rukunonin Shirye-shirye",
+"Ụdị Mmemme",
+"Zvikamu zveZvirongwa",
+"Izigaba Zezinhlelo",
+"Dwumadi Akuo"
 ],
 "Transportation assistance requests are categorized to help HTAF allocate resources and coordinate transportation services efficiently.": [
 "Las solicitudes se clasifican para ayudar a HTAF a asignar recursos y coordinar los servicios de transporte de forma eficiente.",
@@ -1697,7 +2462,12 @@ window.HTAF_TRANSLATIONS = {
 "परिवहन सहायता अनुरोधों को श्रेणियों में बाँटा जाता है ताकि HTAF संसाधनों का बँटवारा और परिवहन सेवाओं का समन्वय कुशलता से कर सके।",
 "Os pedidos são classificados para ajudar a HTAF a distribuir recursos e coordenar os serviços de transporte com eficiência.",
 "Yo klase demann asistans transpò yo pou ede HTAF distribiye resous epi kowòdone sèvis transpò yo byen.",
-"A ń pín ìbéèrè ìrànlọ́wọ́ ìrìnnà sí ẹ̀ka láti ran HTAF lọ́wọ́ láti pín ohun èlò àti láti ṣètò iṣẹ́ ìrìnnà lọ́nà tó yẹ."
+"A ń pín ìbéèrè ìrànlọ́wọ́ ìrìnnà sí ẹ̀ka láti ran HTAF lọ́wọ́ láti pín ohun èlò àti láti ṣètò iṣẹ́ ìrìnnà lọ́nà tó yẹ.",
+"Ana rarraba buƙatun taimakon sufuri don taimaka wa HTAF raba albarkatu da tsara ayyukan sufuri yadda ya kamata.",
+"A na-ekewa arịrịọ enyemaka njem iji nyere HTAF aka ikesa akụ ma hazie ọrụ njem nke ọma.",
+"Zvikumbiro zverubatsiro rwekufamba zvinoiswa muzvikamu kubatsira HTAF kugovera zviwanikwa nekuronga masevhisi ekufamba zvakanaka.",
+"Izicelo zosizo lokuhamba zihlukaniswa ngezigaba ukusiza iHTAF ukwaba izinsiza lokuhlela inkonzo zokuhamba kahle.",
+"Wɔkyekyɛ akwantuo mmoa abisadeɛ mu ma HTAF tumi kyekyɛ nneɛma na ɛhyehyɛ akwantuo nnwuma yie."
 ],
 "Application Review Process": [
 "Proceso de revisión de solicitudes",
@@ -1708,7 +2478,12 @@ window.HTAF_TRANSLATIONS = {
 "आवेदन समीक्षा प्रक्रिया",
 "Processo de análise dos pedidos",
 "Pwosesis revizyon aplikasyon",
-"Ìlànà àyẹ̀wò ìbéèrè"
+"Ìlànà àyẹ̀wò ìbéèrè",
+"Tsarin Duba Buƙatu",
+"Usoro Nyocha Arịrịọ",
+"Maitiro Ekuongorora Zvikumbiro",
+"Indlela Yokuhlola Izicelo",
+"Abisadeɛ Nhwehwɛmu Kwan"
 ],
 "Every application follows a structured review process to ensure fairness, accountability, and responsible stewardship of resources.": [
 "Cada solicitud sigue un proceso de revisión estructurado para garantizar la equidad, la rendición de cuentas y el uso responsable de los recursos.",
@@ -1719,7 +2494,12 @@ window.HTAF_TRANSLATIONS = {
 "हर आवेदन एक तय समीक्षा प्रक्रिया से गुज़रता है ताकि निष्पक्षता, जवाबदेही और संसाधनों का ज़िम्मेदार उपयोग सुनिश्चित हो।",
 "Cada pedido passa por um processo de análise estruturado para garantir justiça, responsabilidade e uso responsável dos recursos.",
 "Chak aplikasyon swiv yon pwosesis revizyon òganize pou garanti jistis, responsablite ak bon jesyon resous yo.",
-"Ìbéèrè kọ̀ọ̀kan ń tẹ̀lé ìlànà àyẹ̀wò tó létò láti rí i dájú pé ìdájọ́ òdodo, ìjíhìn àti ìlò ohun èlò lọ́nà tó tọ́ wà."
+"Ìbéèrè kọ̀ọ̀kan ń tẹ̀lé ìlànà àyẹ̀wò tó létò láti rí i dájú pé ìdájọ́ òdodo, ìjíhìn àti ìlò ohun èlò lọ́nà tó tọ́ wà.",
+"Kowace buƙata na bin tsarin dubawa da aka tsara don tabbatar da adalci, ɗaukar alhaki da amfani da albarkatu cikin hikima.",
+"Arịrịọ ọ bụla na-agafe usoro nyocha ahaziri ahazi iji hụ na e nwere ikpe ziri ezi, ịza ajụjụ na iji akụ eme ihe nke ọma.",
+"Chikumbiro chimwe nechimwe chinotevera nzira yakarongwa yekuongorora kuti pave nekururamisira, kuzvidavirira nekushandisa zviwanikwa zvakanaka.",
+"Isicelo ngasinye silandela indlela ehlelekileyo yokuhlola ukuqinisekisa ubulungiswa, ukuziphendulela lokusebenzisa izinsiza kuhle.",
+"Abisadeɛ biara di nhwehwɛmu kwan a wɔahyehyɛ akyi ma atɛntrenee, asɛyɛde ne nneɛma a wɔde di dwuma yie."
 ],
 "Step 1": [
 "Paso 1",
@@ -1730,7 +2510,12 @@ window.HTAF_TRANSLATIONS = {
 "चरण 1",
 "Etapa 1",
 "Etap 1",
-"Ìgbésẹ̀ 1"
+"Ìgbésẹ̀ 1",
+"Mataki na 1",
+"Nzọụkwụ 1",
+"Danho 1",
+"Isinyathelo 1",
+"Anammɔn 1"
 ],
 "Submit transportation assistance request.": [
 "Envíe la solicitud de asistencia de transporte.",
@@ -1741,7 +2526,12 @@ window.HTAF_TRANSLATIONS = {
 "परिवहन सहायता अनुरोध जमा करें।",
 "Envie o pedido de assistência de transporte.",
 "Soumèt demann asistans transpò a.",
-"Fi ìbéèrè ìrànlọ́wọ́ ìrìnnà ránṣẹ́."
+"Fi ìbéèrè ìrànlọ́wọ́ ìrìnnà ránṣẹ́.",
+"Aika buƙatar taimakon sufuri.",
+"Zipu arịrịọ enyemaka njem.",
+"Tumira chikumbiro cherubatsiro rwekufamba.",
+"Thumela isicelo sosizo lokuhamba.",
+"Soma akwantuo mmoa abisadeɛ."
 ],
 "Step 2": [
 "Paso 2",
@@ -1752,7 +2542,12 @@ window.HTAF_TRANSLATIONS = {
 "चरण 2",
 "Etapa 2",
 "Etap 2",
-"Ìgbésẹ̀ 2"
+"Ìgbésẹ̀ 2",
+"Mataki na 2",
+"Nzọụkwụ 2",
+"Danho 2",
+"Isinyathelo 2",
+"Anammɔn 2"
 ],
 "HTAF reviews eligibility and documentation.": [
 "HTAF revisa la elegibilidad y la documentación.",
@@ -1763,7 +2558,12 @@ window.HTAF_TRANSLATIONS = {
 "HTAF पात्रता और दस्तावेज़ों की समीक्षा करता है।",
 "A HTAF analisa a elegibilidade e a documentação.",
 "HTAF revize kalifikasyon ak dokiman yo.",
-"HTAF ń ṣàyẹ̀wò ìyẹ àti ìwé."
+"HTAF ń ṣàyẹ̀wò ìyẹ àti ìwé.",
+"HTAF na duba cancanta da takardu.",
+"HTAF na-enyocha ịtozu na akwụkwọ.",
+"HTAF inoongorora kukodzera nemagwaro.",
+"HTAF ihlola ukufaneleka lemibhalo.",
+"HTAF hwɛ mfatoɔ ne nkrataa mu."
 ],
 "Step 3": [
 "Paso 3",
@@ -1774,7 +2574,12 @@ window.HTAF_TRANSLATIONS = {
 "चरण 3",
 "Etapa 3",
 "Etap 3",
-"Ìgbésẹ̀ 3"
+"Ìgbésẹ̀ 3",
+"Mataki na 3",
+"Nzọụkwụ 3",
+"Danho 3",
+"Isinyathelo 3",
+"Anammɔn 3"
 ],
 "Additional verification may be requested.": [
 "Es posible que se solicite una verificación adicional.",
@@ -1785,7 +2590,12 @@ window.HTAF_TRANSLATIONS = {
 "अतिरिक्त सत्यापन माँगा जा सकता है।",
 "Uma verificação adicional pode ser solicitada.",
 "Yo ka mande plis verifikasyon.",
-"A lè béèrè ìjẹ́rìísí síwájú sí i."
+"A lè béèrè ìjẹ́rìísí síwájú sí i.",
+"Za a iya neman ƙarin tabbatarwa.",
+"Enwere ike ịrịọ nkwenye ọzọ.",
+"Kumwe kusimbisa kunogona kukumbirwa.",
+"Ukuqinisekisa okwengeziweyo kungacelwa.",
+"Wobetumi asrɛ nhwehwɛmu foforɔ."
 ],
 "Step 4": [
 "Paso 4",
@@ -1796,7 +2606,12 @@ window.HTAF_TRANSLATIONS = {
 "चरण 4",
 "Etapa 4",
 "Etap 4",
-"Ìgbésẹ̀ 4"
+"Ìgbésẹ̀ 4",
+"Mataki na 4",
+"Nzọụkwụ 4",
+"Danho 4",
+"Isinyathelo 4",
+"Anammɔn 4"
 ],
 "Approved requests move to scheduling.": [
 "Las solicitudes aprobadas pasan a programación.",
@@ -1807,7 +2622,12 @@ window.HTAF_TRANSLATIONS = {
 "स्वीकृत अनुरोध समय-निर्धारण में जाते हैं।",
 "Os pedidos aprovados seguem para o agendamento.",
 "Demann ki apwouve yo pase nan planifikasyon.",
-"Àwọn ìbéèrè tí a fọwọ́ sí ń lọ sí ìṣètò àkókò."
+"Àwọn ìbéèrè tí a fọwọ́ sí ń lọ sí ìṣètò àkókò.",
+"Buƙatun da aka amince da su suna zuwa tsara lokaci.",
+"Arịrịọ a kwadoro na-aga na nhazi oge.",
+"Zvikumbiro zvakabvumidzwa zvinoenda kunorongerwa nguva.",
+"Izicelo ezivunyelweyo ziya ekuhlelweni kwesikhathi.",
+"Abisadeɛ a wɔpene so no kɔ bere nhyehyɛeɛ mu."
 ],
 "Application Dashboard": [
 "Panel de solicitudes",
@@ -1818,7 +2638,12 @@ window.HTAF_TRANSLATIONS = {
 "आवेदन डैशबोर्ड",
 "Painel de pedidos",
 "Tablo aplikasyon yo",
-"Pátákó ìbéèrè"
+"Pátákó ìbéèrè",
+"Allon Buƙatu",
+"Dashboard Arịrịọ",
+"Dhibhodhi reZvikumbiro",
+"Ibhodi Lezicelo",
+"Abisadeɛ Nhwɛsoɔ"
 ],
 "Totals across all HTAF applications, from HTAF's application records. Counts only; no personal information is shown.": [
 "Totales de todas las solicitudes de HTAF, según sus registros. Solo cifras; no se muestra información personal.",
@@ -1829,7 +2654,12 @@ window.HTAF_TRANSLATIONS = {
 "HTAF के आवेदन रिकॉर्ड से सभी आवेदनों का कुल योग। केवल संख्याएँ; कोई व्यक्तिगत जानकारी नहीं दिखाई जाती।",
 "Totais de todos os pedidos da HTAF, segundo seus registros. Somente números; nenhuma informação pessoal é exibida.",
 "Total tout aplikasyon HTAF, dapre dosye HTAF. Se chif sèlman; pa gen okenn enfòmasyon pèsonèl.",
-"Àpapọ̀ gbogbo ìbéèrè HTAF, láti inú àkọsílẹ̀ rẹ̀. Iye nìkan; a kò fi ìsọfúnni ti ara ẹni hàn."
+"Àpapọ̀ gbogbo ìbéèrè HTAF, láti inú àkọsílẹ̀ rẹ̀. Iye nìkan; a kò fi ìsọfúnni ti ara ẹni hàn.",
+"Jimillar duk buƙatun HTAF, daga bayanan HTAF. Lambobi kawai; ba a nuna bayanan sirri.",
+"Mkpokọta arịrịọ HTAF niile, site na ndekọ HTAF. Ọnụ ọgụgụ naanị; e gosighi ozi nkeonwe.",
+"Huwandu hwezvikumbiro zvese zveHTAF, kubva kumarekodhi eHTAF. Nhamba chete; hapana ruzivo rwemunhu runoratidzwa.",
+"Inani lazo zonke izicelo zeHTAF, kusukela emabhukwini eHTAF. Izinombolo kuphela; akulalwazi lomuntu oluboniswayo.",
+"HTAF abisadeɛ nyinaa dodoɔ, firi HTAF nkrataa mu. Akontaa nko ara; wɔnkyerɛ obiara ho nsɛm."
 ],
 "Applications Submitted": [
 "Solicitudes enviadas",
@@ -1840,7 +2670,12 @@ window.HTAF_TRANSLATIONS = {
 "जमा आवेदन",
 "Pedidos enviados",
 "Aplikasyon ki soumèt",
-"Ìbéèrè tí a fi ránṣẹ́"
+"Ìbéèrè tí a fi ránṣẹ́",
+"Buƙatun da Aka Aika",
+"Arịrịọ Ezigara",
+"Zvikumbiro Zvakatumirwa",
+"Izicelo Ezithunyelweyo",
+"Abisadeɛ a Wɔasoma"
 ],
 "Pending Review": [
 "Pendientes de revisión",
@@ -1851,7 +2686,12 @@ window.HTAF_TRANSLATIONS = {
 "समीक्षा लंबित",
 "Aguardando análise",
 "Ap tann revizyon",
-"Ń dúró de àyẹ̀wò"
+"Ń dúró de àyẹ̀wò",
+"Ana Jiran Dubawa",
+"Na-echere Nyocha",
+"Zvakamirira Kuongororwa",
+"Zilindele Ukuhlolwa",
+"Retwɛn Nhwehwɛmu"
 ],
 "Approved Requests": [
 "Solicitudes aprobadas",
@@ -1862,7 +2702,12 @@ window.HTAF_TRANSLATIONS = {
 "स्वीकृत अनुरोध",
 "Pedidos aprovados",
 "Demann ki apwouve",
-"Ìbéèrè tí a fọwọ́ sí"
+"Ìbéèrè tí a fọwọ́ sí",
+"Buƙatun da Aka Amince",
+"Arịrịọ A Kwadoro",
+"Zvikumbiro Zvakabvumidzwa",
+"Izicelo Ezivunyelweyo",
+"Abisadeɛ a Wɔapene So"
 ],
 "Scheduled Rides": [
 "Viajes programados",
@@ -1873,7 +2718,12 @@ window.HTAF_TRANSLATIONS = {
 "निर्धारित यात्राएँ",
 "Viagens agendadas",
 "Vwayaj ki pwograme",
-"Ìrìn tí a ti ṣètò"
+"Ìrìn tí a ti ṣètò",
+"Tafiye-tafiyen da Aka Tsara",
+"Njem Ahaziri",
+"Nzendo Dzakarongwa",
+"Uhambo Oluhleliweyo",
+"Akwantuo a Wɔahyehyɛ"
 ],
 "No. Assistance depends on eligibility, documentation, transportation availability, and funding resources.": [
 "No. La asistencia depende de la elegibilidad, la documentación, la disponibilidad de transporte y los fondos.",
@@ -1884,7 +2734,12 @@ window.HTAF_TRANSLATIONS = {
 "नहीं। सहायता पात्रता, दस्तावेज़, परिवहन की उपलब्धता और धनराशि पर निर्भर करती है।",
 "Não. A assistência depende da elegibilidade, da documentação, da disponibilidade de transporte e dos recursos.",
 "Non. Asistans depann de kalifikasyon, dokiman, disponibilite transpò ak lajan ki genyen.",
-"Rárá. Ìrànlọ́wọ́ dá lórí ìyẹ, ìwé, wíwà ìrìnnà àti owó."
+"Rárá. Ìrànlọ́wọ́ dá lórí ìyẹ, ìwé, wíwà ìrìnnà àti owó.",
+"A'a. Taimako ya dogara da cancanta, takardu, samuwar sufuri da kuɗaɗen da ake da su.",
+"Mba. Enyemaka dabere n'ịtozu, akwụkwọ, njem dịnụ na ego dịnụ.",
+"Kwete. Rubatsiro runoenderana nekukodzera, magwaro, kuwanikwa kwekufamba nemari iripo.",
+"Hatshi. Usizo luncike ekufanelekeni, emibhalweni, ekutholakaleni kokuhamba lemalini ekhona.",
+"Daabi. Mmoa gyina mfatoɔ, nkrataa, akwantuo a ɛwɔ hɔ ne sika a ɛwɔ hɔ so."
 ],
 "Tennessee residents seeking transportation support for essential needs may apply.": [
 "Pueden presentar una solicitud los residentes de Tennessee que buscan apoyo de transporte para necesidades esenciales.",
@@ -1895,7 +2750,12 @@ window.HTAF_TRANSLATIONS = {
 "आवश्यक ज़रूरतों के लिए परिवहन सहायता चाहने वाले टेनेसी निवासी आवेदन कर सकते हैं।",
 "Moradores do Tennessee que buscam apoio de transporte para necessidades essenciais podem se candidatar.",
 "Moun ki rete Tennessee ki bezwen sipò transpò pou bezwen esansyèl ka aplike.",
-"Àwọn olùgbé Tennessee tó nílò àtìlẹ́yìn ìrìnnà fún àìní pàtàkì lè béèrè."
+"Àwọn olùgbé Tennessee tó nílò àtìlẹ́yìn ìrìnnà fún àìní pàtàkì lè béèrè.",
+"Mazauna Tennessee da ke neman tallafin sufuri don muhimman bukatu za su iya nema.",
+"Ndị bi na Tennessee na-achọ nkwado njem maka mkpa dị mkpa nwere ike itinye akwụkwọ.",
+"Vagari veTennessee vanotsvaga rutsigiro rwekufamba kuzvinhu zvakakosha vanogona kunyorera.",
+"Abahlali beTennessee abadinga ukusekelwa ukuhamba kwezidingo eziqakathekileyo bangafaka isicelo.",
+"Tennessee atenafoɔ a wɔhwehwɛ akwantuo mmoa ma ahiadeɛ titire betumi asrɛ."
 ],
 "HTAF may request supporting records, such as an appointment confirmation, after reviewing your application. Do not upload documents through this application. If supporting documentation is needed, HTAF will contact you with instructions for submitting it securely.": [
 "Después de revisar su solicitud, HTAF puede pedir documentos de respaldo, como la confirmación de una cita. No suba documentos en esta solicitud. Si se necesita documentación, HTAF se comunicará con usted con instrucciones para enviarla de forma segura.",
@@ -1906,7 +2766,12 @@ window.HTAF_TRANSLATIONS = {
 "आपके आवेदन की समीक्षा के बाद HTAF सहायक दस्तावेज़, जैसे अपॉइंटमेंट की पुष्टि, माँग सकता है। इस आवेदन से दस्तावेज़ अपलोड न करें। दस्तावेज़ ज़रूरी होने पर HTAF आपको सुरक्षित रूप से भेजने के निर्देशों के साथ संपर्क करेगा।",
 "Depois de analisar seu pedido, a HTAF pode solicitar documentos, como a confirmação de uma consulta. Não envie documentos por este pedido. Se for necessário, a HTAF entrará em contato com instruções para enviá-los com segurança.",
 "Apre li fin revize aplikasyon w lan, HTAF ka mande dokiman sipò, tankou yon konfimasyon randevou. Pa telechaje dokiman nan aplikasyon sa a. Si yo bezwen dokiman, HTAF ap kontakte w ak enstriksyon pou voye yo an sekirite.",
-"Lẹ́yìn tí HTAF bá ṣàyẹ̀wò ìbéèrè rẹ, ó lè béèrè ìwé àtìlẹ́yìn, bí ìjẹ́rìísí ìpàdé. Má ṣe gbé ìwé sókè nípasẹ̀ ìbéèrè yìí. Bí a bá nílò ìwé, HTAF yóò kàn sí ọ pẹ̀lú ìtọ́sọ́nà láti fi ránṣẹ́ láìléwu."
+"Lẹ́yìn tí HTAF bá ṣàyẹ̀wò ìbéèrè rẹ, ó lè béèrè ìwé àtìlẹ́yìn, bí ìjẹ́rìísí ìpàdé. Má ṣe gbé ìwé sókè nípasẹ̀ ìbéèrè yìí. Bí a bá nílò ìwé, HTAF yóò kàn sí ọ pẹ̀lú ìtọ́sọ́nà láti fi ránṣẹ́ láìléwu.",
+"HTAF na iya neman takardun tallafi, kamar tabbacin ganawa, bayan duba buƙatarka. Kada ka loda takardu ta wannan buƙata. Idan ana buƙatar takardu, HTAF za ta tuntuɓe ka da umarnin aika su cikin aminci.",
+"HTAF nwere ike ịrịọ akwụkwọ nkwado, dịka nkwenye nhọpụta, mgbe ọ nyochachara arịrịọ gị. Ebugoli akwụkwọ site na arịrịọ a. Ọ bụrụ na achọrọ akwụkwọ, HTAF ga-akpọtụrụ gị wee nye ntụziaka maka iziga ya n'udo.",
+"HTAF inogona kukumbira magwaro anotsigira, sechisimbiso chekuona chiremba, mushure mekuongorora chikumbiro chako. Usaisa magwaro kuburikidza nechikumbiro ichi. Kana magwaro achidiwa, HTAF ichataura newe nemirairo yekuatumira zvakachengeteka.",
+"HTAF ingacela imibhalo esekelayo, njengesiqinisekiso sokubona udokotela, ngemva kokuhlola isicelo sakho. Ungalayishi imibhalo ngalesi sicelo. Nxa imibhalo idingeka, HTAF izaxhumana lawe ngemilayo yokuyithumela ngokuphepha.",
+"HTAF betumi asrɛ nkrataa a ɛboa, te sɛ nhyiamu ho adansedie, bere a ɛhwɛɛ w'abisadeɛ mu wie. Mfa nkrataa mfa abisadeɛ yi so. Sɛ wɔhia nkrataa a, HTAF bɛne wo adi nkitaho na ama wo akwankyerɛ sɛnea wobɛsoma no wɔ ahobammɔ mu."
 ],
 "First Name": [
 "Nombre",
@@ -1917,7 +2782,12 @@ window.HTAF_TRANSLATIONS = {
 "पहला नाम",
 "Nome",
 "Prenon",
-"Orúkọ àkọ́kọ́"
+"Orúkọ àkọ́kọ́",
+"Suna na Farko",
+"Aha Mbụ",
+"Zita Rekutanga",
+"Ibizo Lokuqala",
+"Din a Edi Kan"
 ],
 "Last Name": [
 "Apellido",
@@ -1928,7 +2798,12 @@ window.HTAF_TRANSLATIONS = {
 "उपनाम",
 "Sobrenome",
 "Non fanmi",
-"Orúkọ ìdílé"
+"Orúkọ ìdílé",
+"Sunan Iyali",
+"Aha Nna",
+"Zita Remhuri",
+"Isibongo",
+"Abusua Din"
 ],
 "Pickup City": [
 "Ciudad de recogida",
@@ -1939,7 +2814,12 @@ window.HTAF_TRANSLATIONS = {
 "पिकअप शहर",
 "Cidade de embarque",
 "Vil kote y ap pran w",
-"Ìlú tí a ó ti gbé ọ"
+"Ìlú tí a ó ti gbé ọ",
+"Birnin Ɗauka",
+"Obodo E Si Bulite",
+"Guta Rekutorerwa",
+"Idolobho Lokuthathwa",
+"Kuropɔn a Wɔbɛfa Wo"
 ],
 "Hospital, School, Employer": [
 "Hospital, escuela, empleador",
@@ -1950,7 +2830,12 @@ window.HTAF_TRANSLATIONS = {
 "अस्पताल, स्कूल, नियोक्ता",
 "Hospital, escola, empregador",
 "Lopital, lekòl, anplwayè",
-"Ilé-ìwòsàn, ilé-ìwé, agbanisíṣẹ́"
+"Ilé-ìwòsàn, ilé-ìwé, agbanisíṣẹ́",
+"Asibiti, Makaranta, Wurin Aiki",
+"Ụlọ Ọgwụ, Ụlọ Akwụkwọ, Ebe Ọrụ",
+"Chipatara, Chikoro, Mushandirwi",
+"Isibhedlela, Isikolo, Umqhatshi",
+"Ayaresabea, Sukuu, Adwumawura"
 ],
 "Describe the transportation need and how assistance will support healthcare, education, employment, disability access, or other essential needs.": [
 "Describa la necesidad de transporte y cómo la asistencia apoyará la atención médica, la educación, el empleo, la accesibilidad por discapacidad u otras necesidades esenciales.",
@@ -1961,7 +2846,12 @@ window.HTAF_TRANSLATIONS = {
 "परिवहन की ज़रूरत बताइए और यह भी कि सहायता से स्वास्थ्य, शिक्षा, रोज़गार, दिव्यांग पहुँच या अन्य आवश्यक ज़रूरतों में कैसे मदद मिलेगी।",
 "Descreva a necessidade de transporte e como a assistência ajudará com saúde, educação, emprego, acessibilidade ou outras necessidades essenciais.",
 "Dekri bezwen transpò a ak kijan asistans lan ap ede pou swen sante, edikasyon, travay, aksè pou andikap oswa lòt bezwen esansyèl.",
-"Ṣàpèjúwe àìní ìrìnnà àti bí ìrànlọ́wọ́ yóò ṣe ṣe àtìlẹ́yìn fún ìtọ́jú ìlera, ẹ̀kọ́, iṣẹ́, ìráàyè fún aláàbọ̀ ara tàbí àwọn àìní pàtàkì mìíràn."
+"Ṣàpèjúwe àìní ìrìnnà àti bí ìrànlọ́wọ́ yóò ṣe ṣe àtìlẹ́yìn fún ìtọ́jú ìlera, ẹ̀kọ́, iṣẹ́, ìráàyè fún aláàbọ̀ ara tàbí àwọn àìní pàtàkì mìíràn.",
+"Bayyana bukatar sufuri da yadda taimakon zai tallafa wa kiwon lafiya, ilimi, aiki, samun dama ga masu nakasa ko wasu muhimman bukatu.",
+"Kọwaa mkpa njem na otu enyemaka ga-esi kwado ahụike, agụmakwụkwọ, ọrụ, nnweta maka nkwarụ ma ọ bụ mkpa ndị ọzọ dị mkpa.",
+"Tsanangura kudiwa kwekufamba uye kuti rubatsiro ruchatsigira sei utano, dzidzo, basa, kuwanikwa kwevakaremara kana zvimwe zvinodiwa zvakakosha.",
+"Chaza isidingo sokuhamba lokuthi usizo luzasekela njani ezempilakahle, imfundo, umsebenzi, ukufinyeleleka kwabalokukhubazeka kumbe ezinye izidingo eziqakathekileyo.",
+"Kyerɛ akwantuo ahiadeɛ no ne sɛnea mmoa no bɛboa apɔmuden, nwomasua, adwuma, dɛmdifoɔ akwantuo anaa ahiadeɛ titire foforɔ."
 ],
 "Number of Household Members": [
 "Número de personas en el hogar",
@@ -1972,7 +2862,12 @@ window.HTAF_TRANSLATIONS = {
 "परिवार के सदस्यों की संख्या",
 "Número de pessoas no domicílio",
 "Kantite moun nan kay la",
-"Iye ènìyàn nínú ilé"
+"Iye ènìyàn nínú ilé",
+"Yawan Mutanen Gida",
+"Ọnụ Ọgụgụ Ndị Ezinụlọ",
+"Huwandu Hwenhengo Dzemhuri",
+"Inani Lamalunga Emuli",
+"Abusua Mufoɔ Dodoɔ"
 ],
 "Monthly Household Income": [
 "Ingreso mensual del hogar",
@@ -1983,7 +2878,12 @@ window.HTAF_TRANSLATIONS = {
 "परिवार की मासिक आय",
 "Renda mensal do domicílio",
 "Revni kay la chak mwa",
-"Owó oṣù ilé"
+"Owó oṣù ilé",
+"Kuɗin Shiga na Gida na Wata",
+"Ego Ezinụlọ Na-enweta Kwa Ọnwa",
+"Mari Yemhuri Pamwedzi",
+"Imali Yemuli Engenayo Ngenyanga",
+"Abusua Bosome Biara Sika"
 ],
 "Harvey Transportation Assistance Foundation is a 501(c)(3) public charity serving eligible Tennessee residents. Use the information below to reach us with questions about applications, donations, or partnerships.": [
 "Harvey Transportation Assistance Foundation es una organización benéfica pública 501(c)(3) que atiende a residentes elegibles de Tennessee. Use la información de abajo para comunicarse con nosotros sobre solicitudes, donaciones o colaboraciones.",
@@ -1994,7 +2894,12 @@ window.HTAF_TRANSLATIONS = {
 "Harvey Transportation Assistance Foundation पात्र टेनेसी निवासियों की सेवा करने वाली 501(c)(3) सार्वजनिक धर्मार्थ संस्था है। आवेदन, दान या साझेदारी से जुड़े सवालों के लिए नीचे दी गई जानकारी से हमसे संपर्क करें।",
 "A Harvey Transportation Assistance Foundation é uma instituição de caridade pública 501(c)(3) que atende moradores elegíveis do Tennessee. Use as informações abaixo para falar conosco sobre pedidos, doações ou parcerias.",
 "Harvey Transportation Assistance Foundation se yon òganizasyon charitab piblik 501(c)(3) k ap sèvi moun ki kalifye nan Tennessee. Sèvi ak enfòmasyon ki anba yo pou kontakte nou pou kesyon sou aplikasyon, don oswa patenarya.",
-"Harvey Transportation Assistance Foundation jẹ́ àjọ aláàánú gbogbogbò 501(c)(3) tó ń sìn àwọn olùgbé Tennessee tó yẹ. Lo ìsọfúnni ìsàlẹ̀ láti kàn sí wa nípa ìbéèrè, ọrẹ tàbí ìbáṣepọ̀."
+"Harvey Transportation Assistance Foundation jẹ́ àjọ aláàánú gbogbogbò 501(c)(3) tó ń sìn àwọn olùgbé Tennessee tó yẹ. Lo ìsọfúnni ìsàlẹ̀ láti kàn sí wa nípa ìbéèrè, ọrẹ tàbí ìbáṣepọ̀.",
+"Harvey Transportation Assistance Foundation ƙungiyar agaji ce ta jama'a ta 501(c)(3) da ke hidima ga mazauna Tennessee da suka cancanta. Yi amfani da bayanan da ke ƙasa don tuntuɓar mu game da buƙatu, gudummawa ko haɗin gwiwa.",
+"Harvey Transportation Assistance Foundation bụ òtù ebere ọha 501(c)(3) na-ejere ndị bi na Tennessee tozuru etozu ozi. Jiri ozi dị n'okpuru kpọtụrụ anyị maka ajụjụ gbasara arịrịọ, onyinye ma ọ bụ mmekọrịta.",
+"Harvey Transportation Assistance Foundation isangano rerubatsiro reruzhinji 501(c)(3) rinoshandira vagari veTennessee vanokodzera. Shandisa ruzivo rwuri pazasi kuti utaure nesu nezvezvikumbiro, zvipo kana kushanda pamwe.",
+"Harvey Transportation Assistance Foundation yinhlangano yosizo yomphakathi 501(c)(3) esebenzela abahlali beTennessee abafaneleyo. Sebenzisa ulwazi olungezansi ukuxhumana lathi ngezicelo, iminikelo kumbe ukubambisana.",
+"Harvey Transportation Assistance Foundation yɛ ɔmanfoɔ mmoa kuo 501(c)(3) a ɛsom Tennessee atenafoɔ a wɔfata. Fa nsɛm a ɛwɔ aseɛ ha no ne yɛn nni nkitaho fa abisadeɛ, ayɛyɛdeɛ anaa nkabom ho."
 ],
 "Foundation Contact": [
 "Contacto de la Fundación",
@@ -2005,7 +2910,12 @@ window.HTAF_TRANSLATIONS = {
 "फ़ाउंडेशन संपर्क",
 "Contato da Fundação",
 "Kontak Fondasyon an",
-"Ìkànsí Àjọ"
+"Ìkànsí Àjọ",
+"Tuntuɓar Gidauniya",
+"Kọntaktị Ntọala",
+"Kutaura neSangano",
+"Ukuxhumana leSisekelo",
+"Fapem Nkitahodi"
 ],
 "Email": [
 "Correo electrónico",
@@ -2016,7 +2926,12 @@ window.HTAF_TRANSLATIONS = {
 "ईमेल",
 "E-mail",
 "Imèl",
-"Ímeèlì"
+"Ímeèlì",
+"Imel",
+"Email",
+"Email",
+"I-imeyili",
+"Email"
 ],
 "Phone": [
 "Teléfono",
@@ -2027,7 +2942,12 @@ window.HTAF_TRANSLATIONS = {
 "फ़ोन",
 "Telefone",
 "Telefòn",
-"Fóònù"
+"Fóònù",
+"Waya",
+"Ekwentị",
+"Foni",
+"Ifoni",
+"Fon"
 ],
 "Mailing Address": [
 "Dirección postal",
@@ -2038,7 +2958,12 @@ window.HTAF_TRANSLATIONS = {
 "डाक पता",
 "Endereço postal",
 "Adrès lapòs",
-"Àdírẹ́sì ìfìwéránṣẹ́"
+"Àdírẹ́sì ìfìwéránṣẹ́",
+"Adireshin Wasiƙa",
+"Adreesị Ozi",
+"Kero Yetsamba",
+"Ikheli Leposi",
+"Krataa Address"
 ],
 "Send HTAF a Message": [
 "Envíe un mensaje a HTAF",
@@ -2049,7 +2974,12 @@ window.HTAF_TRANSLATIONS = {
 "HTAF को संदेश भेजें",
 "Envie uma mensagem à HTAF",
 "Voye yon mesaj bay HTAF",
-"Fi ọ̀rọ̀ ránṣẹ́ sí HTAF"
+"Fi ọ̀rọ̀ ránṣẹ́ sí HTAF",
+"Aika wa HTAF Saƙo",
+"Zitere HTAF Ozi",
+"Tumira HTAF Meseji",
+"Thumela iHTAF Umlayezo",
+"Soma HTAF Nkra"
 ],
 "For partnerships, donations, or general questions. Your message goes to HTAF by email, and any reply will come to the email address you enter.": [
 "Para colaboraciones, donaciones o preguntas generales. Su mensaje llega a HTAF por correo electrónico, y cualquier respuesta llegará al correo que usted indique.",
@@ -2060,7 +2990,12 @@ window.HTAF_TRANSLATIONS = {
 "साझेदारी, दान या सामान्य सवालों के लिए। आपका संदेश ईमेल से HTAF तक पहुँचता है, और कोई भी जवाब आपके दिए ईमेल पते पर आएगा।",
 "Para parcerias, doações ou perguntas gerais. Sua mensagem chega à HTAF por e-mail, e qualquer resposta irá para o e-mail que você informar.",
 "Pou patenarya, don oswa kesyon jeneral. Mesaj ou rive bay HTAF pa imèl, e nenpòt repons ap vini nan imèl ou bay la.",
-"Fún ìbáṣepọ̀, ọrẹ tàbí ìbéèrè gbogbogbò. Ọ̀rọ̀ rẹ yóò dé ọ̀dọ̀ HTAF nípasẹ̀ ímeèlì, èsì èyíkéyìí yóò sì wá sí ímeèlì tí o kọ."
+"Fún ìbáṣepọ̀, ọrẹ tàbí ìbéèrè gbogbogbò. Ọ̀rọ̀ rẹ yóò dé ọ̀dọ̀ HTAF nípasẹ̀ ímeèlì, èsì èyíkéyìí yóò sì wá sí ímeèlì tí o kọ.",
+"Don haɗin gwiwa, gudummawa ko tambayoyi na gaba ɗaya. Saƙonka zai je wa HTAF ta imel, kuma duk wani amsa zai zo ga imel ɗin da ka shigar.",
+"Maka mmekọrịta, onyinye ma ọ bụ ajụjụ izugbe. Ozi gị na-eru HTAF site na email, azịza ọ bụla ga-abịa na email ị tinyere.",
+"Kushanda pamwe, zvipo kana mibvunzo yakajairika. Meseji yako inosvika kuHTAF neemail, uye mhinduro ipi neipi ichauya kuemail yawaisa.",
+"Okokubambisana, iminikelo kumbe imibuzo ejwayelekileyo. Umlayezo wakho ufika kuHTAF nge-imeyili, njalo loba yiyiphi impendulo izafika ku-imeyili oyifakileyo.",
+"Ma nkabom, ayɛyɛdeɛ anaa nsɛmmisa a ɛfa biribiara ho. W'nkra no kɔ HTAF hɔ denam email so, na mmuaeɛ biara bɛba email a wode hyɛɛ mu no so."
 ],
 "Please don't include patient information, medical details, or sensitive documents. This form doesn't accept attachments.": [
 "No incluya información de pacientes, datos médicos ni documentos confidenciales. Este formulario no acepta archivos adjuntos.",
@@ -2071,7 +3006,12 @@ window.HTAF_TRANSLATIONS = {
 "कृपया मरीज़ की जानकारी, चिकित्सा विवरण या संवेदनशील दस्तावेज़ शामिल न करें। यह फ़ॉर्म अटैचमेंट स्वीकार नहीं करता।",
 "Não inclua informações de pacientes, detalhes médicos ou documentos sensíveis. Este formulário não aceita anexos.",
 "Tanpri pa mete enfòmasyon pasyan, detay medikal oswa dokiman sansib. Fòm sa a pa aksepte atachman.",
-"Jọ̀wọ́ má ṣe fi ìsọfúnni aláìsàn, àlàyé ìtọ́jú tàbí ìwé àṣírí sí i. Fọ́ọ̀mù yìí kò gba àsomọ́."
+"Jọ̀wọ́ má ṣe fi ìsọfúnni aláìsàn, àlàyé ìtọ́jú tàbí ìwé àṣírí sí i. Fọ́ọ̀mù yìí kò gba àsomọ́.",
+"Don Allah kada ka saka bayanan majiyyaci, bayanan likita ko takardu masu muhimmanci. Wannan fom baya karɓar haɗe-haɗe.",
+"Biko etinyela ozi onye ọrịa, nkọwa ahụike ma ọ bụ akwụkwọ nzuzo. Fọm a anaghị anabata ihe mgbakwunye.",
+"Ndapota usaise ruzivo rwemurwere, ruzivo rwekurapwa kana magwaro akavanzika. Fomu iyi haigamuchiri zvakabatanidzwa.",
+"Siza ungafaki ulwazi lwesigulana, imininingwane yokwelatshwa kumbe imibhalo eyimfihlo. Leli fomu kalamukeli izinamathiselo.",
+"Mesrɛ wo, mfa ɔyarefo ho nsɛm, ayaresa ho nsɛm anaa kokoam nkrataa nka ho. Krataa yi nnye nneɛma a wɔde ka ho."
 ],
 "What is this about?": [
 "¿De qué se trata?",
@@ -2082,7 +3022,12 @@ window.HTAF_TRANSLATIONS = {
 "यह किस बारे में है?",
 "Qual é o assunto?",
 "Sou kisa li ye?",
-"Kí ni èyí jẹ mọ́?"
+"Kí ni èyí jẹ mọ́?",
+"Game da me ne wannan?",
+"Gịnị ka nke a metụtara?",
+"Izvi zvine chekuita nei?",
+"Lokhu kumayelana lani?",
+"Ɛfa dɛn ho?"
 ],
 "Choose one": [
 "Elija una opción",
@@ -2093,7 +3038,12 @@ window.HTAF_TRANSLATIONS = {
 "एक चुनें",
 "Escolha uma opção",
 "Chwazi youn",
-"Yan ọ̀kan"
+"Yan ọ̀kan",
+"Zaɓi ɗaya",
+"Họrọ otu",
+"Sarudza chimwe",
+"Khetha okukodwa",
+"Yi baako"
 ],
 "Partnership inquiry": [
 "Consulta de colaboración",
@@ -2104,7 +3054,12 @@ window.HTAF_TRANSLATIONS = {
 "साझेदारी पूछताछ",
 "Consulta de parceria",
 "Demann patenarya",
-"Ìbéèrè ìbáṣepọ̀"
+"Ìbéèrè ìbáṣepọ̀",
+"Tambaya game da haɗin gwiwa",
+"Ajụjụ maka mmekọrịta",
+"Mubvunzo wekushanda pamwe",
+"Umbuzo wokubambisana",
+"Nkabom ho nsɛmmisa"
 ],
 "Donation question": [
 "Pregunta sobre donaciones",
@@ -2115,7 +3070,12 @@ window.HTAF_TRANSLATIONS = {
 "दान से जुड़ा सवाल",
 "Pergunta sobre doações",
 "Kesyon sou don",
-"Ìbéèrè nípa ọrẹ"
+"Ìbéèrè nípa ọrẹ",
+"Tambaya game da gudummawa",
+"Ajụjụ maka onyinye",
+"Mubvunzo nezvezvipo",
+"Umbuzo ngeminikelo",
+"Ayɛyɛdeɛ ho nsɛmmisa"
 ],
 "General question": [
 "Pregunta general",
@@ -2126,7 +3086,12 @@ window.HTAF_TRANSLATIONS = {
 "सामान्य सवाल",
 "Pergunta geral",
 "Kesyon jeneral",
-"Ìbéèrè gbogbogbò"
+"Ìbéèrè gbogbogbò",
+"Tambaya ta gaba ɗaya",
+"Ajụjụ izugbe",
+"Mubvunzo wakajairika",
+"Umbuzo ojwayelekileyo",
+"Nsɛmmisa foforɔ"
 ],
 "Name": [
 "Nombre",
@@ -2137,7 +3102,12 @@ window.HTAF_TRANSLATIONS = {
 "नाम",
 "Nome",
 "Non",
-"Orúkọ"
+"Orúkọ",
+"Suna",
+"Aha",
+"Zita",
+"Ibizo",
+"Din"
 ],
 "(optional)": [
 "(opcional)",
@@ -2148,7 +3118,12 @@ window.HTAF_TRANSLATIONS = {
 "(वैकल्पिक)",
 "(opcional)",
 "(opsyonèl)",
-"(kò pọn dandan)"
+"(kò pọn dandan)",
+"(na zaɓi)",
+"(nhọrọ)",
+"(sarudzo)",
+"(ukukhetha)",
+"(wo pɛ)"
 ],
 "Partnership interest": [
 "Tipo de colaboración",
@@ -2159,7 +3134,12 @@ window.HTAF_TRANSLATIONS = {
 "साझेदारी में रुचि",
 "Interesse de parceria",
 "Kalite patenarya",
-"Irú ìbáṣepọ̀"
+"Irú ìbáṣepọ̀",
+"Sha'awar haɗin gwiwa",
+"Ụdị mmekọrịta",
+"Rudzi rwekushanda pamwe",
+"Uhlobo lokubambisana",
+"Nkabom a wopɛ"
 ],
 "Something else": [
 "Otro",
@@ -2170,7 +3150,12 @@ window.HTAF_TRANSLATIONS = {
 "कुछ और",
 "Outro",
 "Lòt bagay",
-"Nǹkan mìíràn"
+"Nǹkan mìíràn",
+"Wani abu daban",
+"Ihe ọzọ",
+"Chimwe chinhu",
+"Okunye",
+"Biribi foforɔ"
 ],
 "Message": [
 "Mensaje",
@@ -2181,7 +3166,12 @@ window.HTAF_TRANSLATIONS = {
 "संदेश",
 "Mensagem",
 "Mesaj",
-"Ọ̀rọ̀"
+"Ọ̀rọ̀",
+"Saƙo",
+"Ozi",
+"Meseji",
+"Umlayezo",
+"Nkra"
 ],
 "A few sentences is enough (up to 1,500 characters).": [
 "Bastan unas pocas frases (hasta 1,500 caracteres).",
@@ -2192,7 +3182,12 @@ window.HTAF_TRANSLATIONS = {
 "कुछ वाक्य काफ़ी हैं (अधिकतम 1,500 अक्षर)।",
 "Algumas frases bastam (até 1.500 caracteres).",
 "Kèk fraz ase (jiska 1 500 karaktè).",
-"Gbólóhùn díẹ̀ tó (títí dé lẹ́tà 1,500)."
+"Gbólóhùn díẹ̀ tó (títí dé lẹ́tà 1,500).",
+"Jimloli kaɗan sun isa (har haruffa 1,500).",
+"Ahịrịokwu ole na ole zuru (ruo mkpụrụedemede 1,500).",
+"Mitsara mishoma yakakwana (kusvika mavara 1,500).",
+"Imitsho embalwa yanele (kuze kube zinhlamvu ezingu-1,500).",
+"Nsɛm kakra bɛso (kɔsi nkyerɛwde 1,500)."
 ],
 "Send Message": [
 "Enviar mensaje",
@@ -2203,7 +3198,12 @@ window.HTAF_TRANSLATIONS = {
 "संदेश भेजें",
 "Enviar mensagem",
 "Voye mesaj",
-"Fi ọ̀rọ̀ ránṣẹ́"
+"Fi ọ̀rọ̀ ránṣẹ́",
+"Aika Saƙo",
+"Zipu Ozi",
+"Tumira Meseji",
+"Thumela Umlayezo",
+"Soma Nkra"
 ],
 "Application Status": [
 "Estado de la solicitud",
@@ -2214,7 +3214,12 @@ window.HTAF_TRANSLATIONS = {
 "आवेदन की स्थिति",
 "Status do pedido",
 "Estati aplikasyon",
-"Ipò ìbéèrè"
+"Ipò ìbéèrè",
+"Matsayin Buƙata",
+"Ọnọdụ Arịrịọ",
+"Mamiriro eChikumbiro",
+"Isimo Sesicelo",
+"Abisadeɛ Tebea"
 ],
 "Already submitted a transportation assistance application? To ask about its status, email": [
 "¿Ya envió una solicitud de asistencia de transporte? Para preguntar por su estado, escriba a",
@@ -2225,7 +3230,12 @@ window.HTAF_TRANSLATIONS = {
 "क्या आपने पहले ही परिवहन सहायता आवेदन जमा कर दिया है? उसकी स्थिति जानने के लिए ईमेल करें:",
 "Já enviou um pedido de assistência de transporte? Para saber o status, escreva para",
 "Ou deja soumèt yon aplikasyon pou asistans transpò? Pou mande sou estati li, ekri nan",
-"Ṣé o ti fi ìbéèrè ìrànlọ́wọ́ ìrìnnà ránṣẹ́? Láti béèrè ipò rẹ̀, kọ ímeèlì sí"
+"Ṣé o ti fi ìbéèrè ìrànlọ́wọ́ ìrìnnà ránṣẹ́? Láti béèrè ipò rẹ̀, kọ ímeèlì sí",
+"Ka riga ka aika buƙatar taimakon sufuri? Don tambaya game da matsayinta, aika imel zuwa",
+"Ị zipụlarị arịrịọ enyemaka njem? Iji jụọ maka ọnọdụ ya, zitere email na",
+"Wakatotumira chikumbiro cherubatsiro rwekufamba? Kuti ubvunze mamiriro acho, tumira email ku",
+"Usuthumele isicelo sosizo lokuhamba? Ukubuza ngesimo saso, thumela i-imeyili ku",
+"Woasoma akwantuo mmoa abisadeɛ dedaw? Sɛ wopɛ sɛ wobisa ne tebea a, soma email kɔ"
 ],
 "or call": [
 "o llame al",
@@ -2236,7 +3246,12 @@ window.HTAF_TRANSLATIONS = {
 "या कॉल करें",
 "ou ligue para",
 "oswa rele",
-"tàbí pe"
+"tàbí pe",
+"ko ka kira",
+"ma ọ bụ kpọọ",
+"kana kufona",
+"kumbe ufonele",
+"anaa frɛ"
 ],
 ", and include the application code provided at submission (format HTAF-XXXXXXXX-XXXX). An online status check is not available.": [
 ", e incluya el código de solicitud que recibió al enviarla (formato HTAF-XXXXXXXX-XXXX). No hay consulta de estado en línea.",
@@ -2247,7 +3262,12 @@ window.HTAF_TRANSLATIONS = {
 "और जमा करते समय मिला आवेदन कोड बताएँ (प्रारूप HTAF-XXXXXXXX-XXXX)। ऑनलाइन स्थिति जाँच उपलब्ध नहीं है।",
 ", e informe o código recebido no envio (formato HTAF-XXXXXXXX-XXXX). Não há consulta de status on-line.",
 ", epi mete kòd aplikasyon yo te ba w lè w te soumèt (fòma HTAF-XXXXXXXX-XXXX). Pa gen tcheke estati sou entènèt.",
-", kí o sì fi kóòdù ìbéèrè tí o gbà nígbà tí o fi ránṣẹ́ kún un (ìrísí HTAF-XXXXXXXX-XXXX). A kò lè ṣàyẹ̀wò ipò lórí ayélujára."
+", kí o sì fi kóòdù ìbéèrè tí o gbà nígbà tí o fi ránṣẹ́ kún un (ìrísí HTAF-XXXXXXXX-XXXX). A kò lè ṣàyẹ̀wò ipò lórí ayélujára.",
+", kuma ka haɗa lambar buƙatar da aka ba ka lokacin aikawa (tsari HTAF-XXXXXXXX-XXXX). Babu duba matsayi ta yanar gizo.",
+", ma tinye koodu arịrịọ e nyere gị mgbe ị zipụrụ ya (ụdị HTAF-XXXXXXXX-XXXX). Enweghị nlele ọnọdụ n'ịntanetị.",
+", uye uise kodhi yechikumbiro yawakapihwa pakutumira (chimiro HTAF-XXXXXXXX-XXXX). Hapana kuongorora mamiriro pamhepo.",
+", njalo ufake ikhodi yesicelo oyinikwe ekuthumeleni (isimo HTAF-XXXXXXXX-XXXX). Akulakuhlola isimo ku-inthanethi.",
+", na fa abisadeɛ kood a wɔde maa wo bere a wosomaeɛ no ka ho (ɛte sɛ HTAF-XXXXXXXX-XXXX). Wontumi nhwɛ tebea wɔ intanɛt so."
 ],
 "General Support": [
 "Ayuda general",
@@ -2258,7 +3278,12 @@ window.HTAF_TRANSLATIONS = {
 "सामान्य सहायता",
 "Suporte geral",
 "Sipò jeneral",
-"Ìrànlọ́wọ́ gbogbogbò"
+"Ìrànlọ́wọ́ gbogbogbò",
+"Tallafi na Gaba Ɗaya",
+"Enyemaka Izugbe",
+"Rubatsiro Rwakajairika",
+"Usizo Olujwayelekileyo",
+"Mmoa Foforɔ"
 ],
 "For technical issues with the website or application portal, email": [
 "Para problemas técnicos con el sitio web o el portal de solicitudes, escriba a",
@@ -2269,7 +3294,12 @@ window.HTAF_TRANSLATIONS = {
 "वेबसाइट या आवेदन पोर्टल की तकनीकी समस्याओं के लिए ईमेल करें:",
 "Para problemas técnicos no site ou no portal de pedidos, escreva para",
 "Pou pwoblèm teknik ak sit la oswa pòtay aplikasyon an, ekri nan",
-"Fún ìṣòro ìmọ̀-ẹ̀rọ lórí ojú-òpó tàbí ojú-ọ̀nà ìbéèrè, kọ ímeèlì sí"
+"Fún ìṣòro ìmọ̀-ẹ̀rọ lórí ojú-òpó tàbí ojú-ọ̀nà ìbéèrè, kọ ímeèlì sí",
+"Don matsalolin fasaha na shafin yanar gizo ko shafin buƙatu, aika imel zuwa",
+"Maka nsogbu teknụzụ na weebụsaịtị ma ọ bụ ọnụ ụzọ arịrịọ, zitere email na",
+"Nezvematambudziko ehunyanzvi newebhusaiti kana peji rezvikumbiro, tumira email ku",
+"Ngezinkinga zobuchwepheshe zewebhusayithi kumbe ikhasi lezicelo, thumela i-imeyili ku",
+"Sɛ wowɔ wɛbsaet anaa abisadeɛ kratafa ho ɔhaw a, soma email kɔ"
 ],
 "Sending…": [
 "Enviando…",
@@ -2280,7 +3310,12 @@ window.HTAF_TRANSLATIONS = {
 "भेजा जा रहा है…",
 "Enviando…",
 "N ap voye…",
-"Ń fi ránṣẹ́…"
+"Ń fi ránṣẹ́…",
+"Ana aikawa…",
+"Na-eziga…",
+"Kutumira…",
+"Kuyathunyelwa…",
+"Ɛresoma…"
 ],
 "Thank you. Your message was sent to HTAF.": [
 "Gracias. Su mensaje se envió a HTAF.",
@@ -2291,7 +3326,12 @@ window.HTAF_TRANSLATIONS = {
 "धन्यवाद। आपका संदेश HTAF को भेज दिया गया।",
 "Obrigado. Sua mensagem foi enviada à HTAF.",
 "Mèsi. Mesaj ou a rive bay HTAF.",
-"Ẹ ṣé. A ti fi ọ̀rọ̀ rẹ ránṣẹ́ sí HTAF."
+"Ẹ ṣé. A ti fi ọ̀rọ̀ rẹ ránṣẹ́ sí HTAF.",
+"Na gode. An aika saƙonka zuwa HTAF.",
+"Daalụ. Ezigara ozi gị na HTAF.",
+"Tatenda. Meseji yako yatumirwa kuHTAF.",
+"Siyabonga. Umlayezo wakho uthunyelwe kuHTAF.",
+"Meda wo ase. Yɛasoma w'nkra akɔ HTAF."
 ],
 "Your message couldn't be sent. Please email WillieHtaf@harveytransportationfoundation.com or call 615-636-6201.": [
 "No se pudo enviar su mensaje. Escriba a WillieHtaf@harveytransportationfoundation.com o llame al 615-636-6201.",
@@ -2302,7 +3342,12 @@ window.HTAF_TRANSLATIONS = {
 "आपका संदेश नहीं भेजा जा सका। कृपया WillieHtaf@harveytransportationfoundation.com पर ईमेल करें या 615-636-6201 पर कॉल करें।",
 "Não foi possível enviar sua mensagem. Escreva para WillieHtaf@harveytransportationfoundation.com ou ligue para 615-636-6201.",
 "Nou pa t ka voye mesaj ou a. Tanpri ekri nan WillieHtaf@harveytransportationfoundation.com oswa rele 615-636-6201.",
-"A kò lè fi ọ̀rọ̀ rẹ ránṣẹ́. Jọ̀wọ́ kọ ímeèlì sí WillieHtaf@harveytransportationfoundation.com tàbí pe 615-636-6201."
+"A kò lè fi ọ̀rọ̀ rẹ ránṣẹ́. Jọ̀wọ́ kọ ímeèlì sí WillieHtaf@harveytransportationfoundation.com tàbí pe 615-636-6201.",
+"Ba a iya aika saƙonka ba. Don Allah aika imel zuwa WillieHtaf@harveytransportationfoundation.com ko ka kira 615-636-6201.",
+"Enweghị ike iziga ozi gị. Biko zitere email na WillieHtaf@harveytransportationfoundation.com ma ọ bụ kpọọ 615-636-6201.",
+"Meseji yako haina kutumirwa. Ndapota tumira email kuWillieHtaf@harveytransportationfoundation.com kana ufone 615-636-6201.",
+"Umlayezo wakho awuthunyelwanga. Siza uthumele i-imeyili kuWillieHtaf@harveytransportationfoundation.com kumbe ufonele 615-636-6201.",
+"Yɛantumi ansoma w'nkra. Mesrɛ wo soma email kɔ WillieHtaf@harveytransportationfoundation.com anaa frɛ 615-636-6201."
 ],
 "Please check the highlighted fields.": [
 "Revise los campos marcados.",
@@ -2313,7 +3358,12 @@ window.HTAF_TRANSLATIONS = {
 "कृपया चिह्नित फ़ील्ड जाँचें।",
 "Verifique os campos destacados.",
 "Tanpri tcheke chan ki make yo.",
-"Jọ̀wọ́ ṣàyẹ̀wò àwọn àyè tí a sàmì sí."
+"Jọ̀wọ́ ṣàyẹ̀wò àwọn àyè tí a sàmì sí.",
+"Don Allah duba wuraren da aka yi alama.",
+"Biko lelee ebe ndị akara.",
+"Ndapota ongorora nzvimbo dzakaratidzwa.",
+"Siza uhlole izindawo eziphawuliweyo.",
+"Mesrɛ wo hwɛ mmeaeɛ a yɛahyɛ no nsɛnkyerɛnne."
 ],
 "Choose what your message is about.": [
 "Elija el tema de su mensaje.",
@@ -2324,7 +3374,12 @@ window.HTAF_TRANSLATIONS = {
 "बताइए कि आपका संदेश किस बारे में है।",
 "Escolha o assunto da mensagem.",
 "Chwazi sou kisa mesaj ou a ye.",
-"Yan ohun tí ọ̀rọ̀ rẹ jẹ mọ́."
+"Yan ohun tí ọ̀rọ̀ rẹ jẹ mọ́.",
+"Zaɓi abin da saƙonka ya shafa.",
+"Họrọ ihe ozi gị metụtara.",
+"Sarudza kuti meseji yako ine chekuita nei.",
+"Khetha ukuthi umlayezo wakho umayelana lani.",
+"Yi deɛ w'nkra no fa ho."
 ],
 "Enter your name.": [
 "Escriba su nombre.",
@@ -2335,7 +3390,12 @@ window.HTAF_TRANSLATIONS = {
 "अपना नाम लिखें।",
 "Informe seu nome.",
 "Ekri non w.",
-"Kọ orúkọ rẹ."
+"Kọ orúkọ rẹ.",
+"Shigar da sunanka.",
+"Tinye aha gị.",
+"Isa zita rako.",
+"Faka ibizo lakho.",
+"Kyerɛw wo din."
 ],
 "Enter a valid email address.": [
 "Escriba un correo electrónico válido.",
@@ -2346,7 +3406,12 @@ window.HTAF_TRANSLATIONS = {
 "एक मान्य ईमेल पता लिखें।",
 "Informe um e-mail válido.",
 "Ekri yon imèl ki valab.",
-"Kọ ímeèlì tó tọ́."
+"Kọ ímeèlì tó tọ́.",
+"Shigar da ingantaccen adireshin imel.",
+"Tinye adreesị email ziri ezi.",
+"Isa kero yeemail chaiyo.",
+"Faka ikheli le-imeyili eliqondileyo.",
+"Kyerɛw email address a ɛyɛ ampa."
 ],
 "Enter a valid phone number, or leave it blank.": [
 "Escriba un teléfono válido o deje el campo vacío.",
@@ -2357,7 +3422,12 @@ window.HTAF_TRANSLATIONS = {
 "एक मान्य फ़ोन नंबर लिखें, या खाली छोड़ दें।",
 "Informe um telefone válido ou deixe em branco.",
 "Ekri yon nimewo telefòn ki valab, oswa kite l vid.",
-"Kọ nọ́mbà fóònù tó tọ́, tàbí fi sílẹ̀ ní òfo."
+"Kọ nọ́mbà fóònù tó tọ́, tàbí fi sílẹ̀ ní òfo.",
+"Shigar da ingantacciyar lambar waya, ko ka bar ta babu komai.",
+"Tinye nọmba ekwentị ziri ezi, ma ọ bụ hapụ ya efu.",
+"Isa nhamba yefoni chaiyo, kana usiye pasina.",
+"Faka inombolo yefoni eqondileyo, kumbe uyitshiye ingelalutho.",
+"Kyerɛw fon nɔma a ɛyɛ ampa, anaa gyaw no hunu."
 ],
 "Enter a short message (at least 10 characters).": [
 "Escriba un mensaje breve (al menos 10 caracteres).",
@@ -2368,7 +3438,12 @@ window.HTAF_TRANSLATIONS = {
 "छोटा संदेश लिखें (कम से कम 10 अक्षर)।",
 "Escreva uma mensagem curta (pelo menos 10 caracteres).",
 "Ekri yon ti mesaj (omwen 10 karaktè).",
-"Kọ ọ̀rọ̀ kúkúrú (ó kéré tán lẹ́tà 10)."
+"Kọ ọ̀rọ̀ kúkúrú (ó kéré tán lẹ́tà 10).",
+"Rubuta gajeren saƙo (aƙalla haruffa 10).",
+"Dee obere ozi (opekata mpe mkpụrụedemede 10).",
+"Nyora meseji pfupi (anenge mavara 10).",
+"Bhala umlayezo omfitshane (okungenani izinhlamvu ezingu-10).",
+"Kyerɛw nkra tiawa (nkyerɛwde 10 bɛyɛ saa)."
 ],
 "Keep your message under 1500 characters.": [
 "Su mensaje debe tener menos de 1,500 caracteres.",
@@ -2379,7 +3454,12 @@ window.HTAF_TRANSLATIONS = {
 "संदेश 1,500 अक्षरों से कम रखें।",
 "A mensagem deve ter menos de 1.500 caracteres.",
 "Mesaj ou a dwe gen mwens pase 1 500 karaktè.",
-"Jẹ́ kí ọ̀rọ̀ rẹ kéré sí lẹ́tà 1,500."
+"Jẹ́ kí ọ̀rọ̀ rẹ kéré sí lẹ́tà 1,500.",
+"Saƙonka kada ya wuce haruffa 1500.",
+"Ozi gị agaghị agafe mkpụrụedemede 1500.",
+"Meseji yako ngaisapfuura mavara 1500.",
+"Umlayezo wakho ungedluli izinhlamvu ezingu-1500.",
+"W'nkra nnsen nkyerɛwde 1500."
 ],
 "Enter your organization.": [
 "Escriba el nombre de su organización.",
@@ -2390,7 +3470,12 @@ window.HTAF_TRANSLATIONS = {
 "अपने संगठन का नाम लिखें।",
 "Informe sua organização.",
 "Ekri non òganizasyon w lan.",
-"Kọ orúkọ àjọ rẹ."
+"Kọ orúkọ àjọ rẹ.",
+"Shigar da sunan ƙungiyarka.",
+"Tinye aha òtù gị.",
+"Isa zita resangano rako.",
+"Faka ibizo lenhlangano yakho.",
+"Kyerɛw wo kuo din."
 ],
 "Choose a partnership interest.": [
 "Elija un tipo de colaboración.",
@@ -2401,7 +3486,12 @@ window.HTAF_TRANSLATIONS = {
 "साझेदारी में रुचि चुनें।",
 "Escolha o interesse de parceria.",
 "Chwazi kalite patenarya.",
-"Yan irú ìbáṣepọ̀."
+"Yan irú ìbáṣepọ̀.",
+"Zaɓi sha'awar haɗin gwiwa.",
+"Họrọ ụdị mmekọrịta.",
+"Sarudza rudzi rwekushanda pamwe.",
+"Khetha uhlobo lokubambisana.",
+"Yi nkabom a wopɛ."
 ],
 "Too many messages from this connection. Please wait a few minutes, or email HTAF directly.": [
 "Demasiados mensajes desde esta conexión. Espere unos minutos o escriba directamente a HTAF.",
@@ -2412,7 +3502,12 @@ window.HTAF_TRANSLATIONS = {
 "इस कनेक्शन से बहुत अधिक संदेश भेजे गए। कुछ मिनट रुकें या सीधे HTAF को ईमेल करें।",
 "Muitas mensagens desta conexão. Aguarde alguns minutos ou escreva diretamente para a HTAF.",
 "Twòp mesaj soti nan koneksyon sa a. Tanpri tann kèk minit, oswa ekri HTAF dirèkteman.",
-"Ọ̀rọ̀ ti pọ̀ jù láti ìsopọ̀ yìí. Jọ̀wọ́ dúró fún ìṣẹ́jú díẹ̀, tàbí kọ ímeèlì sí HTAF tààrà."
+"Ọ̀rọ̀ ti pọ̀ jù láti ìsopọ̀ yìí. Jọ̀wọ́ dúró fún ìṣẹ́jú díẹ̀, tàbí kọ ímeèlì sí HTAF tààrà.",
+"Saƙonni sun yi yawa daga wannan haɗin. Don Allah jira 'yan mintoci, ko aika wa HTAF imel kai tsaye.",
+"Ozi dị ukwuu site na njikọ a. Biko chere nkeji ole na ole, ma ọ bụ zitere HTAF email ozugbo.",
+"Mameseji akawandisa kubva pakubatana uku. Ndapota mirira maminitsi mashoma, kana utumire HTAF email zvakananga.",
+"Imilayezo minengi kakhulu evela kulokhu kuxhumana. Siza ulinde imizuzu embalwa, kumbe uthumele iHTAF i-imeyili ngqo.",
+"Nkra adɔɔso dodo firi saa nkitahodi yi so. Mesrɛ wo twɛn simma kakra, anaa soma HTAF email tẽẽ."
 ],
 "Please complete all required fields and certification before submitting.": [
 "Complete todos los campos obligatorios y la certificación antes de enviar.",
@@ -2423,7 +3518,12 @@ window.HTAF_TRANSLATIONS = {
 "जमा करने से पहले सभी ज़रूरी फ़ील्ड और प्रमाणन पूरा करें।",
 "Preencha todos os campos obrigatórios e a declaração antes de enviar.",
 "Tanpri ranpli tout chan obligatwa yo ak sètifikasyon an anvan ou soumèt.",
-"Jọ̀wọ́ parí gbogbo àyè tí a béèrè àti ìjẹ́rìísí kí o tó fi ránṣẹ́."
+"Jọ̀wọ́ parí gbogbo àyè tí a béèrè àti ìjẹ́rìísí kí o tó fi ránṣẹ́.",
+"Don Allah kammala dukkan wuraren da ake buƙata da tabbaci kafin aikawa.",
+"Biko mezue ebe niile achọrọ na nkwenye tupu iziga.",
+"Ndapota pedzisa nzvimbo dzese dzinodiwa nechisimbiso usati watumira.",
+"Siza uqedele zonke izindawo ezidingekayo lesiqinisekiso ngaphambi kokuthumela.",
+"Mesrɛ wo, wie mmeaeɛ a ɛhia nyinaa ne adansedie no ansa na woasoma."
 ],
 "Application draft saved successfully on this device.": [
 "El borrador se guardó en este dispositivo.",
@@ -2434,7 +3534,12 @@ window.HTAF_TRANSLATIONS = {
 "आवेदन का ड्राफ़्ट इस डिवाइस पर सहेज लिया गया।",
 "O rascunho foi salvo neste dispositivo.",
 "Bouyon aplikasyon an sove sou aparèy sa a.",
-"A ti fi àkọsílẹ̀ ìbéèrè pamọ́ sórí ẹ̀rọ yìí."
+"A ti fi àkọsílẹ̀ ìbéèrè pamọ́ sórí ẹ̀rọ yìí.",
+"An adana daftarin buƙata a wannan na'urar.",
+"Echekwara ihe edemede arịrịọ na ngwaọrụ a.",
+"Chinyorwa chechikumbiro chachengetwa pamudziyo uyu.",
+"Okubhaliweyo kwesicelo kugcinwe kulesi sixhobo.",
+"Wɔakora abisadeɛ krataa no wɔ saa mfiri yi so."
 ],
 "Unable to save draft on this device.": [
 "No se pudo guardar el borrador en este dispositivo.",
@@ -2445,7 +3550,12 @@ window.HTAF_TRANSLATIONS = {
 "इस डिवाइस पर ड्राफ़्ट सहेजा नहीं जा सका।",
 "Não foi possível salvar o rascunho neste dispositivo.",
 "Nou pa t ka sove bouyon an sou aparèy sa a.",
-"A kò lè fi àkọsílẹ̀ pamọ́ sórí ẹ̀rọ yìí."
+"A kò lè fi àkọsílẹ̀ pamọ́ sórí ẹ̀rọ yìí.",
+"Ba a iya adana daftari a wannan na'urar ba.",
+"Enweghị ike ichekwa ihe edemede na ngwaọrụ a.",
+"Hazvina kukwanisika kuchengeta chinyorwa pamudziyo uyu.",
+"Akukwazanga ukugcina okubhaliweyo kulesi sixhobo.",
+"Yɛantumi ankora krataa no wɔ saa mfiri yi so."
 ],
 "Review generated. Confirm everything looks correct before submitting.": [
 "Resumen listo. Confirme que todo esté correcto antes de enviar.",
@@ -2456,7 +3566,12 @@ window.HTAF_TRANSLATIONS = {
 "समीक्षा तैयार है। जमा करने से पहले जाँच लें कि सब कुछ सही है।",
 "Revisão pronta. Confirme se está tudo correto antes de enviar.",
 "Rezime a pare. Asire w tout bagay kòrèk anvan ou soumèt.",
-"Àyẹ̀wò ti ṣetán. Rí i dájú pé gbogbo rẹ̀ tọ́ kí o tó fi ránṣẹ́."
+"Àyẹ̀wò ti ṣetán. Rí i dájú pé gbogbo rẹ̀ tọ́ kí o tó fi ránṣẹ́.",
+"An shirya bita. Tabbatar komai daidai ne kafin aikawa.",
+"Nyocha dị njikere. Hụ na ihe niile ziri ezi tupu iziga.",
+"Ongororo yagadzirwa. Simbisa kuti zvese zvakarurama usati watumira.",
+"Ukuhlola sekulungile. Qinisekisa ukuthi konke kuqondile ngaphambi kokuthumela.",
+"Nhwehwɛmu no asi pi. Hwɛ sɛ biribiara yɛ ampa ansa na woasoma."
 ],
 "Application submitted successfully. HTAF will review your transportation assistance request.": [
 "Solicitud enviada. HTAF revisará su solicitud de asistencia de transporte.",
@@ -2467,7 +3582,12 @@ window.HTAF_TRANSLATIONS = {
 "आवेदन जमा हो गया। HTAF आपके परिवहन सहायता अनुरोध की समीक्षा करेगा।",
 "Pedido enviado. A HTAF analisará seu pedido de assistência de transporte.",
 "Aplikasyon an soumèt. HTAF ap revize demann asistans transpò ou a.",
-"A ti fi ìbéèrè ránṣẹ́. HTAF yóò ṣàyẹ̀wò ìbéèrè ìrànlọ́wọ́ ìrìnnà rẹ."
+"A ti fi ìbéèrè ránṣẹ́. HTAF yóò ṣàyẹ̀wò ìbéèrè ìrànlọ́wọ́ ìrìnnà rẹ.",
+"An aika buƙata. HTAF za ta duba buƙatar taimakon sufurinka.",
+"Ezigara arịrịọ. HTAF ga-enyocha arịrịọ enyemaka njem gị.",
+"Chikumbiro chatumirwa. HTAF ichaongorora chikumbiro chako cherubatsiro rwekufamba.",
+"Isicelo sithunyelwe. HTAF izahlola isicelo sakho sosizo lokuhamba.",
+"Wɔasoma abisadeɛ no. HTAF bɛhwɛ w'akwantuo mmoa abisadeɛ mu."
 ],
 "Submission is unavailable right now. Your draft has been saved on this device. Please try again later or contact HTAF.": [
 "No es posible enviar en este momento. Su borrador se guardó en este dispositivo. Inténtelo más tarde o comuníquese con HTAF.",
@@ -2478,7 +3598,12 @@ window.HTAF_TRANSLATIONS = {
 "अभी जमा नहीं किया जा सकता। आपका ड्राफ़्ट इस डिवाइस पर सहेज लिया गया है। बाद में फिर कोशिश करें या HTAF से संपर्क करें।",
 "O envio está indisponível no momento. Seu rascunho foi salvo neste dispositivo. Tente mais tarde ou entre em contato com a HTAF.",
 "Ou pa ka soumèt kounye a. Bouyon w lan sove sou aparèy sa a. Eseye ankò pita oswa kontakte HTAF.",
-"Fífi ránṣẹ́ kò ṣeé ṣe báyìí. A ti fi àkọsílẹ̀ rẹ pamọ́ sórí ẹ̀rọ yìí. Gbìyànjú lẹ́ẹ̀kan sí i tàbí kàn sí HTAF."
+"Fífi ránṣẹ́ kò ṣeé ṣe báyìí. A ti fi àkọsílẹ̀ rẹ pamọ́ sórí ẹ̀rọ yìí. Gbìyànjú lẹ́ẹ̀kan sí i tàbí kàn sí HTAF.",
+"Ba za a iya aikawa yanzu ba. An adana daftarinka a wannan na'urar. Ka sake gwadawa daga baya ko ka tuntuɓi HTAF.",
+"Enweghị ike iziga ugbu a. Echekwara ihe edemede gị na ngwaọrụ a. Biko nwaa ọzọ emesịa ma ọ bụ kpọtụrụ HTAF.",
+"Kutumira hakuwanikwi izvozvi. Chinyorwa chako chachengetwa pamudziyo uyu. Ndapota edza zvakare gare gare kana taura neHTAF.",
+"Ukuthumela akwenzakali khathesi. Okubhaliweyo kwakho kugcinwe kulesi sixhobo. Siza uzame futhi ngemva kwesikhatshana kumbe uxhumane leHTAF.",
+"Wontumi nsoma seesei. Wɔakora wo krataa wɔ saa mfiri yi so. Mesrɛ wo, sɔ hwɛ bio akyiri yi anaa ne HTAF nni nkitaho."
 ],
 "Submitting...": [
 "Enviando...",
@@ -2489,7 +3614,12 @@ window.HTAF_TRANSLATIONS = {
 "जमा हो रहा है...",
 "Enviando...",
 "N ap soumèt...",
-"Ń fi ránṣẹ́..."
+"Ń fi ránṣẹ́...",
+"Ana aikawa...",
+"Na-eziga...",
+"Kutumira...",
+"Kuyathunyelwa...",
+"Ɛresoma..."
 ],
 "Loading the latest totals…": [
 "Cargando los totales más recientes…",
@@ -2500,7 +3630,12 @@ window.HTAF_TRANSLATIONS = {
 "नवीनतम आँकड़े लोड हो रहे हैं…",
 "Carregando os totais mais recentes…",
 "N ap chaje dènye total yo…",
-"Ń gbé àpapọ̀ tuntun jáde…"
+"Ń gbé àpapọ̀ tuntun jáde…",
+"Ana loda sabbin jimloli…",
+"Na-ebudata mkpokọta kacha ọhụrụ…",
+"Kurodha huwandu hwazvino…",
+"Kulayishwa amanani amatsha…",
+"Ɛreyi akontaa foforɔ aba…"
 ],
 "Updated just now.": [
 "Actualizado hace un momento.",
@@ -2511,7 +3646,12 @@ window.HTAF_TRANSLATIONS = {
 "अभी अपडेट किया गया।",
 "Atualizado agora.",
 "Mete ajou kounye a.",
-"A ṣẹ̀ṣẹ̀ ṣe àfikún."
+"A ṣẹ̀ṣẹ̀ ṣe àfikún.",
+"An sabunta yanzu.",
+"Emelitere ugbu a.",
+"Zvagadziridzwa izvozvi.",
+"Kubuyekezwe khathesi.",
+"Wɔayɛ no foforɔ seesei ara."
 ],
 "Updated": [
 "Actualizado",
@@ -2522,7 +3662,12 @@ window.HTAF_TRANSLATIONS = {
 "अपडेट",
 "Atualizado",
 "Mete ajou",
-"A ṣe àfikún"
+"A ṣe àfikún",
+"An sabunta",
+"Emelitere",
+"Zvagadziridzwa",
+"Kubuyekezwe",
+"Wɔayɛ no foforɔ"
 ],
 "Totals are unavailable right now. Please try again later.": [
 "Los totales no están disponibles en este momento. Inténtelo más tarde.",
@@ -2533,7 +3678,12 @@ window.HTAF_TRANSLATIONS = {
 "आँकड़े अभी उपलब्ध नहीं हैं। कृपया बाद में कोशिश करें।",
 "Os totais estão indisponíveis no momento. Tente mais tarde.",
 "Total yo pa disponib kounye a. Tanpri eseye ankò pita.",
-"Àpapọ̀ kò sí báyìí. Jọ̀wọ́ gbìyànjú lẹ́ẹ̀kan sí i."
+"Àpapọ̀ kò sí báyìí. Jọ̀wọ́ gbìyànjú lẹ́ẹ̀kan sí i.",
+"Jimloli ba sa samuwa yanzu. Don Allah ka sake gwadawa daga baya.",
+"Mkpokọta adịghị ugbu a. Biko nwaa ọzọ emesịa.",
+"Huwandu hahuwanikwi izvozvi. Ndapota edza zvakare gare gare.",
+"Amanani awatholakali khathesi. Siza uzame futhi ngemva kwesikhatshana.",
+"Akontaa nni hɔ seesei. Mesrɛ wo, sɔ hwɛ bio akyiri yi."
 ],
 "Applicant": [
 "Solicitante",
@@ -2544,7 +3694,12 @@ window.HTAF_TRANSLATIONS = {
 "आवेदक",
 "Candidato",
 "Aplikan",
-"Olùbéèrè"
+"Olùbéèrè",
+"Mai Nema",
+"Onye Na-arịọ",
+"Munyoreri",
+"Umfaki Wesicelo",
+"Ɔsrɛfo"
 ],
 "County": [
 "Condado",
@@ -2555,7 +3710,12 @@ window.HTAF_TRANSLATIONS = {
 "काउंटी",
 "Condado",
 "Konte",
-"Agbègbè ìjọba"
+"Agbègbè ìjọba",
+"Gunduma",
+"Kaụntị",
+"Dunhu",
+"Isifunda",
+"Mantam"
 ],
 "City": [
 "Ciudad",
@@ -2566,7 +3726,12 @@ window.HTAF_TRANSLATIONS = {
 "शहर",
 "Cidade",
 "Vil",
-"Ìlú"
+"Ìlú",
+"Birni",
+"Obodo",
+"Guta",
+"Idolobho",
+"Kuropɔn"
 ],
 "Program": [
 "Programa",
@@ -2577,7 +3742,12 @@ window.HTAF_TRANSLATIONS = {
 "कार्यक्रम",
 "Programa",
 "Pwogram",
-"Ètò"
+"Ètò",
+"Shiri",
+"Mmemme",
+"Chirongwa",
+"Uhlelo",
+"Dwumadi"
 ],
 "Destination": [
 "Destino",
@@ -2588,7 +3758,12 @@ window.HTAF_TRANSLATIONS = {
 "गंतव्य",
 "Destino",
 "Destinasyon",
-"Ibi tí o ń lọ"
+"Ibi tí o ń lọ",
+"Inda Za a Je",
+"Ebe A Na-aga",
+"Kwaunoenda",
+"Lapho Oya Khona",
+"Beaeɛ a Worekɔ"
 ],
 "Ride Date": [
 "Fecha del viaje",
@@ -2599,7 +3774,12 @@ window.HTAF_TRANSLATIONS = {
 "यात्रा की तारीख",
 "Data da viagem",
 "Dat vwayaj",
-"Ọjọ́ ìrìn"
+"Ọjọ́ ìrìn",
+"Ranar Tafiya",
+"Ụbọchị Njem",
+"Zuva Rerwendo",
+"Usuku Lohambo",
+"Akwantuo Da"
 ],
 "Transportation Need": [
 "Necesidad de transporte",
@@ -2610,7 +3790,12 @@ window.HTAF_TRANSLATIONS = {
 "परिवहन की ज़रूरत",
 "Necessidade de transporte",
 "Bezwen transpò",
-"Àìní ìrìnnà"
+"Àìní ìrìnnà",
+"Bukatar Sufuri",
+"Mkpa Njem",
+"Chikonzero Chekufamba",
+"Isidingo Sokuhamba",
+"Akwantuo Ahiadeɛ"
 ],
 "Not provided": [
 "No indicado",
@@ -2621,7 +3806,12 @@ window.HTAF_TRANSLATIONS = {
 "नहीं दिया गया",
 "Não informado",
 "Pa bay",
-"A kò fi sí i"
+"A kò fi sí i",
+"Ba a bayar ba",
+"E nyeghị",
+"Hazvina kupihwa",
+"Akunikwanga",
+"Wɔmfaa mmaeɛ"
 ],
 "Language": [
 "Idioma",
@@ -2632,7 +3822,12 @@ window.HTAF_TRANSLATIONS = {
 "भाषा",
 "Idioma",
 "Lang",
-"Èdè"
+"Èdè",
+"Harshe",
+"Asụsụ",
+"Mutauro",
+"Ulimi",
+"Kasa"
 ],
 "Translations are automated and may contain errors. Legal terms, privacy and consent statements are in English.": [
 "Las traducciones son automáticas y pueden contener errores. Los términos legales, la privacidad y las declaraciones de consentimiento están en inglés.",
@@ -2643,7 +3838,12 @@ window.HTAF_TRANSLATIONS = {
 "अनुवाद स्वचालित हैं और उनमें त्रुटियाँ हो सकती हैं। कानूनी शर्तें, गोपनीयता और सहमति कथन अंग्रेज़ी में हैं।",
 "As traduções são automáticas e podem conter erros. Termos legais, privacidade e declarações de consentimento estão em inglês.",
 "Tradiksyon yo fèt otomatikman epi yo ka gen erè. Tèm legal, vi prive ak deklarasyon konsantman yo an angle.",
-"Ìtumọ̀ jẹ́ aládàáṣiṣẹ́, ó sì lè ní àṣìṣe. Àwọn òfin, ìlànà àṣírí àti ọ̀rọ̀ ìfọwọ́sí wà ní èdè Gẹ̀ẹ́sì."
+"Ìtumọ̀ jẹ́ aládàáṣiṣẹ́, ó sì lè ní àṣìṣe. Àwọn òfin, ìlànà àṣírí àti ọ̀rọ̀ ìfọwọ́sí wà ní èdè Gẹ̀ẹ́sì.",
+"Fassarorin na atomatik ne kuma suna iya ƙunsar kurakurai. Sharuɗɗan doka, sirri da bayanan yarda suna cikin Turanci.",
+"Ntụgharị bụ akpaaka, ọ nwere ike ịnwe mperi. Usoro iwu, nzuzo na okwu nkwenye dị n'asụsụ Bekee.",
+"Shanduro dzinoitwa nemuchina uye dzinogona kuva nezvikanganiso. Mitemo, zvakavanzika nezvirevo zvekubvuma zviri muChirungu.",
+"Ukuhumutsha kwenziwa ngomtshina njalo kungaba lamaphutha. Imibandela yomthetho, imfihlo lezitatimende zemvumo kungesiNgisi.",
+"Nkyerɛaseɛ yi yɛ mfiri na ɛyɛe, na ebetumi anya mfomsoɔ. Mmara nsɛm, kokoamsɛm ne mpene so nsɛm wɔ Borɔfo kasa mu."
 ],
 "Summary in your language: checking the optional box below lets HTAF send you text messages about your application and rides from (844) 795-0299. Message frequency varies; message and data rates may apply. Reply STOP to stop or HELP for help. You don't have to agree to apply. The English text below is what you agree to.": [
 "Resumen en su idioma: si marca la casilla opcional de abajo, HTAF podrá enviarle mensajes de texto sobre su solicitud y sus viajes desde el (844) 795-0299. La frecuencia varía; pueden aplicarse cargos por mensajes y datos. Responda STOP para dejar de recibirlos o HELP para obtener ayuda. No es necesario aceptar para presentar la solicitud. Lo que usted acepta es el texto en inglés de abajo.",
@@ -2654,7 +3854,12 @@ window.HTAF_TRANSLATIONS = {
 "आपकी भाषा में सार: नीचे दिए वैकल्पिक बॉक्स पर निशान लगाने से HTAF आपको (844) 795-0299 से आपके आवेदन और यात्राओं के बारे में टेक्स्ट संदेश भेज सकेगा। संदेशों की संख्या बदलती रहती है; संदेश और डेटा शुल्क लग सकते हैं। रोकने के लिए STOP या मदद के लिए HELP भेजें। आवेदन के लिए सहमति ज़रूरी नहीं है। आप जिस पर सहमति देते हैं, वह नीचे दिया अंग्रेज़ी पाठ है।",
 "Resumo no seu idioma: ao marcar a caixa opcional abaixo, você permite que a HTAF envie mensagens de texto sobre seu pedido e suas viagens a partir do (844) 795-0299. A frequência varia; podem ser cobradas tarifas de mensagens e dados. Responda STOP para parar ou HELP para ajuda. Não é preciso aceitar para se candidatar. O texto em inglês abaixo é o que você aceita.",
 "Rezime nan lang ou: si w tcheke kaz opsyonèl ki anba a, HTAF ka voye mesaj tèks ba ou sou aplikasyon w ak vwayaj ou yo, depi (844) 795-0299. Kantite mesaj la varye; frè mesaj ak done ka aplike. Reponn STOP pou kanpe oswa HELP pou jwenn èd. Ou pa oblije dakò pou aplike. Tèks angle ki anba a se sa w dakò a.",
-"Àkópọ̀ ní èdè rẹ: fífi àmì sí àpótí àṣàyàn ìsàlẹ̀ yìí jẹ́ kí HTAF lè fi ọ̀rọ̀ ìfiránṣẹ́ ránṣẹ́ sí ọ nípa ìbéèrè àti ìrìn rẹ láti (844) 795-0299. Iye ọ̀rọ̀ yàtọ̀ síra; owó ọ̀rọ̀ àti dátà lè wà. Fèsì STOP láti dá a dúró tàbí HELP fún ìrànlọ́wọ́. O kò ní láti gbà kí o tó béèrè. Ọ̀rọ̀ Gẹ̀ẹ́sì ìsàlẹ̀ ni ohun tí o fọwọ́ sí."
+"Àkópọ̀ ní èdè rẹ: fífi àmì sí àpótí àṣàyàn ìsàlẹ̀ yìí jẹ́ kí HTAF lè fi ọ̀rọ̀ ìfiránṣẹ́ ránṣẹ́ sí ọ nípa ìbéèrè àti ìrìn rẹ láti (844) 795-0299. Iye ọ̀rọ̀ yàtọ̀ síra; owó ọ̀rọ̀ àti dátà lè wà. Fèsì STOP láti dá a dúró tàbí HELP fún ìrànlọ́wọ́. O kò ní láti gbà kí o tó béèrè. Ọ̀rọ̀ Gẹ̀ẹ́sì ìsàlẹ̀ ni ohun tí o fọwọ́ sí.",
+"Taƙaitawa a harshenka: idan ka yi alama a akwatin zaɓi da ke ƙasa, HTAF za ta iya aika maka saƙonnin rubutu game da buƙatarka da tafiye-tafiyenka daga (844) 795-0299. Yawan saƙonni ya bambanta; ana iya cajin saƙo da data. Amsa STOP don dakatarwa ko HELP don taimako. Ba dole ne ka yarda ba kafin ka nema. Rubutun Turanci da ke ƙasa shi ne abin da kake yarda da shi.",
+"Nchịkọta n'asụsụ gị: ọ bụrụ na ị kara igbe nhọrọ dị n'okpuru, HTAF nwere ike izitere gị ozi ederede gbasara arịrịọ na njem gị site na (844) 795-0299. Ọnụ ọgụgụ ozi na-agbanwe; ụgwọ ozi na data nwere ike ịdị. Zaa STOP ka ọ kwụsị ma ọ bụ HELP maka enyemaka. Ị chọghị ikwenye tupu ị tinye akwụkwọ. Ederede Bekee dị n'okpuru bụ ihe ị kwenyere na ya.",
+"Pfupiso mumutauro wako: kana ukaisa chiratidzo mubhokisi resarudzo riri pazasi, HTAF inogona kukutumira mameseji nezvechikumbiro chako nenzendo dzako kubva ku(844) 795-0299. Huwandu hwemameseji hunosiyana; mari yemameseji nedata inogona kubhadharwa. Pindura STOP kumisa kana HELP kuti ubatsirwe. Haumanikidzwe kubvuma kuti unyorere. Chinyorwa cheChirungu chiri pazasi ndicho chaunobvuma.",
+"Isifinyezo ngolimi lwakho: nxa ufaka uphawu ebhokisini lokukhetha elingezansi, HTAF ingakuthumelela imilayezo ngesicelo sakho lohambo lwakho isebenzisa (844) 795-0299. Inani lemilayezo liyehluka; kungaba lezindleko zemilayezo ledatha. Phendula STOP ukumisa kumbe HELP ukuthola usizo. Awudingi ukuvuma ukuze ufake isicelo. Umbhalo wesiNgisi ongezansi yiwo owuvumayo.",
+"Nsɛm tiawa wɔ wo kasa mu: sɛ wohyɛ adaka a wopɛ a ɛwɔ aseɛ ha no nsɛnkyerɛnne a, HTAF betumi de nkra akɔma wo afa w'abisadeɛ ne w'akwantuo ho firi (844) 795-0299. Nkra dodoɔ sesa; wobetumi atua nkra ne data ho ka. Bua STOP na ɛnnyae anaa HELP na wo nya mmoa. Ɛnhia sɛ wopene so ansa na woasrɛ. Borɔfo nsɛm a ɛwɔ aseɛ ha no ne deɛ wopene so."
 ],
 "Summary in your language: by submitting, you confirm that your information is accurate and allow HTAF to review your request. Submitting does not guarantee assistance. The English statement below is what you certify.": [
 "Resumen en su idioma: al enviar, confirma que su información es correcta y autoriza a HTAF a revisar su solicitud. Enviarla no garantiza la asistencia. Lo que usted certifica es la declaración en inglés de abajo.",
@@ -2665,7 +3870,12 @@ window.HTAF_TRANSLATIONS = {
 "आपकी भाषा में सार: जमा करके आप पुष्टि करते हैं कि आपकी जानकारी सही है और HTAF को आपके अनुरोध की समीक्षा की अनुमति देते हैं। जमा करने से सहायता की गारंटी नहीं मिलती। आप जिसका प्रमाणन करते हैं, वह नीचे दिया अंग्रेज़ी कथन है।",
 "Resumo no seu idioma: ao enviar, você confirma que suas informações estão corretas e autoriza a HTAF a analisar seu pedido. Enviar não garante assistência. A declaração em inglês abaixo é o que você certifica.",
 "Rezime nan lang ou: lè w soumèt, ou konfime enfòmasyon w yo kòrèk epi ou otorize HTAF revize demann ou an. Soumèt pa garanti asistans. Deklarasyon angle ki anba a se sa w sètifye a.",
-"Àkópọ̀ ní èdè rẹ: nípa fífi ránṣẹ́, o jẹ́rìísí pé ìsọfúnni rẹ tọ́, o sì gba HTAF láàyè láti ṣàyẹ̀wò ìbéèrè rẹ. Fífi ránṣẹ́ kò fi dájú pé a ó ràn ọ́ lọ́wọ́. Ọ̀rọ̀ Gẹ̀ẹ́sì ìsàlẹ̀ ni ohun tí o jẹ́rìí sí."
+"Àkópọ̀ ní èdè rẹ: nípa fífi ránṣẹ́, o jẹ́rìísí pé ìsọfúnni rẹ tọ́, o sì gba HTAF láàyè láti ṣàyẹ̀wò ìbéèrè rẹ. Fífi ránṣẹ́ kò fi dájú pé a ó ràn ọ́ lọ́wọ́. Ọ̀rọ̀ Gẹ̀ẹ́sì ìsàlẹ̀ ni ohun tí o jẹ́rìí sí.",
+"Taƙaitawa a harshenka: ta hanyar aikawa, kana tabbatar da cewa bayananka daidai ne kuma ka ba HTAF izinin duba buƙatarka. Aikawa baya tabbatar da samun taimako. Bayanin Turanci da ke ƙasa shi ne abin da kake tabbatarwa.",
+"Nchịkọta n'asụsụ gị: site n'iziga, ị na-ekwenye na ozi gị ziri ezi ma kwe ka HTAF nyochaa arịrịọ gị. Iziga anaghị ekwe nkwa enyemaka. Okwu Bekee dị n'okpuru bụ ihe ị na-ekwenye.",
+"Pfupiso mumutauro wako: nekutumira, unosimbisa kuti ruzivo rwako rwakarurama uye unobvumira HTAF kuongorora chikumbiro chako. Kutumira hakuvimbisi rubatsiro. Chirevo cheChirungu chiri pazasi ndicho chaunosimbisa.",
+"Isifinyezo ngolimi lwakho: ngokuthumela, uqinisekisa ukuthi ulwazi lwakho luqondile njalo uvumela iHTAF ukuthi ihlole isicelo sakho. Ukuthumela akuqinisekisi usizo. Isitatimende sesiNgisi esingezansi yiso osiqinisekisayo.",
+"Nsɛm tiawa wɔ wo kasa mu: sɛ wosoma a, wokyerɛ sɛ wo ho nsɛm yɛ ampa na wo ma HTAF kwan ma ɛhwɛ w'abisadeɛ mu. Abisadeɛ soma nkyerɛ sɛ wobɛnya mmoa. Borɔfo nsɛm a ɛwɔ aseɛ ha no ne deɛ wodi ho adanseɛ."
 ]
 }
 };

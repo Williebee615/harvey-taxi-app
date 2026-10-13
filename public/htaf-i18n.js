@@ -7,15 +7,16 @@
    English. A <select data-htaf-lang> on the page lets the visitor choose. */
 (function () {
   var DATA = window.HTAF_TRANSLATIONS || { langs: [], t: {} };
-  var LANGS = ["en"].concat(DATA.langs);
-  var NAMES = {
-    en: "English", es: "Español", fr: "Français", ar: "العربية", sw: "Kiswahili",
-    zh: "中文", hi: "हिन्दी", pt: "Português", ht: "Kreyòl Ayisyen", yo: "Yorùbá"
-  };
+  var HL = window.HarveyLanguage;
+  // Every language in the shared list can be chosen; one without a column
+  // in the table shows English.
+  var LANGS = HL ? HL.languages.map(function (l) { return l.code; }) : ["en"].concat(DATA.langs);
   var SKIP = "script,style,noscript,[data-no-translate],#htaPanel,.hta-root";
   var current = "en";
   var applying = false;
   var observer = null;
+  // Counts kept for tests: a translation loop would keep these rising.
+  var stats = { observerCallbacks: 0, applies: 0 };
 
   function norm(s) { return String(s).replace(/\s+/g, " ").trim(); }
 
@@ -69,11 +70,13 @@
   }
 
   function apply(lang) {
+    stats.applies++;
     current = LANGS.indexOf(lang) >= 0 ? lang : "en";
     applying = true;
     try {
-      document.documentElement.lang = current;
-      document.documentElement.dir = current === "ar" ? "rtl" : "ltr";
+      var shown = current === "en" || DATA.langs.indexOf(current) >= 0 ? current : "en";
+      document.documentElement.lang = HL ? HL.htmlLang(shown) : shown;
+      document.documentElement.dir = HL ? HL.dir(shown) : "ltr";
       translateTree(document.body);
       var sels = document.querySelectorAll("select[data-htaf-lang]");
       for (var i = 0; i < sels.length; i++) sels[i].value = current;
@@ -88,17 +91,7 @@
     var sels = document.querySelectorAll("select[data-htaf-lang]");
     for (var i = 0; i < sels.length; i++) {
       var sel = sels[i];
-      if (!sel.options.length) {
-        LANGS.forEach(function (code) {
-          var o = document.createElement("option");
-          o.value = code;
-          o.textContent = NAMES[code];
-          o.setAttribute("lang", code);
-          sel.appendChild(o);
-        });
-        // Language names are shown in their own language, never translated.
-        sel.setAttribute("data-no-translate", "");
-      }
+      if (!sel.options.length && HL) HL.fillSelect(sel);
       sel.addEventListener("change", function (e) {
         if (window.HarveyLanguage) window.HarveyLanguage.choose(e.target.value);
         apply(e.target.value);
@@ -112,6 +105,7 @@
     apply(lang);
     // Text the page writes later (status messages, form errors, totals).
     observer = new MutationObserver(function (records) {
+      stats.observerCallbacks++;
       if (applying || current === "en") return;
       applying = true;
       try {
@@ -135,6 +129,7 @@
   }
 
   window.HTAF_T = t;
+  window.HTAF_I18N_STATS = stats;
   window.HTAF_LANG = function () { return current; };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
   else start();
