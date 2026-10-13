@@ -522,7 +522,18 @@
       .bottom-nav { height: 82px; }
       .access-btn { flex: 1; }
     }
+      .lang-pick{display:inline-flex;align-items:center;gap:8px;font-weight:800;font-size:.85rem}
+    .lang-pick select{min-height:40px;border-radius:999px;padding:0 12px;font:inherit;font-weight:700;color:inherit;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14)}
+    .lang-pick select option{color:#07111f;background:#fff}
+    .lang-note{display:block;margin-top:4px;font-size:.8rem;opacity:.85}
+    .htaf-summary{margin:8px 0 10px;padding:10px 12px;border-radius:12px;border:1px dashed rgba(255,255,255,.22);font-size:.9rem;line-height:1.55}
+    html[lang="en"] .htaf-summary{display:none}
+    html[dir="rtl"] .contact-value,html[dir="rtl"] .preview-title,html[dir="rtl"] .preview-copy,html[dir="rtl"] a[href^="mailto:"],html[dir="rtl"] a[href^="tel:"]{direction:ltr;unicode-bidi:isolate}
+    a[href^="mailto:"]{overflow-wrap:anywhere}
   </style>
+  <script src="/language-pref.js" defer></script>
+  <script src="/htaf-translations.js" defer></script>
+  <script src="/htaf-i18n.js" defer></script>
 </head>
 
 <body>
@@ -557,8 +568,10 @@
   <div class="access-panel-copy">
     <strong>Accessibility</strong>
     <span>Adjust display settings for easier reading.</span>
+    <span class="lang-note">Translations are automated and may contain errors. Legal terms, privacy and consent statements are in English.</span>
   </div>
   <div class="access-controls">
+    <label class="lang-pick"><span>Language</span><select data-htaf-lang aria-label="Language"></select></label>
     <button id="contrast-toggle" class="access-btn" type="button">High Contrast</button>
     <button id="text-toggle" class="access-btn" type="button">Larger Text</button>
     <button id="motion-toggle" class="access-btn" type="button">Reduce Motion</button>
