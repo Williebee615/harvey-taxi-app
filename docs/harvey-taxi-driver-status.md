@@ -119,19 +119,18 @@ Still unverified on devices: push notifications and locked-screen tracking. Thes
 6. **[Owner decision needed]** The 27-account cleanup proposal (project-status §6, item 8).
 7. **[Owner]** Watch App Review for 1.0 and reply to any question; don't release (Manual release). **[Owner decision 2026-10-11]** Leave it in review provided the attached build is 1.0.0 (13); the owner confirms the build on the version page **[Unresolved]**.
 8. **[Owner, urgent]** At 2026-10-11 16:20 UTC a sign-in with the **review driver's email and a wrong password** was rejected (audit `review_driver_login_rejected`, reason `invalid_credentials`) **[Verified 2026-10-11, audit log]**. Whether it was Apple or a test is unknown. The owner signs in once on the driver app with exactly the credentials in App Store Connect → App Review Information, and corrects that field if it fails. Credentials are never recorded here.
-9. **Done (merge):** #221 (offer-time verification recheck) merged as `3cd8763` on 2026-10-13 **[Owner decision 2026-10-13]**. **Production deployment [Unresolved]** until Render shows `3cd8763` live. **[Owner]** Run one review ride with the test accounts after confirming the deploy.
+9. **Done (merge):** #221 (offer-time verification recheck) merged as `3cd8763` on 2026-10-13 **[Owner decision 2026-10-13]**. **Deployed, owner-confirmed by Render screenshot (2026-10-13)**: Render's deploy list shows `3cd8763` as the current live deploy (auto-deploy, 47.3 s). **[Unresolved, owner]** The review ride with the test accounts.
 10. **[Verified 2026-10-13, read-only]** `driver_1` is marked online with no verification, vehicle or location (created and last seen 2026-04-12). **[Owner decision 2026-10-13]** Leave it unchanged for now. With #221 deployed, it can't be offered or assigned rides.
 11. **[Verified 2026-10-13]** #227 removed the Driver tab and driver-dashboard links from the rider pages. Every page this app opens (`driver-app/src/config.js`: sign-up, onboarding/dashboard, support, privacy, terms, account deletion) still returns 200. No driver build is needed.
 
 ## 9. Session handoff (2026-10-13)
 
 **Completed:**
-- #221 merged (`3cd8763`); its deployment is unconfirmed.
+- #221 merged and deployed (`3cd8763`), owner-confirmed by Render screenshot.
 - The review driver's record still passes readiness **[Verified 2026-10-13]**.
 - #227 kept every Driver-app page reachable.
 
 **Remaining:**
-- Confirm the `3cd8763` deploy in Render.
 - Review ride.
 - The approvals and device tests above.
 - Listing fields.
