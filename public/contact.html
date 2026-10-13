@@ -137,7 +137,7 @@
       font-size: 14.5px;
       margin: 0;
     }
-    .hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+    .hp { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
     .submit-btn {
       font: inherit;
       font-weight: 700;
@@ -167,13 +167,28 @@
     .site-footer p { margin: 0 0 10px; font-size: 14px; }
     .site-footer nav { display: flex; flex-wrap: wrap; gap: 14px; }
     .site-footer a { color: var(--blue); }
+      .lang-pick{display:inline-flex;align-items:center;gap:8px;font-weight:800;font-size:.85rem}
+    .lang-pick select{min-height:40px;border-radius:999px;padding:0 12px;font:inherit;font-weight:700;color:inherit;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14)}
+    .lang-pick select option{color:#07111f;background:#fff}
+    .lang-note{display:block;margin-top:4px;font-size:.8rem;opacity:.85}
+    .htaf-summary{margin:8px 0 10px;padding:10px 12px;border-radius:12px;border:1px dashed rgba(255,255,255,.22);font-size:.9rem;line-height:1.55}
+    html[lang="en"] .htaf-summary{display:none}
+    html[dir="rtl"] .contact-value,html[dir="rtl"] .preview-title,html[dir="rtl"] .preview-copy,html[dir="rtl"] a[href^="mailto:"],html[dir="rtl"] a[href^="tel:"]{direction:ltr;unicode-bidi:isolate}
+    a[href^="mailto:"]{overflow-wrap:anywhere}
   </style>
+  <script src="/language-pref.js" defer></script>
+  <script src="/htaf-translations.js" defer></script>
+  <script src="/htaf-i18n.js" defer></script>
 </head>
 <body>
   <div class="wrap">
     <div class="topbar">
       <div class="brand">Harvey Transportation Assistance Foundation</div>
-      <a class="home-btn" href="foundation.html">Return To Foundation</a>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+        <label class="lang-pick"><span>Language</span><select data-htaf-lang aria-label="Language"></select></label>
+        <a class="home-btn" href="foundation.html">Return To Foundation</a>
+      </div>
+      <span class="lang-note" style="flex-basis:100%;color:var(--muted)">Translations are automated and may contain errors. Legal terms, privacy and consent statements are in English.</span>
     </div>
 
     <div class="card">

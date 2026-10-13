@@ -38,7 +38,7 @@ jest.setTimeout(240000);
 const HOST = "harveytaxiservice.test";
 const read = (f) => fs.readFileSync(path.join(__dirname, "..", "public", f), "utf8");
 const RIDER_PAGES = ["index.html", "settings.html", "rider-dashboard.html"];
-const LANGS = ["en", "es", "fr", "ar", "sw", "zh", "hi", "pt", "ht", "yo"];
+const LANGS = ["en", "es", "ar", "zh", "pt", "fr", "hi", "ht", "sw", "yo", "ha", "ig", "sn", "nd", "ak"];
 
 let app;
 beforeAll(() => {

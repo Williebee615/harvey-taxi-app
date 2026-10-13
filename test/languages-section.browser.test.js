@@ -43,10 +43,9 @@ describe("Languages section wording", () => {
     expect(html).not.toContain("Website text, automatic translation");
   });
 
-  test("has one tile for every language in the selector", () => {
-    const options = [...html.matchAll(/<option value="([a-z]{2})">/g)].map((m) => m[1]);
-    const tiles = [...html.matchAll(/class="lang-tile" data-lang="([a-z]{2})"/g)].map((m) => m[1]);
-    expect(tiles).toEqual(options);
+  test("the tiles and selector are built from the shared language list", () => {
+    expect(html).toContain('<div class="grid-4" id="lang-tiles">');
+    expect(html).not.toMatch(/class="lang-tile" data-lang=/);
   });
 });
 
@@ -72,6 +71,20 @@ describeWithBrowser("Languages section tiles", () => {
       if (server.closeAllConnections) server.closeAllConnections();
       await new Promise((r) => server.close(r));
     }
+  });
+
+  test("there is one tile for every language in the selector", async () => {
+    const context = await browser.newContext({ viewport: { width: 390, height: 800 } });
+    await context.route(/^https?:\/\/(?!harveytaxiservice\.test)/, (route) => route.abort());
+    const page = await context.newPage();
+    await page.goto(`${base}/`, { waitUntil: "load" });
+    const r = await page.evaluate(() => ({
+      options: [...document.querySelectorAll("#language-select option")].map((o) => o.value),
+      tiles: [...document.querySelectorAll(".lang-tile[data-lang]")].map((t) => t.dataset.lang)
+    }));
+    await context.close();
+    expect(r.options.length).toBe(15);
+    expect(r.tiles).toEqual(r.options);
   });
 
   test("tapping a tile switches the language and the selector, and marks the tile", async () => {

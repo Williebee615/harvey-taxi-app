@@ -420,16 +420,7 @@
       </div>
       <div class="access-controls">
         <select id="languageSelect" aria-label="Choose language">
-          <option value="en">🌐 English</option>
-          <option value="es">🌐 Español</option>
-          <option value="fr">🌐 Français</option>
-          <option value="ar">🌐 العربية</option>
-          <option value="sw">🌐 Kiswahili</option>
-          <option value="zh">🌐 中文</option>
-          <option value="hi">🌐 हिन्दी</option>
-          <option value="pt">🌐 Português</option>
-          <option value="ht">🌐 Kreyòl Ayisyen</option>
-          <option value="yo">🌐 Yorùbá</option>
+          <option value="en">English</option>
         </select>
         <button type="button" class="access-btn" id="contrastBtn" data-i18n="contrastBtn">Contrast</button>
         <button type="button" class="access-btn" id="textBtn">A+</button>
@@ -1192,6 +1183,7 @@
     function bindLanguageSelector() {
       const sel = document.getElementById("languageSelect");
       if (!sel) return;
+      if (window.HarveyLanguage) HarveyLanguage.fillSelect(sel);
       const saved = window.HarveyLanguage ? HarveyLanguage.saved() : "";
       const hasOption = (l) => [...sel.options].some((o) => o.value === l);
       sel.value = hasOption(saved) ? saved : detectPreferredLanguage();
