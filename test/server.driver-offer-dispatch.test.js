@@ -4,6 +4,7 @@
 //   POST /api/driver/offers/:offerId/accept
 //   POST /api/driver/offers/:offerId/decline
 //   POST /api/admin/rides/:id/assign-driver
+//   driver verification re-checked at offer, accept and admin assignment
 //   dispatchRide()'s two-step fallback (reached via decline redispatch)
 //   the offer-expiry sweep's ride adapters (runOfferExpirySweep)
 //   GET /api/admin/rides (read side)
@@ -51,6 +52,11 @@ const DRIVER = {
   is_review_account: false,
   online: true,
   status: "active",
+  email_verified: true,
+  phone_verified: true,
+  checkr_status: "clear",
+  persona_verified: true,
+  persona_status: "verified",
   approval_status: "approved"
 };
 
@@ -885,6 +891,111 @@ describe("POST /api/admin/rides/:id/assign-driver", () => {
 
     expect(res.status).toBe(404);
     expect(riderNotificationCount(fake)).toBe(0);
+  });
+});
+
+// Going online checks verification once. These cover a check that changes
+// while the driver is already online: no new offer, no acceptance of an
+// offer made earlier, no admin assignment -- and nothing already under way
+// is interrupted.
+describe("verification is re-checked after a driver is already online", () => {
+  const THIRD_DRIVER = {
+    ...DRIVER,
+    id: "DRV-TEST0003",
+    email: "third.driver@example.test",
+    first_name: "Tam",
+    phone: "+15555550102"
+  };
+
+  function withDrivers(seed, overrides) {
+    seed.drivers = seed.drivers.map((d) => (overrides[d.id] ? { ...d, ...overrides[d.id] } : d));
+    return seed;
+  }
+
+  test("redispatch skips an online driver whose Checkr result changed and offers the next verified driver", async () => {
+    const seed = withDrivers(fixture({ dispatchAttempts: 1 }), { [OTHER_DRIVER.id]: { checkr_status: "consider" } });
+    seed.drivers.push(THIRD_DRIVER);
+    const fake = useFake(seed);
+
+    const res = await declineOffer();
+
+    expect(res.status).toBe(200);
+    const newOffers = fake._state.driver_offers.filter((o) => o.id !== OFFER_ID);
+    expect(newOffers.map((o) => o.driver_id)).toEqual([THIRD_DRIVER.id]);
+    // The skipped driver is left online; only offers are withheld.
+    expect(fake._state.drivers.find((d) => d.id === OTHER_DRIVER.id).online).toBe(true);
+    expect(ride(fake).driver_id).toBeNull();
+  });
+
+  test("a driver whose Persona or phone verification lapsed is never offered the ride", async () => {
+    const seed = withDrivers(fixture({ dispatchAttempts: 1 }), {
+      [OTHER_DRIVER.id]: { persona_verified: false, persona_status: "pending", phone_verified: false }
+    });
+    const fake = useFake(seed);
+
+    const res = await declineOffer();
+
+    expect(res.status).toBe(200);
+    expect(fake._state.driver_offers.filter((o) => o.id !== OFFER_ID)).toHaveLength(0);
+    expect(ride(fake).driver_id).toBeNull();
+    expect(fake._state.drivers.find((d) => d.id === OTHER_DRIVER.id).online).toBe(true);
+  });
+
+  test("an offer made before verification changed can't be accepted", async () => {
+    const fake = useFake(withDrivers(fixture(), { [DRIVER.id]: { checkr_status: "suspended" } }));
+
+    const res = await acceptOffer();
+    await settle();
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe("verification_required");
+    expect(fake.rpc).not.toHaveBeenCalledWith("accept_driver_offer_atomic", expect.anything());
+    expect(ride(fake).driver_id).toBeNull();
+    expect(offer(fake).status).toBe("pending");
+    expect(riderNotificationCount(fake)).toBe(0);
+  });
+
+  test("a verified driver still accepts normally", async () => {
+    const fake = useFake(fixture());
+
+    const res = await acceptOffer();
+
+    expect(res.status).toBe(200);
+    expect(ride(fake).driver_id).toBe(DRIVER.id);
+  });
+
+  test("an admin can't assign a ride to a driver whose verification isn't complete", async () => {
+    const fake = useFake(withDrivers(fixture(), { [DRIVER.id]: { email_verified: false } }));
+
+    const res = await adminAssign();
+    await settle();
+
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe("verification_required");
+    expect(ride(fake).driver_id).toBeNull();
+    expect(ride(fake).status).toBe("awaiting_driver_acceptance");
+    expect(riderNotificationCount(fake)).toBe(0);
+  });
+
+  test("a trip already under way is not interrupted when the driver's verification changes", async () => {
+    const seed = withDrivers(fixture({ dispatchAttempts: 1 }), { [OTHER_DRIVER.id]: { checkr_status: "consider" } });
+    seed.rides.push({
+      id: "RIDE-ACTIVE01",
+      rider_id: RIDER.id,
+      status: "in_progress",
+      dispatch_status: "accepted",
+      driver_id: OTHER_DRIVER.id,
+      pickup_lat: 36.16,
+      pickup_lng: -86.78
+    });
+    const fake = useFake(seed);
+
+    const res = await declineOffer();
+
+    expect(res.status).toBe(200);
+    const active = fake._state.rides.find((r) => r.id === "RIDE-ACTIVE01");
+    expect(active).toMatchObject({ status: "in_progress", driver_id: OTHER_DRIVER.id });
+    expect(fake._state.drivers.find((d) => d.id === OTHER_DRIVER.id).online).toBe(true);
   });
 });
 
