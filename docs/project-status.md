@@ -243,6 +243,7 @@ Key blockers:
   - **[Owner decision 2026-10-13]** Approved.
   - **[Verified 2026-10-13]** All 6 checks passed on `1266a7d`. Squash-merged as `25d2b36`. The live `htaf-application.html` is byte-identical. **Deployed, owner-confirmed by Render screenshot (2026-10-13)**: Render shows `25d2b36` as the current live deploy (auto-deploy, 47.7 s).
   - **[Verified 2026-10-13]** `/api/foundation/public-stats` returns 6 submitted, 6 pending review, 0 approved, 0 scheduled.
+  - **[Verified 2026-10-13, owner screenshots ~19:29 UTC]** The HTAF admin portal (`admin-htaf.html`) loads from `/api/admin/foundation/applications` with admin sign-in: "Connected. 6 HTAF applications loaded"; cards show 6 total, 6 new, 0 approved, 0 pending documents, matching the public application-page counts. Two of the six appear to be the same applicant submitting twice on 2026-08-19 (two different codes); left for HTAF to review.
   - **[Unresolved, owner]** All 6 applications (received 2026-07-06 to 2026-08-19) are still "submitted". Whether any are tests, and their review, are for HTAF in the admin portal.
 - **#229 Languages (HTAF pages + five African languages):** one shared list of 15 languages (`public/language-pref.js`) drives every selector: Harvey Taxi home, Settings, and the HTAF home, application and contact pages.
   - Added: Hausa and Igbo (Nigeria, with Yoruba), chiShona and isiNdebele (Zimbabwe), Twi/Akan (Ghana). "Chinese" is labelled Simplified (`zh-Hans`) and Portuguese is labelled Brazil (`pt-BR`); Traditional Chinese and European Portuguese are not offered.
