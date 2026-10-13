@@ -75,7 +75,10 @@ describe("home page claims", () => {
     "future mobility services",
     "Not offered at this time",
     "autonomous_info",
-    "logistics innovation"
+    "logistics innovation",
+    "Open AI Support",
+    "Harvey AI Support",
+    "Open AI Chat"
   ])("does not contain %p", (phrase) => {
     expect(html).not.toContain(phrase);
   });

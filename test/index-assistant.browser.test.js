@@ -212,7 +212,7 @@ describeWithBrowser("Harvey Taxi Mobile index page: the chat on small phones", (
     });
   }
 
-  test("desktop: launcher, teaser and Open AI Support open Harvey Assistant; phones hide the teaser and return focus to the Assistant tab", async () => {
+  test("desktop: launcher, teaser and Open Harvey Assistant open Harvey Assistant; phones hide the teaser and return focus to the Assistant tab", async () => {
     const phone = await open(PHONES[0]);
     expect(await phone.page.isVisible("#aiTeaserBubble")).toBe(false);
     // Closing the chat returns focus to the Assistant tab that opened it.
@@ -230,7 +230,7 @@ describeWithBrowser("Harvey Taxi Mobile index page: the chat on small phones", (
     await page.waitForTimeout(600);
     expect(await page.evaluate(() => document.getElementById("htaPanel").classList.contains("open"))).toBe(true);
     await page.evaluate(() => window.HarveyAssistant.close());
-    await page.click("button:has-text('Open AI Support')");
+    await page.click("button:has-text('Open Harvey Assistant')");
     await page.waitForTimeout(600);
     expect(await page.evaluate(() => document.getElementById("htaPanel").classList.contains("open"))).toBe(true);
     expect(calls.legacy).toBe(0);

@@ -560,7 +560,7 @@
     // For page buttons (the ride card's "Ask support to review"): opens the
     // assistant with a support request of this kind for the user to review.
     window.HarveyAssistant = {
-      // For page buttons that open the chat ("Open AI Support" on the
+      // For page buttons that open the chat ("Open Harvey Assistant" on the
       // index page).
       open: function () { toggle(true); },
       close: function () { toggle(false); },
