@@ -131,6 +131,21 @@
       mask-image: linear-gradient(to bottom, rgba(0,0,0,.86), transparent 78%);
       z-index: 0;
     }
+    /* HTAF logo as a faint watermark behind the page. body is its own
+       stacking context, so z-index -1 sits above the body background and
+       below all content. */
+    body { isolation: isolate; }
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: -1;
+      background: url("/htaf-logo.webp") center 55% / min(78vw, 560px) auto no-repeat;
+      opacity: .13;
+    }
+    body.high-contrast::after { display: none; }
+    @media print { body::after { display: none; } }
     body.high-contrast {
       --bg1: #000;
       --bg2: #020617;
