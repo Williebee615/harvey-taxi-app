@@ -3057,7 +3057,13 @@ async function sendEmail({
 
   html,
 
-  text
+  text,
+
+  // Optional: sender display name (defaults to SENDGRID_FROM_NAME) and a
+  // reply-to address, e.g. the HTAF contact form replies to the visitor.
+  fromName,
+
+  replyTo
 
 }) {
 
@@ -3097,9 +3103,11 @@ async function sendEmail({
 
       email: SENDGRID_FROM_EMAIL,
 
-      name: SENDGRID_FROM_NAME
+      name: fromName || SENDGRID_FROM_NAME
 
     },
+
+    ...(replyTo ? { replyTo } : {}),
 
     subject,
 
@@ -4690,6 +4698,66 @@ async function sendAdminApplicationAlert(application) {
     `
   });
 }
+
+/* =========================================================
+   HTAF CONTACT FORM (lib/htafInquiry.js; public/contact.html)
+   Partnership, donation and general inquiries are emailed to HTAF's
+   inbox with HTAF as the sender name and the visitor as reply-to. Nothing
+   is stored, and the audit log keeps only the topic and whether the email
+   went out. The visitor is told it was sent only when it was; otherwise
+   they get HTAF's email address and phone number instead.
+========================================================= */
+const htafInquiry = require("./lib/htafInquiry");
+const HTAF_PUBLIC_EMAIL = "WillieHtaf@harveytransportationfoundation.com";
+const HTAF_INQUIRY_EMAIL =
+  cleanEmail(env("HTAF_INQUIRY_EMAIL", "")) || HTAF_ADMIN_EMAIL || HTAF_PUBLIC_EMAIL.toLowerCase();
+app.post(
+  "/api/foundation/inquiry",
+  rateLimit({
+    windowMs: 10 * 60_000,
+    max: 5,
+    keyPrefix: "htaf_inquiry",
+    message: "Too many messages from this connection. Please wait a few minutes, or email HTAF directly."
+  }),
+  asyncRoute(async (req, res) => {
+    const body = req.body || {};
+    // Hidden field people never see; automated form fillers do.
+    if (String(body.website || "").trim()) return ok(res, { sent: true });
+    const { ok: valid, errors, inquiry } = htafInquiry.validateInquiry(body);
+    if (!valid) return fail(res, "Please check the highlighted fields.", 400, { fields: errors });
+    const message = htafInquiry.buildInquiryEmail(inquiry);
+    let result = { sent: false };
+    try {
+      result = await sendEmail({
+        to: HTAF_INQUIRY_EMAIL,
+        fromName: "Harvey Transportation Assistance Foundation",
+        replyTo: inquiry.email,
+        ...message
+      });
+    } catch (error) {
+      console.error("❌ HTAF inquiry email failed:", error?.message);
+      result = { sent: false, reason: "send_failed" };
+    }
+    await auditLog({
+      actor_type: "visitor",
+      action: result.sent ? "htaf_inquiry_sent" : "htaf_inquiry_not_sent",
+      entity_type: "htaf_inquiry",
+      metadata: {
+        topic: inquiry.topic,
+        interest: inquiry.interest || null,
+        reason: result.sent ? null : result.reason || (result.skipped ? "email_not_configured" : "unknown")
+      }
+    }).catch(() => {});
+    if (!result.sent) {
+      return fail(
+        res,
+        `Your message couldn't be sent. Please email ${HTAF_PUBLIC_EMAIL} or call 615-636-6201.`,
+        503
+      );
+    }
+    return ok(res, { sent: true });
+  })
+);
 
 /* =========================================================
 
