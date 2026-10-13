@@ -112,6 +112,29 @@ describeWithBrowser("HTAF home page background logo", () => {
     });
   }
 
+  for (const [pagePath, shot] of [["/", "header-home"], ["/htaf-application.html", "header-application"]]) {
+    test(`${pagePath}: the header shows the HTAF logo, not the "HT" fallback`, async () => {
+      const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+      await context.route(/^https?:\/\/(?!harveytransportationfoundation\.test)/, (route) => route.abort());
+      const page = await context.newPage();
+      await page.goto(`${base}${pagePath}`, { waitUntil: "load" });
+      const mark = await page.evaluate(() => {
+        const box = document.querySelector(".brand-mark");
+        const img = box.querySelector("img");
+        return {
+          text: box.textContent.trim(),
+          loaded: !!img && img.complete && img.naturalWidth > 0,
+          src: img && img.getAttribute("src"),
+          bg: getComputedStyle(box).backgroundImage
+        };
+      });
+      expect(mark).toEqual({ text: "", loaded: true, src: "/htaf-logo-192.webp", bg: "none" });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+      if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `${shot}.png`), clip: { x: 0, y: 0, width: 390, height: 260 } });
+      await context.close();
+    });
+  }
+
   test("hidden in high-contrast mode", async () => {
     const { context, page } = await open({ width: 390, height: 844 }, true);
     await page.evaluate(() => document.body.classList.add("high-contrast"));

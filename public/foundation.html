@@ -266,7 +266,9 @@
       letter-spacing: .04em;
       overflow: hidden;
     }
-    .brand-mark img { width: 100%; height: 100%; object-fit: cover; }
+    .brand-mark img { width: 100%; height: 100%; object-fit: contain; }
+    /* The round HTAF logo stands on its own; the gradient tile is only for the "HT" fallback. */
+    .brand-mark:has(img) { background: none; box-shadow: 0 10px 26px rgba(106,167,255,.28); border-radius: 50%; }
     .brand-fallback {
       width: 100%;
       height: 100%;
@@ -559,7 +561,7 @@
     <a href="foundation.html" class="brand">
       <div class="brand-mark">
         <img
-          src="/images/foundation-logo.png"
+          src="/htaf-logo-192.webp" width="72" height="70"
           alt="HTAF Logo"
           onerror="this.style.display='none'; this.parentNode.innerHTML='<div class=&quot;brand-fallback&quot;>HT</div>';"
         />
