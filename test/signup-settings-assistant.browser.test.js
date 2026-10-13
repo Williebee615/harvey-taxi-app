@@ -235,7 +235,7 @@ describeWithBrowser("Rider sign-up and Settings: the chat on small phones", () =
     const desk = await open({ name: "desktop", width: 1280, height: 900 }, "/settings.html");
     expect(await desk.page.isVisible("[data-testid=hta-launcher]")).toBe(true);
     expect(await desk.page.isVisible("[data-testid=nav-assistant]")).toBe(false);
-    await desk.page.click("button:has-text('Ask AI Support')");
+    await desk.page.click("button:has-text('Ask Harvey Assistant')");
     await desk.page.waitForTimeout(600);
     expect(await desk.page.evaluate(() => document.getElementById("htaPanel").classList.contains("open"))).toBe(true);
     expect(desk.calls.legacy).toBe(0);

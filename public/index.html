@@ -1166,7 +1166,7 @@
       <div class="lang-panel-copy">
         <strong data-i18n="languageTitle">Language &amp; Accessibility</strong>
         <span data-i18n="languageCopy">Harvey Taxi welcomes every rider, driver, family, culture, and community.</span>
-        <span class="lang-note">Translations are automatic, may contain errors and don't cover every page. Support, policies and legal terms are in English.</span>
+        <span class="lang-note" data-i18n="langNote">Translations are automated and may contain errors. Some screens, support responses, policies, and legal terms are available only in English.</span>
       </div>
       <div class="lang-controls">
         <select id="language-select" class="lang-select" aria-label="Choose language">
@@ -1210,7 +1210,7 @@
     <section class="announce" role="region" aria-label="Platform announcement">
       <div class="announce-copy">
         <strong data-i18n="announceTitle">Harvey Taxi Mobile</strong>
-        <span>Request a ride in Nashville (early access) or apply to drive.</span>
+        <span data-i18n="announceCopy">Request a ride in Nashville (early access) or apply to drive.</span>
       </div>
       <a class="btn success" href="rider-dashboard.html?screen=book&mode=driver" data-intent="request_ride_start" data-i18n="requestRide">Request Ride</a>
     </section>
@@ -1512,7 +1512,6 @@
 
         <!-- PLATFORM HUBS -->
         <div class="grid-3" style="margin-top:16px;">
-          <a class="card" href="driver-dashboard.html"><strong>Driver Dashboard</strong><span>For approved drivers: availability, offers, trips and earnings.</span></a>
           <a class="card" href="rider-dashboard.html"><strong>Rider Dashboard</strong><span>Ride activity, account readiness, and trip history.</span></a>
           <a class="card" href="support.html"><strong>Harvey Support Center</strong><span>Rider, driver, payment, foundation, and account support.</span></a>
           <a class="card" href="foundation.html"><strong>Foundation Hub</strong><span>Harvey Transportation Assistance Foundation: applications and contact.</span></a>
@@ -1553,7 +1552,7 @@
             <div class="pill-row">
               <div class="pill">Safe Rides</div>
               <div class="pill">Driver Opportunity</div>
-              <div class="pill">AI Support</div>
+              <div class="pill">Harvey Assistant</div>
               <div class="pill">Community Mobility</div>
             </div>
           </div>
@@ -1591,7 +1590,7 @@
           <div class="card"><strong>🚖 Transportation</strong><span>Rides with drivers who have passed an identity check and a background check.</span></div>
           <div class="card"><strong>🤝 Driver Opportunity</strong><span>Create earning opportunities while serving communities across Tennessee.</span></div>
           <div class="card"><strong>❤️ Foundation Support</strong><span>Transportation assistance applications through HTAF, a separate organization.</span></div>
-          <div class="card"><strong>🧠 AI Assistance</strong><span>Harvey Assistant: automated answers for riders and drivers.</span></div>
+          <div class="card"><strong>💬 Harvey Assistant</strong><span>Automated answers for riders and drivers.</span></div>
           <div class="card"><strong>🚀 Planned</strong><span>Delivery and autonomous rides are planned, not available.</span></div>
         </div>
       </section>
@@ -1616,27 +1615,23 @@
 
   <!-- BOTTOM NAV -->
   <nav class="bottom-nav" aria-label="Bottom navigation">
-    <button class="nav-btn active" onclick="safeGo('index.html','bottom_home')" aria-label="Home" aria-current="page">
+    <button class="nav-btn active" onclick="safeGo('index.html','bottom_home')" aria-label="Home" aria-current="page" data-i18n="navHome">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5z"/><path d="M9 21V12h6v9"/></svg>
       Home
     </button>
-    <button class="nav-btn" onclick="safeGo('rider-dashboard.html','bottom_trip')" aria-label="Trips">
+    <button class="nav-btn" onclick="safeGo('rider-dashboard.html','bottom_trip')" aria-label="Trips" data-i18n="navTrips">
       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
       Trips
     </button>
-    <button class="nav-btn nav-assistant" type="button" onclick="openHarveyAiChat();" aria-label="Harvey Assistant" aria-controls="htaPanel" data-testid="nav-assistant">
+    <button class="nav-btn nav-assistant" type="button" onclick="openHarveyAiChat();" aria-label="Harvey Assistant" aria-controls="htaPanel" data-testid="nav-assistant" data-i18n="navAssistant">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.2 3.6A.5.5 0 0 1 5 19.2V16h-.5A.5.5 0 0 1 4 15.5z"/></svg>
       Assistant
     </button>
-    <button class="nav-btn" onclick="safeGo('foundation.html','bottom_foundation')" aria-label="Foundation">
+    <button class="nav-btn" onclick="safeGo('foundation.html','bottom_foundation')" aria-label="Foundation" data-i18n="navHtaf">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>
       HTAF
     </button>
-    <button class="nav-btn" onclick="safeGo('driver-dashboard.html','bottom_driver')" aria-label="Driver dashboard">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      Driver
-    </button>
-    <button class="nav-btn" onclick="safeGo('settings.html','bottom_settings')" aria-label="Settings">
+    <button class="nav-btn" onclick="safeGo('settings.html','bottom_settings')" aria-label="Settings" data-i18n="navSettings">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       Settings
     </button>
@@ -1695,6 +1690,13 @@
         navBook: "Book Ride",
         announceTitle: "Harvey Taxi Mobile",
         requestRide: "Request Ride",
+        langNote: "Translations are automated and may contain errors. Some screens, support responses, policies, and legal terms are available only in English.",
+        announceCopy: "Request a ride in Nashville (early access) or apply to drive.",
+        navHome: "Home",
+        navTrips: "Trips",
+        navAssistant: "Assistant",
+        navHtaf: "HTAF",
+        navSettings: "Settings",
         inclusiveTitle: "Built for every community.",
         inclusiveCopy: "Harvey Taxi respects all ethnicities, cultures, languages, families, seniors, workers, students, people with disabilities, immigrants, visitors, and underserved communities seeking safe transportation access.",
         medicalCalloutTitle: "Need a ride to a medical appointment?",
@@ -1776,6 +1778,13 @@
         navBook: "Reservar Viaje",
         announceTitle: "Harvey Taxi Mobile",
         requestRide: "Solicitar Viaje",
+        langNote: "Las traducciones son automáticas y pueden contener errores. Algunas pantallas, respuestas de soporte, políticas y términos legales solo están disponibles en inglés.",
+        announceCopy: "Solicita un viaje en Nashville (acceso anticipado) o postúlate para conducir.",
+        navHome: "Inicio",
+        navTrips: "Viajes",
+        navAssistant: "Asistente",
+        navHtaf: "HTAF",
+        navSettings: "Ajustes",
         inclusiveTitle: "Construido para cada comunidad.",
         inclusiveCopy: "Harvey Taxi respeta todas las etnias, culturas, idiomas, familias, personas mayores, trabajadores, estudiantes, personas con discapacidades, inmigrantes, visitantes y comunidades desatendidas que buscan transporte seguro.",
         heroTitleA: "Transporte en Tennessee",
@@ -1856,6 +1865,13 @@
         navBook: "Réserver un Trajet",
         announceTitle: "Harvey Taxi Mobile",
         requestRide: "Demander un Trajet",
+        langNote: "Les traductions sont automatiques et peuvent contenir des erreurs. Certains écrans, réponses du support, politiques et conditions juridiques ne sont disponibles qu'en anglais.",
+        announceCopy: "Demandez un trajet à Nashville (accès anticipé) ou postulez pour conduire.",
+        navHome: "Accueil",
+        navTrips: "Trajets",
+        navAssistant: "Assistant",
+        navHtaf: "HTAF",
+        navSettings: "Réglages",
         inclusiveTitle: "Construit pour chaque communauté.",
         inclusiveCopy: "Harvey Taxi respecte toutes les ethnies, cultures, langues, familles, personnes âgées, travailleurs, étudiants, personnes handicapées, immigrants, visiteurs et communautés mal desservies cherchant un transport sûr.",
         heroTitleA: "Transport au Tennessee",
@@ -1936,6 +1952,13 @@
         navBook: "حجز رحلة",
         announceTitle: "هارفي تاكسي موبايل",
         requestRide: "طلب رحلة",
+        langNote: "الترجمات آلية وقد تحتوي على أخطاء. بعض الشاشات وردود الدعم والسياسات والشروط القانونية متاحة باللغة الإنجليزية فقط.",
+        announceCopy: "اطلب رحلة في ناشفيل (وصول مبكر) أو قدّم طلبًا للعمل كسائق.",
+        navHome: "الرئيسية",
+        navTrips: "الرحلات",
+        navAssistant: "المساعد",
+        navHtaf: "HTAF",
+        navSettings: "الإعدادات",
         inclusiveTitle: "مبني لكل مجتمع.",
         inclusiveCopy: "هارفي تاكسي يحترم جميع الأعراق والثقافات واللغات والعائلات وكبار السن والعمال والطلاب وذوي الإعاقات والمهاجرين والزوار والمجتمعات المحرومة الباحثة عن نقل آمن.",
         heroTitleA: "النقل في تينيسي",
@@ -2016,6 +2039,13 @@
         navBook: "Agiza Safari",
         announceTitle: "Harvey Taxi Mobile",
         requestRide: "Omba Safari",
+        langNote: "Tafsiri ni za kiotomatiki na zinaweza kuwa na makosa. Baadhi ya skrini, majibu ya msaada, sera na masharti ya kisheria yanapatikana kwa Kiingereza pekee.",
+        announceCopy: "Omba safari Nashville (ufikiaji wa mapema) au omba kuwa dereva.",
+        navHome: "Nyumbani",
+        navTrips: "Safari",
+        navAssistant: "Msaidizi",
+        navHtaf: "HTAF",
+        navSettings: "Mipangilio",
         inclusiveTitle: "Imejengwa kwa kila jamii.",
         inclusiveCopy: "Harvey Taxi inaheshimu makabila yote, tamaduni, lugha, familia, wazee, wafanyakazi, wanafunzi, watu wenye ulemavu, wahamiaji, wageni, na jamii zisizohudumiwa zinazotafuta usafiri salama.",
         heroTitleA: "Usafiri wa Tennessee",
@@ -2096,6 +2126,13 @@
         navBook: "预约乘车",
         announceTitle: "Harvey Taxi Mobile",
         requestRide: "立即叫车",
+        langNote: "翻译为自动生成，可能有误。部分页面、支持回复、政策和法律条款仅提供英文版本。",
+        announceCopy: "在纳什维尔叫车（抢先体验），或申请成为司机。",
+        navHome: "首页",
+        navTrips: "行程",
+        navAssistant: "助手",
+        navHtaf: "HTAF",
+        navSettings: "设置",
         inclusiveTitle: "为每一个社区而建。",
         inclusiveCopy: "Harvey Taxi 尊重所有种族、文化、语言、家庭、老年人、工作者、学生、残障人士、移民、访客以及寻求安全出行的弱势社区。",
         heroTitleA: "田纳西出行",
@@ -2176,6 +2213,13 @@
         navBook: "सवारी बुक करें",
         announceTitle: "Harvey Taxi Mobile",
         requestRide: "सवारी का अनुरोध करें",
+        langNote: "अनुवाद स्वचालित हैं और उनमें त्रुटियाँ हो सकती हैं। कुछ स्क्रीन, सहायता उत्तर, नीतियाँ और कानूनी शर्तें केवल अंग्रेज़ी में उपलब्ध हैं।",
+        announceCopy: "नैशविल में सवारी का अनुरोध करें (प्रारंभिक पहुँच) या ड्राइवर बनने के लिए आवेदन करें।",
+        navHome: "होम",
+        navTrips: "यात्राएँ",
+        navAssistant: "सहायक",
+        navHtaf: "HTAF",
+        navSettings: "सेटिंग्स",
         inclusiveTitle: "हर समुदाय के लिए बनाया गया।",
         inclusiveCopy: "Harvey Taxi सभी जातियों, संस्कृतियों, भाषाओं, परिवारों, वरिष्ठ नागरिकों, श्रमिकों, छात्रों, विकलांग व्यक्तियों, आप्रवासियों, आगंतुकों और सुरक्षित परिवहन की तलाश में वंचित समुदायों का सम्मान करता है।",
         heroTitleA: "टेनेसी परिवहन",
@@ -2256,6 +2300,13 @@
         navBook: "Reservar Corrida",
         announceTitle: "Harvey Taxi Mobile",
         requestRide: "Solicitar Corrida",
+        langNote: "As traduções são automáticas e podem conter erros. Algumas telas, respostas do suporte, políticas e termos legais estão disponíveis apenas em inglês.",
+        announceCopy: "Solicite uma corrida em Nashville (acesso antecipado) ou candidate-se para dirigir.",
+        navHome: "Início",
+        navTrips: "Viagens",
+        navAssistant: "Assistente",
+        navHtaf: "HTAF",
+        navSettings: "Ajustes",
         inclusiveTitle: "Construído para cada comunidade.",
         inclusiveCopy: "A Harvey Taxi respeita todas as etnias, culturas, idiomas, famílias, idosos, trabalhadores, estudantes, pessoas com deficiência, imigrantes, visitantes e comunidades carentes em busca de transporte seguro.",
         heroTitleA: "Transporte no Tennessee",
@@ -2336,6 +2387,13 @@
         navBook: "Rezève Vwayaj",
         announceTitle: "Harvey Taxi Mobile",
         requestRide: "Mande yon Vwayaj",
+        langNote: "Tradiksyon yo fèt otomatikman epi yo ka gen erè. Kèk ekran, repons sipò, politik ak tèm legal disponib sèlman an angle.",
+        announceCopy: "Mande yon vwayaj nan Nashville (aksè bonè) oswa aplike pou kondui.",
+        navHome: "Akèy",
+        navTrips: "Vwayaj",
+        navAssistant: "Asistan",
+        navHtaf: "HTAF",
+        navSettings: "Paramèt",
         inclusiveTitle: "Konstwi pou chak kominote.",
         inclusiveCopy: "Harvey Taxi respekte tout etnisite, kilti, lang, fanmi, granmoun aje, travayè, etidyan, moun ki gen andikap, imigran, vizitè, ak kominote ki pa byen sèvi k ap chèche transpò an sekirite.",
         heroTitleA: "Transpò Tennessee",
@@ -2416,6 +2474,13 @@
         navBook: "Bóòkù Ìrìn",
         announceTitle: "Harvey Taxi Mobile",
         requestRide: "Béèrè Ìrìn",
+        langNote: "Ìtumọ̀ jẹ́ aládàáṣiṣẹ́, ó sì lè ní àṣìṣe. Àwọn ojú-ìwé kan, ìdáhùn ìrànlọ́wọ́, ìlànà àti òfin wà ní èdè Gẹ̀ẹ́sì nìkan.",
+        announceCopy: "Béèrè ìrìn ní Nashville (ìwọlé àkọ́kọ́) tàbí forúkọsílẹ̀ láti wakọ̀.",
+        navHome: "Ilé",
+        navTrips: "Ìrìn",
+        navAssistant: "Olùrànlọ́wọ́",
+        navHtaf: "HTAF",
+        navSettings: "Ètò",
         inclusiveTitle: "A kọ́ ọ fún gbogbo àwùjọ.",
         inclusiveCopy: "Harvey Taxi bọ̀wọ̀ fún gbogbo ẹ̀yà, àṣà, èdè, ìdílé, àgbàlagbà, òṣìṣẹ́, akẹ́kọ̀ọ́, àwọn aláàbọ̀, àwọn aṣíkiri, àlejò, àti àwọn àwùjọ tí kò gba ìrànlọ́wọ́ tó tó tí ń wá ìrìnnà ààbò.",
         heroTitleA: "Ìrìnnà Tennessee",
