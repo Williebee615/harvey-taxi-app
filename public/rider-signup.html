@@ -372,6 +372,7 @@
       .access-controls { width: 100%; }
     }
   </style>
+  <script src="/language-pref.js"></script>
 </head>
 
 <body>
@@ -875,11 +876,9 @@
   /* ============================================================
      LANGUAGE SYSTEM (NEW)
      ============================================================ */
+  // One preference for the whole site; see /language-pref.js.
   function detectPreferredLanguage() {
-    const saved = safeGet("harvey_rider_language");
-    if (saved && translations[saved]) return saved;
-    const browserLang = (navigator.language || "en").slice(0, 2).toLowerCase();
-    return translations[browserLang] ? browserLang : "en";
+    return window.HarveyLanguage ? HarveyLanguage.resolve(Object.keys(translations)) : "en";
   }
 
   function applyLanguage(lang) {
@@ -901,7 +900,6 @@
       else node.textContent = dict[key];
     });
 
-    safeSet("harvey_rider_language", lang);
     trackEvent("language_changed", { lang });
   }
 
@@ -910,7 +908,10 @@
     if (!sel) return;
     const preferred = detectPreferredLanguage();
     sel.value = preferred;
-    sel.addEventListener("change", () => applyLanguage(sel.value));
+    sel.addEventListener("change", () => {
+      if (window.HarveyLanguage) HarveyLanguage.choose(sel.value);
+      applyLanguage(sel.value);
+    });
     applyLanguage(preferred);
   }
 

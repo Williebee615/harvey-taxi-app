@@ -152,6 +152,7 @@
       display: block; color: var(--cyan); font-size: 0.85rem; font-weight: 900; letter-spacing: 0.04em; margin-bottom: 3px;
     }
     .access-panel-copy span { display: block; color: var(--muted); font-size: 0.82rem; }
+    .access-panel-copy .lang-scope { margin-top: 4px; opacity: 0.85; }
     .access-controls { display: flex; flex-wrap: wrap; gap: 9px; }
     .access-btn, .access-controls select {
       min-height: 40px; padding: 0 13px; border-radius: 999px;
@@ -397,6 +398,7 @@
     .deletion-identity, .deletion-help { margin: 12px 0; line-height: 1.5; }
     .deletion-help { font-size: 0.9em; opacity: 0.85; }
   </style>
+  <script src="/language-pref.js"></script>
 </head>
 
 <body>
@@ -414,6 +416,7 @@
       <div class="access-panel-copy">
         <strong data-i18n="langTitle">Language &amp; Accessibility</strong>
         <span data-i18n="langCopy">Select your preferred language and accessibility settings.</span>
+        <span class="lang-scope" data-i18n="langScope">Your language choice applies to every page that has a translation. Ride screens, support, policies and legal terms are in English. Translations are automated and may contain errors.</span>
       </div>
       <div class="access-controls">
         <select id="languageSelect" aria-label="Choose language">
@@ -421,6 +424,12 @@
           <option value="es">🌐 Español</option>
           <option value="fr">🌐 Français</option>
           <option value="ar">🌐 العربية</option>
+          <option value="sw">🌐 Kiswahili</option>
+          <option value="zh">🌐 中文</option>
+          <option value="hi">🌐 हिन्दी</option>
+          <option value="pt">🌐 Português</option>
+          <option value="ht">🌐 Kreyòl Ayisyen</option>
+          <option value="yo">🌐 Yorùbá</option>
         </select>
         <button type="button" class="access-btn" id="contrastBtn">Contrast</button>
         <button type="button" class="access-btn" id="textBtn">A+</button>
@@ -806,6 +815,7 @@
       en: {
         langTitle: "Language & Accessibility",
         langCopy: "Select your preferred language and accessibility settings.",
+        langScope: "Your language choice applies to every page that has a translation. Ride screens, support, policies and legal terms are in English. Translations are automated and may contain errors.",
         pageTitle: "Harvey Taxi Settings",
         pageSub: "Rider, driver, battery, privacy, and account controls",
         riderDashboard: "Rider Dashboard", driverDashboard: "Driver Dashboard", supportLink: "Support",
@@ -854,6 +864,7 @@
       es: {
         langTitle: "Idioma y Accesibilidad",
         langCopy: "Seleccione su idioma preferido y configuración de accesibilidad.",
+        langScope: "Su idioma se aplica a todas las páginas que tienen traducción. Las pantallas de viaje, el soporte, las políticas y los términos legales están en inglés. Las traducciones son automáticas y pueden contener errores.",
         pageTitle: "Configuración de Harvey Taxi",
         pageSub: "Controles de pasajero, conductor, batería, privacidad y cuenta",
         riderDashboard: "Panel de Pasajero", driverDashboard: "Panel de Conductor", supportLink: "Soporte",
@@ -902,6 +913,7 @@
       fr: {
         langTitle: "Langue et Accessibilité",
         langCopy: "Sélectionnez votre langue préférée et vos paramètres d'accessibilité.",
+        langScope: "Votre choix de langue s'applique à toutes les pages traduites. Les écrans de course, l'assistance, les politiques et les conditions juridiques sont en anglais. Les traductions sont automatiques et peuvent contenir des erreurs.",
         pageTitle: "Paramètres Harvey Taxi",
         pageSub: "Contrôles passager, chauffeur, batterie, confidentialité et compte",
         riderDashboard: "Tableau de Bord Passager", driverDashboard: "Tableau de Bord Chauffeur", supportLink: "Support",
@@ -950,6 +962,7 @@
       ar: {
         langTitle: "اللغة وإمكانية الوصول",
         langCopy: "اختر لغتك المفضلة وإعدادات إمكانية الوصول.",
+        langScope: "يُطبَّق اختيار اللغة على كل صفحة لها ترجمة. شاشات الرحلات والدعم والسياسات والشروط القانونية باللغة الإنجليزية. الترجمات آلية وقد تحتوي على أخطاء.",
         pageTitle: "إعدادات هارفي تاكسي",
         pageSub: "ضوابط الراكب والسائق والبطارية والخصوصية والحساب",
         riderDashboard: "لوحة تحكم الراكب", driverDashboard: "لوحة تحكم السائق", supportLink: "الدعم",
@@ -1025,15 +1038,16 @@
     /* ============================================================
        LANGUAGE SYSTEM
        ============================================================ */
+    // One preference for the whole site; see /language-pref.js. Settings
+    // offers every language the site has; this page itself is translated
+    // into fewer and shows English for the rest.
     function detectPreferredLanguage() {
-      const saved = safeGet("harvey_settings_language");
-      if (saved && translations[saved]) return saved;
-      const browserLang = (navigator.language || "en").slice(0, 2).toLowerCase();
-      return translations[browserLang] ? browserLang : "en";
+      return window.HarveyLanguage ? HarveyLanguage.resolve(Object.keys(translations)) : "en";
     }
 
-    function applyLanguage(lang) {
-      const dict = translations[lang] || translations.en;
+    function applyLanguage(choice) {
+      const lang = translations[choice] ? choice : "en";
+      const dict = translations[lang];
       document.documentElement.lang = lang;
       document.documentElement.dir = dict.dir || "ltr";
 
@@ -1051,17 +1065,20 @@
         else node.textContent = dict[key];
       });
 
-      safeSet("harvey_settings_language", lang);
-      trackSettingsEvent("language_changed", { lang });
+      trackSettingsEvent("language_changed", { lang: choice });
     }
 
     function bindLanguageSelector() {
       const sel = document.getElementById("languageSelect");
       if (!sel) return;
-      const preferred = detectPreferredLanguage();
-      sel.value = preferred;
-      sel.addEventListener("change", () => applyLanguage(sel.value));
-      applyLanguage(preferred);
+      const saved = window.HarveyLanguage ? HarveyLanguage.saved() : "";
+      const hasOption = (l) => [...sel.options].some((o) => o.value === l);
+      sel.value = hasOption(saved) ? saved : detectPreferredLanguage();
+      sel.addEventListener("change", () => {
+        if (window.HarveyLanguage) HarveyLanguage.choose(sel.value);
+        applyLanguage(sel.value);
+      });
+      applyLanguage(sel.value);
     }
 
     /* ============================================================

@@ -1153,6 +1153,7 @@
       .service-card p { flex-grow: 0; margin-bottom: 14px; }
     }
   </style>
+  <script src="/language-pref.js"></script>
 </head>
 
 <body>
@@ -2523,22 +2524,24 @@
       document.documentElement.lang = lang;
       document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
       document.querySelectorAll(".lang-tile[data-lang]").forEach(t => t.setAttribute("aria-pressed", String(t.dataset.lang === lang)));
-      safeSet(STORAGE_KEYS.language, lang);
       trackEvent("language_changed", { lang });
     }
 
     function bindLanguageSelector() {
       const sel = document.getElementById("language-select");
       if (!sel) return;
-      const saved = safeGet(STORAGE_KEYS.language, "en");
-      sel.value = TRANSLATIONS[saved] ? saved : "en";
-      sel.addEventListener("change", function () { applyLanguage(this.value); });
+      sel.value = window.HarveyLanguage ? HarveyLanguage.resolve(Object.keys(TRANSLATIONS)) : "en";
+      const choose = (lang) => {
+        if (window.HarveyLanguage) HarveyLanguage.choose(lang);
+        applyLanguage(lang);
+      };
+      sel.addEventListener("change", function () { choose(this.value); });
       // The tiles in the Languages section switch the language too.
       document.querySelectorAll(".lang-tile[data-lang]").forEach(tile => {
         tile.addEventListener("click", () => {
           if (!TRANSLATIONS[tile.dataset.lang]) return;
           sel.value = tile.dataset.lang;
-          applyLanguage(sel.value);
+          choose(sel.value);
         });
       });
       applyLanguage(sel.value);
