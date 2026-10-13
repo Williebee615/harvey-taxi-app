@@ -244,6 +244,14 @@ Key blockers:
   - **[Verified 2026-10-13]** All 6 checks passed on `1266a7d`. Squash-merged as `25d2b36`. The live `htaf-application.html` is byte-identical. **Deployed, owner-confirmed by Render screenshot (2026-10-13)**: Render shows `25d2b36` as the current live deploy (auto-deploy, 47.7 s).
   - **[Verified 2026-10-13]** `/api/foundation/public-stats` returns 6 submitted, 6 pending review, 0 approved, 0 scheduled.
   - **[Unresolved, owner]** All 6 applications (received 2026-07-06 to 2026-08-19) are still "submitted". Whether any are tests, and their review, are for HTAF in the admin portal.
+- **#229 Languages (HTAF pages + five African languages):** one shared list of 15 languages (`public/language-pref.js`) drives every selector: Harvey Taxi home, Settings, and the HTAF home, application and contact pages.
+  - Added: Hausa and Igbo (Nigeria, with Yoruba), chiShona and isiNdebele (Zimbabwe), Twi/Akan (Ghana). "Chinese" is labelled Simplified (`zh-Hans`) and Portuguese is labelled Brazil (`pt-BR`); Traditional Chinese and European Portuguese are not offered.
+  - **[Owner decision pending]** Ga and Ewe deferred (Twi covers the Accra pilot); isiZulu, isiXhosa and Afrikaans not added (South Africa is not a planned market).
+  - HTAF pages: 242 strings × 14 languages. SMS consent and certification stay English, with a translated summary. Five strings stay English by design: "Privacy Policy", "and", "Terms of Use" (inside the English consent), "Leave this empty" (hidden spam-trap label), "Tennessee".
+  - `?lang=xx` sets the preference; unsupported codes fall back to English; links between harveytaxiservice.com and harveytransportationfoundation.com carry `lang=` and keep their other parameters and anchors. Arabic is right-to-left.
+  - **[Verified 2026-10-13]** 18 new browser tests; full suite 2,117 passed, 0 failed (165 skipped). All 6 checks passed on `c24d09d`. Squash-merged as `6fb8494` (owner pre-approved merge and deploy once checks passed).
+  - **[Unresolved]** Live deploy of `6fb8494`: pending at 18:17 UTC (site still served the previous version).
+  - **[Unresolved]** All translations are automated and not reviewed by fluent speakers; review recommended for Ndebele, Twi, Shona, Igbo and Hausa before relying on them for the application form. Not checked on a real device or on the foundation domain (blocked from this environment).
 - **Server errors:** 26 `server_error` entries ("CORS origin blocked", `/api/health`) between 16:29 and 16:38 UTC were caused by this session's blocked-origin requests, which tried to read the deployed version **[Verified 2026-10-13, audit log]**. **[Owner decision 2026-10-13]** No more such requests. **[Recommendation]** Blocked origins currently return 500 and are logged as server errors; a small separate fix could return 403 without an error entry.
 - **`driver_1`** **[Verified 2026-10-13, read-only]**: marked online and approved; created and last seen 2026-04-12; no email, phone, Persona or Checkr verification; no vehicle; no location. **[Owner decision 2026-10-13]** Leave it unchanged for now. Once #221 is deployed, it can't be offered or assigned rides.
 - **[Owner decision 2026-10-13]** Harvey Assistant stays rules-only.
@@ -259,7 +267,7 @@ Key blockers:
 ## 8. Session handoff (2026-10-13)
 
 **Completed (2026-10-12 to 2026-10-13):**
-- #220, #222, #223, #224, #225, #226, #227, #221 and #228 merged.
+- #220, #222, #223, #224, #225, #226, #227, #221, #228 and #229 merged.
 - Website changes from #222–#227 verified live, byte-identical.
 - #221 deployed (`3cd8763`), owner-confirmed by Render screenshot.
 
@@ -268,6 +276,7 @@ Key blockers:
 - **[Owner]** HTAF:
   - send a labelled test inquiry and confirm receipt;
   - view `harveytransportationfoundation.com`.
+- **[Owner]** Native-speaker review of the #229 translations; decide on Ga, Ewe and South African languages.
 - **[Owner decision]** `driver_1` (left unchanged); the 27-account cleanup SQL (not run); the DRV-85708D8A35 Checkr reset.
 - Earlier items still open: #210 consent (migration and deploy) before any external AI; #207 privacy wording; Stack B; Supabase plan; staging deletion (separate); airport permit documentation; HTAF governance documents.
 - Rider iOS submission of 11:45 AM: removal not yet confirmed.
