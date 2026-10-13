@@ -4130,7 +4130,7 @@
     <button
       class="nav-btn active"
       type="button"
-      data-action="home"
+      data-action="dashboard"
     >
       Rider
     </button>
@@ -11489,15 +11489,30 @@
       }
     }
 
-    // "Home" inside the rider area is this dashboard: close the booking
-    // or tracking screen if it is open, otherwise go back to the top.
-    function goHome() {
+    // The rider app adds "HarveyTaxiRider/<version> (ios|android)" to its
+    // user agent (mobile/App.js). In the app this dashboard is the home
+    // screen; on the website, Home is the site's home page.
+    function inRiderApp() {
+      return /\bHarveyTaxiRider\/[\w.-]{1,20} \((ios|android)\)/.test(navigator.userAgent || "");
+    }
+
+    // Back to the top of this dashboard: close the booking or tracking
+    // screen if it is open, otherwise scroll up.
+    function goDashboard() {
       const overlay = document.getElementById("rideWizardOverlay");
       if (overlay && !overlay.hidden) {
         window.HarveyRideWizard.close();
         return;
       }
       window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function goHome() {
+      if (inRiderApp()) {
+        goDashboard();
+        return;
+      }
+      window.location.href = "/";
     }
 
     function goSupport() {
@@ -12755,6 +12770,10 @@
           goHome();
           break;
 
+        case "dashboard":
+          goDashboard();
+          break;
+
         case "support":
           goSupport();
           break;
@@ -13128,6 +13147,6 @@
   </script>
   <!-- Harvey Assistant (AI Agent Manager); renders nothing unless agent_assist_enabled is on. -->
   <script src="/ride-cancel.js" defer></script>
-  <script src="/agent-assist.js?v=20261010-layout" data-role="rider" defer></script>
+  <script src="/agent-assist.js?v=20261012-shared" data-role="rider" defer></script>
 </body>
 </html>
