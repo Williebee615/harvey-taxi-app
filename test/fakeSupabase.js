@@ -22,7 +22,8 @@
 //     the real schema does not have is caught in tests.
 //   - failUpdate: (table, patch) => error|null -- inject a failure for a
 //     specific update.
-//   - failSelect: (table) => error|null -- inject a failure for a read.
+//   - failSelect: (table, columns) => error|null -- inject a failure for a
+//     read (columns: the selected column names, when a list was given).
 //   - failInsert: (table, rows) => error|null -- inject a failure for an
 //     insert.
 // `_log` records every executed operation as { table, op, patch }.
@@ -116,7 +117,7 @@ function createFakeSupabase(seed = {}, options = {}) {
       }
 
       if (op === "select" && options.failSelect) {
-        const selectError = options.failSelect(table);
+        const selectError = options.failSelect(table, selectedColumns);
         if (selectError) return { data: null, error: selectError };
       }
 

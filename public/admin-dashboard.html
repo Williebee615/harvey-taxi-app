@@ -529,9 +529,50 @@ function renderDrivers(items){
         <div><div class="item-title">${esc(d.first_name)} ${esc(d.last_name)}</div><div class="item-sub">${esc(d.email)} • Checkr: ${esc(d.checkr_status || "not started")}</div></div>
         <span class="badge ${statusClass(d.approval_status)}">${esc(d.approval_status || d.status || "pending")}</span>
       </div>
-      <div class="actions"><button class="success" onclick="approveDriver('${esc(d.id)}')">Approve Driver</button></div>
+      <div class="actions"><button class="success" onclick="approveDriver('${esc(d.id)}')">Approve Driver</button><button onclick="runDriverReview('${esc(d.id)}')">Review Assistant</button></div>
+      <div class="driver-review" id="driverReview-${esc(d.id)}"></div>
     </div>`).join("") : `<div class="empty">No pending drivers.</div>`;
 }
+
+// Driver review assistant: Harvey Taxi's own onboarding rules (no AI model,
+// nothing sent outside). Suggestions only -- staff decide every driver.
+const driverReviews = {};
+function renderDriverReview(id){
+  const box = document.getElementById(`driverReview-${id}`);
+  const r = driverReviews[id];
+  if(!box) return;
+  if(!r){ box.innerHTML = ""; return; }
+  const rows = Object.entries(r.status).map(([k,v])=>`<tr><td>${esc(k.replace(/_/g," "))}</td><td>${esc(typeof v === "object" ? Object.entries(v).map(([n,d])=>`${n}: ${d || "not recorded"}`).join(", ") : v)}</td></tr>`).join("");
+  const checks = r.checks.length ? r.checks.map(c=>`
+    <li data-check="${esc(c.id)}" style="margin:6px 0;">
+      <span class="badge">${c.kind === "missing" ? "Missing" : "Check"}</span> ${esc(c.message)}
+      ${c.related ? `<div class="item-sub">Other account(s): ${c.related.map(x=>`${esc(x.account)} (${esc(x.status)}${x.created ? ", " + esc(x.created) : ""}; same ${x.matched.map(esc).join(" + ")})`).join("; ")}</div>` : ""}
+      <button style="padding:3px 8px;font-size:12px;" onclick="driverReviewFeedback('${esc(id)}','${esc(c.id)}','incorrect')">Wrong</button>
+      <button style="padding:3px 8px;font-size:12px;" onclick="driverReviewFeedback('${esc(id)}','${esc(c.id)}','not_needed')">Not needed</button>
+    </li>`).join("") : `<li class="item-sub">Nothing outstanding found by the rules.</li>`;
+  box.innerHTML = `
+    <div class="review-panel" style="margin-top:10px;padding:12px;border:1px solid rgba(255,255,255,.15);border-radius:12px;">
+      <strong>Review Assistant: automated suggestions, not a decision</strong>
+      <div class="item-sub" style="margin:6px 0;">${esc(r.label)}</div>
+      <div style="margin:6px 0;">${esc(r.summary)}</div>
+      <table style="width:100%;font-size:13px;margin:6px 0;">${rows}</table>
+      <ul style="margin:6px 0 6px 18px;">${checks}</ul>
+      <button onclick="dismissDriverReview('${esc(id)}')">Dismiss</button>
+    </div>`;
+}
+async function runDriverReview(id){
+  try{
+    const data = await api(`/api/admin/drivers/${encodeURIComponent(id)}/review-assist`,{method:"POST",body:"{}"});
+    driverReviews[id] = data.review;
+    renderDriverReview(id);
+  }catch(e){ showError(e.message || "The driver review assistant is unavailable."); }
+}
+async function driverReviewFeedback(id, checkId, verdict){
+  try{ await api(`/api/admin/drivers/${encodeURIComponent(id)}/review-assist/feedback`,{method:"POST",body:JSON.stringify({check_id:checkId, verdict})}); }catch(e){ console.warn(e.message); }
+  const r = driverReviews[id];
+  if(r){ driverReviews[id] = {...r, checks:r.checks.filter(c=>c.id!==checkId)}; renderDriverReview(id); }
+}
+function dismissDriverReview(id){ delete driverReviews[id]; renderDriverReview(id); }
 
 function renderActiveRiders(items){
   els.activeRiders.innerHTML = items.length ? items.slice(0,50).map(r=>`
