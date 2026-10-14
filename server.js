@@ -12,6 +12,7 @@
 
 const express = require("express");
 const { rideUpdateForStripeEvent } = require("./lib/stripeWebhookTransitions");
+const { redactLogText, redactPath } = require("./lib/logRedaction");
 
 const cors = require("cors");
 
@@ -2856,13 +2857,13 @@ async function auditLog({
 
           action,
 
-          message: error.message,
+          message: redactLogText(error.message),
 
           code: error.code,
 
-          details: error.details,
+          details: redactLogText(error.details),
 
-          hint: error.hint
+          hint: redactLogText(error.hint)
 
         }
 
@@ -26688,7 +26689,7 @@ app.use(
 
         message:
 
-          error.message,
+          redactLogText(error.message),
 
         stack:
 
@@ -26700,7 +26701,7 @@ app.use(
 
         path:
 
-          req.originalUrl,
+          redactPath(req.originalUrl),
 
         method:
 
@@ -26724,11 +26725,11 @@ app.use(
 
         message:
 
-          error.message,
+          redactLogText(error.message),
 
         path:
 
-          req.originalUrl,
+          redactPath(req.originalUrl),
 
         method:
 
