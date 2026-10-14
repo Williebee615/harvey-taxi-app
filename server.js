@@ -884,6 +884,10 @@ function isAllowedOrigin(origin) {
 const BUILD_SHA = env("RENDER_GIT_COMMIT", null);
 // Short commit for /api/health. Only hex characters are ever exposed.
 const BUILD_VERSION = /^[0-9a-f]{7,40}$/i.test(String(BUILD_SHA || "")) ? String(BUILD_SHA).slice(0, 7).toLowerCase() : "unknown";
+// Synthetic test records (smoke tests, QA) use the reserved .test domain
+// (RFC 6761), which can never belong to a real person. They are excluded
+// from public totals.
+const isSyntheticEmail = (email) => /@example\.test$/i.test(String(email || "").trim());
 
 app.use((req, res, next) => {
 
@@ -5331,7 +5335,7 @@ app.get(
 
     const stats =
 
-      computeHtafPublicStats((data || []).map((row) => row.status));
+      computeHtafPublicStats((data || []).filter((row) => !isSyntheticEmail(row.email)).map((row) => row.status));
 
     return ok(res, {
 
@@ -19182,7 +19186,7 @@ app.get(
     {
       const { data, error } = await supabase
         .from("htaf_applications")
-        .select("status");
+        .select("status, email");
       if (!error && Array.isArray(data)) {
         htafTotal = data.length;
         htafByStatus = data.reduce((acc, r) => {

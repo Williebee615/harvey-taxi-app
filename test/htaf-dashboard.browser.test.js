@@ -30,7 +30,7 @@ const describeWithBrowser = chromium ? describe : describe.skip;
 jest.setTimeout(120000);
 const HOST = "harveytaxiservice.test";
 
-const app = (id, status) => ({ id, application_code: `HTAF-TEST${id}`, status, email: `t${id}@example.test` });
+const app = (id, status) => ({ id, application_code: `HTAF-TEST${id}`, status, email: `t${id}@example.com` });
 
 describeWithBrowser("HTAF application dashboard", () => {
   let server;
