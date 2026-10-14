@@ -66,9 +66,6 @@ const DRIVERS = [
     vehicle_year: "2021",
     vehicle_plate: "SYN-123",
     insurance_confirmed: true,
-    license_expires_on: past(5),
-    insurance_expires_on: future(200),
-    registration_expires_on: future(10),
     accepted_terms: true,
     accepted_background_check_consent: true,
     accepted_driver_policy: true,
@@ -90,6 +87,13 @@ function seed({ enabled = true, grants = [DISPATCHER] } = {}) {
   return {
     admin_capability_grants: grants.map((email) => ({ email, capability: "drivers.onboarding_review", revoked_at: null })),
     drivers: DRIVERS.map((d) => ({ ...d })),
+    driver_document_records: [
+      { driver_id: "DRV-SYN-1", document_type: "drivers_license", expires_on: past(5), source: "staff_from_document", verification_status: "staff_verified", superseded_at: null },
+      { driver_id: "DRV-SYN-1", document_type: "insurance", expires_on: future(200), source: "driver_entered", verification_status: "unverified", superseded_at: null },
+      { driver_id: "DRV-SYN-1", document_type: "vehicle_registration", expires_on: future(10), source: "staff_from_document", verification_status: "staff_verified", superseded_at: null },
+      // Superseded history is ignored.
+      { driver_id: "DRV-SYN-1", document_type: "drivers_license", expires_on: future(900), source: "driver_entered", verification_status: "unverified", superseded_at: "2026-10-01T00:00:00Z" }
+    ],
     htaf_applications: [{ id: "HTAF-1", first_name: "Private", status: "submitted" }],
     admin_roles: Object.entries(ROLES).map(([role, email]) => ({ email, role })),
     admin_rbac_shadow_log: [],
@@ -178,19 +182,35 @@ describe("turned on (synthetic drivers)", () => {
     expect(dup.related).toEqual([{ account: "DRV-SYN-2", created: "2026-09-01", status: "rejected", matched: ["phone", "plate"] }]);
   });
 
-  test("works before the expiration columns exist (falls back, reports 'not recorded')", async () => {
-    // A database without the proposed columns: the first read fails with
-    // "column does not exist" and the route retries without them.
-    const noExpiry = seed();
-    noExpiry.drivers = noExpiry.drivers.map(({ license_expires_on, insurance_expires_on, registration_expires_on, ...d }) => d);
-    mockClient = createFakeSupabase(noExpiry, {
-      failSelect: (table, cols) => (table === "drivers" && cols && cols.includes("license_expires_on") ? { code: "42703", message: "column does not exist" } : null)
+  test("expiration dates show source and verification; superseded records are ignored", async () => {
+    const { review } = (await run("DRV-SYN-1")).body;
+    expect(review.status.expiration_dates).toEqual({
+      license: { expires_on: past(5), source: "entered by staff from the document", verification: "verified by staff" },
+      insurance: { expires_on: future(200), source: "entered by the driver", verification: "unverified" },
+      registration: { expires_on: future(10), source: "entered by staff from the document", verification: "verified by staff" }
+    });
+    expect(review.checks.map((c) => c.id)).toContain("expiration_unverified");
+  });
+
+  test("works before driver_document_records exists (reports 'not recorded')", async () => {
+    const noTable = seed();
+    delete noTable.driver_document_records;
+    mockClient = createFakeSupabase(noTable, {
+      failSelect: (table) => (table === "driver_document_records" ? { code: "42P01", message: "relation does not exist" } : null)
     });
     const res = await run("DRV-SYN-1");
     expect(res.status).toBe(200);
     expect(res.body.review.status.expiration_dates).toBe("not recorded");
-    const driverReads = mockClient._log.filter((e) => e.table === "drivers" && e.op === "select");
-    expect(driverReads.length).toBeGreaterThanOrEqual(2);
+  });
+
+  test("a document-records read error other than a missing table is a 500, not a silent 'not recorded'", async () => {
+    mockClient = createFakeSupabase(seed(), {
+      failSelect: (table) => (table === "driver_document_records" ? { code: "XX000", message: "db down" } : null)
+    });
+    const quiet = jest.spyOn(console, "error").mockImplementation(() => {});
+    const res = await run("DRV-SYN-1");
+    quiet.mockRestore();
+    expect(res.status).toBe(500);
   });
 
   test("advisory only: no driver changed, nothing sent outside, no personal data in response or audit", async () => {
@@ -207,13 +227,13 @@ describe("turned on (synthetic drivers)", () => {
       expect(body).not.toContain(v);
       expect(audit).not.toContain(v);
     }
-    expect(mockClient._state.audit_logs.find((a) => a.action === "driver_review_assist_run").metadata.engine).toBe("driver-review-assist-v1");
+    expect(mockClient._state.audit_logs.find((a) => a.action === "driver_review_assist_run").metadata.engine).toBe("driver-review-assist-v2");
   });
 
   test("staff can mark a suggestion wrong (fixed choices only)", async () => {
     expect((await request(app).post("/api/admin/drivers/DRV-SYN-1/review-assist/feedback").set("Cookie", session(DISPATCHER)).send({ check_id: "possible_duplicate", verdict: "incorrect", note: "Dana is the same person" })).status).toBe(200);
     await settle();
-    expect(mockClient._state.audit_logs.find((a) => a.action === "driver_review_assist_feedback").metadata).toEqual({ engine: "driver-review-assist-v1", check: "possible_duplicate", verdict: "incorrect", reason: null });
+    expect(mockClient._state.audit_logs.find((a) => a.action === "driver_review_assist_feedback").metadata).toEqual({ engine: "driver-review-assist-v2", check: "possible_duplicate", verdict: "incorrect", reason: null });
     expect(JSON.stringify(mockClient._state.audit_logs)).not.toContain("Dana");
     expect((await request(app).post("/api/admin/drivers/DRV-SYN-1/review-assist/feedback").set("Cookie", session(DISPATCHER)).send({ check_id: "approve_driver", verdict: "incorrect" })).status).toBe(400);
   });
@@ -343,7 +363,7 @@ describe("corrections, data boundary and flag", () => {
     expect((await feedback("DRV-SYN-1", { check_id: "possible_duplicate", verdict: "incorrect", reason: "Dana is her sister" })).status).toBe(400);
     await settle();
     const rows = mockClient._state.audit_logs.filter((a) => a.action === "driver_review_assist_feedback");
-    expect(rows.map((r) => r.metadata)).toEqual([{ engine: "driver-review-assist-v1", check: "possible_duplicate", verdict: "incorrect", reason: "not_a_duplicate" }]);
+    expect(rows.map((r) => r.metadata)).toEqual([{ engine: "driver-review-assist-v2", check: "possible_duplicate", verdict: "incorrect", reason: "not_a_duplicate" }]);
     expect(JSON.stringify(mockClient._state.audit_logs)).not.toContain("sister");
   });
 

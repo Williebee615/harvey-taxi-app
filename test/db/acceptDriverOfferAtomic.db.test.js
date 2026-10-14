@@ -25,7 +25,7 @@ describeDb("dispatch migrations against a live-schema Postgres", () => {
   });
 
   beforeEach(async () => {
-    await admin.query("truncate public.driver_earnings, public.driver_offers, public.rides, public.drivers");
+    await admin.query("truncate public.driver_earnings, public.driver_offers, public.rides, public.driver_document_records, public.drivers");
   });
 
   // ---------------------------------------------------------------- fixtures

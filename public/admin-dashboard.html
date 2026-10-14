@@ -542,7 +542,7 @@ function renderDriverReview(id){
   const r = driverReviews[id];
   if(!box) return;
   if(!r){ box.innerHTML = ""; return; }
-  const rows = Object.entries(r.status).map(([k,v])=>`<tr><td>${esc(k.replace(/_/g," "))}</td><td>${esc(typeof v === "object" ? Object.entries(v).map(([n,d])=>`${n}: ${d || "not recorded"}`).join(", ") : v)}</td></tr>`).join("");
+  const rows = Object.entries(r.status).map(([k,v])=>`<tr><td>${esc(k.replace(/_/g," "))}</td><td>${esc(typeof v === "object" ? Object.entries(v).map(([n,d])=>`${n}: ${d && typeof d === "object" ? `${d.expires_on} (${d.source}; ${d.verification})` : (d || "not recorded")}`).join(", ") : v)}</td></tr>`).join("");
   const checks = r.checks.length ? r.checks.map(c=>`
     <li data-check="${esc(c.id)}" style="margin:6px 0;">
       <span class="badge">${c.kind === "missing" ? "Missing" : "Check"}</span> ${esc(c.message)}

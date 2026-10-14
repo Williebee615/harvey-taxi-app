@@ -70,14 +70,16 @@ describeWithBrowser("Admin dashboard: driver review assistant", () => {
           vehicle_year: "2021",
           vehicle_plate: "SYN-123",
           insurance_confirmed: true,
-          license_expires_on: day(-5),
-          insurance_expires_on: day(200),
-          registration_expires_on: day(300),
           accepted_terms: true,
           accepted_background_check_consent: true,
           accepted_driver_policy: true
         },
         { id: "DRV-SYN-2", email: "other@example.test", phone: "+16155550123", created_at: "2026-09-01T00:00:00Z", approval_status: "rejected" }
+      ],
+      driver_document_records: [
+        { driver_id: "DRV-SYN-1", document_type: "drivers_license", expires_on: day(-5), source: "staff_from_document", verification_status: "staff_verified", superseded_at: null },
+        { driver_id: "DRV-SYN-1", document_type: "insurance", expires_on: day(200), source: "staff_from_document", verification_status: "staff_verified", superseded_at: null },
+        { driver_id: "DRV-SYN-1", document_type: "vehicle_registration", expires_on: day(300), source: "staff_from_document", verification_status: "staff_verified", superseded_at: null }
       ],
       riders: [],
       rides: [],
@@ -119,6 +121,7 @@ describeWithBrowser("Admin dashboard: driver review assistant", () => {
     await panel.waitFor();
     const text = await panel.innerText();
     expect(text).toContain("automated suggestions, not a decision");
+    expect(text).toMatch(/license: \d{4}-\d{2}-\d{2} \(entered by staff from the document; verified by staff\)/);
     expect(text).toContain("staff approve, reject, activate or suspend every driver");
     expect(text).toMatch(/identity persona\s+not configured/i);
     expect(text).toMatch(/background checkr\s+not configured/i);
@@ -130,7 +133,7 @@ describeWithBrowser("Admin dashboard: driver review assistant", () => {
 
     await panel.locator('li[data-check="possible_duplicate"] button:has-text("Wrong")').click();
     await panel.locator('li[data-check="possible_duplicate"]').waitFor({ state: "detached" });
-    expect(mockClient._state.audit_logs.find((a) => a.action === "driver_review_assist_feedback").metadata).toEqual({ engine: "driver-review-assist-v1", check: "possible_duplicate", verdict: "incorrect", reason: null });
+    expect(mockClient._state.audit_logs.find((a) => a.action === "driver_review_assist_feedback").metadata).toEqual({ engine: "driver-review-assist-v2", check: "possible_duplicate", verdict: "incorrect", reason: null });
     expect(mockClient._state.drivers[0].approval_status).toBe("pending");
     expect(mockClient._log.filter((e) => e.table === "drivers" && e.op !== "select")).toEqual([]);
     await context.close();
