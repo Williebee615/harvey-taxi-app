@@ -5990,7 +5990,7 @@ app.get(
    HTAF AI TRIAGE -- REMOVED (2026-10-14, owner decision)
 
    The external OpenAI triage route (POST .../applications/:id/triage),
-   its activation gate (HTAF_AI_TRIAGE_ENABLED + approval record) and its
+   its activation gate (the AI-triage flag + approval record) and its
    facts builder were removed unused: it never ran in production. Its
    history is in Git (last present in commit 0bcaf37). Any future external
    AI integration is a separate reviewed project. HTAF staff use the
