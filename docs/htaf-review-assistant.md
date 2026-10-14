@@ -116,3 +116,18 @@ Nothing is written to the application. Nothing is sent outside HTAF's server.
 ## 10. Turning it on and off
 - **On (owner approval):** `insert into system_flags (key, value) values ('htaf_review_assist_enabled','true') on conflict (key) do update set value='true';`
 - **Off:** set the flag to `false`. It takes effect on the next request.
+
+## 11. Pre-activation checks (2026-10-14)
+The owner made activation conditional on preparation, a privacy review and tests passing. These are separate from #232.
+
+| Check | Result |
+|---|---|
+| Processing location | **Pass.** `lib/htafReviewAssist.js` has no `require`, network, AI or database code (enforced by a test). The routes make no outbound requests: the server tests record any request leaving the machine and found none. |
+| Data minimisation | **Pass.** Only the columns in §4 are selected. Income, household size and notes are never read; a test proves the output is identical with and without them. The output contains no name, contact details, address, description or notes. |
+| Access | **Pass.** The role matrix allows only `htaf_caseworker` and `super_admin`. Harvey Taxi roles, board, volunteer and no-role admins are refused before any read. A forged session or no sign-in gets 401. |
+| Human decision | **Pass.** No status change, ride creation or message in any test path. Applications are byte-for-byte unchanged after runs and feedback. There is no decision vocabulary in the output. |
+| Labelling and correction | **Pass.** The label is shown. In the browser test, "Wrong" removes the item and records fixed-choice feedback only; follow-up questions are copied to notes only when ticked. |
+| Storage and retention | **Pass.** Suggestions are not stored. Audit entries hold no applicant details (tested). 12-month deletion is proposed and awaits the owner's decision; nothing personal is kept in the meantime. |
+| Privacy notice | **No change required.** No new provider and no automated decision; §4 already covers "to review applications". An optional transparency sentence awaits counsel review (§8). |
+| External AI triage | **Stays off.** Still locked, and never run in production. |
+| Tests | 12 rule tests, 18 server tests, 1 browser test and the role matrix. Full suite: 2,169 passed, 0 failed, on the branch merged with current `main`. |
