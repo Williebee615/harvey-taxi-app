@@ -31,9 +31,14 @@ describeDb("agent model usage migration", () => {
       "insert into public.agent_model_usage (usage_month, role, model, cost_usd, outcome) values ('2026-10', 'rider', 'm', -1, 'x')",
       "insert into public.agent_model_usage (usage_month, role, model, input_tokens, outcome) values ('2026-10', 'rider', 'm', -5, 'x')",
       "insert into public.agent_model_usage (usage_month, role, model, outcome) values ('Oct 2026', 'rider', 'm', 'x')",
-      "insert into public.agent_model_usage (usage_month, role, model, outcome) values ('2026-10', 'visitor', 'm', 'x')"
+      "insert into public.agent_model_usage (usage_month, role, model, outcome) values ('2026-10', 'stranger', 'm', 'x')"
     ];
     for (const sql of bad) await expect(q(sql)).rejects.toThrow();
+  });
+
+  test("website-visitor answers (assistant pilot, migration 20261014070000) can be recorded", async () => {
+    await q("insert into public.agent_model_usage (usage_month, role, app_target, model, cost_usd, outcome) values ('2026-10', 'visitor', 'assistant_pilot:htaf', 'claude-haiku-4-5', 0.003, 'answered')");
+    expect((await q("select count(*)::int as n from public.agent_model_usage where role = 'visitor'"))[0].n).toBe(1);
   });
 
   test("row level security on, no policies, and no anon/authenticated access", async () => {
