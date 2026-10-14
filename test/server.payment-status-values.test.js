@@ -157,7 +157,8 @@ describe("rides_payment_status_check allowed list", () => {
   });
 
   test("covers every string literal server.js assigns to payment_status", () => {
-    const source = fs.readFileSync(path.join(__dirname, "..", "server.js"), "utf8");
+    // The webhook's values now live in lib/stripeWebhookTransitions.js.
+    const source = ["server.js", "lib/stripeWebhookTransitions.js"].map((f) => fs.readFileSync(path.join(__dirname, "..", f), "utf8")).join("\n");
     const literals = [...source.matchAll(/\bpayment_status\s*:\s*"([a-z_]+)"/g)].map((m) => m[1]);
     expect(new Set(literals)).toEqual(new Set(["succeeded", "authorized", "failed", "not_required"]));
     for (const value of literals) expectAllowed(value);
@@ -182,12 +183,24 @@ describe("real Stripe webhook paths", () => {
     expectAllowed(ride().payment_status);
   });
 
-  test.each(["payment_intent.payment_failed", "payment_intent.canceled"])("%s writes 'failed'", async (type) => {
+  test.each(["payment_intent.payment_failed", "payment_intent.canceled"])("%s before authorization writes 'failed'", async (type) => {
+    Object.assign(ride(), { status: "payment_required" });
     const res = await sendWebhook(type);
 
     expect(res.status).toBe(200);
     expect(ride().payment_status).toBe("failed");
+    expect(ride().status).toBe("failed");
     expectAllowed(ride().payment_status);
+  });
+
+  test.each(["payment_intent.payment_failed", "payment_intent.canceled"])("%s during a trip leaves the trip alone and flags it for staff", async (type) => {
+    const res = await sendWebhook(type);
+
+    expect(res.status).toBe(200);
+    expect(ride().status).toBe("in_progress");
+    expect(ride().payment_status).toBe(null);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(mockSupabaseClient._state.audit_logs.some((a) => a.action === "stripe_webhook_needs_review" && a.entity_id === "RIDE_1")).toBe(true);
   });
 
   test("an unsigned webhook is rejected and writes nothing", async () => {

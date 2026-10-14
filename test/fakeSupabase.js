@@ -26,7 +26,8 @@
 //     read (columns: the selected column names, when a list was given).
 //   - failInsert: (table, rows) => error|null -- inject a failure for an
 //     insert.
-// `_log` records every executed operation as { table, op, patch }.
+// `_log` records every executed operation as { table, op, patch, columns }
+// (columns: the selected column names, when a list was given).
 
 // `options.uniqueColumns`, e.g. { driver_earnings: ["ride_id"], rides:
 // ["quote_jti"] }, simulates a real UNIQUE constraint on plain insert()
@@ -88,7 +89,7 @@ function createFakeSupabase(seed = {}, options = {}) {
     async function exec() {
       const rows = ensureTable(table);
       const op = pendingInsertRows ? "insert" : pendingUpdatePatch ? "update" : pendingDelete ? "delete" : "select";
-      log.push({ table, op, patch: pendingUpdatePatch });
+      log.push({ table, op, patch: pendingUpdatePatch, columns: selectedColumns });
 
       if (pendingInsertRows) {
         const insertError =

@@ -75,8 +75,8 @@ const SYNTHETIC = [
     application_code: "HTAF-20261012-SYN003",
     first_name: "Synthia",
     last_name: "Testperson",
-    email: "synthia.test@example.test",
-    phone: "6155550199",
+    email: "other.household@example.test",
+    phone: "+16155550199",
     county: "Davidson",
     pickup_city: "Antioch",
     destination: "Synthetic Dialysis Center",
@@ -242,7 +242,7 @@ describe("turned on (synthetic data)", () => {
     await settle();
     const entry = mockClient._state.audit_logs.find((a) => a.action === "htaf_review_assist_run");
     expect(entry).toMatchObject({ actor_id: CASEWORKER, entity_id: "syn-incomplete" });
-    expect(entry.metadata.engine).toBe("htaf-review-assist-v1");
+    expect(entry.metadata.engine).toBe("htaf-review-assist-v2");
     expect(entry.metadata.checks).toContain("county_not_recognized");
     const audit = JSON.stringify(mockClient._state.audit_logs);
     for (const value of PII) expect(audit).not.toContain(value);
@@ -253,7 +253,7 @@ describe("turned on (synthetic data)", () => {
     expect(ok.status).toBe(200);
     await settle();
     const entry = mockClient._state.audit_logs.find((a) => a.action === "htaf_review_assist_feedback");
-    expect(entry.metadata).toEqual({ engine: "htaf-review-assist-v1", check: "county_not_recognized", verdict: "incorrect" });
+    expect(entry.metadata).toEqual({ engine: "htaf-review-assist-v2", check: "county_not_recognized", verdict: "incorrect", reason: null });
     expect(JSON.stringify(mockClient._state.audit_logs)).not.toContain("Ivy");
     expect((await feedback("syn-incomplete", { check_id: "approve_now", verdict: "incorrect" })).status).toBe(400);
     expect((await feedback("syn-incomplete", { check_id: "missing_name", verdict: "approve" })).status).toBe(400);
@@ -300,5 +300,84 @@ describe("unauthorized access attempts", () => {
   test("a rider-style token is not an admin credential", async () => {
     const res = await request(app).post("/api/admin/foundation/applications/syn-complete/review-assist").set("Authorization", "Bearer not-an-admin").send({});
     expect(res.status).toBe(401);
+  });
+});
+
+describe("v2 hardening: authorization, data boundary, flag, corrections", () => {
+  beforeEach(() => {
+    mockClient = createFakeSupabase(seed({ enabled: true }));
+  });
+
+  test("the database read selects only the rule fields (never income, household size, notes)", async () => {
+    await run("syn-complete");
+    const reads = mockClient._log.filter((e) => e.table === "htaf_applications" && e.op === "select");
+    const main = reads.find((e) => e.columns && e.columns.includes("transportation_need"));
+    expect(main.columns.sort()).toEqual(
+      ["id", "first_name", "last_name", "email", "phone", "county", "pickup_city", "destination", "ride_date", "transportation_need", "program_type", "applicant_type", "status", "submitted_at", "created_at"].sort()
+    );
+    for (const r of reads) {
+      expect(r.columns).toBeTruthy();
+      for (const banned of ["monthly_income", "household_size", "notes", "review_notes", "*"]) expect(r.columns).not.toContain(banned);
+    }
+  });
+
+  test("duplicate check: phone matched across stored formats, current application excluded, bounded", async () => {
+    const { review } = (await run("syn-complete")).body;
+    const dup = review.checks.find((c) => c.id === "possible_duplicate");
+    expect(dup.related.map((x) => x.application_code)).toEqual(["HTAF-20261012-SYN003"]);
+    expect(dup.message).toMatch(/not a reason to deny/);
+  });
+
+  test("changing the application ID: authorised staff get only that application's review; unknown IDs 404", async () => {
+    const a = (await run("syn-complete")).body.review;
+    const b = (await run("syn-incomplete")).body.review;
+    expect(a.summary).not.toEqual(b.summary);
+    expect((await run("syn-nonexistent")).status).toBe(404);
+    expect((await run("syn-complete", DISPATCHER)).status).toBe(403);
+    expect((await run("syn-incomplete", DISPATCHER)).status).toBe(403);
+  });
+
+  test("the HTAF_RBAC_ENFORCED emergency rollback does not open these routes", async () => {
+    process.env.HTAF_RBAC_ENFORCED = "false";
+    let looseApp;
+    jest.isolateModules(() => {
+      // eslint-disable-next-line global-require
+      ({ app: looseApp } = require("../server"));
+    });
+    delete process.env.HTAF_RBAC_ENFORCED;
+    for (const path of ["/review-assist", "/review-assist/feedback"]) {
+      const res = await request(looseApp).post(`/api/admin/foundation/applications/syn-complete${path}`).set("Cookie", session(DISPATCHER)).send({ check_id: "missing_name", verdict: "incorrect" });
+      expect(res.status).toBe(403);
+    }
+  });
+
+  test.each([["missing", null], ["empty", ""], ["TRUE (wrong case)", "TRUE"], ["yes", "yes"], ["1", "1"], ["false", "false"]])("flag %s: off", async (_l, value) => {
+    const state = seed({ enabled: false });
+    if (value !== null) state.system_flags.push({ key: "htaf_review_assist_enabled", value });
+    mockClient = createFakeSupabase(state);
+    expect((await run("syn-complete")).status).toBe(403);
+  });
+
+  test("flag: a database error reading it keeps the assistant off", async () => {
+    mockClient = createFakeSupabase(seed({ enabled: true }), { failSelect: (table) => (table === "system_flags" ? { code: "XX000", message: "db down" } : null) });
+    expect((await run("syn-complete")).status).toBe(403);
+  });
+
+  test("corrections: fixed reason codes only, application must exist, no applicant facts or suggestion text stored", async () => {
+    const ok = await feedback("syn-incomplete", { check_id: "county_not_recognized", verdict: "incorrect", reason: "county_is_valid", note: "Ivy lives in Davidson" });
+    expect(ok.status).toBe(200);
+    await settle();
+    const entry = mockClient._state.audit_logs.find((a) => a.action === "htaf_review_assist_feedback");
+    expect(entry.metadata).toEqual({ engine: "htaf-review-assist-v2", check: "county_not_recognized", verdict: "incorrect", reason: "county_is_valid" });
+    const audit = JSON.stringify(mockClient._state.audit_logs);
+    expect(audit).not.toMatch(/Ivy|Davidsn|misspelled/);
+    expect((await feedback("syn-incomplete", { check_id: "county_not_recognized", verdict: "incorrect", reason: "Ivy lives here" })).status).toBe(400);
+    expect((await feedback("does-not-exist", { check_id: "missing_name", verdict: "incorrect" })).status).toBe(404);
+  });
+
+  test("corrections by unauthorised roles are refused", async () => {
+    expect((await feedback("syn-complete", { check_id: "missing_name", verdict: "incorrect" }, DISPATCHER)).status).toBe(403);
+    expect((await feedback("syn-complete", { check_id: "missing_name", verdict: "incorrect" }, VOLUNTEER)).status).toBe(403);
+    expect((await request(app).post("/api/admin/foundation/applications/syn-complete/review-assist/feedback").send({ check_id: "missing_name", verdict: "incorrect" })).status).toBe(401);
   });
 });

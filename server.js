@@ -11,6 +11,7 @@
 "use strict";
 
 const express = require("express");
+const { rideUpdateForStripeEvent } = require("./lib/stripeWebhookTransitions");
 
 const cors = require("cors");
 
@@ -3006,7 +3007,9 @@ async function logAdminRbacShadowCheck(req, route, capability) {
 //
 // Every decision is recorded in admin_rbac_shadow_log (identity, route,
 // capability, role, allow/deny) -- never any application content.
-function requireHtafCapability(route, capability) {
+// alwaysEnforce: ignore the HTAF_RBAC_ENFORCED emergency rollback (used by
+// routes that never existed under the old shadow-only model).
+function requireHtafCapability(route, capability, { alwaysEnforce = false } = {}) {
   return asyncRoute(async (req, res, next) => {
     const { role, source } = await resolveAdminRoleForRequest(req);
     const allowed = computeShadowWouldAllow(role, capability);
@@ -3025,7 +3028,7 @@ function requireHtafCapability(route, capability) {
       )
     ).catch(() => {});
 
-    if (allowed || !HTAF_RBAC_ENFORCED) {
+    if (allowed || (!HTAF_RBAC_ENFORCED && !alwaysEnforce)) {
       return next();
     }
 
@@ -6197,32 +6200,50 @@ const htafReviewAssist = require("./lib/htafReviewAssist");
 const HTAF_REVIEW_ASSIST_COLUMNS =
   "id, first_name, last_name, email, phone, county, pickup_city, destination, ride_date, transportation_need, program_type, applicant_type, status, submitted_at, created_at";
 
+// On only when the flag is exactly "true". Missing, any other value, or a
+// database error (getSystemFlag falls back to "false") keeps it off.
 async function htafReviewAssistEnabled() {
   return (await getSystemFlag("htaf_review_assist_enabled", "false")) === "true";
 }
 
 // Other applications with the same email or phone (for the duplicate
-// check). Returns codes, statuses and dates only.
+// check). Email is matched lower-cased (as stored by cleanEmail); phone by
+// its last 10 digits in every stored form (5551234567, 15551234567,
+// +15551234567). Both columns are indexed (email: htaf_applications_email_idx;
+// phone: migration 20261014020000). The current application is excluded and
+// at most 5 matches are returned: codes, statuses and dates only.
+function htafPhoneVariants(phone) {
+  const digits = String(phone || "").replace(/\D/g, "");
+  if (digits.length < 10) return [];
+  const last10 = digits.slice(-10);
+  return [last10, `1${last10}`, `+1${last10}`];
+}
+
 async function findRelatedHtafApplications(application) {
   const related = new Map();
-  for (const [column, value] of [["email", application.email], ["phone", application.phone]]) {
-    if (!value) continue;
+  const email = String(application.email || "").trim().toLowerCase();
+  const probes = [];
+  if (email) probes.push(["email", [email]]);
+  const phones = htafPhoneVariants(application.phone);
+  if (phones.length) probes.push(["phone", phones]);
+  for (const [column, values] of probes) {
     const { data, error } = await supabase
       .from("htaf_applications")
       .select("id, application_code, status, submitted_at, created_at")
-      .eq(column, value)
+      .in(column, values)
       .neq("id", application.id)
+      .order("submitted_at", { ascending: false })
       .limit(5);
     if (error) throw error;
     for (const row of data || []) related.set(row.id, row);
   }
-  return [...related.values()];
+  return [...related.values()].slice(0, 5);
 }
 
 app.post(
   "/api/admin/foundation/applications/:id/review-assist",
   requireAdmin,
-  requireHtafCapability("POST /api/admin/foundation/applications/:id/review-assist", "htaf.applications.triage"),
+  requireHtafCapability("POST /api/admin/foundation/applications/:id/review-assist", "htaf.applications.triage", { alwaysEnforce: true }),
   rateLimit({ windowMs: 60_000, max: 30, keyPrefix: "htaf_review_assist" }),
   asyncRoute(async (req, res) => {
     const id = cleanString(req.params.id, 80);
@@ -6267,28 +6288,44 @@ app.post(
 // Staff mark a suggestion as helpful or wrong. Fixed choices only, no free
 // text, so no applicant details can end up here.
 const HTAF_REVIEW_FEEDBACK = new Set(["helpful", "incorrect", "not_needed"]);
+// Why a suggestion was wrong or not needed (optional, fixed codes).
+const HTAF_REVIEW_FEEDBACK_REASONS = new Set([
+  "information_is_present",
+  "county_is_valid",
+  "date_is_correct",
+  "not_a_duplicate",
+  "already_resolved",
+  "not_relevant"
+]);
 
 app.post(
   "/api/admin/foundation/applications/:id/review-assist/feedback",
   requireAdmin,
-  requireHtafCapability("POST /api/admin/foundation/applications/:id/review-assist/feedback", "htaf.applications.triage"),
+  requireHtafCapability("POST /api/admin/foundation/applications/:id/review-assist/feedback", "htaf.applications.triage", { alwaysEnforce: true }),
   rateLimit({ windowMs: 60_000, max: 60, keyPrefix: "htaf_review_assist_feedback" }),
   asyncRoute(async (req, res) => {
     if (!(await htafReviewAssistEnabled())) return fail(res, "The HTAF review assistant is turned off.", 403);
     const id = cleanString(req.params.id, 80);
     const check = cleanString(req.body && req.body.check_id, 60);
     const verdict = cleanString(req.body && req.body.verdict, 20);
+    const reason = cleanString(req.body && req.body.reason, 40) || null;
     if (!Object.prototype.hasOwnProperty.call(htafReviewAssist.CHECKS, check) && check !== "summary") {
       return fail(res, "Unknown suggestion.", 400);
     }
     if (!HTAF_REVIEW_FEEDBACK.has(verdict)) return fail(res, "Unknown feedback.", 400);
+    if (reason && !HTAF_REVIEW_FEEDBACK_REASONS.has(reason)) return fail(res, "Unknown reason.", 400);
+    const { data: exists, error } = await supabase.from("htaf_applications").select("id").eq("id", id).maybeSingle();
+    if (error) throw error;
+    if (!exists) return fail(res, "Application not found.", 404);
+    // Identifiers and fixed codes only: never the suggestion text or any
+    // applicant detail.
     await auditLog({
       actor_type: "admin",
       actor_id: req.admin.email,
       action: "htaf_review_assist_feedback",
       entity_type: "htaf_application",
       entity_id: id,
-      metadata: { engine: htafReviewAssist.ENGINE, check, verdict },
+      metadata: { engine: htafReviewAssist.ENGINE, check, verdict, reason },
       req
     });
     return ok(res, { recorded: true });
@@ -23531,125 +23568,79 @@ app.post(
     }
 
     const object =
-
       event.data?.object || {};
 
-    if (
-
-      event.type ===
-
-      "payment_intent.succeeded"
-
-    ) {
-
-      await supabase
-
+    // Forward-only transitions (lib/stripeWebhookTransitions.js): duplicate,
+    // late and out-of-order deliveries never move a ride backwards,
+    // overwrite a cancellation or undo a capture.
+    //
+    // Concurrency: each write is a compare-and-swap -- the UPDATE only
+    // matches if BOTH the ride status and the payment status are still the
+    // values the decision was based on (Postgres re-checks the WHERE clause
+    // on the locked row). If another webhook or request changed the ride in
+    // between, nothing is written; the ride is re-read and the decision
+    // made again (up to 3 times). If it still can't be applied, the request
+    // fails with 500 so Stripe redelivers it later -- nothing is lost and
+    // nothing is overwritten.
+    if (object.id && String(event.type || "").startsWith("payment_intent.")) {
+      const { data: rides, error: readError } = await supabase
         .from("rides")
-
-        .update({
-
-          payment_status:
-
-            "succeeded",
-
-          payment_captured:
-
-            true,
-
-          updated_at:
-
-            nowIso()
-
-        })
-
-        .eq(
-
-          "payment_id",
-
-          object.id
-
-        );
-
-    }
-
-    if (
-
-      event.type ===
-
-      "payment_intent.amount_capturable_updated"
-
-    ) {
-
-      await supabase
-
-        .from("rides")
-
-        .update({
-
-          payment_status:
-
-            "authorized",
-
-          status:
-
-            RIDE_STATUS.PAYMENT_AUTHORIZED,
-
-          updated_at:
-
-            nowIso()
-
-        })
-
-        .eq(
-
-          "payment_id",
-
-          object.id
-
-        );
-
-    }
-
-    if (
-
-      event.type ===
-
-      "payment_intent.payment_failed" ||
-
-      event.type ===
-
-      "payment_intent.canceled"
-
-    ) {
-
-      await supabase
-
-        .from("rides")
-
-        .update({
-
-          payment_status:
-
-            "failed",
-
-          status:
-
-            RIDE_STATUS.FAILED,
-
-          updated_at:
-
-            nowIso()
-
-        })
-
-        .eq(
-
-          "payment_id",
-
-          object.id
-
-        );
-
+        .select("id, status, payment_status")
+        .eq("payment_id", object.id)
+        .limit(5);
+      if (readError) throw readError;
+      for (const first of rides || []) {
+        let ride = first;
+        let settled = false;
+        for (let attempt = 0; attempt < 3 && !settled; attempt += 1) {
+          const { patch, review } = rideUpdateForStripeEvent(event.type, ride);
+          if (review) {
+            auditLog({
+              action: "stripe_webhook_needs_review",
+              entity_type: "ride",
+              entity_id: ride.id,
+              metadata: { event_type: event.type, event_id: event.id, reason: review, ride_status: ride.status, payment_status: ride.payment_status || null }
+            }).catch(() => {});
+          }
+          if (!patch) {
+            settled = true;
+            break;
+          }
+          let update = supabase
+            .from("rides")
+            .update({ ...patch, updated_at: nowIso() })
+            .eq("id", ride.id)
+            .eq("status", ride.status);
+          update = ride.payment_status == null ? update.is("payment_status", null) : update.eq("payment_status", ride.payment_status);
+          const { data: changed, error: updateError } = await update.select("id");
+          if (updateError) throw updateError;
+          if (changed && changed.length) {
+            settled = true;
+            break;
+          }
+          // Lost the race: read the current state and decide again.
+          const { data: fresh, error: freshError } = await supabase
+            .from("rides")
+            .select("id, status, payment_status")
+            .eq("id", ride.id)
+            .maybeSingle();
+          if (freshError) throw freshError;
+          if (!fresh) {
+            settled = true;
+            break;
+          }
+          ride = fresh;
+        }
+        if (!settled) {
+          auditLog({
+            action: "stripe_webhook_retry_requested",
+            entity_type: "ride",
+            entity_id: first.id,
+            metadata: { event_type: event.type, event_id: event.id }
+          }).catch(() => {});
+          return fail(res, "Webhook not applied; please retry.", 500);
+        }
+      }
     }
 
     auditLog({
