@@ -92,15 +92,15 @@ describe("account access and records", () => {
     expect(client._log.filter((e) => e.op !== "select").map((e) => e.table)).toEqual([]);
   });
 
-  test("an unanswered question is logged, redacted, in HTAF's own table only (no Harvey Taxi assistant record, no IP)", async () => {
+  test("an unanswered question is logged as a topic only -- none of the visitor's words -- in HTAF's own table (no Harvey Taxi assistant record, no IP)", async () => {
     const { app, client } = loadApp();
-    const res = await ask(app, "Do you have wheelchair vans? I'm at jane@example.com 615-555-0100");
+    const res = await ask(app, "Mary Jones needs wheelchair vans? I'm at jane@example.com 615-555-0100");
     expect(res.body).toMatchObject({ intent: "knowledge_gap", knowledge_gap: true, gap_logged: true });
     expect(res.body.actions.map((x) => x.href)).toContain("mailto:WillieHtaf@harveytransportationfoundation.com");
     const rows = client._state.htaf_assistant_questions;
     expect(rows).toHaveLength(1);
-    expect(rows[0].question_excerpt).toMatch(/wheelchair vans/);
-    expect(JSON.stringify(rows[0])).not.toMatch(/jane|example\.com|615-555|127\.0\.0\.1|ip/i);
+    expect(rows[0].question_excerpt).toBe("Unanswered question about: accessibility");
+    expect(JSON.stringify(rows[0])).not.toMatch(/Mary|Jones|vans|jane|example\.com|615-555|127\.0\.0\.1|\bip\b/i);
     expect(client._state.audit_logs.filter((r) => String(r.action).startsWith("agent."))).toHaveLength(0);
   });
 
@@ -120,12 +120,12 @@ describe("staff list of unanswered questions", () => {
     expect((await request(app).get("/api/admin/htaf/assistant-questions").set("Cookie", cookie)).status).toBe(401);
   });
 
-  test("an admin sees the redacted questions and the assistant's state", async () => {
+  test("an admin sees the question topics and the assistant's state", async () => {
     const { app } = loadApp();
     await ask(app, "Do you have wheelchair vans?");
     const res = await request(app).get("/api/admin/htaf/assistant-questions").set("x-admin-token", "test-admin-token");
     expect(res.status).toBe(200);
-    expect(res.body.questions[0].question_excerpt).toBe("Do you have wheelchair vans?");
+    expect(res.body.questions[0].question_excerpt).toBe("Unanswered question about: accessibility");
     expect(res.body.assistant).toMatchObject({ enabled: true, dropped_topics: [] });
   });
 });
