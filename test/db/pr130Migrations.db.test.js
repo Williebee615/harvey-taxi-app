@@ -47,6 +47,8 @@ const EXPECTED_ORDER = [
   "20261005130000_htaf_assistant_questions.sql",
   "20261005150000_review_demo.sql",
   "20261013210000_pin_function_search_path.sql",
+  // Covered by test/db/htafPhoneIndex.db.test.js.
+  "20261014030000_htaf_applications_phone_idx.sql",
   // Covered by test/db/adminCapabilityGrants.db.test.js.
   "20261014050000_admin_capability_grants.sql"
 ];
