@@ -475,3 +475,18 @@ Most other actions store the IP and user agent. `notification_logs`, `trip_event
 - After the owner configures Stripe: verify signed delivery, processing and one controlled redelivery.
 
 Nothing else is authorized to merge, deploy, migrate or activate.
+
+## 10. Update 2026-10-14 (UTC), later: assistant pilot
+- **[Owner decision 2026-10-14]** "Approved" → merge #244. **[Verified]** Merged as `44ec21b`; production `/api/health` reported `version: 44ec21b` at 11:52 UTC.
+- **[Owner decision 2026-10-14]** "Activate" → read as the quote-only pilot (no external processing) for both organizations. **[Verified 11:53 UTC]** `assistant_pilot_harvey_taxi_enabled` and `assistant_pilot_htaf_enabled` are set to `true` in `system_flags`.
+- **[Verified 2026-10-14, Harvey Taxi domain, synthetic questions]**
+  - A supported question gets a quoted answer (`extractive`) with sources on harveytaxiservice.com and their versions, plus 3 follow-ups.
+  - A private-record question gets the `boundary` answer and the support link.
+  - A request naming HTAF gets 403.
+  - SSE streaming sends the events meta, delta, sources, followups and done.
+- **[Unverified]** The HTAF domain can't be reached from this environment. It is enabled by the same flag mechanism but has not been checked live.
+- **Still off:**
+  - **Model mode:** no `assistant_pilot_*_model_enabled` flags; `ASSISTANT_PILOT_MODEL_APPROVED` not set; migration `20261014070000` not applied.
+  - The HTAF and driver review assistants.
+- **Not linked:** `/assistant-pilot.html` isn't linked from any page.
+- **Rollback:** set either flag to `false`; it takes effect on the next request.
