@@ -12,6 +12,7 @@
 
 const express = require("express");
 const { rideUpdateForStripeEvent } = require("./lib/stripeWebhookTransitions");
+const { serverErrorEntry, errorCode: logErrorCode } = require("./lib/safeLog");
 
 const cors = require("cors");
 
@@ -2854,19 +2855,9 @@ async function auditLog({
 
         "⚠️ Audit log skipped:",
 
-        {
-
-          action,
-
-          message: error.message,
-
-          code: error.code,
-
-          details: error.details,
-
-          hint: error.hint
-
-        }
+        // Allowlisted fields only: Postgres message/details/hint can echo
+        // the values being written.
+        { action, error_code: logErrorCode(error) }
 
       );
 
@@ -26925,62 +26916,23 @@ app.use(
 
       "❌ SERVER ERROR:",
 
+      // Structured, allowlisted fields only (lib/safeLog.js): no raw
+      // message, URL, query string, body or headers. The stack is kept
+      // outside production only.
       {
-
-        message:
-
-          error.message,
-
-        stack:
-
-          IS_PRODUCTION
-
-            ? undefined
-
-            : error.stack,
-
-        path:
-
-          req.originalUrl,
-
-        method:
-
-          req.method
-
+        ...serverErrorEntry(error, req),
+        ...(IS_PRODUCTION ? {} : { stack: error.stack })
       }
-
     );
 
     auditLog({
-
-      action:
-
-        "server_error",
-
-      entity_type:
-
-        "server",
-
+      action: "server_error",
+      entity_type: "server",
       metadata: {
-
-        message:
-
-          error.message,
-
-        path:
-
-          req.originalUrl,
-
-        method:
-
-          req.method,
-
+        ...serverErrorEntry(error, req),
         ...(error.corsDiagnostics || {})
-
-      },
-
-      req
-
+      }
+      // No req: the audit row does not store the client IP or user agent.
     }).catch(() => {});
 
     return fail(

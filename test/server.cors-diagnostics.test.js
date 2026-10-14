@@ -50,7 +50,7 @@ beforeAll(() => {
 function latestCorsAuditRow() {
   const rows = mockSupabaseClient._state.audit_logs || [];
   return rows
-    .filter((row) => row.action === "server_error" && row.metadata && row.metadata.message === "CORS origin blocked")
+    .filter((row) => row.action === "server_error" && row.metadata && row.metadata.error_code === "cors_origin_blocked")
     .pop();
 }
 
@@ -72,8 +72,9 @@ describe("CORS rejection -- sanitized diagnostics reach audit_logs", () => {
     const row = latestCorsAuditRow();
     expect(row).toBeDefined();
     expect(row.metadata).toEqual({
-      message: "CORS origin blocked",
-      path: "/",
+      error_code: "cors_origin_blocked",
+      error_class: "Error",
+      route: "unmatched",
       method: "GET",
       origin_scheme: "https",
       origin_hostname: "evil.example.com",
