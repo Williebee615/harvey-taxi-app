@@ -25,7 +25,7 @@ Rules for every update:
 
 | Item | Status |
 |---|---|
-| `main` | `d6a2cf3` (#237), after `61d673f` (#238) and `2876b8b` (#236) **[Verified 2026-10-14, Git]**. See §9. |
+| `main` | `e496dba` (#235), after `d6a2cf3` (#237), `2876b8b` (#236) and `61d673f` (#238) **[Verified 2026-10-14, Git]**. See §9. |
 | Production web/API (Render, harveytaxiservice.com) | Website files from #224–#227 are live: the changed pages are byte-identical to their merge commits, the last being `5b24bad` (#226) **[Verified 2026-10-13]**. **#221 (`3cd8763`):** **Deployed, owner-confirmed by Render screenshot (2026-10-13)**: Render's deploy list shows `3cd8763` as the current live deploy (auto-deploy, 47.3 s). Production now runs `3cd8763`. Public pages and `/api/health` returned 200 after the merge **[Verified 2026-10-13, about 16:38 UTC]**. |
 | Database | Supabase project `harvey-taxi-app` (`orgahzncmzptljapqffj`). The Pro/Micro upgrade was approved 2026-10-04, but **whether it was applied is [Unresolved]**. The owner is handling the billing decision separately. The staging project `harvey-taxi-staging-pr130` stays intact. |
 
@@ -329,6 +329,7 @@ Key blockers:
 | 1 | #238 Stripe webhook: forward-only, compare-and-swap transitions | `61d673f` | 6/6 on `0431204` | CI run 507 passed |
 | 2 | #236 HTAF review assistant v2 hardening | `2876b8b` | 6/6 on `e536a53` (included `61d673f`) | — |
 | 3 | #237 Remove the unused external OpenAI HTAF triage | `d6a2cf3` | 6/6 on `90ce2f1` (included `2876b8b`) | — |
+| 4 | #235 Driver review assistant (explicit `drivers.onboarding_review` grant) | `e496dba` | 6/6 on `b28e3ea` (included `d6a2cf3`) | — |
 
 **[Owner decision 2026-10-14]** Scope of these merges:
 - #238: merge and deploy once checks pass and review finds no unresolved issues.
@@ -340,6 +341,7 @@ The combined result (main + #238 + #236 + #237) was tested before merging: full 
 - **What was checked:** `admin-htaf.html` on harveytaxiservice.com serves #236's new code (`reviewFeedbackReason` is present). Render deploys the head of `main`, and #236's commit contains #238, so #238's code is also live.
 - **What was not checked:** the exact running commit. It is visible only in a blocked-origin response, which the owner asked not to generate. #237's live status was not separately confirmed.
 - **Health:** `/api/health` reports healthy and the database connected.
+- **#235 [Verified 2026-10-14, about 01:50 UTC]:** `admin-dashboard.html` serves `runDriverReview`, and `POST /api/admin/drivers/:id/review-assist` returns 401 without sign-in. The flag `driver_review_assist_enabled` is not set (off). Migration `20261014050000_admin_capability_grants.sql` is **not applied**, so only the owner can use it once it's on.
 
 ### 9.3 Production verification
 - **#238 [Verified 2026-10-14]:**
@@ -407,13 +409,9 @@ The driver review assistant follows the same procedure with a synthetic driver, 
 
 ### 9.7 Open PRs
 - **#239** (phone index migration file): green, waiting for the owner to merge. The database change is already applied.
-- **#235** (driver review assistant), `b28e3ea`:
-  - rebuilt on hardened `main`;
-  - explicit `drivers.onboarding_review` per-person grant, separate from `drivers.approve`;
-  - grant-table migration `20261014050000` **not applied**;
-  - expiration columns moved to a separate PR.
-
-  Full suite 2,259 passed and database 123 passed. Waiting for CI, then merge per the owner's approval. Activation waits for the smoke test.
+- **#235:** merged as `e496dba` (see §9.1). Activation waits for the synthetic-driver smoke test. The grant-table migration needs owner approval.
+- **#240** (log redaction): redacts query strings and personal data in the global error handler and the audit-failure warning. Full suite 2,227 passed, and both new tests fail without the change. **Not merged; this needs owner approval.**
+- **#239 and #240** may need `main` merged in before they can merge (#239 edits the database migration list).
 
 ### 9.8 Findings and remaining work (owner priority order)
 - **[Unresolved] Logs and personal information:** logs containing URLs and error messages are not automatically free of personal information.
@@ -435,17 +433,17 @@ The driver review assistant follows the same procedure with a synthetic driver, 
 - #238, #236 and #237 merged, with #236 verified live.
 - Phone index built concurrently and tracked.
 - Stripe test-mode validation done.
-- #235 rebuilt with the explicit grant model.
+- #235 rebuilt with the explicit grant model and merged (`e496dba`, live).
+- #240 opened (log redaction).
 
 **Remaining:**
 - Owner merge of #239.
 - Configure the production Stripe webhook secret.
 - The two authenticated smoke tests.
-- #235 merge (approved once checks pass).
-- Log redaction PR; expiration-fields PR; retention policy.
+- Owner approval for #240 and for the grant-table migration.
+- Expiration-fields PR; retention policy; the rest of the log sweep (other `console` calls, Render request logs, existing `server_error` rows).
 
 **Next authorized action:**
-- Merge #235 once its checks pass.
 - After a successful HTAF smoke test, turn `htaf_review_assist_enabled` on.
 - After a successful synthetic-driver smoke test, turn `driver_review_assist_enabled` on.
 
