@@ -12,6 +12,7 @@
 
 const express = require("express");
 const { rideUpdateForStripeEvent } = require("./lib/stripeWebhookTransitions");
+const { serverErrorEntry, errorCode: logErrorCode } = require("./lib/safeLog");
 
 const cors = require("cors");
 
@@ -881,6 +882,8 @@ function isAllowedOrigin(origin) {
 // incident can confirm which build actually produced a given log line
 // without cross-checking Render's dashboard separately.
 const BUILD_SHA = env("RENDER_GIT_COMMIT", null);
+// Short commit for /api/health. Only hex characters are ever exposed.
+const BUILD_VERSION = /^[0-9a-f]{7,40}$/i.test(String(BUILD_SHA || "")) ? String(BUILD_SHA).slice(0, 7).toLowerCase() : "unknown";
 
 app.use((req, res, next) => {
 
@@ -2852,19 +2855,9 @@ async function auditLog({
 
         "⚠️ Audit log skipped:",
 
-        {
-
-          action,
-
-          message: error.message,
-
-          code: error.code,
-
-          details: error.details,
-
-          hint: error.hint
-
-        }
+        // Allowlisted fields only: Postgres message/details/hint can echo
+        // the values being written.
+        { action, error_code: logErrorCode(error) }
 
       );
 
@@ -6147,6 +6140,241 @@ app.post(
       entity_type: "htaf_application",
       entity_id: id,
       metadata: { engine: htafReviewAssist.ENGINE, check, verdict, reason },
+      req
+    });
+    return ok(res, { recorded: true });
+  })
+);
+
+/* =========================================================
+   HARVEY TAXI DRIVER REVIEW ASSISTANT (lib/driverReviewAssist.js,
+   docs/driver-review-assistant.md)
+
+   Internal, rule-based summary of a driver application for Harvey Taxi
+   onboarding staff. Separate from HTAF: its own capability
+   (drivers.onboarding_review: the owner, or an explicit per-person grant),
+   always enforced, and
+   it reads only the drivers table. No AI model, no external provider, no
+   telemetry. Advisory only -- these routes never write to drivers and
+   never approve, reject, activate or suspend anyone. Off until an admin
+   sets the system flag driver_review_assist_enabled to "true" (owner
+   approval required). Suggestions are not stored; the audit log keeps the
+   driver id, rule version and which checks fired.
+========================================================= */
+
+const driverReviewAssist = require("./lib/driverReviewAssist");
+
+const DRIVER_REVIEW_COLUMNS = [
+  "id", "email", "phone", "created_at", "approval_status", "status",
+  "email_verified", "phone_verified", "sms_verified",
+  "persona_status", "identity_status", "persona_verified", "identity_verified", "persona_inquiry_id",
+  "checkr_status", "background_check_status", "checkr_candidate_id",
+  "license_number", "drivers_license_number", "license_status",
+  "vehicle_make", "vehicle_model", "vehicle_year", "vehicle_plate", "license_plate",
+  "insurance_confirmed", "insurance_status",
+  "accepted_terms", "terms_accepted", "accepted_background_check_consent", "background_check_accepted", "accepted_driver_policy"
+];
+// Proposed columns (supabase/migrations/20261014010000_driver_document_expirations.sql,
+// not applied): read when present, skipped when the database doesn't have them yet.
+const DRIVER_EXPIRY_COLUMNS = ["license_expires_on", "insurance_expires_on", "registration_expires_on"];
+
+const DRIVER_REVIEW_CAPABILITY = "drivers.onboarding_review";
+const { ONBOARDING_REVIEW_GRANT_ROLES } = require("./lib/adminRbac");
+
+// Explicit, per-person grant (admin_capability_grants), separate from
+// driver approval authority. Fails closed: a lookup error is "no grant".
+async function hasActiveCapabilityGrant(email, capability) {
+  if (!email) return { granted: false, lookupFailed: false };
+  const { data, error } = await supabase
+    .from("admin_capability_grants")
+    .select("email, capability, revoked_at")
+    .eq("capability", capability)
+    .is("revoked_at", null);
+  if (error) return { granted: false, lookupFailed: true };
+  const target = String(email).trim().toLowerCase();
+  return { granted: (data || []).some((row) => String(row.email || "").trim().toLowerCase() === target), lookupFailed: false };
+}
+
+// Always enforced (HTAF_RBAC_ENFORCED does not apply). Allowed: the owner
+// (super_admin), or a dispatcher/compliance admin who also holds an active
+// drivers.onboarding_review grant. A role alone -- including one with
+// drivers.approve -- is never enough.
+function requireDriverReviewCapability(route) {
+  return asyncRoute(async (req, res, next) => {
+    const { role, source } = await resolveAdminRoleForRequest(req);
+    let allowed = computeShadowWouldAllow(role, DRIVER_REVIEW_CAPABILITY);
+    let grant = "role";
+    if (!allowed && ONBOARDING_REVIEW_GRANT_ROLES.includes(role)) {
+      const result = await hasActiveCapabilityGrant(req.admin && req.admin.email, DRIVER_REVIEW_CAPABILITY);
+      allowed = result.granted;
+      grant = result.lookupFailed ? "grant_lookup_failed" : result.granted ? "explicit_grant" : "no_grant";
+    } else if (!allowed) {
+      grant = "role_not_eligible";
+    }
+    Promise.resolve(
+      supabase.from("admin_rbac_shadow_log").insert(
+        buildShadowLogEntry({ admin: req.admin, route, httpMethod: req.method, capability: DRIVER_REVIEW_CAPABILITY, role, source, wouldAllow: allowed })
+      )
+    ).catch(() => {});
+    if (allowed) return next();
+    auditLog({
+      actor_type: "admin",
+      actor_id: req.admin && req.admin.email ? req.admin.email : null,
+      action: "driver_review_access_denied",
+      entity_type: "route",
+      entity_id: route,
+      metadata: { capability: DRIVER_REVIEW_CAPABILITY, role: role || null, source, grant },
+      req
+    }).catch(() => {});
+    return fail(res, "Driver review requires an onboarding-review permission.", 403);
+  });
+}
+
+async function driverReviewEnabled() {
+  return (await getSystemFlag("driver_review_assist_enabled", "false")) === "true";
+}
+
+async function loadDriverForReview(id) {
+  const withExpiry = await supabase
+    .from("drivers")
+    .select([...DRIVER_REVIEW_COLUMNS, ...DRIVER_EXPIRY_COLUMNS].join(", "))
+    .eq("id", id)
+    .maybeSingle();
+  if (!withExpiry.error) return withExpiry.data;
+  if (withExpiry.error.code !== "42703") throw withExpiry.error;
+  const { data, error } = await supabase.from("drivers").select(DRIVER_REVIEW_COLUMNS.join(", ")).eq("id", id).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+const digitsOnly = (v) => String(v || "").replace(/\D/g, "").slice(-10);
+
+// Other driver accounts sharing an identifier: account id, date, status
+// and which identifier matched -- never the other account's details.
+async function findRelatedDrivers(driver) {
+  const related = new Map();
+  const probes = [
+    ["email", "email", text => text && String(text).trim().toLowerCase()],
+    ["phone", "phone", (v) => (digitsOnly(v).length === 10 ? digitsOnly(v) : null)],
+    ["license", "drivers_license_number", (v) => (v ? String(v).trim() : null)],
+    ["license", "license_number", (v) => (v ? String(v).trim() : null)],
+    ["plate", "vehicle_plate", (v) => (v ? String(v).trim().toUpperCase() : null)],
+    ["plate", "license_plate", (v) => (v ? String(v).trim().toUpperCase() : null)]
+  ];
+  for (const [label, column, norm] of probes) {
+    const value = norm(driver[column]);
+    if (!value) continue;
+    const { data, error } = await supabase
+      .from("drivers")
+      .select(`id, created_at, approval_status, status, ${column}`)
+      .neq("id", driver.id)
+      .ilike(column, column === "phone" ? `%${value}` : value)
+      .limit(5);
+    if (error) throw error;
+    for (const row of data || []) {
+      const entry = related.get(row.id) || { id: row.id, created_at: row.created_at, status: row.approval_status || row.status, matched: [] };
+      if (!entry.matched.includes(label)) entry.matched.push(label);
+      related.set(row.id, entry);
+    }
+  }
+  return [...related.values()];
+}
+
+async function hasStaffComplianceOverride(driverId) {
+  const { data, error } = await supabase
+    .from("audit_logs")
+    .select("id, metadata")
+    .eq("action", "driver_compliance_override")
+    .eq("entity_id", driverId)
+    .limit(20);
+  if (error) return { checkr: false, persona: false };
+  // The override route records the values it set; null means unchanged.
+  const rows = data || [];
+  const set = (key) => rows.some((r) => r.metadata && r.metadata[key] !== null && r.metadata[key] !== undefined);
+  return { checkr: set("checkr_status"), persona: set("persona_verified") };
+}
+
+app.post(
+  "/api/admin/drivers/:id/review-assist",
+  requireAdmin,
+  requireDriverReviewCapability("POST /api/admin/drivers/:id/review-assist"),
+  rateLimit({ windowMs: 60_000, max: 30, keyPrefix: "driver_review_assist" }),
+  asyncRoute(async (req, res) => {
+    const id = cleanString(req.params.id, 120);
+    if (!(await driverReviewEnabled())) {
+      auditLog({
+        actor_type: "admin",
+        actor_id: req.admin.email,
+        action: "driver_review_assist_blocked",
+        entity_type: "driver",
+        entity_id: id,
+        metadata: { reason: "driver_review_assist_enabled is off" },
+        req
+      }).catch(() => {});
+      return fail(res, "The driver review assistant is turned off.", 403);
+    }
+    const driver = await loadDriverForReview(id);
+    if (!driver) return fail(res, "Driver not found.", 404);
+
+    const [related, staffOverrides] = await Promise.all([findRelatedDrivers(driver), hasStaffComplianceOverride(driver.id)]);
+    const review = driverReviewAssist.reviewDriver(driver, {
+      integrations: { persona: Boolean(PERSONA_API_KEY) && ENABLE_PERSONA, checkr: Boolean(CHECKR_API_KEY) && ENABLE_CHECKR },
+      staffOverrides,
+      related
+    });
+
+    auditLog({
+      actor_type: "admin",
+      actor_id: req.admin.email,
+      action: "driver_review_assist_run",
+      entity_type: "driver",
+      entity_id: driver.id,
+      metadata: { engine: review.engine, checks: review.checks.map((c) => c.id) },
+      req
+    }).catch(() => {});
+
+    return ok(res, { review });
+  })
+);
+
+const DRIVER_REVIEW_FEEDBACK = new Set(["helpful", "incorrect", "not_needed"]);
+// Fixed reason codes only: free text could carry applicant details.
+const DRIVER_REVIEW_FEEDBACK_REASONS = new Set([
+  "information_is_present",
+  "verified_elsewhere",
+  "expiration_is_correct",
+  "not_a_duplicate",
+  "already_resolved",
+  "not_relevant"
+]);
+
+app.post(
+  "/api/admin/drivers/:id/review-assist/feedback",
+  requireAdmin,
+  requireDriverReviewCapability("POST /api/admin/drivers/:id/review-assist/feedback"),
+  rateLimit({ windowMs: 60_000, max: 60, keyPrefix: "driver_review_assist_feedback" }),
+  asyncRoute(async (req, res) => {
+    if (!(await driverReviewEnabled())) return fail(res, "The driver review assistant is turned off.", 403);
+    const id = cleanString(req.params.id, 120);
+    const check = cleanString(req.body && req.body.check_id, 60);
+    const verdict = cleanString(req.body && req.body.verdict, 20);
+    const rawReason = req.body && req.body.reason;
+    const reason = rawReason === undefined || rawReason === null || rawReason === "" ? null : cleanString(rawReason, 40);
+    if (!Object.prototype.hasOwnProperty.call(driverReviewAssist.CHECKS, check) && check !== "summary") {
+      return fail(res, "Unknown suggestion.", 400);
+    }
+    if (!DRIVER_REVIEW_FEEDBACK.has(verdict)) return fail(res, "Unknown feedback.", 400);
+    if (reason !== null && !DRIVER_REVIEW_FEEDBACK_REASONS.has(reason)) return fail(res, "Unknown reason.", 400);
+    const { data: driver, error } = await supabase.from("drivers").select("id").eq("id", id).maybeSingle();
+    if (error) throw error;
+    if (!driver) return fail(res, "Driver not found.", 404);
+    await auditLog({
+      actor_type: "admin",
+      actor_id: req.admin.email,
+      action: "driver_review_assist_feedback",
+      entity_type: "driver",
+      entity_id: driver.id,
+      metadata: { engine: driverReviewAssist.ENGINE, check, verdict, reason },
       req
     });
     return ok(res, { recorded: true });
@@ -23469,6 +23697,10 @@ app.get(
             : "degraded",
 
         database,
+        // Minimal deployment identifier: the first 7 characters of the
+        // deployed Git commit (Render's RENDER_GIT_COMMIT), or "unknown".
+        version:
+          BUILD_VERSION,
 
         time:
 
@@ -26684,62 +26916,23 @@ app.use(
 
       "❌ SERVER ERROR:",
 
+      // Structured, allowlisted fields only (lib/safeLog.js): no raw
+      // message, URL, query string, body or headers. The stack is kept
+      // outside production only.
       {
-
-        message:
-
-          error.message,
-
-        stack:
-
-          IS_PRODUCTION
-
-            ? undefined
-
-            : error.stack,
-
-        path:
-
-          req.originalUrl,
-
-        method:
-
-          req.method
-
+        ...serverErrorEntry(error, req),
+        ...(IS_PRODUCTION ? {} : { stack: error.stack })
       }
-
     );
 
     auditLog({
-
-      action:
-
-        "server_error",
-
-      entity_type:
-
-        "server",
-
+      action: "server_error",
+      entity_type: "server",
       metadata: {
-
-        message:
-
-          error.message,
-
-        path:
-
-          req.originalUrl,
-
-        method:
-
-          req.method,
-
+        ...serverErrorEntry(error, req),
         ...(error.corsDiagnostics || {})
-
-      },
-
-      req
-
+      }
+      // No req: the audit row does not store the client IP or user agent.
     }).catch(() => {});
 
     return fail(
