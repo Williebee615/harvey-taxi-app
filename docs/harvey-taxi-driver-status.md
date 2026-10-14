@@ -136,3 +136,12 @@ Still unverified on devices: push notifications and locked-screen tracking. Thes
 - Listing fields.
 
 **Next authorized action:** none. Version 1.0 (13) stays with Apple under manual release; no build, merge, release or production-data change is authorized.
+
+## Update 2026-10-14 (UTC): server-side onboarding review (no app change)
+- **[Verified 2026-10-14]** The driver review assistant (#235, `e496dba`) is live on the server, behind the off flag `driver_review_assist_enabled` (not set). It is staff-facing only; the Driver app is unchanged and no build is needed.
+- **[Verified 2026-10-14]** Access requires `drivers.onboarding_review`:
+  - the owner has it;
+  - a dispatcher or compliance admin needs an explicit grant;
+  - the grant table is applied with 0 grants.
+- **[Unresolved]** Document expiration dates with source and verification status (#243) are not merged, and the migration is not applied.
+- **Next authorized action:** a supervised synthetic-driver smoke test with the owner signed in (`docs/review-assistant-smoke-tests.md`). No app build, upload or release is authorized.
