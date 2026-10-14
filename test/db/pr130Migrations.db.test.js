@@ -50,7 +50,9 @@ const EXPECTED_ORDER = [
   // Covered by test/db/htafPhoneIndex.db.test.js.
   "20261014030000_htaf_applications_phone_idx.sql",
   // Covered by test/db/adminCapabilityGrants.db.test.js.
-  "20261014050000_admin_capability_grants.sql"
+  "20261014050000_admin_capability_grants.sql",
+  // Covered by test/db/agentModelUsage.db.test.js.
+  "20261014070000_agent_model_usage_visitor_role.sql"
 ];
 
 // Synthetic pre-existing row (no production data), inserted after the
