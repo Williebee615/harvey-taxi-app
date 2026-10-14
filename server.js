@@ -882,6 +882,8 @@ function isAllowedOrigin(origin) {
 // incident can confirm which build actually produced a given log line
 // without cross-checking Render's dashboard separately.
 const BUILD_SHA = env("RENDER_GIT_COMMIT", null);
+// Short commit for /api/health. Only hex characters are ever exposed.
+const BUILD_VERSION = /^[0-9a-f]{7,40}$/i.test(String(BUILD_SHA || "")) ? String(BUILD_SHA).slice(0, 7).toLowerCase() : "unknown";
 // Synthetic test records (smoke tests, QA) use the reserved .test domain
 // (RFC 6761), which can never belong to a real person. They are excluded
 // from public totals.
@@ -23699,6 +23701,10 @@ app.get(
             : "degraded",
 
         database,
+        // Minimal deployment identifier: the first 7 characters of the
+        // deployed Git commit (Render's RENDER_GIT_COMMIT), or "unknown".
+        version:
+          BUILD_VERSION,
 
         time:
 
