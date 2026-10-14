@@ -1,6 +1,6 @@
 # Harvey Taxi platform: project status (shared record)
 
-**Last updated: 2026-10-13 (UTC)** by Claude Code (session `session_01NLS9NQfpaLwc6iu7ve7HfQ`).
+**Last updated: 2026-10-14 (UTC)** by Claude Code (session `session_01NLS9NQfpaLwc6iu7ve7HfQ`).
 
 App records: [Harvey Taxi Mobile (rider)](harvey-taxi-mobile-status.md) · [Harvey Taxi Driver](harvey-taxi-driver-status.md).
 
@@ -25,7 +25,7 @@ Rules for every update:
 
 | Item | Status |
 |---|---|
-| `main` | `3cd8763` (#221, offer-time verification recheck) **[Verified 2026-10-13, Git]** |
+| `main` | `d6a2cf3` (#237), after `61d673f` (#238) and `2876b8b` (#236) **[Verified 2026-10-14, Git]**. See §9. |
 | Production web/API (Render, harveytaxiservice.com) | Website files from #224–#227 are live: the changed pages are byte-identical to their merge commits, the last being `5b24bad` (#226) **[Verified 2026-10-13]**. **#221 (`3cd8763`):** **Deployed, owner-confirmed by Render screenshot (2026-10-13)**: Render's deploy list shows `3cd8763` as the current live deploy (auto-deploy, 47.3 s). Production now runs `3cd8763`. Public pages and `/api/health` returned 200 after the merge **[Verified 2026-10-13, about 16:38 UTC]**. |
 | Database | Supabase project `harvey-taxi-app` (`orgahzncmzptljapqffj`). The Pro/Micro upgrade was approved 2026-10-04, but **whether it was applied is [Unresolved]**. The owner is handling the billing decision separately. The staging project `harvey-taxi-staging-pr130` stays intact. |
 
@@ -320,3 +320,133 @@ Key blockers:
 - **[Owner]** Review the 6 HTAF applications still in "submitted" status (the page now shows these counts publicly).
 
 **Next authorized action:** none beyond the 1 November rider iOS build check (scheduled). Harvey Assistant stays rules-only. Nothing else is authorized to merge, deploy, build, upload, submit or change in production data.
+
+## 9. Update 2026-10-14 (UTC): payments, HTAF review assistant, driver review assistant
+
+### 9.1 Merged to `main` (owner-approved order) **[Verified 2026-10-14, Git and CI]**
+| Order | PR | Merge commit | CI on PR head | CI on `main` |
+|---|---|---|---|---|
+| 1 | #238 Stripe webhook: forward-only, compare-and-swap transitions | `61d673f` | 6/6 on `0431204` | CI run 507 passed |
+| 2 | #236 HTAF review assistant v2 hardening | `2876b8b` | 6/6 on `e536a53` (included `61d673f`) | — |
+| 3 | #237 Remove the unused external OpenAI HTAF triage | `d6a2cf3` | 6/6 on `90ce2f1` (included `2876b8b`) | — |
+
+**[Owner decision 2026-10-14]** Scope of these merges:
+- #238: merge and deploy once checks pass and review finds no unresolved issues.
+- #236 then #237: merge in dependency order after checking the combined result against current main.
+
+The combined result (main + #238 + #236 + #237) was tested before merging: full suite 2,212 passed, database 120, isolated card flow 32.
+
+### 9.2 Deployment **[Verified 2026-10-14, about 01:30 UTC, HTTP]**
+- **What was checked:** `admin-htaf.html` on harveytaxiservice.com serves #236's new code (`reviewFeedbackReason` is present). Render deploys the head of `main`, and #236's commit contains #238, so #238's code is also live.
+- **What was not checked:** the exact running commit. It is visible only in a blocked-origin response, which the owner asked not to generate. #237's live status was not separately confirmed.
+- **Health:** `/api/health` reports healthy and the database connected.
+
+### 9.3 Production verification
+- **#238 [Verified 2026-10-14]:**
+  - **Correct behavior in tests:**
+    - signature rejection (missing, wrong secret, altered payload, expired timestamp);
+    - duplicate delivery;
+    - concurrent writers, including a real-Postgres race across two server instances;
+    - recovery after a database failure (500, then a successful redelivery).
+
+    A mutation check confirmed the race test fails without the compare-and-swap.
+  - **Stripe test mode on `main` `61d673f`:** 31 passed, 1 skipped (simulator-only), synthetic data. Used the session's test-only Stripe connection with a temporary local mock that routes the Stripe client through the proxy; the mock was not committed.
+  - **[Unresolved, blocker] Production webhook is not configured:** `POST /api/stripe/webhook` returns **503 "Stripe webhook not configured."** Either `STRIPE_WEBHOOK_SECRET` or `STRIPE_SECRET_KEY` is missing on Render, so production processes no Stripe events. Fixing it is an owner action, and both values are stored only in Render environment settings:
+    1. set `STRIPE_WEBHOOK_SECRET` on Render, from the Stripe Dashboard endpoint's signing secret;
+    2. confirm the endpoint `https://harveytaxiservice.com/api/stripe/webhook` exists in Stripe for the intended mode.
+  - **Evidence scope:** I checked the 20 rides in the production `rides` table; all are `payment_status = not_required`. Current ride records alone do not establish historical Stripe activity. Reconcile against the provider's records before making a broader claim. Only the Stripe **test-mode** account was reachable; live mode was not checked.
+- **#236 / #237 [Verified 2026-10-14]:** unauthenticated `POST` to `review-assist`, `review-assist/feedback` and the removed `triage` path all return 401.
+- **Phone index (#239) [Verified 2026-10-14]:**
+  - **Before:** the table had 6 rows (96 kB); `phone` is text; stored formats were 10-digit and 1+10-digit; the plan was a sequential scan.
+  - **Build:** `CREATE INDEX CONCURRENTLY`. A batch that also set `lock_timeout` was refused as one transaction without effect, so the build ran as a single statement without the timeout.
+  - **Result:** `htaf_applications_phone_idx` is valid and ready (16 kB).
+  - **Tracking:** migration `htaf_applications_phone_idx` applied; `schema_change_outcomes` records `already_present`.
+  - **Plan after:** with sequential scans disabled, an index scan on `phone = ANY(...)`.
+  - **PR #239:** green but **not merged**. The auto-mode safety check classed the merge as a production deploy, so it is waiting for an explicit owner merge.
+
+### 9.4 Feature flags **[Verified 2026-10-14, about 01:30 UTC, `system_flags`]**
+| Flag | Value |
+|---|---|
+| `htaf_assist_enabled` (public HTAF website assistant) | `true` |
+| `agent_assist_enabled` (Harvey Assistant, rules-only) | `true` |
+| `htaf_review_assist_enabled` (HTAF staff review assistant) | `false`, since 2026-10-14 00:32 UTC |
+| `driver_review_assist_enabled` | not set (off) |
+| Support-case triage | not built; stays off pending review **[Owner decision 2026-10-14]** |
+
+### 9.5 Authenticated smoke tests (owner or authorized staff must run them; Claude holds no admin credential)
+**[Owner decision 2026-10-14]**
+- Reactivate the HTAF review assistant once an authenticated production smoke test with a synthetic application confirms:
+  - authorization;
+  - corrections;
+  - audit entries;
+  - an unchanged application status.
+- Activate the driver review assistant after an authenticated synthetic-driver smoke test.
+
+**[Recommendation]** Procedure for the HTAF review assistant:
+1. Claude inserts one synthetic application, clearly labelled, with an `@example.test` email and a 555-01xx phone, and records its id.
+2. Claude sets `htaf_review_assist_enabled = true`. The routes need the flag on to be tested, so this is a short, supervised window.
+3. The owner, signed in to the HTAF admin, runs the Review Assistant on that application. Then the owner marks one suggestion "Wrong" with a reason, and tries one HTAF route from a non-HTAF admin account if one exists.
+4. Claude verifies by SQL:
+   - an audit `htaf_review_assist_run` row for the owner's email;
+   - a `htaf_review_assist_feedback` row with `{engine, check, verdict, reason}` only;
+   - a `htaf_access_denied` row for the non-HTAF attempt;
+   - the application's status unchanged.
+5. If everything passes, the flag stays on (owner pre-approved). If not, Claude sets it back to `false`.
+6. Claude removes the synthetic application (owner to confirm).
+
+The driver review assistant follows the same procedure with a synthetic driver, after #235 is merged. Until the grant-table migration is approved and applied, only the owner can use it.
+
+### 9.6 Rollback
+| Change | Rollback |
+|---|---|
+| #238 | Revert `61d673f`. Not recommended once card payments start; prefer a forward fix. |
+| #236 | Revert `2876b8b`. The assistant is off, so there is no live behavior to roll back. |
+| #237 | Revert `d6a2cf3`. This restores the locked OpenAI triage route, which never ran. |
+| Phone index | `drop index concurrently if exists public.htaf_applications_phone_idx;` The duplicate check works without it. |
+| Flags | Set the flag to `false`; it takes effect on the next request. |
+
+### 9.7 Open PRs
+- **#239** (phone index migration file): green, waiting for the owner to merge. The database change is already applied.
+- **#235** (driver review assistant), `b28e3ea`:
+  - rebuilt on hardened `main`;
+  - explicit `drivers.onboarding_review` per-person grant, separate from `drivers.approve`;
+  - grant-table migration `20261014050000` **not applied**;
+  - expiration columns moved to a separate PR.
+
+  Full suite 2,259 passed and database 123 passed. Waiting for CI, then merge per the owner's approval. Activation waits for the smoke test.
+
+### 9.8 Findings and remaining work (owner priority order)
+- **[Unresolved] Logs and personal information:** logs containing URLs and error messages are not automatically free of personal information.
+  - **Code review, 2026-10-14:** the global error handler writes `req.originalUrl`, **including any query string**, and the raw `error.message` to both the server log and `audit_logs.metadata` (`server_error`).
+  - **Next:** a redaction PR that drops query strings and masks emails and phone numbers in logged messages.
+  - **Not yet reviewed:** request bodies and Render's own hosting logs.
+- **Separate PR:** document expiration fields that preserve source and verification status. Prepare the retention policy before any automatic deletion.
+- **Next, in owner priority order:**
+  1. payment reconciliation and refunds;
+  2. simulated-account isolation;
+  3. reconnect/restart recovery;
+  4. HTAF submission retry protection;
+  5. concurrent-edit protection;
+  6. case history;
+  7. test-application separation.
+
+### 9.9 Session handoff (2026-10-14)
+**Completed:**
+- #238, #236 and #237 merged, with #236 verified live.
+- Phone index built concurrently and tracked.
+- Stripe test-mode validation done.
+- #235 rebuilt with the explicit grant model.
+
+**Remaining:**
+- Owner merge of #239.
+- Configure the production Stripe webhook secret.
+- The two authenticated smoke tests.
+- #235 merge (approved once checks pass).
+- Log redaction PR; expiration-fields PR; retention policy.
+
+**Next authorized action:**
+- Merge #235 once its checks pass.
+- After a successful HTAF smoke test, turn `htaf_review_assist_enabled` on.
+- After a successful synthetic-driver smoke test, turn `driver_review_assist_enabled` on.
+
+Nothing else is authorized to merge, deploy, migrate or activate.
