@@ -3959,6 +3959,7 @@
               <li data-check="${escapeHtml(c.id)}" style="margin-bottom:8px;">
                 <span class="pill">${c.kind === "missing" ? "Missing" : "Check"}</span>
                 ${escapeHtml(c.message)}
+                ${c.possibly ? `<div class="detail-muted">Possibly: ${escapeHtml(c.possibly)} (not changed; staff can correct the application).</div>` : ""}
                 ${c.related ? `<div class="detail-muted">Related: ${c.related.map(x => `${escapeHtml(x.application_code)} (${escapeHtml(x.status)}${x.submitted ? ", " + escapeHtml(x.submitted) : ""})`).join("; ")}</div>` : ""}
                 <div class="review-feedback" style="margin-top:4px;">
                   <button class="btn btn-secondary" type="button" style="padding:4px 10px;min-height:0;font-size:12px;" onclick="reviewFeedback('${escapeHtml(c.id)}','incorrect')">Wrong</button>
@@ -3980,6 +3981,9 @@
           <p class="detail-muted" style="margin-bottom:10px;">${escapeHtml(r.label)}</p>
           <p style="margin-bottom:10px;">${escapeHtml(r.summary)}</p>
           <ul style="margin:0 0 10px 18px;">${checksHtml}</ul>
+          ${(r.staff_checks || []).length ? `
+            <p class="detail-muted" style="margin-bottom:6px;">Always for staff to decide (coverage alone does not confirm these):</p>
+            <ul style="margin:0 0 10px 18px;">${r.staff_checks.map(c => `<li>${escapeHtml(c.text)}</li>`).join("")}</ul>` : ""}
           ${questionsHtml ? `
             <p class="detail-muted" style="margin-bottom:6px;">Suggested follow-up questions. Nothing is sent to the applicant; tick any you want to copy into your notes.</p>
             <ul style="list-style:none;margin:0 0 10px 0;padding:0;">${questionsHtml}</ul>
@@ -4013,7 +4017,7 @@
         try {
           await apiRequest(
             `/api/admin/foundation/applications/${encodeURIComponent(selectedApplication.id)}/review-assist/feedback`,
-            { method: "POST", body: JSON.stringify({ check_id: checkId, verdict }) }
+            { method: "POST", body: JSON.stringify({ check_id: checkId, verdict, reason: reviewFeedbackReason(checkId, verdict) }) }
           );
         } catch (error) {
           console.error(error);
@@ -4021,6 +4025,16 @@
         // Staff disregard the suggestion either way: it disappears from view.
         lastTriage = { ...lastTriage, checks: lastTriage.checks.filter(c => c.id !== checkId), follow_up_questions: lastTriage.follow_up_questions.filter(q => q.id !== checkId) };
         renderTriagePanel();
+      }
+
+      // A fixed reason code for a correction -- never free text.
+      function reviewFeedbackReason(checkId, verdict) {
+        if (verdict !== "incorrect") return "not_relevant";
+        if (checkId === "county_not_recognized") return "county_is_valid";
+        if (checkId === "possible_duplicate") return "not_a_duplicate";
+        if (checkId.startsWith("ride_date")) return "date_is_correct";
+        if (checkId.startsWith("missing") || checkId.startsWith("need") || checkId === "program_unspecified") return "information_is_present";
+        return "not_relevant";
       }
 
       function copyReviewQuestionsToNotes() {

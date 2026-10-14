@@ -46,7 +46,8 @@ const EXPECTED_ORDER = [
   "20261005120000_htaf_sms_consents.sql",
   "20261005130000_htaf_assistant_questions.sql",
   "20261005150000_review_demo.sql",
-  "20261013210000_pin_function_search_path.sql"
+  "20261013210000_pin_function_search_path.sql",
+  "20261014020000_htaf_applications_phone_idx.sql"
 ];
 
 // Synthetic pre-existing row (no production data), inserted after the
