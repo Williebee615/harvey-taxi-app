@@ -56,6 +56,7 @@ describeIsolated(`card flow in an isolated environment (Stripe: ${STRIPE_MODE})`
       RIDE_QUOTE_SECRET: "isolated-ride-quote-secret",
       ADMIN_API_TOKEN: "isolated-admin-token",
       ENABLE_PAYMENT_GATE: "true",
+      STRIPE_WEBHOOK_SECRET: "whsec_isolated_webhook_secret",
       STRIPE_SECRET_KEY: KEY_IS_TEST ? TEST_KEY : "sk_test_simulated_not_a_real_key"
     });
 
@@ -65,6 +66,8 @@ describeIsolated(`card flow in an isolated environment (Stripe: ${STRIPE_MODE})`
       await assertStripeTestMode(stripe);
     } else {
       stripe = createStripeSimulator();
+      // Webhook signature verification is pure HMAC: use Stripe's own code.
+      if (!stripe.webhooks) stripe.webhooks = new (jest.requireActual("stripe"))("sk_test_signing_only").webhooks;
       jest.doMock("stripe", () => function StripeSimulator() {
         return stripe;
       });
@@ -318,6 +321,63 @@ describeIsolated(`card flow in an isolated environment (Stripe: ${STRIPE_MODE})`
       expect(Number((await q("select count(*) from public.payments where id = $1", [pi.id]))[0].count)).toBe(1);
     }
   });
+  // ---- Stripe webhook atomicity (#238): real Postgres row locking. ----
+
+  const signingStripe = new (jest.requireActual("stripe"))("sk_test_signing_only");
+  function webhook(server, type, piId, eventId) {
+    const payload = JSON.stringify({ id: eventId, object: "event", type, data: { object: { id: piId, object: "payment_intent" } } });
+    const header = signingStripe.webhooks.generateTestHeaderString({ payload, secret: "whsec_isolated_webhook_secret" });
+    return request(server).post("/api/stripe/webhook").set("Content-Type", "application/json").set("stripe-signature", header).send(payload);
+  }
+
+  test("concurrent conflicting webhooks from two server instances never overwrite a closed ride", async () => {
+    // Every serial order of 'authorized' and 'canceled' on an unpaid ride
+    // ends failed/failed: canceled-first closes the ride and the later
+    // authorization is only flagged; authorized-first is then cancelled
+    // before assignment. A lost update (a stale 'authorize' landing after
+    // the cancel) would leave payment_authorized/authorized.
+    let app2;
+    jest.isolateModules(() => {
+      ({ app: app2 } = require("../server"));
+    });
+    await q("create table if not exists public.test_ride_transitions (ride_id text, old_status text, new_status text, old_payment text, new_payment text, at timestamptz default clock_timestamp())");
+    await q(`create or replace function public.test_record_ride_transition() returns trigger language plpgsql security definer set search_path = public as $$ begin
+      insert into public.test_ride_transitions(ride_id, old_status, new_status, old_payment, new_payment) values (new.id, old.status, new.status, old.payment_status, new.payment_status);
+      return new; end $$`);
+    await q("drop trigger if exists test_record_ride_transition on public.rides");
+    await q("create trigger test_record_ride_transition after update on public.rides for each row execute function public.test_record_ride_transition()");
+    try {
+      for (let run = 0; run < 5; run++) {
+        await reset([ride({ payment_status: null })]);
+        await q("truncate public.test_ride_transitions");
+        const piId = `pi_isolated_race_${run}`;
+        await q("insert into public.payments (id, rider_id, ride_id, status) values ($1, 'RIDER_1', 'RIDE_1', 'authorized')", [piId]);
+        await q("update public.rides set payment_id = $1 where id = 'RIDE_1'", [piId]);
+
+        const sends = [];
+        for (let i = 0; i < 4; i++) {
+          sends.push(webhook(i % 2 ? app2 : app, "payment_intent.amount_capturable_updated", piId, `evt_auth_${run}_${i}`));
+          sends.push(webhook(i % 2 ? app : app2, "payment_intent.canceled", piId, `evt_cancel_${run}_${i}`));
+        }
+        const results = await Promise.all(sends);
+        // 200, or 500 asking Stripe to redeliver; never a signature or input error.
+        expect(results.every((r) => [200, 500].includes(r.status))).toBe(true);
+
+        const row = await rideRow();
+        expect({ run, status: row.status, payment_status: row.payment_status }).toEqual({ run, status: "failed", payment_status: "failed" });
+        // Nothing ever moved the ride out of 'failed' once it got there.
+        const reopened = await q("select * from public.test_ride_transitions where old_status = 'failed' and new_status <> 'failed'");
+        expect(reopened).toEqual([]);
+        // Every write was based on the state it replaced (no stale write).
+        const transitions = await q("select old_status, new_status from public.test_ride_transitions order by at");
+        for (let i = 1; i < transitions.length; i++) expect(transitions[i].old_status).toBe(transitions[i - 1].new_status);
+      }
+    } finally {
+      await q("drop trigger if exists test_record_ride_transition on public.rides");
+      await q("drop table if exists public.test_ride_transitions");
+    }
+  });
+
   // ---- Untracked-hold fix: persist before returning the client secret,
   // cancel or alert on failure, Stripe-side reconciliation. ----
 

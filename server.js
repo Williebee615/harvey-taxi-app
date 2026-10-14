@@ -23346,9 +23346,16 @@ app.post(
 
     // Forward-only transitions (lib/stripeWebhookTransitions.js): duplicate,
     // late and out-of-order deliveries never move a ride backwards,
-    // overwrite a cancellation or undo a capture. Each update is
-    // conditional on the status read, so a concurrent change wins and the
-    // event is simply not applied.
+    // overwrite a cancellation or undo a capture.
+    //
+    // Concurrency: each write is a compare-and-swap -- the UPDATE only
+    // matches if BOTH the ride status and the payment status are still the
+    // values the decision was based on (Postgres re-checks the WHERE clause
+    // on the locked row). If another webhook or request changed the ride in
+    // between, nothing is written; the ride is re-read and the decision
+    // made again (up to 3 times). If it still can't be applied, the request
+    // fails with 500 so Stripe redelivers it later -- nothing is lost and
+    // nothing is overwritten.
     if (object.id && String(event.type || "").startsWith("payment_intent.")) {
       const { data: rides, error: readError } = await supabase
         .from("rides")
@@ -23356,23 +23363,56 @@ app.post(
         .eq("payment_id", object.id)
         .limit(5);
       if (readError) throw readError;
-      for (const ride of rides || []) {
-        const { patch, review } = rideUpdateForStripeEvent(event.type, ride);
-        if (patch) {
-          const { error: updateError } = await supabase
+      for (const first of rides || []) {
+        let ride = first;
+        let settled = false;
+        for (let attempt = 0; attempt < 3 && !settled; attempt += 1) {
+          const { patch, review } = rideUpdateForStripeEvent(event.type, ride);
+          if (review) {
+            auditLog({
+              action: "stripe_webhook_needs_review",
+              entity_type: "ride",
+              entity_id: ride.id,
+              metadata: { event_type: event.type, event_id: event.id, reason: review, ride_status: ride.status, payment_status: ride.payment_status || null }
+            }).catch(() => {});
+          }
+          if (!patch) {
+            settled = true;
+            break;
+          }
+          let update = supabase
             .from("rides")
             .update({ ...patch, updated_at: nowIso() })
             .eq("id", ride.id)
             .eq("status", ride.status);
+          update = ride.payment_status == null ? update.is("payment_status", null) : update.eq("payment_status", ride.payment_status);
+          const { data: changed, error: updateError } = await update.select("id");
           if (updateError) throw updateError;
+          if (changed && changed.length) {
+            settled = true;
+            break;
+          }
+          // Lost the race: read the current state and decide again.
+          const { data: fresh, error: freshError } = await supabase
+            .from("rides")
+            .select("id, status, payment_status")
+            .eq("id", ride.id)
+            .maybeSingle();
+          if (freshError) throw freshError;
+          if (!fresh) {
+            settled = true;
+            break;
+          }
+          ride = fresh;
         }
-        if (review) {
+        if (!settled) {
           auditLog({
-            action: "stripe_webhook_needs_review",
+            action: "stripe_webhook_retry_requested",
             entity_type: "ride",
-            entity_id: ride.id,
-            metadata: { event_type: event.type, event_id: event.id, reason: review, ride_status: ride.status, payment_status: ride.payment_status || null }
+            entity_id: first.id,
+            metadata: { event_type: event.type, event_id: event.id }
           }).catch(() => {});
+          return fail(res, "Webhook not applied; please retry.", 500);
         }
       }
     }
