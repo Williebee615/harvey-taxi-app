@@ -2,6 +2,8 @@
 
 **Status:** **[Recommendation, 2026-10-14]** A draft for owner and counsel review. Nothing here is in force. **No automatic deletion is implemented** for any category below, and none will be until the owner approves this policy and any legal hold or preservation requirement has been checked.
 
+**Assistant records:** the owner's own draft, `docs/assistant-data-retention-policy.md` (PR #244), governs assistant-related categories. Where the two differ, that draft wins.
+
 **Applies to:** Harvey Taxi Service LLC and the Harvey Transportation Assistance Foundation (HTAF). The two organizations' records are listed separately and must not be merged.
 
 ## 1. Principles
@@ -13,11 +15,11 @@
 ## 2. Categories and proposed periods (for review)
 | Category | Where | Proposed period | Notes / open questions |
 |---|---|---|---|
-| Server error audit rows (`audit_logs` `server_error`) | Supabase | 90 days | 832 historical rows (2026-07-04 → 2026-10-13) hold raw messages, full paths (521 with query strings) and IP and user agent. **Recommendation:** after review, either redact those fields in place or delete rows older than 90 days. See §3. |
+| Server error audit rows (`audit_logs` `server_error`) | Supabase | 90 days (matches the owner's draft for technical error logs) | 832 historical rows (2026-07-04 → 2026-10-13) hold raw messages, full paths (521 with query strings) and IP and user agent. **Recommendation:** after review, either redact those fields in place or delete rows older than 90 days. See §3. |
 | Operational audit rows (logins, ride events, approvals) | `audit_logs` | 2 years | Needed for disputes and safety. IP and user agent are proposed to be cleared after 90 days. |
 | Review-assistant audit rows (HTAF and driver) | `audit_logs` | 12 months | Identifiers only; already proposed in the assistant docs. |
 | RBAC decision log | `admin_rbac_shadow_log` | 12 months | Staff emails and routes only. |
-| HTAF unanswered-question log | `htaf_assistant_questions` | 6 months | Topic labels only since #234. |
+| HTAF unanswered-question log | `htaf_assistant_questions` | 90 days (owner's assistant policy draft) | Topic labels only since #234. |
 | Driver document expiration records | `driver_document_records` | Life of the driver account + 3 years | Insurance and licensing evidence may be needed for claims. **Counsel to confirm.** |
 | Driver onboarding records | `drivers` | Life of the account + 3 years | **Counsel to confirm** for TN and any airport permit conditions. |
 | Rider accounts | `riders` | Until deletion is requested, plus the legal minimum | The existing deletion-request flow applies. |
