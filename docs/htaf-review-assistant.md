@@ -47,7 +47,7 @@ Staff (HTAF role) clicks "Review Assistant"
 |---|---|
 | Database (Supabase, HTAF's existing database host) | Reads as above. Audit rows hold identifiers only. Nothing is written to the application. |
 | The authorised staff member's browser | The review result. It contains categories, dates, a recognised county name, other applications' codes and statuses, and fixed wording. It does not contain name, contact details, addresses, trip description, income, household size or notes. |
-| Server logs (Render) | Request line (URL with the application id) and, on an error, the error message only. There are no request bodies and no review results. |
+| Server logs (Render) | Logs containing URLs and error messages are not automatically free of personal information. **[Verified 2026-10-14, code review]** For these two routes: the URL carries only the application id, and there is no query string. The request body (a check id, a verdict and a reason code) is not logged. The review result is not logged. **[Unresolved]** An unexpected error is logged with its message by the shared error handler, and a database error message can echo an input value. Render's own request logs, and the logs for the rest of the server, have not yet been reviewed. That review covers query strings, exception details, request bodies and hosting logs, with redaction of sensitive content. It is tracked as a separate item. |
 | AI providers | **None.** The module has no network code (enforced by a test), and the route made no outbound requests in tests. |
 | Telemetry, analytics, error-reporting services | **None configured.** Checked 2026-10-14: no Sentry, Datadog, PostHog, Segment or similar in the server or the HTAF admin page. |
 
@@ -112,7 +112,7 @@ Staff (HTAF role) clicks "Review Assistant"
 3. Approve, edit or decline the privacy-notice sentence in §8 (counsel review).
 4. Remove the unused external OpenAI triage route, or keep it locked.
 5. Coverage: the rules use Tennessee statewide (all 95 counties) as the stated coverage goal, kept separate from funding, transportation availability and eligibility (staff checks).
-6. Apply migration `20261014020000_htaf_applications_phone_idx.sql` (phone index for the duplicate check). It is additive. The check works without it; the index keeps it fast as applications grow.
+6. Phone index for the duplicate check: moved to its own change, built with `CREATE INDEX CONCURRENTLY` and with a recorded outcome. The check works without it.
 
 ## 10. Turning it on and off
 - **On (owner approval):** `insert into system_flags (key, value) values ('htaf_review_assist_enabled','true') on conflict (key) do update set value='true';`
