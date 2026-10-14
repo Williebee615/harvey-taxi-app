@@ -1,6 +1,7 @@
 // Harvey Taxi driver review assistant routes, synthetic drivers only:
-// off by default; Harvey Taxi onboarding staff (dispatcher) and the owner
-// only -- HTAF and other roles refused; never changes a driver; nothing
+// off by default; the owner, or a dispatcher/compliance admin holding an
+// explicit drivers.onboarding_review grant -- a role alone (even with
+// driver approval authority) is refused, as are HTAF and other roles; never changes a driver; nothing
 // sent outside; Persona/Checkr "not configured" when the integrations are
 // unavailable; expired documents; duplicate matches; audit entries without
 // personal data; staff can mark a suggestion wrong.
@@ -85,8 +86,9 @@ const DRIVERS = [
   }
 ];
 
-function seed({ enabled = true } = {}) {
+function seed({ enabled = true, grants = [DISPATCHER] } = {}) {
   return {
+    admin_capability_grants: grants.map((email) => ({ email, capability: "drivers.onboarding_review", revoked_at: null })),
     drivers: DRIVERS.map((d) => ({ ...d })),
     htaf_applications: [{ id: "HTAF-1", first_name: "Private", status: "submitted" }],
     admin_roles: Object.entries(ROLES).map(([role, email]) => ({ email, role })),
@@ -211,7 +213,7 @@ describe("turned on (synthetic drivers)", () => {
   test("staff can mark a suggestion wrong (fixed choices only)", async () => {
     expect((await request(app).post("/api/admin/drivers/DRV-SYN-1/review-assist/feedback").set("Cookie", session(DISPATCHER)).send({ check_id: "possible_duplicate", verdict: "incorrect", note: "Dana is the same person" })).status).toBe(200);
     await settle();
-    expect(mockClient._state.audit_logs.find((a) => a.action === "driver_review_assist_feedback").metadata).toEqual({ engine: "driver-review-assist-v1", check: "possible_duplicate", verdict: "incorrect" });
+    expect(mockClient._state.audit_logs.find((a) => a.action === "driver_review_assist_feedback").metadata).toEqual({ engine: "driver-review-assist-v1", check: "possible_duplicate", verdict: "incorrect", reason: null });
     expect(JSON.stringify(mockClient._state.audit_logs)).not.toContain("Dana");
     expect((await request(app).post("/api/admin/drivers/DRV-SYN-1/review-assist/feedback").set("Cookie", session(DISPATCHER)).send({ check_id: "approve_driver", verdict: "incorrect" })).status).toBe(400);
   });
@@ -236,7 +238,7 @@ describe("unauthorized access attempts", () => {
     async (_label, role) => {
       const res = await run("DRV-SYN-1", ROLES[role]);
       expect(res.status).toBe(403);
-      expect(res.body.error).toBe("Driver review requires a Harvey Taxi onboarding role.");
+      expect(res.body.error).toBe("Driver review requires an onboarding-review permission.");
       expect(mockClient._log.filter((e) => e.table === "drivers" || e.table === "htaf_applications")).toEqual([]);
     }
   );
@@ -244,5 +246,128 @@ describe("unauthorized access attempts", () => {
   test("the driver review routes never read HTAF applications", async () => {
     await run("DRV-SYN-1");
     expect(mockClient._log.filter((e) => e.table === "htaf_applications")).toEqual([]);
+  });
+});
+
+describe("explicit onboarding-review permission (separate from driver approval)", () => {
+  const denied = (res) => res.status === 403 && res.body.error === "Driver review requires an onboarding-review permission.";
+
+  test("a dispatcher with drivers.approve but no grant is refused", async () => {
+    mockClient = createFakeSupabase(seed({ grants: [] }));
+    expect(denied(await run("DRV-SYN-1", DISPATCHER))).toBe(true);
+    await settle();
+    expect(mockClient._state.audit_logs.find((a) => a.action === "driver_review_access_denied").metadata).toMatchObject({ capability: "drivers.onboarding_review", role: "dispatcher", grant: "no_grant" });
+    expect(mockClient._log.filter((e) => e.table === "drivers")).toEqual([]);
+  });
+
+  test("compliance: refused without a grant, allowed with one", async () => {
+    mockClient = createFakeSupabase(seed({ grants: [] }));
+    expect(denied(await run("DRV-SYN-1", ROLES.compliance))).toBe(true);
+    mockClient = createFakeSupabase(seed({ grants: [ROLES.compliance] }));
+    expect((await run("DRV-SYN-1", ROLES.compliance)).status).toBe(200);
+  });
+
+  test("a grant matches the email case-insensitively", async () => {
+    mockClient = createFakeSupabase(seed({ grants: [] }));
+    mockClient._state.admin_capability_grants.push({ email: DISPATCHER.toUpperCase(), capability: "drivers.onboarding_review", revoked_at: null });
+    expect((await run("DRV-SYN-1", DISPATCHER)).status).toBe(200);
+  });
+
+  test("a grant held by an ineligible role (HTAF caseworker, support, finance) is ignored", async () => {
+    mockClient = createFakeSupabase(seed({ grants: [ROLES.htaf_caseworker, ROLES.support, ROLES.finance] }));
+    for (const role of ["htaf_caseworker", "support", "finance"]) {
+      expect(denied(await run("DRV-SYN-1", ROLES[role]))).toBe(true);
+    }
+    expect(mockClient._log.filter((e) => e.table === "drivers" || e.table === "htaf_applications")).toEqual([]);
+  });
+
+  test("a revoked grant is refused", async () => {
+    mockClient = createFakeSupabase(seed({ grants: [] }));
+    mockClient._state.admin_capability_grants.push({ email: DISPATCHER, capability: "drivers.onboarding_review", revoked_at: "2026-10-01T00:00:00Z" });
+    expect(denied(await run("DRV-SYN-1", DISPATCHER))).toBe(true);
+  });
+
+  test("a grant for a different capability does not count", async () => {
+    mockClient = createFakeSupabase(seed({ grants: [] }));
+    mockClient._state.admin_capability_grants.push({ email: DISPATCHER, capability: "something.else", revoked_at: null });
+    expect(denied(await run("DRV-SYN-1", DISPATCHER))).toBe(true);
+  });
+
+  test("grant lookup failure: staff refused (fails closed), the owner still works", async () => {
+    mockClient = createFakeSupabase(seed(), { failSelect: (table) => (table === "admin_capability_grants" ? { code: "XX000", message: "db down" } : null) });
+    expect(denied(await run("DRV-SYN-1", DISPATCHER))).toBe(true);
+    await settle();
+    expect(mockClient._state.audit_logs.find((a) => a.action === "driver_review_access_denied").metadata.grant).toBe("grant_lookup_failed");
+    expect((await request(app).post("/api/admin/drivers/DRV-SYN-1/review-assist").set("x-admin-token", "test-admin-token").send({})).status).toBe(200);
+  });
+
+  test("HTAF_RBAC_ENFORCED=false (emergency rollback) does not relax it", async () => {
+    let rollbackApp;
+    process.env.HTAF_RBAC_ENFORCED = "false";
+    try {
+      jest.isolateModules(() => {
+        // eslint-disable-next-line global-require
+        ({ app: rollbackApp } = require("../server"));
+      });
+    } finally {
+      delete process.env.HTAF_RBAC_ENFORCED;
+    }
+    mockClient = createFakeSupabase(seed({ grants: [] }));
+    for (const email of [DISPATCHER, ROLES.compliance, ROLES.htaf_caseworker]) {
+      const res = await request(rollbackApp).post("/api/admin/drivers/DRV-SYN-1/review-assist").set("Cookie", session(email)).send({});
+      expect(res.status).toBe(403);
+      const fb = await request(rollbackApp).post("/api/admin/drivers/DRV-SYN-1/review-assist/feedback").set("Cookie", session(email)).send({ check_id: "summary", verdict: "helpful" });
+      expect(fb.status).toBe(403);
+    }
+  });
+
+  test("lib/adminRbac grants drivers.onboarding_review to no role except super_admin", () => {
+    // eslint-disable-next-line global-require
+    const { ROLE_CAPABILITIES, ONBOARDING_REVIEW_GRANT_ROLES } = require("../lib/adminRbac");
+    const holders = Object.entries(ROLE_CAPABILITIES).filter(([, caps]) => caps.includes("drivers.onboarding_review")).map(([r]) => r);
+    expect(holders).toEqual(["super_admin"]);
+    expect([...ONBOARDING_REVIEW_GRANT_ROLES].sort()).toEqual(["compliance", "dispatcher"]);
+    expect(ROLE_CAPABILITIES.dispatcher).toContain("drivers.approve");
+  });
+});
+
+describe("corrections, data boundary and flag", () => {
+  beforeEach(() => {
+    mockClient = createFakeSupabase(seed());
+  });
+  const feedback = (id, body) => request(app).post(`/api/admin/drivers/${id}/review-assist/feedback`).set("Cookie", session(DISPATCHER)).send(body);
+
+  test("corrections: unknown driver 404; fixed reason codes only; free text rejected", async () => {
+    expect((await feedback("DRV-NOPE", { check_id: "summary", verdict: "incorrect" })).status).toBe(404);
+    expect((await feedback("DRV-SYN-1", { check_id: "possible_duplicate", verdict: "incorrect", reason: "not_a_duplicate" })).status).toBe(200);
+    expect((await feedback("DRV-SYN-1", { check_id: "possible_duplicate", verdict: "incorrect", reason: "Dana is her sister" })).status).toBe(400);
+    await settle();
+    const rows = mockClient._state.audit_logs.filter((a) => a.action === "driver_review_assist_feedback");
+    expect(rows.map((r) => r.metadata)).toEqual([{ engine: "driver-review-assist-v1", check: "possible_duplicate", verdict: "incorrect", reason: "not_a_duplicate" }]);
+    expect(JSON.stringify(mockClient._state.audit_logs)).not.toContain("sister");
+  });
+
+  test("the review reads only the rule columns from drivers (never names, address, password hash or *)", async () => {
+    await run("DRV-SYN-1");
+    const reads = mockClient._log.filter((e) => e.table === "drivers" && e.op === "select");
+    expect(reads.length).toBeGreaterThan(0);
+    for (const r of reads) {
+      expect(Array.isArray(r.columns)).toBe(true);
+      for (const banned of ["*", "first_name", "last_name", "home_address", "password_hash", "password", "date_of_birth", "ssn"]) {
+        expect(r.columns).not.toContain(banned);
+      }
+    }
+  });
+
+  test.each([["TRUE"], ["yes"], ["1"], ["false"], [""]])("flag value %p keeps it off", async (value) => {
+    mockClient = createFakeSupabase({ ...seed(), system_flags: [{ key: "driver_review_assist_enabled", value }] });
+    const res = await run("DRV-SYN-1");
+    expect(res.status).toBe(403);
+    expect(mockClient._log.filter((e) => e.table === "drivers")).toEqual([]);
+  });
+
+  test("a flag read error keeps it off", async () => {
+    mockClient = createFakeSupabase(seed(), { failSelect: (table) => (table === "system_flags" ? { code: "XX000", message: "db down" } : null) });
+    expect((await run("DRV-SYN-1")).status).toBe(403);
   });
 });

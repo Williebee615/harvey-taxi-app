@@ -6338,7 +6338,8 @@ app.post(
 
    Internal, rule-based summary of a driver application for Harvey Taxi
    onboarding staff. Separate from HTAF: its own capability
-   (drivers.review_assist: dispatcher and the owner), always enforced, and
+   (drivers.onboarding_review: the owner, or an explicit per-person grant),
+   always enforced, and
    it reads only the drivers table. No AI model, no external provider, no
    telemetry. Advisory only -- these routes never write to drivers and
    never approve, reject, activate or suspend anyone. Off until an admin
@@ -6363,13 +6364,42 @@ const DRIVER_REVIEW_COLUMNS = [
 // not applied): read when present, skipped when the database doesn't have them yet.
 const DRIVER_EXPIRY_COLUMNS = ["license_expires_on", "insurance_expires_on", "registration_expires_on"];
 
+const DRIVER_REVIEW_CAPABILITY = "drivers.onboarding_review";
+const { ONBOARDING_REVIEW_GRANT_ROLES } = require("./lib/adminRbac");
+
+// Explicit, per-person grant (admin_capability_grants), separate from
+// driver approval authority. Fails closed: a lookup error is "no grant".
+async function hasActiveCapabilityGrant(email, capability) {
+  if (!email) return { granted: false, lookupFailed: false };
+  const { data, error } = await supabase
+    .from("admin_capability_grants")
+    .select("email, capability, revoked_at")
+    .eq("capability", capability)
+    .is("revoked_at", null);
+  if (error) return { granted: false, lookupFailed: true };
+  const target = String(email).trim().toLowerCase();
+  return { granted: (data || []).some((row) => String(row.email || "").trim().toLowerCase() === target), lookupFailed: false };
+}
+
+// Always enforced (HTAF_RBAC_ENFORCED does not apply). Allowed: the owner
+// (super_admin), or a dispatcher/compliance admin who also holds an active
+// drivers.onboarding_review grant. A role alone -- including one with
+// drivers.approve -- is never enough.
 function requireDriverReviewCapability(route) {
   return asyncRoute(async (req, res, next) => {
     const { role, source } = await resolveAdminRoleForRequest(req);
-    const allowed = computeShadowWouldAllow(role, "drivers.review_assist");
+    let allowed = computeShadowWouldAllow(role, DRIVER_REVIEW_CAPABILITY);
+    let grant = "role";
+    if (!allowed && ONBOARDING_REVIEW_GRANT_ROLES.includes(role)) {
+      const result = await hasActiveCapabilityGrant(req.admin && req.admin.email, DRIVER_REVIEW_CAPABILITY);
+      allowed = result.granted;
+      grant = result.lookupFailed ? "grant_lookup_failed" : result.granted ? "explicit_grant" : "no_grant";
+    } else if (!allowed) {
+      grant = "role_not_eligible";
+    }
     Promise.resolve(
       supabase.from("admin_rbac_shadow_log").insert(
-        buildShadowLogEntry({ admin: req.admin, route, httpMethod: req.method, capability: "drivers.review_assist", role, source, wouldAllow: allowed })
+        buildShadowLogEntry({ admin: req.admin, route, httpMethod: req.method, capability: DRIVER_REVIEW_CAPABILITY, role, source, wouldAllow: allowed })
       )
     ).catch(() => {});
     if (allowed) return next();
@@ -6379,10 +6409,10 @@ function requireDriverReviewCapability(route) {
       action: "driver_review_access_denied",
       entity_type: "route",
       entity_id: route,
-      metadata: { capability: "drivers.review_assist", role: role || null, source },
+      metadata: { capability: DRIVER_REVIEW_CAPABILITY, role: role || null, source, grant },
       req
     }).catch(() => {});
-    return fail(res, "Driver review requires a Harvey Taxi onboarding role.", 403);
+    return fail(res, "Driver review requires an onboarding-review permission.", 403);
   });
 }
 
@@ -6494,6 +6524,15 @@ app.post(
 );
 
 const DRIVER_REVIEW_FEEDBACK = new Set(["helpful", "incorrect", "not_needed"]);
+// Fixed reason codes only: free text could carry applicant details.
+const DRIVER_REVIEW_FEEDBACK_REASONS = new Set([
+  "information_is_present",
+  "verified_elsewhere",
+  "expiration_is_correct",
+  "not_a_duplicate",
+  "already_resolved",
+  "not_relevant"
+]);
 
 app.post(
   "/api/admin/drivers/:id/review-assist/feedback",
@@ -6505,17 +6544,23 @@ app.post(
     const id = cleanString(req.params.id, 120);
     const check = cleanString(req.body && req.body.check_id, 60);
     const verdict = cleanString(req.body && req.body.verdict, 20);
+    const rawReason = req.body && req.body.reason;
+    const reason = rawReason === undefined || rawReason === null || rawReason === "" ? null : cleanString(rawReason, 40);
     if (!Object.prototype.hasOwnProperty.call(driverReviewAssist.CHECKS, check) && check !== "summary") {
       return fail(res, "Unknown suggestion.", 400);
     }
     if (!DRIVER_REVIEW_FEEDBACK.has(verdict)) return fail(res, "Unknown feedback.", 400);
+    if (reason !== null && !DRIVER_REVIEW_FEEDBACK_REASONS.has(reason)) return fail(res, "Unknown reason.", 400);
+    const { data: driver, error } = await supabase.from("drivers").select("id").eq("id", id).maybeSingle();
+    if (error) throw error;
+    if (!driver) return fail(res, "Driver not found.", 404);
     await auditLog({
       actor_type: "admin",
       actor_id: req.admin.email,
       action: "driver_review_assist_feedback",
       entity_type: "driver",
-      entity_id: id,
-      metadata: { engine: driverReviewAssist.ENGINE, check, verdict },
+      entity_id: driver.id,
+      metadata: { engine: driverReviewAssist.ENGINE, check, verdict, reason },
       req
     });
     return ok(res, { recorded: true });

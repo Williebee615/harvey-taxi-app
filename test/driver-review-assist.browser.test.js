@@ -83,6 +83,7 @@ describeWithBrowser("Admin dashboard: driver review assistant", () => {
       rides: [],
       htaf_applications: [],
       admin_roles: [{ email: DISPATCHER, role: "dispatcher" }],
+      admin_capability_grants: [{ email: DISPATCHER, capability: "drivers.onboarding_review", revoked_at: null }],
       admin_rbac_shadow_log: [],
       audit_logs: [],
       system_flags: [{ key: "driver_review_assist_enabled", value: "true" }]
@@ -129,7 +130,7 @@ describeWithBrowser("Admin dashboard: driver review assistant", () => {
 
     await panel.locator('li[data-check="possible_duplicate"] button:has-text("Wrong")').click();
     await panel.locator('li[data-check="possible_duplicate"]').waitFor({ state: "detached" });
-    expect(mockClient._state.audit_logs.find((a) => a.action === "driver_review_assist_feedback").metadata).toEqual({ engine: "driver-review-assist-v1", check: "possible_duplicate", verdict: "incorrect" });
+    expect(mockClient._state.audit_logs.find((a) => a.action === "driver_review_assist_feedback").metadata).toEqual({ engine: "driver-review-assist-v1", check: "possible_duplicate", verdict: "incorrect", reason: null });
     expect(mockClient._state.drivers[0].approval_status).toBe("pending");
     expect(mockClient._log.filter((e) => e.table === "drivers" && e.op !== "select")).toEqual([]);
     await context.close();
