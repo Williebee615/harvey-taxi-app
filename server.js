@@ -882,6 +882,10 @@ function isAllowedOrigin(origin) {
 // incident can confirm which build actually produced a given log line
 // without cross-checking Render's dashboard separately.
 const BUILD_SHA = env("RENDER_GIT_COMMIT", null);
+// Synthetic test records (smoke tests, QA) use the reserved .test domain
+// (RFC 6761), which can never belong to a real person. They are excluded
+// from public totals.
+const isSyntheticEmail = (email) => /@example\.test$/i.test(String(email || "").trim());
 
 app.use((req, res, next) => {
 
@@ -5329,7 +5333,7 @@ app.get(
 
     const stats =
 
-      computeHtafPublicStats((data || []).map((row) => row.status));
+      computeHtafPublicStats((data || []).filter((row) => !isSyntheticEmail(row.email)).map((row) => row.status));
 
     return ok(res, {
 
@@ -19180,7 +19184,7 @@ app.get(
     {
       const { data, error } = await supabase
         .from("htaf_applications")
-        .select("status");
+        .select("status, email");
       if (!error && Array.isArray(data)) {
         htafTotal = data.length;
         htafByStatus = data.reduce((acc, r) => {
