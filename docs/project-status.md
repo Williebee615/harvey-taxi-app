@@ -271,6 +271,12 @@ Key blockers:
   - Unanswered questions are logged (redacted) to `htaf_assistant_questions`. Locally it declined questions on partnering, languages and 501(c)(3) status; HTAF can add approved answers.
   - Rollback: set the flag to `false` (takes effect immediately).
   - HTAF AI triage stays off (approval record not present).
+- **#232 HTAF assistant answers** (partnership, Hausa, 501(c)(3)) and stronger redaction of unanswered questions (names, addresses, ZIP codes, dates). **[Verified 2026-10-13]** Full suite 2,138 passed. **[Unresolved]** Not merged (owner approval).
+- **#233 HTAF review assistant** (2026-10-14; owner authorized preparation and testing only).
+  - **[Verified 2026-10-13]** The existing "AI triage" route sends application facts to OpenAI. It is locked and has never run (no audit entries).
+  - #233 adds an internal, rules-only assistant: summary, missing information, possible duplicates and follow-up questions. No AI model, no external provider, a person decides, HTAF roles only; suggestions are not stored and audit entries hold no applicant details. Off by default (`htaf_review_assist_enabled`).
+  - **[Verified 2026-10-14]** 31 new tests on synthetic applications; full suite 2,154 passed, 0 failed.
+  - **[Unresolved, owner]** Merge; activation; 12-month audit retention; privacy-notice sentence (counsel); remove or keep the OpenAI route; statewide service area.
 - **Server errors:** 26 `server_error` entries ("CORS origin blocked", `/api/health`) between 16:29 and 16:38 UTC were caused by this session's blocked-origin requests, which tried to read the deployed version **[Verified 2026-10-13, audit log]**. **[Owner decision 2026-10-13]** No more such requests. **[Recommendation]** Blocked origins currently return 500 and are logged as server errors; a small separate fix could return 403 without an error entry.
 - **`driver_1`** **[Verified 2026-10-13, read-only]**: marked online and approved; created and last seen 2026-04-12; no email, phone, Persona or Checkr verification; no vehicle; no location. **[Owner decision 2026-10-13]** Leave it unchanged for now. Once #221 is deployed, it can't be offered or assigned rides.
 - **[Owner decision 2026-10-13]** Harvey Assistant stays rules-only.
