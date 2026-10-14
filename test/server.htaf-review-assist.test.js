@@ -176,10 +176,9 @@ describe("off until the owner turns it on", () => {
     expect(res.body.assist_available).toBe(true);
   });
 
-  test("live AI application triage (external provider) stays off", async () => {
+  test("the external AI application triage route no longer exists", async () => {
     const res = await request(app).post("/api/admin/foundation/applications/syn-complete/triage").set("Cookie", session(CASEWORKER)).send({});
-    expect(res.status).toBe(403);
-    expect(res.body.error).toBe("HTAF AI triage is disabled.");
+    expect(res.status).toBe(404);
     expect(mockOpenAiCreate).not.toHaveBeenCalled();
   });
 });
