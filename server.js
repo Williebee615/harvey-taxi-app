@@ -12,7 +12,7 @@
 
 const express = require("express");
 const { rideUpdateForStripeEvent } = require("./lib/stripeWebhookTransitions");
-const { redactLogText, redactPath } = require("./lib/logRedaction");
+const { serverErrorEntry, errorCode: logErrorCode } = require("./lib/safeLog");
 
 const cors = require("cors");
 
@@ -2853,19 +2853,9 @@ async function auditLog({
 
         "⚠️ Audit log skipped:",
 
-        {
-
-          action,
-
-          message: redactLogText(error.message),
-
-          code: error.code,
-
-          details: redactLogText(error.details),
-
-          hint: redactLogText(error.hint)
-
-        }
+        // Allowlisted fields only: Postgres message/details/hint can echo
+        // the values being written.
+        { action, error_code: logErrorCode(error) }
 
       );
 
@@ -26920,62 +26910,23 @@ app.use(
 
       "❌ SERVER ERROR:",
 
+      // Structured, allowlisted fields only (lib/safeLog.js): no raw
+      // message, URL, query string, body or headers. The stack is kept
+      // outside production only.
       {
-
-        message:
-
-          redactLogText(error.message),
-
-        stack:
-
-          IS_PRODUCTION
-
-            ? undefined
-
-            : error.stack,
-
-        path:
-
-          redactPath(req.originalUrl),
-
-        method:
-
-          req.method
-
+        ...serverErrorEntry(error, req),
+        ...(IS_PRODUCTION ? {} : { stack: error.stack })
       }
-
     );
 
     auditLog({
-
-      action:
-
-        "server_error",
-
-      entity_type:
-
-        "server",
-
+      action: "server_error",
+      entity_type: "server",
       metadata: {
-
-        message:
-
-          redactLogText(error.message),
-
-        path:
-
-          redactPath(req.originalUrl),
-
-        method:
-
-          req.method,
-
+        ...serverErrorEntry(error, req),
         ...(error.corsDiagnostics || {})
-
-      },
-
-      req
-
+      }
+      // No req: the audit row does not store the client IP or user agent.
     }).catch(() => {});
 
     return fail(
