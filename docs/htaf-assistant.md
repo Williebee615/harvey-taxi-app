@@ -23,10 +23,10 @@ It answers only from HTAF's published pages: the home page, application, contact
 - **No model:** no Claude or other model is called, so there is no per-question cost.
 
 ## Records
-- **Unanswered questions:** a redacted excerpt only, with no IP and no identity, goes to `htaf_assistant_questions`.
-  - Removed before storage: emails, phone numbers, card and long numbers, SSN-like numbers, HTAF application codes, street addresses and PO boxes, ZIP codes, dates (such as birth dates), and names given after "my name is", "name:", "I am", "this is", "my mother/father/…" or "for".
-  - Redaction runs on the whole message before it is cut to 200 characters.
-  - Names typed with no such lead-in can't be detected reliably, so the chat also asks visitors not to share personal, medical or financial details.
+- **Unanswered questions:** only a topic label from a fixed list is stored in `htaf_assistant_questions`, for example "Unanswered question about: accessibility". None of the visitor's words are kept, and there is no IP address and no identity.
+  - **[Owner decision 2026-10-14]** Message text is not stored. Redaction can't guarantee removing a name typed with no lead-in, such as "Mary Jones needs dialysis", so no text is kept at all.
+  - **Topics:** accessibility, medical trips, work or school, cost or funding, timing, service area, language, partnering/donating/volunteering, documents, eligibility, contact or status, other.
+  - The same applies to HTAF questions asked through the Harvey Taxi assistant.
   - Staff see the list in the HTAF admin page, under "HTAF Assistant: unanswered questions" (`GET /api/admin/htaf/assistant-questions`, admin only).
 - **Answered questions:** not stored.
 - **Conversations:** kept in the visitor's page only, never stored.
