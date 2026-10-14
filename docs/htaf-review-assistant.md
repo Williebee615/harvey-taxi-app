@@ -2,20 +2,13 @@
 
 Prepared 2026-10-13; hardened 2026-10-14 (rules v2). **Off in production.** It was switched on at 00:19 UTC on 2026-10-14 and switched off at 00:32 UTC, pending this hardening; it was never used. Turning it on needs the owner's separate decision.
 
-## 1. What existed before: "AI triage" sent data to OpenAI
-The existing `POST /api/admin/foundation/applications/:id/triage` route is **not internal**. It sends a reduced set of facts about the application to **OpenAI** (`openai.chat.completions.create`, model `OPENAI_MODEL`). Those facts are:
-- status, program type and applicant type;
-- service-area true/false values;
-- ride date;
-- how detailed the trip description is;
-- whether staff notes exist;
-- submission time.
-
-That route stays locked behind `HTAF_AI_TRIAGE_ENABLED` plus a recorded privacy review and approval (`lib/htafActivation.js`). It is off.
-
-**[Verified 2026-10-13, production audit log]** It has never run: there are no `htaf_application_ai_triaged` or `htaf_ai_triage_blocked` entries. No application data has been sent to OpenAI.
-
-This PR does not use it. Staff now see the internal review assistant instead. Whether to delete the OpenAI route is an open decision (§9).
+## 1. The former external "AI triage" (removed 2026-10-14)
+The earlier `POST /api/admin/foundation/applications/:id/triage` route sent reduced application facts to **OpenAI**. It was locked behind `HTAF_AI_TRIAGE_ENABLED` plus an approval record.
+- **[Verified 2026-10-13, production audit log]** It never ran, so no application data was ever sent to OpenAI.
+- **[Owner decision 2026-10-14]** It was removed: the route, its activation gate and the `HTAF_AI_TRIAGE_*` settings, and its facts builder.
+  - Calls to the old path now return 404 under any configuration, and a test enforces this.
+  - Its history remains in Git.
+  - Any future external AI integration is a separate reviewed project.
 
 ## 2. What this PR adds: an internal review assistant
 - **Code:**
