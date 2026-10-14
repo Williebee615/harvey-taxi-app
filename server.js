@@ -11,6 +11,7 @@
 "use strict";
 
 const express = require("express");
+const { rideUpdateForStripeEvent } = require("./lib/stripeWebhookTransitions");
 
 const cors = require("cors");
 
@@ -824,9 +825,7 @@ function buildSitemapXml(host, urlPaths) {
   );
 }
 
-const HTAF_ACTIVATION = resolveHtafActivation(process.env, {
-  aiProviderConfigured: Boolean(openai)
-});
+const HTAF_ACTIVATION = resolveHtafActivation(process.env);
 
 app.get("/sitemap.xml", (req, res) => {
   const isFoundation = req.hostname && FOUNDATION_HOSTS.has(req.hostname);
@@ -1062,6 +1061,15 @@ app.get("/driver-missions.html", (req, res) => {
 // express.static's extensions:["html"] would otherwise map it to the file.
 app.get(["/admin.html", "/admin"], (req, res) => {
   res.redirect(301, "/admin-dashboard.html");
+});
+
+// Admin pages are page shells only: every admin read and action goes
+// through /api/admin/* routes, which check the admin session or token on
+// the server. These headers just keep the shells out of search results
+// (robots.txt also disallows /admin).
+app.use((req, res, next) => {
+  if (/^\/admin[^/]*$/.test(req.path)) res.setHeader("X-Robots-Tag", "noindex, nofollow");
+  next();
 });
 
 app.use(
@@ -2997,7 +3005,9 @@ async function logAdminRbacShadowCheck(req, route, capability) {
 //
 // Every decision is recorded in admin_rbac_shadow_log (identity, route,
 // capability, role, allow/deny) -- never any application content.
-function requireHtafCapability(route, capability) {
+// alwaysEnforce: ignore the HTAF_RBAC_ENFORCED emergency rollback (used by
+// routes that never existed under the old shadow-only model).
+function requireHtafCapability(route, capability, { alwaysEnforce = false } = {}) {
   return asyncRoute(async (req, res, next) => {
     const { role, source } = await resolveAdminRoleForRequest(req);
     const allowed = computeShadowWouldAllow(role, capability);
@@ -3016,7 +3026,7 @@ function requireHtafCapability(route, capability) {
       )
     ).catch(() => {});
 
-    if (allowed || !HTAF_RBAC_ENFORCED) {
+    if (allowed || (!HTAF_RBAC_ENFORCED && !alwaysEnforce)) {
       return next();
     }
 
@@ -3048,7 +3058,13 @@ async function sendEmail({
 
   html,
 
-  text
+  text,
+
+  // Optional: sender display name (defaults to SENDGRID_FROM_NAME) and a
+  // reply-to address, e.g. the HTAF contact form replies to the visitor.
+  fromName,
+
+  replyTo
 
 }) {
 
@@ -3088,9 +3104,11 @@ async function sendEmail({
 
       email: SENDGRID_FROM_EMAIL,
 
-      name: SENDGRID_FROM_NAME
+      name: fromName || SENDGRID_FROM_NAME
 
     },
+
+    ...(replyTo ? { replyTo } : {}),
 
     subject,
 
@@ -3673,8 +3691,7 @@ const {
   HTAF_EXPORT_COLUMNS,
   buildHtafExportCsv,
   resolveHtafExportRequest,
-  resolveHtafExportDelivery,
-  buildHtafTriageFacts
+  resolveHtafExportDelivery
 } = require("./lib/htafOperations");
 
 const {
@@ -4681,6 +4698,66 @@ async function sendAdminApplicationAlert(application) {
     `
   });
 }
+
+/* =========================================================
+   HTAF CONTACT FORM (lib/htafInquiry.js; public/contact.html)
+   Partnership, donation and general inquiries are emailed to HTAF's
+   inbox with HTAF as the sender name and the visitor as reply-to. Nothing
+   is stored, and the audit log keeps only the topic and whether the email
+   went out. The visitor is told it was sent only when it was; otherwise
+   they get HTAF's email address and phone number instead.
+========================================================= */
+const htafInquiry = require("./lib/htafInquiry");
+const HTAF_PUBLIC_EMAIL = "WillieHtaf@harveytransportationfoundation.com";
+const HTAF_INQUIRY_EMAIL =
+  cleanEmail(env("HTAF_INQUIRY_EMAIL", "")) || HTAF_ADMIN_EMAIL || HTAF_PUBLIC_EMAIL.toLowerCase();
+app.post(
+  "/api/foundation/inquiry",
+  rateLimit({
+    windowMs: 10 * 60_000,
+    max: 5,
+    keyPrefix: "htaf_inquiry",
+    message: "Too many messages from this connection. Please wait a few minutes, or email HTAF directly."
+  }),
+  asyncRoute(async (req, res) => {
+    const body = req.body || {};
+    // Hidden field people never see; automated form fillers do.
+    if (String(body.website || "").trim()) return ok(res, { sent: true });
+    const { ok: valid, errors, inquiry } = htafInquiry.validateInquiry(body);
+    if (!valid) return fail(res, "Please check the highlighted fields.", 400, { fields: errors });
+    const message = htafInquiry.buildInquiryEmail(inquiry);
+    let result = { sent: false };
+    try {
+      result = await sendEmail({
+        to: HTAF_INQUIRY_EMAIL,
+        fromName: "Harvey Transportation Assistance Foundation",
+        replyTo: inquiry.email,
+        ...message
+      });
+    } catch (error) {
+      console.error("❌ HTAF inquiry email failed:", error?.message);
+      result = { sent: false, reason: "send_failed" };
+    }
+    await auditLog({
+      actor_type: "visitor",
+      action: result.sent ? "htaf_inquiry_sent" : "htaf_inquiry_not_sent",
+      entity_type: "htaf_inquiry",
+      metadata: {
+        topic: inquiry.topic,
+        interest: inquiry.interest || null,
+        reason: result.sent ? null : result.reason || (result.skipped ? "email_not_configured" : "unknown")
+      }
+    }).catch(() => {});
+    if (!result.sent) {
+      return fail(
+        res,
+        `Your message couldn't be sent. Please email ${HTAF_PUBLIC_EMAIL} or call 615-636-6201.`,
+        503
+      );
+    }
+    return ok(res, { sent: true });
+  })
+);
 
 /* =========================================================
 
@@ -5911,189 +5988,168 @@ app.get(
 );
 
 /* =========================================================
-   HTAF AI TRIAGE — privacy-hardened (docs/security-remediation/
-   htaf-ai-triage-privacy-hardening.md)
+   HTAF AI TRIAGE -- REMOVED (2026-10-14, owner decision)
 
-   Admin only. Asks OpenAI to summarize an application's OPERATIONAL
-   completeness/consistency and suggest a next processing step. This
-   never writes to the database or auto-changes status — it only
-   returns a suggestion for the admin to review, inserted into notes
-   (or not) via the existing notes/status endpoints. The human always
-   makes the final call.
-
-   GUARDRAILS (all enforced in code, not just stated here):
-   - Advisory only. The AI never approves, denies, or takes any action
-     itself — buildHtafTriageFacts()/this route never write to
-     htaf_applications, and the recommendation vocabulary below
-     (ready_for_review / request_info / priority_review /
-     data_inconsistency) is deliberately operational-categorization
-     language, not an eligibility decision. "approve"/"deny" were
-     removed from the vocabulary entirely in this hardening pass —
-     triage helps a human prioritize and spot incomplete data; it does
-     not decide who qualifies for HTAF assistance or make any medical
-     judgment. That eligibility/medical-judgment boundary is a policy
-     choice, not a technical limitation of the model — it's enforced by
-     never asking the model for that judgment and never having the
-     vocabulary to express one.
-   - The AI is not provided direct identifiers, exact financial
-     information, street-level location, medical narrative, or other
-     unnecessary sensitive details, and is prohibited from using
-     operational categories to infer protected or sensitive
-     characteristics (see buildHtafTriageFacts(), lib/htafOperations.js,
-     for the full field-by-field classification). This is deliberately
-     not phrased as "the payload contains nothing sensitive" —
-     program_type itself can sometimes imply a sensitive circumstance
-     (e.g. "medical", "disability"), and it is kept because triage needs
-     some operational category to be useful at all. Household size and
-     monthly income, which have no necessary operational function once
-     triage is limited to categorization/prioritization rather than
-     eligibility, are excluded entirely (not merely coarsened) for
-     exactly this reason.
-   - Human admin makes the final decision — the recommendation is only
-     ever inserted into notes for a human to read; nothing here changes
-     status automatically.
-   - No claim of HIPAA-compliant processing is made anywhere in this
-     code or its documentation — sending even minimized, coarse
-     categorical data to a third-party model is a data-sharing decision
-     an organization handling health-adjacent information should have
-     its own legal/compliance review for, independent of this PR
-     (this codebase already carries a standing HIPAA/BAA legal-review
-     TODO from earlier work; this hardening reduces exposure, it does
-     not resolve that TODO).
-   - Auditable without storing unnecessary applicant PII: the audit log
-     for every triage call now includes the exact `facts_sent` payload
-     (see below) — safe to store because buildHtafTriageFacts()'s
-     allow-list guarantees, and tests enforce, that it never contains
-     PII in the first place.
+   The external OpenAI triage route (POST .../applications/:id/triage),
+   its activation gate (the AI-triage flag + approval record) and its
+   facts builder were removed unused: it never ran in production. Its
+   history is in Git (last present in commit 0bcaf37). Any future external
+   AI integration is a separate reviewed project. HTAF staff use the
+   internal review assistant below.
 ========================================================= */
 
-const HTAF_TRIAGE_RECOMMENDATIONS = [
-  "ready_for_review",
-  "request_info",
-  "priority_review",
-  "data_inconsistency"
-];
+/* =========================================================
+   HTAF REVIEW ASSISTANT (lib/htafReviewAssist.js,
+   docs/htaf-review-assistant.md)
 
-async function triageHtafApplication(application) {
-  if (!openai) {
-    return {
-      available: false,
-      reason: "AI triage is not configured on the server (OPENAI_API_KEY missing)."
-    };
+   Internal, rule-based help for HTAF staff reviewing an application:
+   summary, missing-information checks, suggested follow-up questions.
+   No AI model and no external provider: nothing leaves this server.
+   Advisory only -- these routes never write to htaf_applications, never
+   change status, schedule rides or contact applicants. Staff with the
+   HTAF triage capability only. Off until an admin sets the system flag
+   htaf_review_assist_enabled to "true" (owner approval required).
+   Suggestions are computed on request and not stored; the audit log keeps
+   the application id, the rule version and which checks fired -- no
+   applicant details.
+========================================================= */
+
+const htafReviewAssist = require("./lib/htafReviewAssist");
+
+// Only what the rules need (see FIELDS_READ); never income, household
+// size or notes.
+const HTAF_REVIEW_ASSIST_COLUMNS =
+  "id, first_name, last_name, email, phone, county, pickup_city, destination, ride_date, transportation_need, program_type, applicant_type, status, submitted_at, created_at";
+
+// On only when the flag is exactly "true". Missing, any other value, or a
+// database error (getSystemFlag falls back to "false") keeps it off.
+async function htafReviewAssistEnabled() {
+  return (await getSystemFlag("htaf_review_assist_enabled", "false")) === "true";
+}
+
+// Other applications with the same email or phone (for the duplicate
+// check). Email is matched lower-cased (as stored by cleanEmail); phone by
+// its last 10 digits in every stored form (5551234567, 15551234567,
+// +15551234567). Both columns are indexed (email: htaf_applications_email_idx;
+// phone: migration 20261014020000). The current application is excluded and
+// at most 5 matches are returned: codes, statuses and dates only.
+function htafPhoneVariants(phone) {
+  const digits = String(phone || "").replace(/\D/g, "");
+  if (digits.length < 10) return [];
+  const last10 = digits.slice(-10);
+  return [last10, `1${last10}`, `+1${last10}`];
+}
+
+async function findRelatedHtafApplications(application) {
+  const related = new Map();
+  const email = String(application.email || "").trim().toLowerCase();
+  const probes = [];
+  if (email) probes.push(["email", [email]]);
+  const phones = htafPhoneVariants(application.phone);
+  if (phones.length) probes.push(["phone", phones]);
+  for (const [column, values] of probes) {
+    const { data, error } = await supabase
+      .from("htaf_applications")
+      .select("id, application_code, status, submitted_at, created_at")
+      .in(column, values)
+      .neq("id", application.id)
+      .order("submitted_at", { ascending: false })
+      .limit(5);
+    if (error) throw error;
+    for (const row of data || []) related.set(row.id, row);
   }
-
-  // The ONLY facts about this application that leave this server. See
-  // buildHtafTriageFacts() (lib/htafOperations.js) for the allow-list
-  // and its tests for proof that no name, email, phone, application
-  // code, street address, income (exact or banded), household size
-  // (exact or banded), or raw free-text description can reach this
-  // payload even if present on `application`.
-  const facts = buildHtafTriageFacts(application);
-
-  const systemContent = [
-    "You are an assistant helping a human reviewer triage HTAF (Harvey Transportation Assistance Foundation) applications for transportation assistance.",
-    "This is advisory only. You never approve, deny, or take any action yourself — you only summarize the structured facts given and suggest one operational next-step category. A human admin always makes the final decision, including any eligibility or medical judgment, which is never your job.",
-    "You have NOT been given the applicant's name, contact information, exact or approximate income, exact or approximate household size, or any address/free-text description — only coarse operational categories and booleans. Do not guess, infer, or assume any of that missing information, and do not ask for it.",
-    "Never let program_type or any other field function as a proxy for a protected or sensitive characteristic (e.g. disability, medical condition, immigration status, race, religion) in your summary, flags, or recommendation.",
-    "Your evaluation is limited strictly to: missing operational information, service-area inconsistencies (pickup_in_service_area / destination_in_service_area / home_in_service_area being false), a ride_date in the past or otherwise invalid, missing or vague transportation_need_detail, and workflow/data inconsistencies (e.g. a status that doesn't match what the other fields suggest). You must NOT evaluate, comment on, or factor in financial need, household composition, medical need, or program eligibility of any kind — none of that has been given to you, and it is not your role even if it were.",
-    "Be factual and concise. Do not invent facts that are not in the data. Do not assume or apply any HTAF eligibility rule — none has been given to you.",
-    "Respond ONLY with a JSON object of this exact shape: " +
-      '{"summary": string, "flags": string[], "recommendation": "ready_for_review" | "request_info" | "priority_review" | "data_inconsistency", "reasoning": string}',
-    '"recommendation" must be exactly one of: ready_for_review, request_info, priority_review, data_inconsistency. Use "ready_for_review" whenever nothing stands out or you are not confident anything is wrong.',
-    "Keep summary to 2-3 sentences. Keep flags short (a few words each); return an empty array if nothing stands out."
-  ].join(" ");
-
-  const completion = await openai.chat.completions.create({
-    model: OPENAI_MODEL,
-    temperature: 0.2,
-    response_format: { type: "json_object" },
-    messages: [
-      { role: "system", content: systemContent },
-      { role: "user", content: JSON.stringify(facts) }
-    ]
-  });
-
-  const raw = completion.choices?.[0]?.message?.content || "{}";
-  let parsed;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    parsed = {};
-  }
-
-  const recommendation = HTAF_TRIAGE_RECOMMENDATIONS.includes(parsed.recommendation)
-    ? parsed.recommendation
-    : "ready_for_review";
-
-  return {
-    available: true,
-    summary: cleanString(parsed.summary, 1000) || "No summary returned.",
-    flags: Array.isArray(parsed.flags)
-      ? parsed.flags.map((f) => cleanString(f, 200)).filter(Boolean).slice(0, 10)
-      : [],
-    recommendation,
-    reasoning: cleanString(parsed.reasoning, 1000) || "",
-    facts_sent: facts
-  };
+  return [...related.values()].slice(0, 5);
 }
 
 app.post(
-  "/api/admin/foundation/applications/:id/triage",
+  "/api/admin/foundation/applications/:id/review-assist",
   requireAdmin,
-  requireHtafCapability("POST /api/admin/foundation/applications/:id/triage", "htaf.applications.triage"),
-  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "htaf_triage" }),
+  requireHtafCapability("POST /api/admin/foundation/applications/:id/review-assist", "htaf.applications.triage", { alwaysEnforce: true }),
+  rateLimit({ windowMs: 60_000, max: 30, keyPrefix: "htaf_review_assist" }),
   asyncRoute(async (req, res) => {
-    if (!HTAF_ACTIVATION.aiTriage.enabled) {
+    const id = cleanString(req.params.id, 80);
+    if (!(await htafReviewAssistEnabled())) {
       auditLog({
         actor_type: "admin",
         actor_id: req.admin.email,
-        action: "htaf_ai_triage_blocked",
+        action: "htaf_review_assist_blocked",
         entity_type: "htaf_application",
-        entity_id: cleanString(req.params.id, 80),
-        metadata: { reason: HTAF_ACTIVATION.aiTriage.reason },
+        entity_id: id,
+        metadata: { reason: "htaf_review_assist_enabled is off" },
         req
       }).catch(() => {});
-      return fail(res, "HTAF AI triage is disabled.", 403);
+      return fail(res, "The HTAF review assistant is turned off.", 403);
     }
-    const id = cleanString(req.params.id, 80);
+
     const { data: application, error } = await supabase
       .from("htaf_applications")
-      .select("*")
+      .select(HTAF_REVIEW_ASSIST_COLUMNS)
       .eq("id", id)
-      .single();
+      .maybeSingle();
+    if (error) throw error;
+    if (!application) return fail(res, "Application not found.", 404);
 
-    if (error || !application) {
-      return fail(res, "Application not found.", 404);
-    }
+    const related = await findRelatedHtafApplications(application);
+    const review = htafReviewAssist.reviewApplication(application, { related });
 
-    let triage;
-    try {
-      triage = await triageHtafApplication(application);
-    } catch (aiError) {
-      console.error("❌ HTAF AI triage failed:", aiError.message);
-      return fail(res, "AI triage is temporarily unavailable. Please try again.", 502);
-    }
-
-    // facts_sent is safe to log in full -- it's the same minimized,
-    // PII-free object buildHtafTriageFacts() guarantees and tests
-    // enforce -- giving a complete, auditable record of exactly what
-    // was sent to OpenAI for this call, without ever storing the
-    // applicant PII that record would otherwise need to reference.
     auditLog({
       actor_type: "admin",
       actor_id: req.admin.email,
-      action: "htaf_application_ai_triaged",
+      action: "htaf_review_assist_run",
       entity_type: "htaf_application",
       entity_id: application.id,
-      metadata: {
-        recommendation: triage.recommendation || null,
-        facts_sent: triage.facts_sent || null,
-        approval: HTAF_ACTIVATION.aiTriage.approvals
-      },
+      metadata: { engine: review.engine, checks: review.checks.map((c) => c.id) },
       req
     }).catch(() => {});
 
-    return ok(res, { triage });
+    return ok(res, { review });
+  })
+);
+
+// Staff mark a suggestion as helpful or wrong. Fixed choices only, no free
+// text, so no applicant details can end up here.
+const HTAF_REVIEW_FEEDBACK = new Set(["helpful", "incorrect", "not_needed"]);
+// Why a suggestion was wrong or not needed (optional, fixed codes).
+const HTAF_REVIEW_FEEDBACK_REASONS = new Set([
+  "information_is_present",
+  "county_is_valid",
+  "date_is_correct",
+  "not_a_duplicate",
+  "already_resolved",
+  "not_relevant"
+]);
+
+app.post(
+  "/api/admin/foundation/applications/:id/review-assist/feedback",
+  requireAdmin,
+  requireHtafCapability("POST /api/admin/foundation/applications/:id/review-assist/feedback", "htaf.applications.triage", { alwaysEnforce: true }),
+  rateLimit({ windowMs: 60_000, max: 60, keyPrefix: "htaf_review_assist_feedback" }),
+  asyncRoute(async (req, res) => {
+    if (!(await htafReviewAssistEnabled())) return fail(res, "The HTAF review assistant is turned off.", 403);
+    const id = cleanString(req.params.id, 80);
+    const check = cleanString(req.body && req.body.check_id, 60);
+    const verdict = cleanString(req.body && req.body.verdict, 20);
+    const reason = cleanString(req.body && req.body.reason, 40) || null;
+    if (!Object.prototype.hasOwnProperty.call(htafReviewAssist.CHECKS, check) && check !== "summary") {
+      return fail(res, "Unknown suggestion.", 400);
+    }
+    if (!HTAF_REVIEW_FEEDBACK.has(verdict)) return fail(res, "Unknown feedback.", 400);
+    if (reason && !HTAF_REVIEW_FEEDBACK_REASONS.has(reason)) return fail(res, "Unknown reason.", 400);
+    const { data: exists, error } = await supabase.from("htaf_applications").select("id").eq("id", id).maybeSingle();
+    if (error) throw error;
+    if (!exists) return fail(res, "Application not found.", 404);
+    // Identifiers and fixed codes only: never the suggestion text or any
+    // applicant detail.
+    await auditLog({
+      actor_type: "admin",
+      actor_id: req.admin.email,
+      action: "htaf_review_assist_feedback",
+      entity_type: "htaf_application",
+      entity_id: id,
+      metadata: { engine: htafReviewAssist.ENGINE, check, verdict, reason },
+      req
+    });
+    return ok(res, { recorded: true });
   })
 );
 
@@ -10424,6 +10480,30 @@ function driverEligibleForService(driver, rideType) {
   return !column || !driver || driver[column] !== false;
 }
 
+// Verification at offer time. Going online checks verification once
+// (POST /api/driver/status), but a driver can stay online after a check
+// changes (a Checkr result that isn't clear, a Persona re-review, a phone
+// or email that is unverified again). Offers, acceptance and admin
+// assignment therefore re-read the driver's verification fields and use
+// the same rule as going online (computeDriverReadiness). The online flag
+// and any trip already under way are left alone.
+const DRIVER_READINESS_COLUMNS =
+  "id, email_verified, phone_verified, persona_verified, persona_status, checkr_status, approval_status, vehicle_make, vehicle_model, vehicle_year";
+
+function driverVerificationReady(driver) {
+  return computeDriverReadiness(driver, { enablePersona: ENABLE_PERSONA, enableCheckr: ENABLE_CHECKR }).ready;
+}
+
+// Ids, from those given, of drivers whose verification is complete right
+// now. Throws when the fields can't be read; callers treat that as "none".
+async function verificationReadyDriverIds(driverIds) {
+  const ids = [...new Set((driverIds || []).filter(Boolean).map(String))];
+  if (!ids.length) return new Set();
+  const { data, error } = await supabase.from("drivers").select(DRIVER_READINESS_COLUMNS).in("id", ids);
+  if (error || !Array.isArray(data)) throw error || new Error("Driver verification unavailable.");
+  return new Set(data.filter(driverVerificationReady).map((d) => String(d.id)));
+}
+
 // Deliveries: how many nearest drivers (within the search radius) to read
 // before the eligibility check, so ineligible drivers nearby can't crowd
 // out an eligible driver farther away.
@@ -11184,6 +11264,24 @@ async function dispatchRide(ride) {
           ride.ride_type
 
       });
+  }
+
+  // Offers go only to drivers whose verification is complete now, not
+  // merely when they went online. Fails closed: if verification can't be
+  // read, no driver is offered the ride.
+  if (drivers.length) {
+    let ready;
+    try {
+      ready = await verificationReadyDriverIds(drivers.map((d) => d.id));
+    } catch (verifyErr) {
+      console.error("❌ Dispatch: driver verification check failed:", ride.id, verifyErr && verifyErr.message);
+      ready = new Set();
+    }
+    const skipped = drivers.length - drivers.filter((d) => ready.has(String(d.id))).length;
+    if (skipped) {
+      console.warn(`⚠️ Dispatch skipped ${skipped} driver(s) without complete verification for ride ${ride.id}`);
+    }
+    drivers = drivers.filter((d) => ready.has(String(d.id)));
   }
 
   if (!drivers.length) {
@@ -15671,6 +15769,24 @@ app.post(
     // read from req.body here.
     const driverId = req.driver.id;
 
+    // Verification is re-checked at acceptance too: an offer made before a
+    // check changed must not become an assignment. The offer is left to
+    // expire, which redispatches the ride the usual way.
+    const { data: verification, error: verificationError } = await supabase
+      .from("drivers")
+      .select(DRIVER_READINESS_COLUMNS)
+      .eq("id", driverId)
+      .maybeSingle();
+
+    if (verificationError) {
+      console.error("❌ Offer accept: driver verification check failed:", { offer_id: offerId, reason: verificationError.message });
+      return fail(res, "Could not accept this offer. Please try again.", 500);
+    }
+
+    if (!verification || !driverVerificationReady(verification)) {
+      return fail(res, "You can't accept offers until your verification is complete.", 403, { code: "verification_required" });
+    }
+
     // One transaction in the database: ride, offer and driver locks,
     // ownership/state/expiry/eligibility checks, then the offer accept,
     // competing-offer supersede and rides.driver_id assignment commit
@@ -19658,6 +19774,14 @@ app.post(
       );
     }
 
+    // Same verification rule as offers. An admin who has reviewed
+    // equivalent documents uses the audited compliance override instead.
+    if (!driverVerificationReady(driver)) {
+      return fail(res, "This driver's verification isn't complete, so they can't be assigned a ride.", 409, {
+        code: "verification_required"
+      });
+    }
+
     const driverRideFields = buildDriverRideFields(driver);
 
     const { data, error } =
@@ -23075,125 +23199,79 @@ app.post(
     }
 
     const object =
-
       event.data?.object || {};
 
-    if (
-
-      event.type ===
-
-      "payment_intent.succeeded"
-
-    ) {
-
-      await supabase
-
+    // Forward-only transitions (lib/stripeWebhookTransitions.js): duplicate,
+    // late and out-of-order deliveries never move a ride backwards,
+    // overwrite a cancellation or undo a capture.
+    //
+    // Concurrency: each write is a compare-and-swap -- the UPDATE only
+    // matches if BOTH the ride status and the payment status are still the
+    // values the decision was based on (Postgres re-checks the WHERE clause
+    // on the locked row). If another webhook or request changed the ride in
+    // between, nothing is written; the ride is re-read and the decision
+    // made again (up to 3 times). If it still can't be applied, the request
+    // fails with 500 so Stripe redelivers it later -- nothing is lost and
+    // nothing is overwritten.
+    if (object.id && String(event.type || "").startsWith("payment_intent.")) {
+      const { data: rides, error: readError } = await supabase
         .from("rides")
-
-        .update({
-
-          payment_status:
-
-            "succeeded",
-
-          payment_captured:
-
-            true,
-
-          updated_at:
-
-            nowIso()
-
-        })
-
-        .eq(
-
-          "payment_id",
-
-          object.id
-
-        );
-
-    }
-
-    if (
-
-      event.type ===
-
-      "payment_intent.amount_capturable_updated"
-
-    ) {
-
-      await supabase
-
-        .from("rides")
-
-        .update({
-
-          payment_status:
-
-            "authorized",
-
-          status:
-
-            RIDE_STATUS.PAYMENT_AUTHORIZED,
-
-          updated_at:
-
-            nowIso()
-
-        })
-
-        .eq(
-
-          "payment_id",
-
-          object.id
-
-        );
-
-    }
-
-    if (
-
-      event.type ===
-
-      "payment_intent.payment_failed" ||
-
-      event.type ===
-
-      "payment_intent.canceled"
-
-    ) {
-
-      await supabase
-
-        .from("rides")
-
-        .update({
-
-          payment_status:
-
-            "failed",
-
-          status:
-
-            RIDE_STATUS.FAILED,
-
-          updated_at:
-
-            nowIso()
-
-        })
-
-        .eq(
-
-          "payment_id",
-
-          object.id
-
-        );
-
+        .select("id, status, payment_status")
+        .eq("payment_id", object.id)
+        .limit(5);
+      if (readError) throw readError;
+      for (const first of rides || []) {
+        let ride = first;
+        let settled = false;
+        for (let attempt = 0; attempt < 3 && !settled; attempt += 1) {
+          const { patch, review } = rideUpdateForStripeEvent(event.type, ride);
+          if (review) {
+            auditLog({
+              action: "stripe_webhook_needs_review",
+              entity_type: "ride",
+              entity_id: ride.id,
+              metadata: { event_type: event.type, event_id: event.id, reason: review, ride_status: ride.status, payment_status: ride.payment_status || null }
+            }).catch(() => {});
+          }
+          if (!patch) {
+            settled = true;
+            break;
+          }
+          let update = supabase
+            .from("rides")
+            .update({ ...patch, updated_at: nowIso() })
+            .eq("id", ride.id)
+            .eq("status", ride.status);
+          update = ride.payment_status == null ? update.is("payment_status", null) : update.eq("payment_status", ride.payment_status);
+          const { data: changed, error: updateError } = await update.select("id");
+          if (updateError) throw updateError;
+          if (changed && changed.length) {
+            settled = true;
+            break;
+          }
+          // Lost the race: read the current state and decide again.
+          const { data: fresh, error: freshError } = await supabase
+            .from("rides")
+            .select("id, status, payment_status")
+            .eq("id", ride.id)
+            .maybeSingle();
+          if (freshError) throw freshError;
+          if (!fresh) {
+            settled = true;
+            break;
+          }
+          ride = fresh;
+        }
+        if (!settled) {
+          auditLog({
+            action: "stripe_webhook_retry_requested",
+            entity_type: "ride",
+            entity_id: first.id,
+            metadata: { event_type: event.type, event_id: event.id }
+          }).catch(() => {});
+          return fail(res, "Webhook not applied; please retry.", 500);
+        }
+      }
     }
 
     auditLog({
@@ -23495,13 +23573,6 @@ app.get(
           reason: HTAF_ACTIVATION.rideCreation.reason,
           missing_approvals: HTAF_ACTIVATION.rideCreation.missing,
           approvals: HTAF_ACTIVATION.rideCreation.approvals
-        },
-
-        ai_triage: {
-          enabled: HTAF_ACTIVATION.aiTriage.enabled,
-          reason: HTAF_ACTIVATION.aiTriage.reason,
-          missing_approvals: HTAF_ACTIVATION.aiTriage.missing,
-          approvals: HTAF_ACTIVATION.aiTriage.approvals
         }
 
       },
@@ -23511,10 +23582,6 @@ app.get(
         htaf_ride_creation:
 
           HTAF_ACTIVATION.rideCreation.enabled,
-
-        htaf_ai_triage:
-
-          HTAF_ACTIVATION.aiTriage.enabled,
 
         htaf_admin_alerts:
 
@@ -23837,7 +23904,12 @@ app.post(
       return fail(res, "Message required.", 400);
     }
 
-    if (!openai) {
+    // The old website chat sends messages to OpenAI with no consent step,
+    // so it makes no model call unless the owner turns it back on
+    // (system flag legacy_ai_support_enabled = "true"). Riders use Harvey
+    // Assistant, which asks for consent before any AI answer.
+    const legacyAiOn = (await getSystemFlag("legacy_ai_support_enabled", "false")) === "true";
+    if (!openai || !legacyAiOn) {
       return ok(res, {
         reply:
           "Harvey AI Support is currently limited. Please contact support for help.",
@@ -25441,6 +25513,7 @@ function modelStatus(state) {
     mode: state.model.mode,
     stored_mode: state.model.stored_mode,
     public_approved: state.model.public_approved,
+    consent_ready: state.model.consent_ready,
     test_accounts: state.model.test_accounts,
     driver_scope: state.model.driver_scope,
     specialist_scope: state.model.specialist_scope,
@@ -25519,6 +25592,9 @@ app.post(
     if (!actorId || !message.trim()) return fail(res, "role, actor_id and message are required.", 400);
     const state = await loadAgentState();
     if (!state.mode.assist_enabled) return fail(res, "The assistant is switched off.", 409);
+    if (!state.model.consent_ready) {
+      return fail(res, "AI answers are off until the consent step is live (AGENT_MODEL_CONSENT_READY).", 409);
+    }
     if (!state.model.test_accounts.includes(`${role}:${actorId}`)) {
       return fail(res, "Only accounts on the model test list can be tried here.", 403);
     }
@@ -26987,8 +27063,7 @@ async function startServer() {
       );
 
       for (const [label, state] of [
-        ["🚐 HTAF ride creation", HTAF_ACTIVATION.rideCreation],
-        ["🧠 HTAF AI triage", HTAF_ACTIVATION.aiTriage]
+        ["🚐 HTAF ride creation", HTAF_ACTIVATION.rideCreation]
       ]) {
         // A flag set without its approval record is an operator error worth
         // shouting about; a flag that is simply off is the normal state.

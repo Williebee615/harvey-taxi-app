@@ -96,8 +96,7 @@ describe("with the flags unset (the default)", () => {
   });
 
   test.each([
-    ["create-ride", "HTAF ride creation is paused", "htaf_ride_creation_blocked"],
-    ["triage", "HTAF AI triage is disabled", "htaf_ai_triage_blocked"]
+    ["create-ride", "HTAF ride creation is paused", "htaf_ride_creation_blocked"]
   ])("%s fails closed before reading the application", async (action, message, auditAction) => {
     const res = await post(app, action);
     await settle();
@@ -126,10 +125,11 @@ describe("with the flags unset (the default)", () => {
     for (const value of PRIVATE_VALUES.concat(BODY_VALUE)) expect(auditJson).not.toContain(value);
   });
 
-  test("the admin health detail reports both actions as off", async () => {
+  test("the admin health detail reports ride creation off and no AI triage", async () => {
     const res = await request(app).get("/api/health").set("x-admin-token", process.env.ADMIN_API_TOKEN);
 
-    expect(res.body.features).toMatchObject({ htaf_ride_creation: false, htaf_ai_triage: false });
+    expect(res.body.features).toMatchObject({ htaf_ride_creation: false });
+    expect(res.body.features).not.toHaveProperty("htaf_ai_triage");
   });
 
   test.each(["false", "0", "off", ""])('HTAF_RIDE_CREATION_ENABLED="%s" stays off', async (value) => {
@@ -154,8 +154,7 @@ const TRIAGE_APPROVALS = {
 
 describe("with a flag set but no approval record", () => {
   test.each([
-    ["create-ride", { HTAF_RIDE_CREATION_ENABLED: "true" }, "htaf_ride_creation_blocked"],
-    ["triage", { HTAF_AI_TRIAGE_ENABLED: "true", OPENAI_API_KEY: "sk-test-not-used" }, "htaf_ai_triage_blocked"]
+    ["create-ride", { HTAF_RIDE_CREATION_ENABLED: "true" }, "htaf_ride_creation_blocked"]
   ])("%s stays blocked and the audit row names the missing approvals", async (action, env, auditAction) => {
     mockClient = createFakeSupabase(seed());
     const app = loadApp(env);
@@ -211,17 +210,26 @@ describe("with a flag set and a complete approval record", () => {
     expect(audit.metadata.approval).toEqual(RIDE_APPROVALS);
   });
 
-  test("triage with approvals but no AI provider key still fails closed", async () => {
-    mockClient = createFakeSupabase(seed());
-    const app = loadApp({ HTAF_AI_TRIAGE_ENABLED: "true", OPENAI_API_KEY: undefined, ...TRIAGE_APPROVALS });
-
-    const res = await post(app, "triage");
-    await settle();
-
-    expect(res.status).toBe(403);
-    expect(mockClient._log.filter((e) => e.table === "htaf_applications")).toEqual([]);
-    const audit = mockClient._state.audit_logs.find((a) => a.action === "htaf_ai_triage_blocked");
-    expect(audit.metadata.reason).toBe("no AI provider configured");
+  test("the removed external AI triage rejects every invocation, whatever the settings", async () => {
+    for (const env of [
+      {},
+      { HTAF_AI_TRIAGE_ENABLED: "true" },
+      { HTAF_AI_TRIAGE_ENABLED: "true", OPENAI_API_KEY: "sk-test-not-used", ...TRIAGE_APPROVALS },
+      { HTAF_AI_TRIAGE_ENABLED: "true", OPENAI_API_KEY: "sk-test-not-used", HTAF_RBAC_ENFORCED: "false", ...TRIAGE_APPROVALS }
+    ]) {
+      mockClient = createFakeSupabase(seed());
+      const app = loadApp(env);
+      for (const method of ["post", "get", "put", "patch"]) {
+        const res = await request(app)[method]("/api/admin/foundation/applications/application-1/triage").set("x-admin-token", process.env.ADMIN_API_TOKEN).send({});
+        expect(res.status).toBe(404);
+      }
+      expect(mockClient._log.filter((e) => e.table === "htaf_applications")).toEqual([]);
+    }
+    // The route, its OpenAI call and its configuration are gone from the code.
+    // eslint-disable-next-line global-require
+    const source = require("fs").readFileSync(require("path").join(__dirname, "..", "server.js"), "utf8");
+    expect(source).not.toMatch(/applications\/:id\/triage"/);
+    expect(source).not.toMatch(/HTAF_AI_TRIAGE_ENABLED|triageHtafApplication|buildHtafTriageFacts/);
   });
 
   test("the admin health detail shows the approval record in effect", async () => {

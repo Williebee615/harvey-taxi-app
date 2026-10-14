@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Harvey Transportation Assistance Foundation | Apply for Transportation Assistance</title>
+  <title>Apply — Harvey Transportation Assistance Foundation</title>
   <meta name="description" content="Apply for Harvey Transportation Assistance Foundation transportation assistance for medical appointments, seniors, disability access, veterans, employment, education, and essential mobility across Tennessee." />
   <meta name="theme-color" content="#0b1530" />
   <meta name="robots" content="index, follow" />
@@ -38,7 +38,8 @@
     .topbar-inner{min-height:104px;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:16px 0}
     .brand{display:flex;align-items:center;gap:18px;min-width:0}
     .brand-mark{width:72px;height:72px;border-radius:22px;display:grid;place-items:center;background:linear-gradient(135deg,var(--cyan),var(--blue));box-shadow:0 14px 32px rgba(106,167,255,.3);flex:0 0 auto;color:var(--ink);font-size:1.45rem;font-weight:900;overflow:hidden}
-    .brand-mark img{width:100%;height:100%;object-fit:cover}
+    .brand-mark img{width:100%;height:100%;object-fit:contain}
+    .brand-mark:has(img){background:none;box-shadow:0 10px 26px rgba(106,167,255,.28);border-radius:50%}
     .brand-fallback{width:100%;height:100%;display:grid;place-items:center;background:linear-gradient(135deg,var(--cyan),var(--blue));color:var(--ink);font-weight:950}
     .brand-copy{min-width:0;max-width:720px}
     .brand-copy h1{font-size:clamp(1.35rem,3vw,2rem);font-weight:900;line-height:1.1;letter-spacing:-.03em}
@@ -87,6 +88,8 @@
     .feature-icon{width:54px;height:54px;border-radius:16px;display:grid;place-items:center;margin-bottom:18px;font-size:1.4rem;background:linear-gradient(135deg,rgba(115,244,255,.18),rgba(106,167,255,.14));border:1px solid rgba(115,244,255,.14)}
     .stats-shell,.process-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:24px}
     .stat-card strong,.process-card strong{color:var(--cyan);font-size:1.2rem}
+    .stat-card strong{display:block;font-size:1.8rem;line-height:1.1;margin-bottom:6px}
+    .stats-note{margin-top:14px;color:var(--muted);font-size:.9rem}
     .why-shell{display:grid;grid-template-columns:1.05fr .95fr;gap:24px}
     .why-list{list-style:none;display:grid;gap:14px}
     .why-list li{display:flex;gap:12px;color:var(--muted);line-height:1.6}
@@ -155,7 +158,18 @@
     @media(max-width:1200px){.hero-shell,.why-shell,.cta-card,.application-grid{grid-template-columns:1fr}.application-progress,.sticky-box{position:static}}
     @media(max-width:900px){.utility-panel{grid-template-columns:1fr}.utility-actions{justify-content:flex-start}.grid-3,.impact-strip,.stats-shell,.process-grid,.trust-grid,.choice-grid{grid-template-columns:1fr}.topbar-inner{flex-direction:column;align-items:flex-start}.nav{width:100%;justify-content:flex-start}}
     @media(max-width:640px){.shell{width:min(100% - 20px,var(--maxw))}.hero-card,.section-card,.application-card,.spotlight-card,.why-card,.cta-card{padding:22px}.brand{align-items:flex-start}.brand-mark{width:60px;height:60px}.hero-actions,.preview-actions,.application-actions{flex-direction:column}.hero-actions .btn,.preview-actions .btn,.application-actions .btn{width:100%}.bottom-nav{height:82px}}
+      .lang-pick{display:inline-flex;align-items:center;gap:8px;font-weight:800;font-size:.85rem}
+    .lang-pick select{min-height:40px;border-radius:999px;padding:0 12px;font:inherit;font-weight:700;color:inherit;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14)}
+    .lang-pick select option{color:#07111f;background:#fff}
+    .lang-note{display:block;margin-top:4px;font-size:.8rem;opacity:.85}
+    .htaf-summary{margin:8px 0 10px;padding:10px 12px;border-radius:12px;border:1px dashed rgba(255,255,255,.22);font-size:.9rem;line-height:1.55}
+    html[lang="en"] .htaf-summary{display:none}
+    html[dir="rtl"] .contact-value,html[dir="rtl"] .preview-title,html[dir="rtl"] .preview-copy,html[dir="rtl"] a[href^="mailto:"],html[dir="rtl"] a[href^="tel:"]{direction:ltr;unicode-bidi:isolate}
+    a[href^="mailto:"]{overflow-wrap:anywhere}
   </style>
+  <script src="/language-pref.js" defer></script>
+  <script src="/htaf-translations.js" defer></script>
+  <script src="/htaf-i18n.js" defer></script>
 </head>
 
 <body>
@@ -165,7 +179,7 @@
     <div class="shell topbar-inner">
       <a href="foundation.html" class="brand">
         <div class="brand-mark">
-          <img src="/images/foundation-logo.png" alt="HTAF Logo" onerror="this.style.display='none';this.parentNode.innerHTML='<div class=&quot;brand-fallback&quot;>HT</div>';" />
+          <img src="/htaf-logo-192.webp" width="72" height="70" alt="HTAF Logo" onerror="this.style.display='none';this.parentNode.innerHTML='<div class=&quot;brand-fallback&quot;>HT</div>';" />
         </div>
         <div class="brand-copy">
           <h1>Harvey Transportation Assistance Foundation</h1>
@@ -187,8 +201,10 @@
     <div>
       <strong>Accessibility & Applicant Support</strong>
       <span>Use the display controls below, save a draft, or print your application. For help, <a href="contact.html">contact HTAF</a>.</span>
+      <span class="lang-note">Translations are automated and may contain errors. Legal terms, privacy and consent statements are in English.</span>
     </div>
     <div class="utility-actions">
+      <label class="lang-pick"><span>Language</span><select data-htaf-lang aria-label="Language"></select></label>
       <button class="utility-btn" type="button" id="contrastBtn">High Contrast</button>
       <button class="utility-btn" type="button" id="textBtn">Larger Text</button>
       <button class="utility-btn" type="button" id="motionBtn">Reduce Motion</button>
@@ -268,7 +284,10 @@
                      CONSENT_TEXT["htaf-sms-v1"] exactly. -->
                 <div class="sms-consent" id="smsConsentSection">
                   <h5 id="smsConsentTitle">Text message updates from HTAF (optional)</h5>
-                  <label class="consent-row" for="smsConsent"><input id="smsConsent" name="smsConsent" type="checkbox" aria-describedby="smsConsentTitle" /><span class="consent-text" id="smsConsentText">Yes, I agree to receive text messages from Harvey Transportation Assistance Foundation (HTAF) at the phone number above, sent from (844) 795-0299, about my application updates, transportation scheduling, pickup reminders, service changes and support. Message frequency varies. Message and data rates may apply. Reply STOP to opt out at any time, or HELP for help. Consent is not required to apply for or receive assistance. See our <a href="https://harveytransportationfoundation.com/privacy.html" target="_blank" rel="noopener">Privacy Policy</a> and <a href="https://harveytransportationfoundation.com/terms.html" target="_blank" rel="noopener">Terms of Use</a>.</span></label>
+                  <!-- Translated plain-language summary (hidden in English). The
+                       consent statement itself always stays English. -->
+                  <p class="htaf-summary">Summary in your language: checking the optional box below lets HTAF send you text messages about your application and rides from (844) 795-0299. Message frequency varies; message and data rates may apply. Reply STOP to stop or HELP for help. You don't have to agree to apply. The English text below is what you agree to.</p>
+                  <label class="consent-row" for="smsConsent" data-no-translate lang="en"><input id="smsConsent" name="smsConsent" type="checkbox" aria-describedby="smsConsentTitle" /><span class="consent-text" id="smsConsentText">Yes, I agree to receive text messages from Harvey Transportation Assistance Foundation (HTAF) at the phone number above, sent from (844) 795-0299, about my application updates, transportation scheduling, pickup reminders, service changes and support. Message frequency varies. Message and data rates may apply. Reply STOP to opt out at any time, or HELP for help. Consent is not required to apply for or receive assistance. See our <a href="https://harveytransportationfoundation.com/privacy.html" target="_blank" rel="noopener">Privacy Policy</a> and <a href="https://harveytransportationfoundation.com/terms.html" target="_blank" rel="noopener">Terms of Use</a>.</span></label>
                   <p class="sms-consent-note">Leave this unchecked if you do not want texts. Declining texts does not affect your application.</p>
                 </div>
               </div>
@@ -314,8 +333,9 @@
 
               <div class="form-section">
                 <div class="form-section-title"><h4>Applicant Certification</h4><span>Required</span></div>
-                <div class="status-box"><strong>Certification Statement</strong><span>By submitting this application, you certify that all information provided is accurate and complete to the best of your knowledge. Submission does not guarantee transportation assistance and all applications remain subject to review, eligibility, documentation verification, funding availability, and organizational capacity.</span></div>
-                <label class="consent-row"><input id="consent" type="checkbox" required /><span class="consent-text">I certify that the information provided is accurate and authorize Harvey Transportation Assistance Foundation to review my request.</span></label>
+                <p class="htaf-summary">Summary in your language: by submitting, you confirm that your information is accurate and allow HTAF to review your request. Submitting does not guarantee assistance. The English statement below is what you certify.</p>
+                <div class="status-box"><strong>Certification Statement</strong><span data-no-translate lang="en">By submitting this application, you certify that all information provided is accurate and complete to the best of your knowledge. Submission does not guarantee transportation assistance and all applications remain subject to review, eligibility, documentation verification, funding availability, and organizational capacity.</span></div>
+                <label class="consent-row" data-no-translate lang="en"><input id="consent" type="checkbox" required /><span class="consent-text">I certify that the information provided is accurate and authorize Harvey Transportation Assistance Foundation to review my request.</span></label>
               </div>
 
               <div id="reviewPanel" class="review-panel"><h4>Application Review</h4><div id="reviewGrid" class="review-grid"></div></div>
@@ -393,13 +413,14 @@
     <section class="section">
       <div class="shell">
         <section class="card section-card">
-          <div class="section-head"><h3>Application Dashboard</h3><p>Monitor local draft and application activity on this device.</p></div>
+          <div class="section-head"><h3>Application Dashboard</h3><p>Totals across all HTAF applications, from HTAF's application records. Counts only; no personal information is shown.</p></div>
           <div class="stats-shell">
-            <div class="stat-card"><strong id="totalApplications">0</strong><span>Applications Submitted</span></div>
-            <div class="stat-card"><strong id="pendingApplications">0</strong><span>Pending Review</span></div>
-            <div class="stat-card"><strong id="approvedApplications">0</strong><span>Approved Requests</span></div>
-            <div class="stat-card"><strong id="scheduledRides">0</strong><span>Scheduled Rides</span></div>
+            <div class="stat-card"><strong id="totalApplications">—</strong><span>Applications Submitted</span></div>
+            <div class="stat-card"><strong id="pendingApplications">—</strong><span>Pending Review</span></div>
+            <div class="stat-card"><strong id="approvedApplications">—</strong><span>Approved Requests</span></div>
+            <div class="stat-card"><strong id="scheduledRides">—</strong><span>Scheduled Rides</span></div>
           </div>
+          <p class="stats-note" id="statsNote" role="status" aria-live="polite">Loading the latest totals…</p>
         </section>
       </div>
     </section>
@@ -582,22 +603,34 @@
       return response.json();
     }
 
-    function updateDashboardCounters(){
-      const stored=Number(localStorage.getItem("htaf_total_applications")||"0");
-      const total=document.getElementById("totalApplications");
-      const pending=document.getElementById("pendingApplications");
-      const approved=document.getElementById("approvedApplications");
-      const scheduled=document.getElementById("scheduledRides");
-      if(total) total.textContent=stored;
-      if(pending) pending.textContent=stored;
-      if(approved) approved.textContent="0";
-      if(scheduled) scheduled.textContent="0";
-    }
-
-    function incrementApplicationCounter(){
-      const current=Number(localStorage.getItem("htaf_total_applications")||"0");
-      localStorage.setItem("htaf_total_applications",String(current+1));
-      updateDashboardCounters();
+    // HTAF-wide totals from GET /api/foundation/public-stats (counts only),
+    // so a status change in the HTAF admin portal shows here. If the totals
+    // can't be read, the cards show "—", never a made-up 0.
+    const STAT_FIELDS={
+      totalApplications:"applications_submitted",
+      pendingApplications:"pending_review",
+      approvedApplications:"approved_requests",
+      scheduledRides:"scheduled_rides"
+    };
+    async function updateDashboardCounters(){
+      const note=document.getElementById("statsNote");
+      const show=(stats)=>Object.entries(STAT_FIELDS).forEach(([id,key])=>{
+        const el=document.getElementById(id);
+        if(el) el.textContent=stats&&Number.isFinite(stats[key])?String(stats[key]):"—";
+      });
+      try{
+        const response=await fetch(`${window.HARVEY_API_BASE||""}/api/foundation/public-stats`,{cache:"no-store"});
+        const stats=await response.json().catch(()=>null);
+        if(!response.ok||!stats||stats.ok!==true) throw new Error("unavailable");
+        show(stats);
+        const when=stats.generated_at?new Date(stats.generated_at):null;
+        const tr=window.HTAF_T||((s)=>s);
+        const locale=window.HTAF_LANG?window.HTAF_LANG():undefined;
+        if(note) note.textContent=when&&!isNaN(when)?`${tr("Updated")} ${when.toLocaleString(locale,{dateStyle:"medium",timeStyle:"short"})}.`:"Updated just now.";
+      }catch(error){
+        show(null);
+        if(note) note.textContent="Totals are unavailable right now. Please try again later.";
+      }
     }
 
     function updateProgressTracker(){
@@ -644,7 +677,7 @@
           await submitApplication(payload);
           localStorage.removeItem(APPLICATION_STORAGE_KEY);
           applicationForm.reset();
-          incrementApplicationCounter();
+          updateDashboardCounters();
           updateProgressTracker();
           showApplicationStatus("Application submitted successfully. HTAF will review your transportation assistance request.","ok");
         }catch(error){

@@ -60,7 +60,8 @@ const ROUTES = [
   ["patch", "/api/admin/foundation/applications/application-1", "htaf.applications.update"],
   ["post", "/api/admin/foundation/applications/export", "htaf.applications.export"],
   ["get", "/api/admin/foundation/schema-check", "htaf.applications.read"],
-  ["post", "/api/admin/foundation/applications/application-1/triage", "htaf.applications.triage"],
+  ["post", "/api/admin/foundation/applications/application-1/review-assist", "htaf.applications.triage"],
+  ["post", "/api/admin/foundation/applications/application-1/review-assist/feedback", "htaf.applications.triage"],
   ["post", "/api/admin/foundation/applications/application-1/create-ride", "htaf.rides.create"],
   ["get", "/api/admin/htaf/assistant-questions", "htaf.applications.read"]
 ];

@@ -3843,9 +3843,9 @@
               <button
                 class="btn btn-gold"
                 type="button"
-                onclick="runAiTriage()"
+                onclick="runReviewAssist()"
               >
-                AI Triage
+                Review Assistant
               </button>
 
               <button
@@ -3942,6 +3942,8 @@
 
       }
 
+      // Review assistant: HTAF's own rules (no AI model, nothing sent
+      // outside HTAF). Suggestions only -- staff decide every application.
       function renderTriagePanel() {
         const panel = document.getElementById("triagePanel");
         if (!panel) return;
@@ -3951,66 +3953,104 @@
           return;
         }
         panel.classList.remove("hidden");
-        if (!lastTriage.available) {
-          panel.innerHTML = `
-            <label>AI Triage</label>
-            <p class="detail-muted">${escapeHtml(lastTriage.reason || "AI triage is unavailable.")}</p>
-          `;
-          return;
-        }
-        const flagsHtml = lastTriage.flags.length
-          ? lastTriage.flags.map(f => `<span class="pill">${escapeHtml(f)}</span>`).join(" ")
-          : `<span class="detail-muted">No flags.</span>`;
+        const r = lastTriage;
+        const checksHtml = r.checks.length
+          ? r.checks.map(c => `
+              <li data-check="${escapeHtml(c.id)}" style="margin-bottom:8px;">
+                <span class="pill">${c.kind === "missing" ? "Missing" : "Check"}</span>
+                ${escapeHtml(c.message)}
+                ${c.possibly ? `<div class="detail-muted">Possibly: ${escapeHtml(c.possibly)} (not changed; staff can correct the application).</div>` : ""}
+                ${c.related ? `<div class="detail-muted">Related: ${c.related.map(x => `${escapeHtml(x.application_code)} (${escapeHtml(x.status)}${x.submitted ? ", " + escapeHtml(x.submitted) : ""})`).join("; ")}</div>` : ""}
+                <div class="review-feedback" style="margin-top:4px;">
+                  <button class="btn btn-secondary" type="button" style="padding:4px 10px;min-height:0;font-size:12px;" onclick="reviewFeedback('${escapeHtml(c.id)}','incorrect')">Wrong</button>
+                  <button class="btn btn-secondary" type="button" style="padding:4px 10px;min-height:0;font-size:12px;" onclick="reviewFeedback('${escapeHtml(c.id)}','not_needed')">Not needed</button>
+                </div>
+              </li>`).join("")
+          : `<li class="detail-muted">No missing information found by the rules.</li>`;
+        const questionsHtml = r.follow_up_questions.length
+          ? r.follow_up_questions.map(q => `
+              <li style="margin-bottom:6px;">
+                <label style="display:flex;gap:8px;align-items:flex-start;font-weight:400;">
+                  <input type="checkbox" data-question="${escapeHtml(q.id)}" />
+                  <span>${escapeHtml(q.question)}</span>
+                </label>
+              </li>`).join("")
+          : "";
         panel.innerHTML = `
-          <label>AI Triage Suggestion (review before acting)</label>
-          <p style="margin-bottom:10px;">${escapeHtml(lastTriage.summary)}</p>
-          <div style="margin-bottom:10px;">${flagsHtml}</div>
-          <p class="detail-muted" style="margin-bottom:10px;">
-            Suggested: <strong>${escapeHtml(formatStatus(lastTriage.recommendation))}</strong>
-            — ${escapeHtml(lastTriage.reasoning)}
-          </p>
-          <button class="btn btn-secondary" type="button" onclick="applyTriageToNotes()">
-            Insert Into Notes
-          </button>
+          <label>Review Assistant: automated suggestions, not a decision</label>
+          <p class="detail-muted" style="margin-bottom:10px;">${escapeHtml(r.label)}</p>
+          <p style="margin-bottom:10px;">${escapeHtml(r.summary)}</p>
+          <ul style="margin:0 0 10px 18px;">${checksHtml}</ul>
+          ${(r.staff_checks || []).length ? `
+            <p class="detail-muted" style="margin-bottom:6px;">Always for staff to decide (coverage alone does not confirm these):</p>
+            <ul style="margin:0 0 10px 18px;">${r.staff_checks.map(c => `<li>${escapeHtml(c.text)}</li>`).join("")}</ul>` : ""}
+          ${questionsHtml ? `
+            <p class="detail-muted" style="margin-bottom:6px;">Suggested follow-up questions. Nothing is sent to the applicant; tick any you want to copy into your notes.</p>
+            <ul style="list-style:none;margin:0 0 10px 0;padding:0;">${questionsHtml}</ul>
+            <button class="btn btn-secondary" type="button" onclick="copyReviewQuestionsToNotes()">Copy selected to notes</button>` : ""}
+          <button class="btn btn-secondary" type="button" onclick="dismissReviewAssist()">Dismiss</button>
         `;
       }
 
-      async function runAiTriage() {
+      async function runReviewAssist() {
         if (!selectedApplication) {
           showBanner("detailStatusBanner", "Select an application first.", "err");
           return;
         }
         try {
-          showBanner("detailStatusBanner", "Running AI triage...", "info");
+          showBanner("detailStatusBanner", "Running the review assistant...", "info");
           const payload = await apiRequest(
-            `/api/admin/foundation/applications/${encodeURIComponent(selectedApplication.id)}/triage`,
+            `/api/admin/foundation/applications/${encodeURIComponent(selectedApplication.id)}/review-assist`,
             { method: "POST" }
           );
-          lastTriage = payload.triage;
+          lastTriage = payload.review;
           renderTriagePanel();
           hideBanner("detailStatusBanner");
         } catch (error) {
           console.error(error);
-          showBanner(
-            "detailStatusBanner",
-            error.message || "AI triage failed.",
-            "err"
-          );
+          showBanner("detailStatusBanner", error.message || "The review assistant is unavailable.", "err");
         }
       }
 
-      function applyTriageToNotes() {
-        if (!lastTriage || !lastTriage.available) return;
+      async function reviewFeedback(checkId, verdict) {
+        if (!selectedApplication || !lastTriage) return;
+        try {
+          await apiRequest(
+            `/api/admin/foundation/applications/${encodeURIComponent(selectedApplication.id)}/review-assist/feedback`,
+            { method: "POST", body: JSON.stringify({ check_id: checkId, verdict, reason: reviewFeedbackReason(checkId, verdict) }) }
+          );
+        } catch (error) {
+          console.error(error);
+        }
+        // Staff disregard the suggestion either way: it disappears from view.
+        lastTriage = { ...lastTriage, checks: lastTriage.checks.filter(c => c.id !== checkId), follow_up_questions: lastTriage.follow_up_questions.filter(q => q.id !== checkId) };
+        renderTriagePanel();
+      }
+
+      // A fixed reason code for a correction -- never free text.
+      function reviewFeedbackReason(checkId, verdict) {
+        if (verdict !== "incorrect") return "not_relevant";
+        if (checkId === "county_not_recognized") return "county_is_valid";
+        if (checkId === "possible_duplicate") return "not_a_duplicate";
+        if (checkId.startsWith("ride_date")) return "date_is_correct";
+        if (checkId.startsWith("missing") || checkId.startsWith("need") || checkId === "program_unspecified") return "information_is_present";
+        return "not_relevant";
+      }
+
+      function copyReviewQuestionsToNotes() {
+        if (!lastTriage) return;
         const notesField = document.getElementById("adminNotes");
         if (!notesField) return;
-        const addition = [
-          "AI Triage Suggestion:",
-          lastTriage.summary,
-          lastTriage.flags.length ? `Flags: ${lastTriage.flags.join(", ")}` : "",
-          `Recommendation: ${formatStatus(lastTriage.recommendation)}`,
-          lastTriage.reasoning
-        ].filter(Boolean).join("\n");
-        notesField.value = [notesField.value || "", "", addition].join("\n").trim();
+        const ticked = Array.from(document.querySelectorAll("#triagePanel input[data-question]:checked")).map(el => el.getAttribute("data-question"));
+        const questions = lastTriage.follow_up_questions.filter(q => ticked.includes(q.id)).map(q => `- ${q.question}`);
+        if (!questions.length) return;
+        // Copies into the notes box only; staff still choose whether to save.
+        notesField.value = [notesField.value || "", "", "Follow-up questions to ask (from the review assistant, chosen by staff):", ...questions].join("\n").trim();
+      }
+
+      function dismissReviewAssist() {
+        lastTriage = null;
+        renderTriagePanel();
       }
 
       async function updateApplication(

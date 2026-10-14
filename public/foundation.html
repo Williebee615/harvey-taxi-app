@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Harvey Transportation Assistance Foundation | Tennessee-Based 501(c)(3) Transportation Charity</title>
+  <title>Harvey Transportation Assistance Foundation (HTAF)</title>
   <meta
     name="description"
     content="Harvey Transportation Assistance Foundation (HTAF) is a Tennessee-based 501(c)(3) public charity that helps eligible residents access transportation for healthcare, employment, education, disability access, veterans, seniors, and essential community needs."
@@ -131,6 +131,21 @@
       mask-image: linear-gradient(to bottom, rgba(0,0,0,.86), transparent 78%);
       z-index: 0;
     }
+    /* HTAF logo as a faint watermark behind the page. body is its own
+       stacking context, so z-index -1 sits above the body background and
+       below all content. */
+    body { isolation: isolate; }
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: -1;
+      background: url("/htaf-logo.webp") center 55% / min(78vw, 560px) auto no-repeat;
+      opacity: .13;
+    }
+    body.high-contrast::after { display: none; }
+    @media print { body::after { display: none; } }
     body.high-contrast {
       --bg1: #000;
       --bg2: #020617;
@@ -251,7 +266,9 @@
       letter-spacing: .04em;
       overflow: hidden;
     }
-    .brand-mark img { width: 100%; height: 100%; object-fit: cover; }
+    .brand-mark img { width: 100%; height: 100%; object-fit: contain; }
+    /* The round HTAF logo stands on its own; the gradient tile is only for the "HT" fallback. */
+    .brand-mark:has(img) { background: none; box-shadow: 0 10px 26px rgba(106,167,255,.28); border-radius: 50%; }
     .brand-fallback {
       width: 100%;
       height: 100%;
@@ -522,7 +539,18 @@
       .bottom-nav { height: 82px; }
       .access-btn { flex: 1; }
     }
+      .lang-pick{display:inline-flex;align-items:center;gap:8px;font-weight:800;font-size:.85rem}
+    .lang-pick select{min-height:40px;border-radius:999px;padding:0 12px;font:inherit;font-weight:700;color:inherit;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14)}
+    .lang-pick select option{color:#07111f;background:#fff}
+    .lang-note{display:block;margin-top:4px;font-size:.8rem;opacity:.85}
+    .htaf-summary{margin:8px 0 10px;padding:10px 12px;border-radius:12px;border:1px dashed rgba(255,255,255,.22);font-size:.9rem;line-height:1.55}
+    html[lang="en"] .htaf-summary{display:none}
+    html[dir="rtl"] .contact-value,html[dir="rtl"] .preview-title,html[dir="rtl"] .preview-copy,html[dir="rtl"] a[href^="mailto:"],html[dir="rtl"] a[href^="tel:"]{direction:ltr;unicode-bidi:isolate}
+    a[href^="mailto:"]{overflow-wrap:anywhere}
   </style>
+  <script src="/language-pref.js" defer></script>
+  <script src="/htaf-translations.js" defer></script>
+  <script src="/htaf-i18n.js" defer></script>
 </head>
 
 <body>
@@ -533,7 +561,7 @@
     <a href="foundation.html" class="brand">
       <div class="brand-mark">
         <img
-          src="/images/foundation-logo.png"
+          src="/htaf-logo-192.webp" width="72" height="70"
           alt="HTAF Logo"
           onerror="this.style.display='none'; this.parentNode.innerHTML='<div class=&quot;brand-fallback&quot;>HT</div>';"
         />
@@ -557,8 +585,10 @@
   <div class="access-panel-copy">
     <strong>Accessibility</strong>
     <span>Adjust display settings for easier reading.</span>
+    <span class="lang-note">Translations are automated and may contain errors. Legal terms, privacy and consent statements are in English.</span>
   </div>
   <div class="access-controls">
+    <label class="lang-pick"><span>Language</span><select data-htaf-lang aria-label="Language"></select></label>
     <button id="contrast-toggle" class="access-btn" type="button">High Contrast</button>
     <button id="text-toggle" class="access-btn" type="button">Larger Text</button>
     <button id="motion-toggle" class="access-btn" type="button">Reduce Motion</button>
@@ -582,6 +612,7 @@
           <a href="htaf-application.html" class="btn btn-primary">Apply For Assistance</a>
           <a href="https://www.paypal.com/us/fundraiser/charity/5906918" target="_blank" rel="noopener noreferrer" class="btn btn-gold">Donate</a>
           <a href="contact.html" class="btn btn-secondary">Contact HTAF</a>
+          <a href="#partner" class="btn btn-secondary">Partner With Us</a>
         </div>
         <section class="impact-strip">
           <article class="impact-mini">
@@ -696,15 +727,39 @@
   </div>
 </section>
 
+<section class="section" id="partner">
+  <div class="shell">
+    <section class="card section-card">
+      <div class="section-head">
+        <h3>Partner With HTAF</h3>
+        <p>
+          Help remove transportation barriers across Tennessee. We welcome inquiries from
+          healthcare providers, employers, schools, community organizations, transportation
+          providers, and sponsors.
+        </p>
+      </div>
+      <p style="color: var(--muted); margin-bottom: 14px;">Ways to collaborate include:</p>
+      <ul class="why-list">
+        <li>Referring people for assistance</li>
+        <li>Sponsoring transportation</li>
+        <li>Coordinating community programs</li>
+        <li>Providing transportation resources</li>
+      </ul>
+      <div class="hero-actions" style="margin-top: 20px;">
+        <a href="contact.html?topic=partnership#inquiry" class="btn btn-primary">Discuss a Partnership</a>
+      </div>
+    </section>
+  </div>
+</section>
+
 <section class="section" id="governance">
   <div class="shell">
     <div class="why-shell">
       <section class="card why-card">
         <h3>Governance</h3>
         <p style="color: var(--muted); margin-bottom: 14px;">
-          HTAF is governed by a volunteer Board of Directors responsible for the Foundation's
-          mission, finances, and program oversight. HTAF is not owned or controlled by, and does
-          not share governance with, any commercial transportation company.
+          HTAF is governed by a Board of Directors responsible for the Foundation's
+          mission, finances, and program oversight.
         </p>
         <ul class="why-list">
           <li>Board of Directors sets program policy and approves the annual budget.</li>

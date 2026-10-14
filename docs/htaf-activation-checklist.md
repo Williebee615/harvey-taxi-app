@@ -1,4 +1,4 @@
-# HTAF ride transfer and AI triage — activation checklist
+# HTAF ride transfer — activation checklist
 
 Tracks: #133 (HTAF alerts), #134 (HTAF access), #135 (ride creation),
 #136 (AI triage), #137 (provider agreement).
@@ -77,33 +77,14 @@ Harvey Taxi `rides` table.
 
 ---
 
-## 2. HTAF AI triage (#136)
+## 2. HTAF AI triage (#136) -- removed 2026-10-14
 
-Sends the minimized triage facts (status, program type, applicant type,
-service-area yes/no answers, ride date, presence flags, submission time)
-to the configured AI provider. Names, contact details, addresses, income,
-household size, uploads and free text are excluded, and
-`lib/htafOperations.test.js` fails if any of them enter the payload.
-
-### Prerequisites
-
-- [ ] Privacy/security review of the triage data contract approved.
-- [ ] AI provider's data-use and retention terms reviewed and acceptable
-      (no training on submitted data; retention period documented).
-- [ ] Only intended people hold an HTAF role in `admin_roles` (section 0);
-      no other role can run triage.
-
-### Environment (Render)
-
-| Variable | Value |
-|---|---|
-| `HTAF_AI_PRIVACY_REVIEW_REF` | Privacy review reference |
-| `HTAF_AI_TRIAGE_APPROVED_BY` | Approving person or body |
-| `HTAF_AI_TRIAGE_APPROVED_AT` | Approval date, `YYYY-MM-DD`, not in the future |
-| `HTAF_AI_TRIAGE_ENABLED` | `true` — set **last** |
-
-An AI provider key must also be configured; without one, triage stays off
-with reason `no AI provider configured`.
+The external AI triage route, its `HTAF_AI_TRIAGE_*` settings and its
+facts builder were removed by owner decision. It never ran in production.
+Setting `HTAF_AI_TRIAGE_ENABLED` or the related approval variables has no
+effect, and they can be deleted from Render. HTAF staff use the internal
+review assistant (docs/htaf-review-assistant.md). Any future external AI
+integration is a separate reviewed project.
 
 ---
 

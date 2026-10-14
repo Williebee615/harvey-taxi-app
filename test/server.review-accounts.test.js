@@ -85,6 +85,14 @@ const REVIEW_DRIVER = {
   access_revoked: false,
   online: true,
   status: "active",
+  email_verified: true,
+  phone_verified: true,
+  checkr_status: "clear",
+  persona_verified: true,
+  persona_status: "verified",
+  vehicle_make: "Toyota",
+  vehicle_model: "Camry",
+  vehicle_year: 2022,
   approval_status: "approved"
 };
 
@@ -99,6 +107,14 @@ const ORDINARY_DRIVER = {
   access_revoked: false,
   online: true,
   status: "active",
+  email_verified: true,
+  phone_verified: true,
+  checkr_status: "clear",
+  persona_verified: true,
+  persona_status: "verified",
+  vehicle_make: "Toyota",
+  vehicle_model: "Camry",
+  vehicle_year: 2022,
   approval_status: "approved"
 };
 

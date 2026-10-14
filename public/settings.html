@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Harvey Taxi — Settings &amp; Account Controls</title>
+  <title>Harvey Taxi — Settings</title>
   <meta
     name="description"
     content="Manage Harvey Taxi rider and driver settings, battery optimization, location preferences, notification controls, support access, privacy preferences, and account deletion requests."
@@ -35,7 +35,6 @@
     href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
     rel="stylesheet"
   />
-  <link rel="stylesheet" href="/ai-support-widget.css" onerror="this.remove()" />
   <style>
     :root {
       --bg1: #040814;
@@ -153,6 +152,7 @@
       display: block; color: var(--cyan); font-size: 0.85rem; font-weight: 900; letter-spacing: 0.04em; margin-bottom: 3px;
     }
     .access-panel-copy span { display: block; color: var(--muted); font-size: 0.82rem; }
+    .access-panel-copy .lang-scope { margin-top: 4px; opacity: 0.85; }
     .access-controls { display: flex; flex-wrap: wrap; gap: 9px; }
     .access-btn, .access-controls select {
       min-height: 40px; padding: 0 13px; border-radius: 999px;
@@ -174,7 +174,10 @@
       box-shadow: var(--shadowSoft);
       margin-bottom: 18px;
     }
-    .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    /* max-width: on phones the top bar is a column with align-items:
+       flex-start, which sized the brand to its one-line subtitle and made
+       the page wider than the screen (418px on a 360px phone). */
+    .brand { display: flex; align-items: center; gap: 12px; min-width: 0; max-width: 100%; }
     .brand-mark {
       width: 52px; height: 52px; border-radius: 17px; display: grid; place-items: center;
       color: var(--ink); font-weight: 950; letter-spacing: 0.03em;
@@ -365,6 +368,14 @@
     .nav-btn { color: var(--muted); background: transparent; font-size: 12px; font-weight: 900; padding: 10px; border-radius: 14px; min-height: 48px; min-width: 64px; transition: var(--dur) var(--ease); }
     .nav-btn.active { color: white; background: rgba(255, 255, 255, 0.06); }
     .nav-btn:hover, .nav-btn:focus-visible { color: var(--cyan); outline: none; }
+    /* Harvey Assistant is a bottom-nav tab on phones (no floating button over
+       the settings); wider screens use its own launcher. */
+    .nav-btn.nav-assistant { display: none; }
+    @media (max-width: 599px) {
+      .nav-btn.nav-assistant { display: block; }
+      .bottom-nav { padding-left: 4px; padding-right: 4px; }
+      .nav-btn { min-width: 0; flex: 1 1 0; padding: 10px 2px; white-space: normal; overflow-wrap: anywhere; line-height: 1.15; font-size: 11.5px; text-align: center; }
+    }
 
     @media(max-width: 1020px) {
       .two-col, .status-grid, .account-stat-grid, .support-grid { grid-template-columns: 1fr 1fr; }
@@ -387,11 +398,12 @@
     .deletion-identity, .deletion-help { margin: 12px 0; line-height: 1.5; }
     .deletion-help { font-size: 0.9em; opacity: 0.85; }
   </style>
+  <script src="/language-pref.js"></script>
 </head>
 
 <body>
 
-  <a href="#mainContent" class="skip-link">Skip to content</a>
+  <a href="#mainContent" class="skip-link" data-i18n="skipContent">Skip to content</a>
 
   <div id="settingsReviewBanner" role="status" hidden style="position:sticky; top:0; z-index:50; margin:8px; padding:10px 14px; border-radius:12px; border:1px solid rgba(255,196,0,0.55); background:rgba(255,196,0,0.14); color:#ffe59a; font-weight:700; text-align:center;">
     App Review mode — rides, payments, earnings and account deletion are simulated for this review account.
@@ -404,17 +416,15 @@
       <div class="access-panel-copy">
         <strong data-i18n="langTitle">Language &amp; Accessibility</strong>
         <span data-i18n="langCopy">Select your preferred language and accessibility settings.</span>
+        <span class="lang-scope" data-i18n="langScope">Your language choice applies to every page that has a translation. Ride screens, support, policies and legal terms are in English. Translations are automated and may contain errors.</span>
       </div>
       <div class="access-controls">
         <select id="languageSelect" aria-label="Choose language">
-          <option value="en">🌐 English</option>
-          <option value="es">🌐 Español</option>
-          <option value="fr">🌐 Français</option>
-          <option value="ar">🌐 العربية</option>
+          <option value="en">English</option>
         </select>
-        <button type="button" class="access-btn" id="contrastBtn">Contrast</button>
+        <button type="button" class="access-btn" id="contrastBtn" data-i18n="contrastBtn">Contrast</button>
         <button type="button" class="access-btn" id="textBtn">A+</button>
-        <button type="button" class="access-btn" id="motionBtn">Motion</button>
+        <button type="button" class="access-btn" id="motionBtn" data-i18n="motionBtn">Motion</button>
       </div>
     </section>
 
@@ -434,7 +444,6 @@
       </a>
       <div class="top-actions">
         <a class="top-chip" href="rider-dashboard.html" data-i18n="riderDashboard">Rider Dashboard</a>
-        <a class="top-chip" href="driver-dashboard.html" data-i18n="driverDashboard">Driver Dashboard</a>
         <a class="top-chip" href="support.html" data-i18n="supportLink">Support</a>
       </div>
     </header>
@@ -449,7 +458,7 @@
       </p>
       <div class="hero-actions">
         <button class="btn primary" type="button" onclick="commitSavedSettings()" data-i18n="saveSettings">Save Current Settings</button>
-        <button class="btn secondary" type="button" onclick="openHarveyAiChat()" data-i18n="askAi">Ask AI Support</button>
+        <button class="btn secondary" type="button" onclick="openHarveyAiChat()" data-i18n="askAi">Ask Harvey Assistant</button>
         <button class="btn gold" type="button" onclick="runSettingsHealthCheck()" data-i18n="runCheck">Run Settings Check</button>
       </div>
 
@@ -648,14 +657,14 @@
         <section class="panel success">
           <div class="section-head">
             <h2 data-i18n="supportCenterTitle">Support Center</h2>
-            <p data-i18n="supportCenterBody">Access Harvey Taxi support resources and AI assistance.</p>
+            <p data-i18n="supportCenterBody">Access Harvey Taxi support resources and Harvey Assistant.</p>
           </div>
           <div class="support-grid">
             <div class="support-card">
-              <div class="support-icon">🤖</div>
-              <strong data-i18n="aiSupportTitle">AI Support</strong>
-              <span data-i18n="aiSupportBody">Ask Harvey AI questions about rides, drivers, and settings.</span>
-              <a href="#" onclick="openHarveyAiChat();return false;" data-i18n="openAi">Open AI</a>
+              <div class="support-icon">💬</div>
+              <strong data-i18n="aiSupportTitle">Harvey Assistant</strong>
+              <span data-i18n="aiSupportBody">Answers about rides, your account and settings.</span>
+              <a href="#" onclick="openHarveyAiChat();return false;" data-i18n="openAi">Open Harvey Assistant</a>
             </div>
             <div class="support-card">
               <div class="support-icon">📞</div>
@@ -706,31 +715,31 @@
             </span>
             <div class="field">
               <label for="deletionReason" data-i18n="deletionReasonLabel">Reason for Deletion (optional)</label>
-              <textarea id="deletionReason" placeholder="Help us understand why you're leaving (optional)"></textarea>
+              <textarea id="deletionReason" placeholder="Help us understand why you're leaving (optional)" data-i18n-placeholder="delReasonPlaceholder"></textarea>
             </div>
             <!-- How the request proves who you are: a signed-in session when
                  there is one, otherwise a code texted to the account's
                  phone number (riders: /api/verify/sms; drivers: the driver
                  app's phone sign-in). Filled in by refreshDeletionIdentity(). -->
-            <p id="deletionIdentity" class="deletion-identity">Checking whether you're signed in…</p>
+            <p id="deletionIdentity" class="deletion-identity" data-i18n="delChecking">Checking whether you're signed in…</p>
             <div id="deletionSmsFields" hidden>
               <div class="field">
-                <label for="deletionPhone">Account Phone Number</label>
+                <label for="deletionPhone" data-i18n="delPhoneLabel">Account Phone Number</label>
                 <input id="deletionPhone" type="tel" placeholder="Phone number on your rider account" autocomplete="tel" />
               </div>
               <div class="button-row">
-                <button class="btn" type="button" onclick="sendAccountDeletionCode()">Send Verification Code</button>
+                <button class="btn" type="button" onclick="sendAccountDeletionCode()" data-i18n="delSendCode">Send Verification Code</button>
               </div>
               <div class="field">
-                <label for="deletionCode">Verification Code</label>
-                <input id="deletionCode" type="text" inputmode="numeric" placeholder="Enter the code we texted you" autocomplete="one-time-code" />
+                <label for="deletionCode" data-i18n="delCodeLabel">Verification Code</label>
+                <input id="deletionCode" type="text" inputmode="numeric" placeholder="Enter the code we texted you" data-i18n-placeholder="delCodePlaceholder" autocomplete="one-time-code" />
               </div>
             </div>
             <div class="field">
-              <label for="deletionConfirmText">Type DELETE to confirm</label>
+              <label for="deletionConfirmText" data-i18n="delConfirmLabel">Type DELETE to confirm</label>
               <input id="deletionConfirmText" type="text" autocapitalize="characters" autocomplete="off" placeholder="DELETE" />
             </div>
-            <p class="deletion-help">Can't sign in or receive a text? <a href="support.html">Contact support</a> and we'll verify your identity and delete your account.</p>
+            <p class="deletion-help"><span data-i18n="delHelpPrefix">Can't sign in or receive a text?</span> <a href="support.html" data-i18n="delHelpLink">Contact support</a> <span data-i18n="delHelpSuffix">and we'll verify your identity and delete your account.</span></p>
           </div>
           <div class="button-row">
             <button class="btn danger" type="button" onclick="requestAccountDeletion()" data-i18n="requestDeletion">Request Account Deletion</button>
@@ -748,12 +757,10 @@
   <nav class="bottom-nav" aria-label="Bottom navigation">
     <button class="nav-btn" onclick="safeGo('index.html','bottom_home')" data-i18n="navHome">Home</button>
     <button class="nav-btn" onclick="safeGo('rider-dashboard.html','bottom_rider')" data-i18n="navRider">Rider</button>
-    <button class="nav-btn" onclick="safeGo('driver-dashboard.html','bottom_driver')" data-i18n="navDriver">Driver</button>
+    <button class="nav-btn nav-assistant" type="button" onclick="openHarveyAiChat()" aria-label="Harvey Assistant" aria-controls="htaPanel" data-testid="nav-assistant" data-i18n="navAssistant">Assistant</button>
     <button class="nav-btn active" aria-current="page" data-i18n="navSettings">Settings</button>
   </nav>
 
-  <!-- AI chat mount point (populated by ai-support-widget.js) -->
-  <div id="harvey-ai-chat-root"></div>
 
   <script>
     /* ============================================================
@@ -797,13 +804,41 @@
       en: {
         langTitle: "Language & Accessibility",
         langCopy: "Select your preferred language and accessibility settings.",
+        langScope: "Your language choice applies to every page that has a translation. Ride screens, support, policies and legal terms are in English. Translations are automated and may contain errors.",
+        syncLocal: "Local Device Storage Active",
+        syncOfflineMsg: "Offline — changes saved locally only",
+        skipContent: "Skip to content",
+        contrastBtn: "Contrast",
+        motionBtn: "Motion",
+        personaRider: "Rider",
+        personaDriver: "Driver",
+        stateOn: "On",
+        stateOff: "Off",
+        syncOnline: "Online",
+        syncOffline: "Offline",
+        delChecking: "Checking whether you're signed in…",
+        delDriverSignedIn: "You're signed in as a driver. Type DELETE below to request deletion of this driver account.",
+        delDriverSms: "You're not signed in as a driver here. We'll text a code to the phone number on your driver account to confirm it's you.",
+        delRiderSignedIn: "You're signed in. Type DELETE below to delete this rider account.",
+        delRiderSms: "You're not signed in. We'll text a code to the phone number on your rider account to confirm it's you.",
+        delPhoneLabel: "Account Phone Number",
+        delPhoneRider: "Phone number on your rider account",
+        delPhoneDriver: "Phone number on your driver account",
+        delSendCode: "Send Verification Code",
+        delCodeLabel: "Verification Code",
+        delCodePlaceholder: "Enter the code we texted you",
+        delConfirmLabel: "Type DELETE to confirm",
+        delReasonPlaceholder: "Help us understand why you're leaving (optional)",
+        delHelpPrefix: "Can't sign in or receive a text?",
+        delHelpLink: "Contact support",
+        delHelpSuffix: "and we'll verify your identity and delete your account.",
         pageTitle: "Harvey Taxi Settings",
         pageSub: "Rider, driver, battery, privacy, and account controls",
-        riderDashboard: "Rider Dashboard", driverDashboard: "Driver Dashboard", supportLink: "Support",
+        riderDashboard: "Rider Dashboard", supportLink: "Support",
         eyebrow: "System Preferences",
         heroTitle: "Control your Harvey Taxi app experience.",
         heroCopy: "Manage your rider or driver profile settings, battery optimization, precise location preferences, notification reminders, support access, privacy controls, and account deletion requests.",
-        saveSettings: "Save Current Settings", askAi: "Ask AI Support", runCheck: "Run Settings Check",
+        saveSettings: "Save Current Settings", askAi: "Ask Harvey Assistant", runCheck: "Run Settings Check",
         statusBatteryTitle: "Battery Optimizer", statusBatteryBody: "Reduces background updates when no active ride or mission is running.",
         statusLocationTitle: "Precise Location", statusLocationBody: "Supports accurate pickup, trip status, and driver mission tracking.",
         statusNotifTitle: "Notification Control", statusNotifBody: "Manages reminders, trip updates, driver alerts, and support messages.",
@@ -830,8 +865,8 @@
         identityVerifTitle: "Identity Verification", identityVerifBody: "Driver and rider verification records may be retained as required for platform security and fraud prevention.",
         paymentSecurityTitle: "Payment Security", paymentSecurityBody: "Harvey Taxi does not store full payment card numbers. Payments should remain tokenized through Stripe.",
         accountProtectionTitle: "Account Protection", accountProtectionBody: "Login monitoring and audit records help protect rider and driver accounts.",
-        supportCenterTitle: "Support Center", supportCenterBody: "Access Harvey Taxi support resources and AI assistance.",
-        aiSupportTitle: "AI Support", aiSupportBody: "Ask Harvey AI questions about rides, drivers, and settings.", openAi: "Open AI",
+        supportCenterTitle: "Support Center", supportCenterBody: "Access Harvey Taxi support resources and Harvey Assistant.",
+        aiSupportTitle: "Harvey Assistant", aiSupportBody: "Answers about rides, your account and settings.", openAi: "Open Harvey Assistant",
         supportTitle: "Support", supportBody: "Contact Harvey Taxi customer support.", openSupport: "Open Support",
         policiesTitle: "Policies", policiesBody: "Review privacy, terms, and safety documentation.", viewPolicies: "View Policies",
         recentActivityTitle: "Recent Activity", recentActivityBody: "Latest account actions and settings changes.",
@@ -840,18 +875,46 @@
         dangerZoneWarningBody: "Deleting your account removes your profile, saved preferences, and ride or driver history from Harvey Taxi. Active rides, pending payments, or open driver missions must be resolved first. Some records may be retained as required by law or for fraud prevention.",
         deletionReasonLabel: "Reason for Deletion (optional)", deletionConfirmLabel: "Confirm Account Email",
         requestDeletion: "Request Account Deletion",
-        navHome: "Home", navRider: "Rider", navDriver: "Driver", navSettings: "Settings"
+        navHome: "Home", navRider: "Rider", navSettings: "Settings", navAssistant: "Assistant"
       },
       es: {
         langTitle: "Idioma y Accesibilidad",
         langCopy: "Seleccione su idioma preferido y configuración de accesibilidad.",
+        langScope: "Su idioma se aplica a todas las páginas que tienen traducción. Las pantallas de viaje, el soporte, las políticas y los términos legales están en inglés. Las traducciones son automáticas y pueden contener errores.",
+        syncLocal: "Almacenamiento local del dispositivo activo",
+        syncOfflineMsg: "Sin conexión: los cambios solo se guardan en este dispositivo",
+        skipContent: "Saltar al contenido",
+        contrastBtn: "Contraste",
+        motionBtn: "Movimiento",
+        personaRider: "Pasajero",
+        personaDriver: "Conductor",
+        stateOn: "Activado",
+        stateOff: "Desactivado",
+        syncOnline: "En línea",
+        syncOffline: "Sin conexión",
+        delChecking: "Comprobando si has iniciado sesión…",
+        delDriverSignedIn: "Has iniciado sesión como conductor. Escribe DELETE abajo para solicitar la eliminación de esta cuenta de conductor.",
+        delDriverSms: "No has iniciado sesión como conductor aquí. Enviaremos un código por SMS al número de teléfono de tu cuenta de conductor para confirmar que eres tú.",
+        delRiderSignedIn: "Has iniciado sesión. Escribe DELETE abajo para eliminar esta cuenta de pasajero.",
+        delRiderSms: "No has iniciado sesión. Enviaremos un código por SMS al número de teléfono de tu cuenta de pasajero para confirmar que eres tú.",
+        delPhoneLabel: "Número de teléfono de la cuenta",
+        delPhoneRider: "Número de teléfono de tu cuenta de pasajero",
+        delPhoneDriver: "Número de teléfono de tu cuenta de conductor",
+        delSendCode: "Enviar código de verificación",
+        delCodeLabel: "Código de verificación",
+        delCodePlaceholder: "Introduce el código que te enviamos por SMS",
+        delConfirmLabel: "Escribe DELETE para confirmar",
+        delReasonPlaceholder: "Ayúdanos a entender por qué te vas (opcional)",
+        delHelpPrefix: "¿No puedes iniciar sesión o recibir un SMS?",
+        delHelpLink: "Contacta con soporte",
+        delHelpSuffix: "y verificaremos tu identidad y eliminaremos tu cuenta.",
         pageTitle: "Configuración de Harvey Taxi",
         pageSub: "Controles de pasajero, conductor, batería, privacidad y cuenta",
-        riderDashboard: "Panel de Pasajero", driverDashboard: "Panel de Conductor", supportLink: "Soporte",
+        riderDashboard: "Panel de Pasajero", supportLink: "Soporte",
         eyebrow: "Preferencias del Sistema",
         heroTitle: "Controla tu experiencia en la app de Harvey Taxi.",
         heroCopy: "Administra la configuración de tu perfil de pasajero o conductor, optimización de batería, preferencias de ubicación precisa, recordatorios de notificaciones, acceso a soporte, controles de privacidad y solicitudes de eliminación de cuenta.",
-        saveSettings: "Guardar Configuración Actual", askAi: "Preguntar a Soporte IA", runCheck: "Ejecutar Verificación",
+        saveSettings: "Guardar Configuración Actual", askAi: "Preguntar a Harvey Assistant", runCheck: "Ejecutar Verificación",
         statusBatteryTitle: "Optimizador de Batería", statusBatteryBody: "Reduce las actualizaciones en segundo plano cuando no hay viaje o misión activa.",
         statusLocationTitle: "Ubicación Precisa", statusLocationBody: "Admite recogida precisa, estado del viaje y seguimiento de misiones del conductor.",
         statusNotifTitle: "Control de Notificaciones", statusNotifBody: "Administra recordatorios, actualizaciones de viaje, alertas de conductor y mensajes de soporte.",
@@ -878,8 +941,8 @@
         identityVerifTitle: "Verificación de Identidad", identityVerifBody: "Los registros de verificación de conductor y pasajero pueden conservarse según se requiera para seguridad de la plataforma y prevención de fraude.",
         paymentSecurityTitle: "Seguridad de Pago", paymentSecurityBody: "Harvey Taxi no almacena números completos de tarjetas de pago. Los pagos deben permanecer tokenizados a través de Stripe.",
         accountProtectionTitle: "Protección de Cuenta", accountProtectionBody: "El monitoreo de inicio de sesión y los registros de auditoría ayudan a proteger las cuentas de pasajeros y conductores.",
-        supportCenterTitle: "Centro de Soporte", supportCenterBody: "Accede a recursos de soporte de Harvey Taxi y asistencia de IA.",
-        aiSupportTitle: "Soporte de IA", aiSupportBody: "Pregunta a Harvey AI sobre viajes, conductores y configuración.", openAi: "Abrir IA",
+        supportCenterTitle: "Centro de Soporte", supportCenterBody: "Accede a los recursos de soporte de Harvey Taxi y a Harvey Assistant.",
+        aiSupportTitle: "Harvey Assistant", aiSupportBody: "Respuestas sobre viajes, tu cuenta y la configuración.", openAi: "Abrir Harvey Assistant",
         supportTitle: "Soporte", supportBody: "Contacta al soporte de Harvey Taxi.", openSupport: "Abrir Soporte",
         policiesTitle: "Políticas", policiesBody: "Revisa la documentación de privacidad, términos y seguridad.", viewPolicies: "Ver Políticas",
         recentActivityTitle: "Actividad Reciente", recentActivityBody: "Últimas acciones de cuenta y cambios de configuración.",
@@ -888,18 +951,46 @@
         dangerZoneWarningBody: "Eliminar tu cuenta elimina tu perfil, preferencias guardadas e historial de viajes o conductor de Harvey Taxi. Los viajes activos, pagos pendientes o misiones de conductor abiertas deben resolverse primero. Algunos registros pueden conservarse según lo requiera la ley o para prevención de fraude.",
         deletionReasonLabel: "Motivo de Eliminación (opcional)", deletionConfirmLabel: "Confirmar Correo de la Cuenta",
         requestDeletion: "Solicitar Eliminación de Cuenta",
-        navHome: "Inicio", navRider: "Pasajero", navDriver: "Conductor", navSettings: "Configuración"
+        navHome: "Inicio", navRider: "Pasajero", navSettings: "Configuración", navAssistant: "Asistente"
       },
       fr: {
         langTitle: "Langue et Accessibilité",
         langCopy: "Sélectionnez votre langue préférée et vos paramètres d'accessibilité.",
+        langScope: "Votre choix de langue s'applique à toutes les pages traduites. Les écrans de course, l'assistance, les politiques et les conditions juridiques sont en anglais. Les traductions sont automatiques et peuvent contenir des erreurs.",
+        syncLocal: "Stockage local de l'appareil actif",
+        syncOfflineMsg: "Hors ligne : modifications enregistrées uniquement sur cet appareil",
+        skipContent: "Aller au contenu",
+        contrastBtn: "Contraste",
+        motionBtn: "Animations",
+        personaRider: "Passager",
+        personaDriver: "Chauffeur",
+        stateOn: "Activé",
+        stateOff: "Désactivé",
+        syncOnline: "En ligne",
+        syncOffline: "Hors ligne",
+        delChecking: "Vérification de votre connexion…",
+        delDriverSignedIn: "Vous êtes connecté en tant que chauffeur. Tapez DELETE ci-dessous pour demander la suppression de ce compte chauffeur.",
+        delDriverSms: "Vous n'êtes pas connecté en tant que chauffeur ici. Nous enverrons un code par SMS au numéro de téléphone de votre compte chauffeur pour confirmer votre identité.",
+        delRiderSignedIn: "Vous êtes connecté. Tapez DELETE ci-dessous pour supprimer ce compte passager.",
+        delRiderSms: "Vous n'êtes pas connecté. Nous enverrons un code par SMS au numéro de téléphone de votre compte passager pour confirmer votre identité.",
+        delPhoneLabel: "Numéro de téléphone du compte",
+        delPhoneRider: "Numéro de téléphone de votre compte passager",
+        delPhoneDriver: "Numéro de téléphone de votre compte chauffeur",
+        delSendCode: "Envoyer le code de vérification",
+        delCodeLabel: "Code de vérification",
+        delCodePlaceholder: "Saisissez le code reçu par SMS",
+        delConfirmLabel: "Tapez DELETE pour confirmer",
+        delReasonPlaceholder: "Aidez-nous à comprendre pourquoi vous partez (facultatif)",
+        delHelpPrefix: "Vous ne pouvez pas vous connecter ou recevoir de SMS ?",
+        delHelpLink: "Contactez l'assistance",
+        delHelpSuffix: "et nous vérifierons votre identité puis supprimerons votre compte.",
         pageTitle: "Paramètres Harvey Taxi",
         pageSub: "Contrôles passager, chauffeur, batterie, confidentialité et compte",
-        riderDashboard: "Tableau de Bord Passager", driverDashboard: "Tableau de Bord Chauffeur", supportLink: "Support",
+        riderDashboard: "Tableau de Bord Passager", supportLink: "Support",
         eyebrow: "Préférences Système",
         heroTitle: "Contrôlez votre expérience de l'application Harvey Taxi.",
         heroCopy: "Gérez les paramètres de votre profil passager ou chauffeur, l'optimisation de la batterie, les préférences de localisation précise, les rappels de notification, l'accès au support, les contrôles de confidentialité et les demandes de suppression de compte.",
-        saveSettings: "Enregistrer les Paramètres Actuels", askAi: "Demander au Support IA", runCheck: "Lancer la Vérification",
+        saveSettings: "Enregistrer les Paramètres Actuels", askAi: "Demander à Harvey Assistant", runCheck: "Lancer la Vérification",
         statusBatteryTitle: "Optimiseur de Batterie", statusBatteryBody: "Réduit les mises à jour en arrière-plan lorsqu'aucun trajet ou mission n'est actif.",
         statusLocationTitle: "Localisation Précise", statusLocationBody: "Prend en charge la prise en charge précise, le statut du trajet et le suivi des missions du chauffeur.",
         statusNotifTitle: "Contrôle des Notifications", statusNotifBody: "Gère les rappels, les mises à jour de trajet, les alertes chauffeur et les messages de support.",
@@ -926,8 +1017,8 @@
         identityVerifTitle: "Vérification d'Identité", identityVerifBody: "Les enregistrements de vérification chauffeur et passager peuvent être conservés selon les besoins pour la sécurité de la plateforme et la prévention de la fraude.",
         paymentSecurityTitle: "Sécurité des Paiements", paymentSecurityBody: "Harvey Taxi ne stocke pas les numéros complets de carte de paiement. Les paiements doivent rester tokenisés via Stripe.",
         accountProtectionTitle: "Protection du Compte", accountProtectionBody: "La surveillance des connexions et les enregistrements d'audit aident à protéger les comptes passagers et chauffeurs.",
-        supportCenterTitle: "Centre de Support", supportCenterBody: "Accédez aux ressources de support Harvey Taxi et à l'assistance IA.",
-        aiSupportTitle: "Support IA", aiSupportBody: "Posez des questions à Harvey AI sur les trajets, les chauffeurs et les paramètres.", openAi: "Ouvrir l'IA",
+        supportCenterTitle: "Centre de Support", supportCenterBody: "Accédez aux ressources de support Harvey Taxi et à Harvey Assistant.",
+        aiSupportTitle: "Harvey Assistant", aiSupportBody: "Des réponses sur les trajets, votre compte et les paramètres.", openAi: "Ouvrir Harvey Assistant",
         supportTitle: "Support", supportBody: "Contactez le support client Harvey Taxi.", openSupport: "Ouvrir le Support",
         policiesTitle: "Politiques", policiesBody: "Consultez la documentation de confidentialité, des conditions et de sécurité.", viewPolicies: "Voir les Politiques",
         recentActivityTitle: "Activité Récente", recentActivityBody: "Dernières actions de compte et modifications de paramètres.",
@@ -936,18 +1027,46 @@
         dangerZoneWarningBody: "La suppression de votre compte supprime votre profil, vos préférences enregistrées et votre historique de trajets ou de chauffeur de Harvey Taxi. Les trajets actifs, les paiements en attente ou les missions chauffeur ouvertes doivent d'abord être résolus. Certains enregistrements peuvent être conservés selon les exigences légales ou pour la prévention de la fraude.",
         deletionReasonLabel: "Raison de la Suppression (optionnel)", deletionConfirmLabel: "Confirmer l'E-mail du Compte",
         requestDeletion: "Demander la Suppression du Compte",
-        navHome: "Accueil", navRider: "Passager", navDriver: "Chauffeur", navSettings: "Paramètres"
+        navHome: "Accueil", navRider: "Passager", navSettings: "Paramètres", navAssistant: "Assistant"
       },
       ar: {
         langTitle: "اللغة وإمكانية الوصول",
         langCopy: "اختر لغتك المفضلة وإعدادات إمكانية الوصول.",
+        langScope: "يُطبَّق اختيار اللغة على كل صفحة لها ترجمة. شاشات الرحلات والدعم والسياسات والشروط القانونية باللغة الإنجليزية. الترجمات آلية وقد تحتوي على أخطاء.",
+        syncLocal: "التخزين المحلي على الجهاز نشط",
+        syncOfflineMsg: "غير متصل — تُحفظ التغييرات على هذا الجهاز فقط",
+        skipContent: "انتقل إلى المحتوى",
+        contrastBtn: "التباين",
+        motionBtn: "الحركة",
+        personaRider: "راكب",
+        personaDriver: "سائق",
+        stateOn: "مفعّل",
+        stateOff: "متوقف",
+        syncOnline: "متصل",
+        syncOffline: "غير متصل",
+        delChecking: "جارٍ التحقق مما إذا كنت قد سجّلت الدخول…",
+        delDriverSignedIn: "لقد سجّلت الدخول كسائق. اكتب DELETE أدناه لطلب حذف حساب السائق هذا.",
+        delDriverSms: "لم تسجّل الدخول كسائق هنا. سنرسل رمزًا برسالة نصية إلى رقم الهاتف المسجّل في حساب السائق للتأكد من هويتك.",
+        delRiderSignedIn: "لقد سجّلت الدخول. اكتب DELETE أدناه لحذف حساب الراكب هذا.",
+        delRiderSms: "لم تسجّل الدخول. سنرسل رمزًا برسالة نصية إلى رقم الهاتف المسجّل في حساب الراكب للتأكد من هويتك.",
+        delPhoneLabel: "رقم هاتف الحساب",
+        delPhoneRider: "رقم الهاتف في حساب الراكب",
+        delPhoneDriver: "رقم الهاتف في حساب السائق",
+        delSendCode: "إرسال رمز التحقق",
+        delCodeLabel: "رمز التحقق",
+        delCodePlaceholder: "أدخل الرمز الذي أرسلناه إليك",
+        delConfirmLabel: "اكتب DELETE للتأكيد",
+        delReasonPlaceholder: "ساعدنا على فهم سبب مغادرتك (اختياري)",
+        delHelpPrefix: "لا يمكنك تسجيل الدخول أو استلام رسالة نصية؟",
+        delHelpLink: "تواصل مع الدعم",
+        delHelpSuffix: "وسنتحقق من هويتك ونحذف حسابك.",
         pageTitle: "إعدادات هارفي تاكسي",
         pageSub: "ضوابط الراكب والسائق والبطارية والخصوصية والحساب",
-        riderDashboard: "لوحة تحكم الراكب", driverDashboard: "لوحة تحكم السائق", supportLink: "الدعم",
+        riderDashboard: "لوحة تحكم الراكب", supportLink: "الدعم",
         eyebrow: "تفضيلات النظام",
         heroTitle: "تحكم في تجربة تطبيق هارفي تاكسي الخاص بك.",
         heroCopy: "أدر إعدادات ملف تعريف الراكب أو السائق، وتحسين البطارية، وتفضيلات الموقع الدقيق، وتذكيرات الإشعارات، والوصول للدعم، وضوابط الخصوصية، وطلبات حذف الحساب.",
-        saveSettings: "حفظ الإعدادات الحالية", askAi: "اسأل دعم الذكاء الاصطناعي", runCheck: "تشغيل فحص الإعدادات",
+        saveSettings: "حفظ الإعدادات الحالية", askAi: "اسأل Harvey Assistant", runCheck: "تشغيل فحص الإعدادات",
         statusBatteryTitle: "محسّن البطارية", statusBatteryBody: "يقلل التحديثات في الخلفية عند عدم وجود رحلة أو مهمة نشطة.",
         statusLocationTitle: "الموقع الدقيق", statusLocationBody: "يدعم الاستلام الدقيق وحالة الرحلة وتتبع مهام السائق.",
         statusNotifTitle: "التحكم في الإشعارات", statusNotifBody: "يدير التذكيرات وتحديثات الرحلة وتنبيهات السائق ورسائل الدعم.",
@@ -974,8 +1093,8 @@
         identityVerifTitle: "التحقق من الهوية", identityVerifBody: "قد يتم الاحتفاظ بسجلات التحقق من السائق والراكب حسب الحاجة لأمان المنصة ومنع الاحتيال.",
         paymentSecurityTitle: "أمان الدفع", paymentSecurityBody: "لا تخزن هارفي تاكسي أرقام بطاقات الدفع الكاملة. يجب أن تظل المدفوعات مرمزة عبر Stripe.",
         accountProtectionTitle: "حماية الحساب", accountProtectionBody: "تساعد مراقبة تسجيل الدخول وسجلات التدقيق في حماية حسابات الركاب والسائقين.",
-        supportCenterTitle: "مركز الدعم", supportCenterBody: "الوصول إلى موارد دعم هارفي تاكسي ومساعدة الذكاء الاصطناعي.",
-        aiSupportTitle: "دعم الذكاء الاصطناعي", aiSupportBody: "اسأل هارفي الذكاء الاصطناعي عن الرحلات والسائقين والإعدادات.", openAi: "فتح الذكاء الاصطناعي",
+        supportCenterTitle: "مركز الدعم", supportCenterBody: "الوصول إلى موارد دعم هارفي تاكسي و Harvey Assistant.",
+        aiSupportTitle: "Harvey Assistant", aiSupportBody: "إجابات حول الرحلات وحسابك والإعدادات.", openAi: "فتح Harvey Assistant",
         supportTitle: "الدعم", supportBody: "تواصل مع دعم عملاء هارفي تاكسي.", openSupport: "فتح الدعم",
         policiesTitle: "السياسات", policiesBody: "راجع وثائق الخصوصية والشروط والسلامة.", viewPolicies: "عرض السياسات",
         recentActivityTitle: "النشاط الأخير", recentActivityBody: "آخر إجراءات الحساب وتغييرات الإعدادات.",
@@ -984,7 +1103,7 @@
         dangerZoneWarningBody: "حذف حسابك يزيل ملفك الشخصي وتفضيلاتك المحفوظة وسجل رحلاتك أو سجل السائق من هارفي تاكسي. يجب حل الرحلات النشطة أو المدفوعات المعلقة أو مهام السائق المفتوحة أولاً. قد يتم الاحتفاظ ببعض السجلات حسب ما يقتضيه القانون أو لمنع الاحتيال.",
         deletionReasonLabel: "سبب الحذف (اختياري)", deletionConfirmLabel: "تأكيد البريد الإلكتروني للحساب",
         requestDeletion: "طلب حذف الحساب",
-        navHome: "الرئيسية", navRider: "راكب", navDriver: "سائق", navSettings: "الإعدادات",
+        navHome: "الرئيسية", navRider: "راكب", navSettings: "الإعدادات", navAssistant: "المساعد",
         dir: "rtl"
       }
     };
@@ -1016,15 +1135,24 @@
     /* ============================================================
        LANGUAGE SYSTEM
        ============================================================ */
+    // One preference for the whole site; see /language-pref.js. Settings
+    // offers every language the site has; this page itself is translated
+    // into fewer and shows English for the rest.
     function detectPreferredLanguage() {
-      const saved = safeGet("harvey_settings_language");
-      if (saved && translations[saved]) return saved;
-      const browserLang = (navigator.language || "en").slice(0, 2).toLowerCase();
-      return translations[browserLang] ? browserLang : "en";
+      return window.HarveyLanguage ? HarveyLanguage.resolve(Object.keys(translations)) : "en";
     }
 
-    function applyLanguage(lang) {
-      const dict = translations[lang] || translations.en;
+    // Text for a key in the page's current language, English if missing.
+    let currentLang = "en";
+    function tr(key) {
+      const dict = translations[currentLang] || translations.en;
+      return dict[key] !== undefined ? dict[key] : translations.en[key];
+    }
+
+    function applyLanguage(choice) {
+      const lang = translations[choice] ? choice : "en";
+      currentLang = lang;
+      const dict = translations[lang];
       document.documentElement.lang = lang;
       document.documentElement.dir = dict.dir || "ltr";
 
@@ -1042,17 +1170,28 @@
         else node.textContent = dict[key];
       });
 
-      safeSet("harvey_settings_language", lang);
-      trackSettingsEvent("language_changed", { lang });
+      document.querySelectorAll("[data-i18n-placeholder]").forEach((node) => {
+        const text = tr(node.dataset.i18nPlaceholder);
+        if (text !== undefined) node.placeholder = text;
+      });
+      // Text the page writes itself follows the language too.
+      try { if (deletionIdentity.checked) renderDeletionIdentity(); } catch {}
+      try { updateSettingsStats(); } catch {}
+      trackSettingsEvent("language_changed", { lang: choice });
     }
 
     function bindLanguageSelector() {
       const sel = document.getElementById("languageSelect");
       if (!sel) return;
-      const preferred = detectPreferredLanguage();
-      sel.value = preferred;
-      sel.addEventListener("change", () => applyLanguage(sel.value));
-      applyLanguage(preferred);
+      if (window.HarveyLanguage) HarveyLanguage.fillSelect(sel);
+      const saved = window.HarveyLanguage ? HarveyLanguage.saved() : "";
+      const hasOption = (l) => [...sel.options].some((o) => o.value === l);
+      sel.value = hasOption(saved) ? saved : detectPreferredLanguage();
+      sel.addEventListener("change", () => {
+        if (window.HarveyLanguage) HarveyLanguage.choose(sel.value);
+        applyLanguage(sel.value);
+      });
+      applyLanguage(sel.value);
     }
 
     /* ============================================================
@@ -1096,21 +1235,23 @@
     }
 
     /* ============================================================
-       AI CHAT: delegates to the server-backed widget (ai-support-widget.js),
-       which calls /api/ai/support. No client-side model calls happen here.
+       AI CHAT: Harvey Assistant (agent-assist.js), the same assistant as the
+       rider dashboard and the index page: rules and approved pages, with AI
+       answers only after the rider allows them. Replaces the old
+       ai-support-widget.js, which called /api/ai/support (OpenAI).
        ============================================================ */
     function openHarveyAiChat() {
       trackSettingsEvent("ai_support_open");
-      if (window.HarveyAI && typeof window.HarveyAI.open === "function") {
-        window.HarveyAI.open();
+      if (window.HarveyAssistant && typeof window.HarveyAssistant.open === "function") {
+        window.HarveyAssistant.open();
         return;
       }
       window.location.href = "support.html";
     }
 
     function closeHarveyAiChat() {
-      if (window.HarveyAI && typeof window.HarveyAI.close === "function") {
-        window.HarveyAI.close();
+      if (window.HarveyAssistant && typeof window.HarveyAssistant.close === "function") {
+        window.HarveyAssistant.close();
       }
     }
 
@@ -1216,7 +1357,7 @@
     const DRIVER_ID_KEY = "harvey_driver_id";
     // riderReview/driverReview come from the server's view of the signed-in
     // account (review_mode), never from anything stored in this browser.
-    const deletionIdentity = { rider: false, riderReview: false, driverToken: "", driverReview: false };
+    const deletionIdentity = { checked: false, rider: false, riderReview: false, driverToken: "", driverReview: false };
 
     function readDriverToken() {
       try { return localStorage.getItem(DRIVER_TOKEN_KEY) || ""; } catch { return ""; }
@@ -1255,6 +1396,7 @@
           deletionIdentity.driverReview = data.review_mode === true;
         } catch {}
       }
+      deletionIdentity.checked = true;
       renderDeletionIdentity();
     }
 
@@ -1265,18 +1407,18 @@
       let smsVisible = false;
       if (type === "driver") {
         if (deletionIdentity.driverToken) {
-          text = "You're signed in as a driver. Type DELETE below to request deletion of this driver account.";
+          text = tr("delDriverSignedIn");
         } else {
           // No driver session in this browser (for example inside the
           // Harvey Taxi rider app): prove the phone number instead, with the
           // same texted code the Harvey Taxi Driver app signs in with.
-          text = "You're not signed in as a driver here. We'll text a code to the phone number on your driver account to confirm it's you.";
+          text = tr("delDriverSms");
           smsVisible = true;
         }
       } else if (deletionIdentity.rider) {
-        text = "You're signed in. Type DELETE below to delete this rider account.";
+        text = tr("delRiderSignedIn");
       } else {
-        text = "You're not signed in. We'll text a code to the phone number on your rider account to confirm it's you.";
+        text = tr("delRiderSms");
         smsVisible = true;
       }
       const reviewAccount = type === "driver" ? deletionIdentity.driverReview : deletionIdentity.riderReview;
@@ -1285,7 +1427,7 @@
       }
       els.deletionIdentity.textContent = text;
       if (els.deletionSmsFields) els.deletionSmsFields.hidden = !smsVisible;
-      if (els.deletionPhone) els.deletionPhone.placeholder = type === "driver" ? "Phone number on your driver account" : "Phone number on your rider account";
+      if (els.deletionPhone) els.deletionPhone.placeholder = type === "driver" ? tr("delPhoneDriver") : tr("delPhoneRider");
       const banner = document.getElementById("settingsReviewBanner");
       if (banner) banner.hidden = !(deletionIdentity.riderReview || deletionIdentity.driverReview);
     }
@@ -1422,19 +1564,19 @@
        STATS DISPLAY
        ============================================================ */
     function updateSettingsStats() {
-      if (els.statPersona) els.statPersona.textContent = els.accountType?.value === "driver" ? "Driver" : "Rider";
-      if (els.statBattery) els.statBattery.textContent = els.batteryOptimizerToggle?.checked ? "On" : "Off";
-      if (els.statLocation) els.statLocation.textContent = els.preciseLocationToggle?.checked ? "On" : "Off";
-      if (els.statSync) els.statSync.textContent = navigator.onLine ? "Online" : "Offline";
+      if (els.statPersona) els.statPersona.textContent = els.accountType?.value === "driver" ? tr("personaDriver") : tr("personaRider");
+      if (els.statBattery) els.statBattery.textContent = els.batteryOptimizerToggle?.checked ? tr("stateOn") : tr("stateOff");
+      if (els.statLocation) els.statLocation.textContent = els.preciseLocationToggle?.checked ? tr("stateOn") : tr("stateOff");
+      if (els.statSync) els.statSync.textContent = navigator.onLine ? tr("syncOnline") : tr("syncOffline");
 
       const syncStatusEl = document.getElementById("syncStatus");
       if (syncStatusEl) {
         if (navigator.onLine) {
           syncStatusEl.className = "sync-status";
-          syncStatusEl.textContent = "Local Device Storage Active";
+          syncStatusEl.textContent = tr("syncLocal");
         } else {
           syncStatusEl.className = "sync-status offline";
-          syncStatusEl.textContent = "Offline — changes saved locally only";
+          syncStatusEl.textContent = tr("syncOfflineMsg");
         }
       }
     }
@@ -1503,6 +1645,9 @@
 
     document.addEventListener("DOMContentLoaded", performStateHydration);
   </script>
-  <script src="/ai-support-widget.js" onerror="console.warn('AI widget script failed to load — AI Help button will fall back to support.html')"></script>
+  <!-- Harvey Assistant (replaces ai-support-widget.js / /api/ai/support).
+       On phones it opens from the Assistant tab in the bottom nav, so no
+       floating button sits over the settings. -->
+  <script src="/agent-assist.js?v=20261012-shared" data-role="rider" data-launcher="desktop" defer></script>
 </body>
 </html>

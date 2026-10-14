@@ -109,6 +109,53 @@
       font-size: 12.5px;
       font-weight: 700;
     }
+    .form-grid { display: grid; gap: 14px; margin-top: 14px; }
+    .field label { display: block; font-weight: 700; color: var(--text); margin-bottom: 6px; font-size: 15px; }
+    .field .opt { color: var(--muted); font-weight: 400; }
+    .field input, .field select, .field textarea {
+      width: 100%;
+      font: inherit;
+      font-size: 16px;
+      color: var(--text);
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 12px;
+      padding: 12px 14px;
+    }
+    .field select option { color: #07111f; background: #fff; }
+    .field textarea { min-height: 130px; resize: vertical; }
+    .field input:focus-visible, .field select:focus-visible, .field textarea:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+    .field [aria-invalid="true"] { border-color: #ff8a8a; }
+    .field-error { color: #ffb4b4; font-size: 14px; margin: 6px 0 0; }
+    .field-hint { color: var(--muted); font-size: 13.5px; margin: 6px 0 0; }
+    .notice {
+      background: rgba(255, 215, 106, 0.08);
+      border: 1px solid rgba(255, 215, 106, 0.3);
+      border-radius: 12px;
+      padding: 12px 14px;
+      color: var(--text);
+      font-size: 14.5px;
+      margin: 0;
+    }
+    .hp { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+    .submit-btn {
+      font: inherit;
+      font-weight: 700;
+      font-size: 16px;
+      color: #fff;
+      background: linear-gradient(135deg, var(--blue), #2e6bff);
+      border: 0;
+      border-radius: 12px;
+      padding: 14px 18px;
+      cursor: pointer;
+      width: 100%;
+    }
+    .submit-btn[disabled] { opacity: 0.6; cursor: wait; }
+    .form-status { margin: 0; font-size: 15px; }
+    .form-status.ok { color: var(--green); }
+    .form-status.err { color: #ffb4b4; }
+    @media (min-width: 640px) { .submit-btn { width: auto; } .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; } }
+    @media (max-width: 639px) { .two-col { display: grid; gap: 14px; } }
     .site-footer {
       max-width: 960px;
       margin: 0 auto;
@@ -120,13 +167,28 @@
     .site-footer p { margin: 0 0 10px; font-size: 14px; }
     .site-footer nav { display: flex; flex-wrap: wrap; gap: 14px; }
     .site-footer a { color: var(--blue); }
+      .lang-pick{display:inline-flex;align-items:center;gap:8px;font-weight:800;font-size:.85rem}
+    .lang-pick select{min-height:40px;border-radius:999px;padding:0 12px;font:inherit;font-weight:700;color:inherit;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14)}
+    .lang-pick select option{color:#07111f;background:#fff}
+    .lang-note{display:block;margin-top:4px;font-size:.8rem;opacity:.85}
+    .htaf-summary{margin:8px 0 10px;padding:10px 12px;border-radius:12px;border:1px dashed rgba(255,255,255,.22);font-size:.9rem;line-height:1.55}
+    html[lang="en"] .htaf-summary{display:none}
+    html[dir="rtl"] .contact-value,html[dir="rtl"] .preview-title,html[dir="rtl"] .preview-copy,html[dir="rtl"] a[href^="mailto:"],html[dir="rtl"] a[href^="tel:"]{direction:ltr;unicode-bidi:isolate}
+    a[href^="mailto:"]{overflow-wrap:anywhere}
   </style>
+  <script src="/language-pref.js" defer></script>
+  <script src="/htaf-translations.js" defer></script>
+  <script src="/htaf-i18n.js" defer></script>
 </head>
 <body>
   <div class="wrap">
     <div class="topbar">
       <div class="brand">Harvey Transportation Assistance Foundation</div>
-      <a class="home-btn" href="foundation.html">Return To Foundation</a>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+        <label class="lang-pick"><span>Language</span><select data-htaf-lang aria-label="Language"></select></label>
+        <a class="home-btn" href="foundation.html">Return To Foundation</a>
+      </div>
+      <span class="lang-note" style="flex-basis:100%;color:var(--muted)">Translations are automated and may contain errors. Legal terms, privacy and consent statements are in English.</span>
     </div>
 
     <div class="card">
@@ -156,6 +218,80 @@
         <span class="contact-label">Service Area</span>
         <span class="contact-value">Tennessee</span>
       </div>
+    </div>
+
+    <div class="card" id="inquiry">
+      <h2>Send HTAF a Message</h2>
+      <p>
+        For partnerships, donations, or general questions. Your message goes to HTAF by email,
+        and any reply will come to the email address you enter.
+      </p>
+      <form id="inquiry-form" novalidate>
+        <div class="form-grid">
+          <p class="notice" role="note">
+            Please don't include patient information, medical details, or sensitive documents.
+            This form doesn't accept attachments.
+          </p>
+          <div class="field">
+            <label for="f-topic">What is this about?</label>
+            <select id="f-topic" name="topic" required aria-describedby="e-topic">
+              <option value="">Choose one</option>
+              <option value="partnership">Partnership inquiry</option>
+              <option value="donation">Donation question</option>
+              <option value="general">General question</option>
+            </select>
+            <p class="field-error" id="e-topic" hidden></p>
+          </div>
+          <div class="two-col">
+            <div class="field">
+              <label for="f-name">Name</label>
+              <input id="f-name" name="name" autocomplete="name" maxlength="100" required aria-describedby="e-name" />
+              <p class="field-error" id="e-name" hidden></p>
+            </div>
+            <div class="field">
+              <label for="f-organization">Organization <span class="opt" id="org-opt">(optional)</span></label>
+              <input id="f-organization" name="organization" autocomplete="organization" maxlength="150" aria-describedby="e-organization" />
+              <p class="field-error" id="e-organization" hidden></p>
+            </div>
+          </div>
+          <div class="two-col">
+            <div class="field">
+              <label for="f-email">Email</label>
+              <input id="f-email" name="email" type="email" autocomplete="email" maxlength="254" required aria-describedby="e-email" />
+              <p class="field-error" id="e-email" hidden></p>
+            </div>
+            <div class="field">
+              <label for="f-phone">Phone <span class="opt">(optional)</span></label>
+              <input id="f-phone" name="phone" type="tel" autocomplete="tel" maxlength="30" aria-describedby="e-phone" />
+              <p class="field-error" id="e-phone" hidden></p>
+            </div>
+          </div>
+          <div class="field" id="interest-field" hidden>
+            <label for="f-interest">Partnership interest</label>
+            <select id="f-interest" name="interest" aria-describedby="e-interest">
+              <option value="">Choose one</option>
+              <option value="referrals">Referring people for assistance</option>
+              <option value="sponsorship">Sponsoring transportation</option>
+              <option value="community_programs">Coordinating community programs</option>
+              <option value="transportation_resources">Providing transportation resources</option>
+              <option value="other">Something else</option>
+            </select>
+            <p class="field-error" id="e-interest" hidden></p>
+          </div>
+          <div class="field">
+            <label for="f-message">Message</label>
+            <textarea id="f-message" name="message" maxlength="1500" required aria-describedby="h-message e-message"></textarea>
+            <p class="field-hint" id="h-message">A few sentences is enough (up to 1,500 characters).</p>
+            <p class="field-error" id="e-message" hidden></p>
+          </div>
+          <div class="hp" aria-hidden="true">
+            <label for="f-website">Leave this empty</label>
+            <input id="f-website" name="website" tabindex="-1" autocomplete="off" />
+          </div>
+          <button class="submit-btn" type="submit" id="inquiry-submit">Send Message</button>
+          <p class="form-status" id="inquiry-status" role="status" aria-live="polite"></p>
+        </div>
+      </form>
     </div>
 
     <div class="card">
@@ -188,6 +324,76 @@
       <a href="https://harveytransportationfoundation.com/service-providers.html">Service Providers</a>
     </nav>
   </footer>
+  <script>
+    (function () {
+      var form = document.getElementById("inquiry-form");
+      if (!form) return;
+      var topic = document.getElementById("f-topic");
+      var interestField = document.getElementById("interest-field");
+      var orgOpt = document.getElementById("org-opt");
+      var submit = document.getElementById("inquiry-submit");
+      var status = document.getElementById("inquiry-status");
+      var FIELDS = ["topic", "name", "organization", "email", "phone", "interest", "message"];
+
+      function syncTopic() {
+        var partner = topic.value === "partnership";
+        interestField.hidden = !partner;
+        orgOpt.hidden = partner;
+      }
+      // contact.html?topic=partnership (from the foundation page) preselects it.
+      var wanted = new URLSearchParams(window.location.search).get("topic");
+      if (wanted && topic.querySelector('option[value="' + wanted.replace(/[^a-z_]/g, "") + '"]')) topic.value = wanted;
+      topic.addEventListener("change", syncTopic);
+      syncTopic();
+
+      function showErrors(errors) {
+        var first = null;
+        FIELDS.forEach(function (name) {
+          var input = form.elements[name];
+          var box = document.getElementById("e-" + name);
+          var msg = errors && errors[name];
+          if (input) input.setAttribute("aria-invalid", msg ? "true" : "false");
+          if (box) { box.textContent = msg || ""; box.hidden = !msg; }
+          if (msg && !first && input) first = input;
+        });
+        if (first) first.focus();
+      }
+
+      form.addEventListener("submit", function (event) {
+        event.preventDefault();
+        var data = {};
+        FIELDS.concat("website").forEach(function (name) { if (form.elements[name]) data[name] = form.elements[name].value; });
+        if (data.topic !== "partnership") delete data.interest;
+        showErrors({});
+        status.className = "form-status";
+        status.textContent = "Sending…";
+        submit.disabled = true;
+        fetch((window.HARVEY_API_BASE || "") + "/api/foundation/inquiry", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data)
+        })
+          .then(function (res) { return res.json().catch(function () { return {}; }).then(function (body) { return { res: res, body: body }; }); })
+          .then(function (r) {
+            if (r.res.ok && r.body.ok) {
+              form.reset();
+              syncTopic();
+              status.className = "form-status ok";
+              status.textContent = "Thank you. Your message was sent to HTAF.";
+              return;
+            }
+            if (r.body.fields) showErrors(r.body.fields);
+            status.className = "form-status err";
+            status.textContent = r.body.error || "Your message couldn't be sent. Please email WillieHtaf@harveytransportationfoundation.com or call 615-636-6201.";
+          })
+          .catch(function () {
+            status.className = "form-status err";
+            status.textContent = "Your message couldn't be sent. Please email WillieHtaf@harveytransportationfoundation.com or call 615-636-6201.";
+          })
+          .then(function () { submit.disabled = false; });
+      });
+    })();
+  </script>
   <!-- HTAF Assistant (HTAF's own; renders nothing unless htaf_assist_enabled is on). -->
   <script src="/htaf-assist.js" defer></script>
 </body>
