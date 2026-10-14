@@ -110,6 +110,8 @@ describeWithBrowser("HTAF admin: review assistant panel", () => {
     expect(text).toContain("Review Assistant: automated suggestions, not a decision");
     expect(text).toContain("a person approves or denies every application");
     expect(text).toContain("may be misspelled");
+    expect(text).toContain("Possibly: Davidson County");
+    expect(text).toContain("Funding available for this trip: staff to confirm.");
     expect(text).not.toMatch(/Ivy|ivy\.synthetic|Synthetic Clinic/);
     if (SHOTS) await panel.screenshot({ path: path.join(SHOTS, "1-suggestions.png") });
 
@@ -117,7 +119,7 @@ describeWithBrowser("HTAF admin: review assistant panel", () => {
     await panel.locator('li[data-check="county_not_recognized"] button:has-text("Wrong")').click();
     await panel.locator('li[data-check="county_not_recognized"]').waitFor({ state: "detached" });
     const fb = mockClient._state.audit_logs.find((a) => a.action === "htaf_review_assist_feedback");
-    expect(fb.metadata).toEqual({ engine: "htaf-review-assist-v1", check: "county_not_recognized", verdict: "incorrect" });
+    expect(fb.metadata).toEqual({ engine: "htaf-review-assist-v2", check: "county_not_recognized", verdict: "incorrect", reason: "county_is_valid" });
 
     // Copy one chosen question into the notes box (not saved, not sent).
     await panel.locator('input[data-question="missing_pickup"]').check();
