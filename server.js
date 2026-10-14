@@ -11,6 +11,7 @@
 "use strict";
 
 const express = require("express");
+const { rideUpdateForStripeEvent } = require("./lib/stripeWebhookTransitions");
 
 const cors = require("cors");
 
@@ -23341,125 +23342,39 @@ app.post(
     }
 
     const object =
-
       event.data?.object || {};
 
-    if (
-
-      event.type ===
-
-      "payment_intent.succeeded"
-
-    ) {
-
-      await supabase
-
+    // Forward-only transitions (lib/stripeWebhookTransitions.js): duplicate,
+    // late and out-of-order deliveries never move a ride backwards,
+    // overwrite a cancellation or undo a capture. Each update is
+    // conditional on the status read, so a concurrent change wins and the
+    // event is simply not applied.
+    if (object.id && String(event.type || "").startsWith("payment_intent.")) {
+      const { data: rides, error: readError } = await supabase
         .from("rides")
-
-        .update({
-
-          payment_status:
-
-            "succeeded",
-
-          payment_captured:
-
-            true,
-
-          updated_at:
-
-            nowIso()
-
-        })
-
-        .eq(
-
-          "payment_id",
-
-          object.id
-
-        );
-
-    }
-
-    if (
-
-      event.type ===
-
-      "payment_intent.amount_capturable_updated"
-
-    ) {
-
-      await supabase
-
-        .from("rides")
-
-        .update({
-
-          payment_status:
-
-            "authorized",
-
-          status:
-
-            RIDE_STATUS.PAYMENT_AUTHORIZED,
-
-          updated_at:
-
-            nowIso()
-
-        })
-
-        .eq(
-
-          "payment_id",
-
-          object.id
-
-        );
-
-    }
-
-    if (
-
-      event.type ===
-
-      "payment_intent.payment_failed" ||
-
-      event.type ===
-
-      "payment_intent.canceled"
-
-    ) {
-
-      await supabase
-
-        .from("rides")
-
-        .update({
-
-          payment_status:
-
-            "failed",
-
-          status:
-
-            RIDE_STATUS.FAILED,
-
-          updated_at:
-
-            nowIso()
-
-        })
-
-        .eq(
-
-          "payment_id",
-
-          object.id
-
-        );
-
+        .select("id, status, payment_status")
+        .eq("payment_id", object.id)
+        .limit(5);
+      if (readError) throw readError;
+      for (const ride of rides || []) {
+        const { patch, review } = rideUpdateForStripeEvent(event.type, ride);
+        if (patch) {
+          const { error: updateError } = await supabase
+            .from("rides")
+            .update({ ...patch, updated_at: nowIso() })
+            .eq("id", ride.id)
+            .eq("status", ride.status);
+          if (updateError) throw updateError;
+        }
+        if (review) {
+          auditLog({
+            action: "stripe_webhook_needs_review",
+            entity_type: "ride",
+            entity_id: ride.id,
+            metadata: { event_type: event.type, event_id: event.id, reason: review, ride_status: ride.status, payment_status: ride.payment_status || null }
+          }).catch(() => {});
+        }
+      }
     }
 
     auditLog({
