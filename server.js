@@ -6175,6 +6175,127 @@ app.post(
 );
 
 /* =========================================================
+   HTAF REVIEW ASSISTANT (lib/htafReviewAssist.js,
+   docs/htaf-review-assistant.md)
+
+   Internal, rule-based help for HTAF staff reviewing an application:
+   summary, missing-information checks, suggested follow-up questions.
+   No AI model and no external provider: nothing leaves this server.
+   Advisory only -- these routes never write to htaf_applications, never
+   change status, schedule rides or contact applicants. Staff with the
+   HTAF triage capability only. Off until an admin sets the system flag
+   htaf_review_assist_enabled to "true" (owner approval required).
+   Suggestions are computed on request and not stored; the audit log keeps
+   the application id, the rule version and which checks fired -- no
+   applicant details.
+========================================================= */
+
+const htafReviewAssist = require("./lib/htafReviewAssist");
+
+// Only what the rules need (see FIELDS_READ); never income, household
+// size or notes.
+const HTAF_REVIEW_ASSIST_COLUMNS =
+  "id, first_name, last_name, email, phone, county, pickup_city, destination, ride_date, transportation_need, program_type, applicant_type, status, submitted_at, created_at";
+
+async function htafReviewAssistEnabled() {
+  return (await getSystemFlag("htaf_review_assist_enabled", "false")) === "true";
+}
+
+// Other applications with the same email or phone (for the duplicate
+// check). Returns codes, statuses and dates only.
+async function findRelatedHtafApplications(application) {
+  const related = new Map();
+  for (const [column, value] of [["email", application.email], ["phone", application.phone]]) {
+    if (!value) continue;
+    const { data, error } = await supabase
+      .from("htaf_applications")
+      .select("id, application_code, status, submitted_at, created_at")
+      .eq(column, value)
+      .neq("id", application.id)
+      .limit(5);
+    if (error) throw error;
+    for (const row of data || []) related.set(row.id, row);
+  }
+  return [...related.values()];
+}
+
+app.post(
+  "/api/admin/foundation/applications/:id/review-assist",
+  requireAdmin,
+  requireHtafCapability("POST /api/admin/foundation/applications/:id/review-assist", "htaf.applications.triage"),
+  rateLimit({ windowMs: 60_000, max: 30, keyPrefix: "htaf_review_assist" }),
+  asyncRoute(async (req, res) => {
+    const id = cleanString(req.params.id, 80);
+    if (!(await htafReviewAssistEnabled())) {
+      auditLog({
+        actor_type: "admin",
+        actor_id: req.admin.email,
+        action: "htaf_review_assist_blocked",
+        entity_type: "htaf_application",
+        entity_id: id,
+        metadata: { reason: "htaf_review_assist_enabled is off" },
+        req
+      }).catch(() => {});
+      return fail(res, "The HTAF review assistant is turned off.", 403);
+    }
+
+    const { data: application, error } = await supabase
+      .from("htaf_applications")
+      .select(HTAF_REVIEW_ASSIST_COLUMNS)
+      .eq("id", id)
+      .maybeSingle();
+    if (error) throw error;
+    if (!application) return fail(res, "Application not found.", 404);
+
+    const related = await findRelatedHtafApplications(application);
+    const review = htafReviewAssist.reviewApplication(application, { related });
+
+    auditLog({
+      actor_type: "admin",
+      actor_id: req.admin.email,
+      action: "htaf_review_assist_run",
+      entity_type: "htaf_application",
+      entity_id: application.id,
+      metadata: { engine: review.engine, checks: review.checks.map((c) => c.id) },
+      req
+    }).catch(() => {});
+
+    return ok(res, { review });
+  })
+);
+
+// Staff mark a suggestion as helpful or wrong. Fixed choices only, no free
+// text, so no applicant details can end up here.
+const HTAF_REVIEW_FEEDBACK = new Set(["helpful", "incorrect", "not_needed"]);
+
+app.post(
+  "/api/admin/foundation/applications/:id/review-assist/feedback",
+  requireAdmin,
+  requireHtafCapability("POST /api/admin/foundation/applications/:id/review-assist/feedback", "htaf.applications.triage"),
+  rateLimit({ windowMs: 60_000, max: 60, keyPrefix: "htaf_review_assist_feedback" }),
+  asyncRoute(async (req, res) => {
+    if (!(await htafReviewAssistEnabled())) return fail(res, "The HTAF review assistant is turned off.", 403);
+    const id = cleanString(req.params.id, 80);
+    const check = cleanString(req.body && req.body.check_id, 60);
+    const verdict = cleanString(req.body && req.body.verdict, 20);
+    if (!Object.prototype.hasOwnProperty.call(htafReviewAssist.CHECKS, check) && check !== "summary") {
+      return fail(res, "Unknown suggestion.", 400);
+    }
+    if (!HTAF_REVIEW_FEEDBACK.has(verdict)) return fail(res, "Unknown feedback.", 400);
+    await auditLog({
+      actor_type: "admin",
+      actor_id: req.admin.email,
+      action: "htaf_review_assist_feedback",
+      entity_type: "htaf_application",
+      entity_id: id,
+      metadata: { engine: htafReviewAssist.ENGINE, check, verdict },
+      req
+    });
+    return ok(res, { recorded: true });
+  })
+);
+
+/* =========================================================
 
    PART 4 — AUTH, RIDER/DRIVER ONBOARDING, VERIFICATION
 
