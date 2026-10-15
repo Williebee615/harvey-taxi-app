@@ -61,11 +61,26 @@ It runs on fixed rules on Harvey Taxi's server: **no AI model, no external provi
 - **Audit entries:** `driver_review_assist_run`, `driver_review_assist_feedback`, `driver_review_assist_blocked`, `driver_review_access_denied`. They hold the staff email, driver account ID, rule version and check names. They hold no driver name, contact details or document numbers.
 - **Proposed retention:** 12 months, owner decision. The same SQL pattern as HTAF's assistant applies.
 
-## Document expiration dates (separate PR)
-**[Owner decision 2026-10-14]** Expiration fields belong in a separate PR, and must preserve where each date came from and whether it was verified.
-- This PR only **reads** `license_expires_on`, `insurance_expires_on` and `registration_expires_on` if they exist.
-- Until then it reports "not recorded".
-- The columns, with source and verification status, come in their own PR.
+## Document expiration dates
+**[Owner decision 2026-10-14]** Separate PR; preserve source and verification status.
+
+Each date is stored in `driver_document_records` (migration `20261014060000`; **not applied**, owner approval needed). Every record holds:
+- `document_type`: `drivers_license`, `insurance` or `vehicle_registration`;
+- `expires_on`;
+- `source`: `driver_entered`, `staff_from_document` or `provider`;
+- `verification_status`: `unverified`, `staff_verified` or `provider_verified`;
+- who recorded it and when, and for a staff verification, who verified it and when.
+
+The database enforces these rules:
+- A staff verification must name who verified it and when.
+- Only a provider can report a provider verification.
+- A driver-entered date is never provider-verified.
+
+History is append-only. A new record supersedes the previous one (`superseded_at` and `superseded_by`) rather than overwriting it, and there is at most one current record per driver and document. A record can't point at a missing driver, and a driver with records can't be deleted silently. Nothing deletes records; see `docs/data-retention-policy.md`.
+
+The assistant shows each current date with its source and verification, for example "2027-03-01 (entered by the driver; unverified)". It adds the check `expiration_unverified` when any date hasn't been checked against the document. An expired date is flagged whether or not it was verified. Without the table, or with no records, it reports "not recorded".
+
+**Not in this PR:** a staff screen or API to record dates. Until one exists, records are added only by owner-approved SQL. Who may record and verify dates is an owner decision.
 
 ## Corrections
 Staff can mark a suggestion helpful, wrong or not needed, with an optional **fixed reason code**:

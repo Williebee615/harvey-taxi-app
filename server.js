@@ -6178,9 +6178,6 @@ const DRIVER_REVIEW_COLUMNS = [
   "insurance_confirmed", "insurance_status",
   "accepted_terms", "terms_accepted", "accepted_background_check_consent", "background_check_accepted", "accepted_driver_policy"
 ];
-// Proposed columns (supabase/migrations/20261014010000_driver_document_expirations.sql,
-// not applied): read when present, skipped when the database doesn't have them yet.
-const DRIVER_EXPIRY_COLUMNS = ["license_expires_on", "insurance_expires_on", "registration_expires_on"];
 
 const DRIVER_REVIEW_CAPABILITY = "drivers.onboarding_review";
 const { ONBOARDING_REVIEW_GRANT_ROLES } = require("./lib/adminRbac");
@@ -6239,16 +6236,25 @@ async function driverReviewEnabled() {
 }
 
 async function loadDriverForReview(id) {
-  const withExpiry = await supabase
-    .from("drivers")
-    .select([...DRIVER_REVIEW_COLUMNS, ...DRIVER_EXPIRY_COLUMNS].join(", "))
-    .eq("id", id)
-    .maybeSingle();
-  if (!withExpiry.error) return withExpiry.data;
-  if (withExpiry.error.code !== "42703") throw withExpiry.error;
   const { data, error } = await supabase.from("drivers").select(DRIVER_REVIEW_COLUMNS.join(", ")).eq("id", id).maybeSingle();
   if (error) throw error;
   return data;
+}
+
+// Current expiration records (driver_document_records), with source and
+// verification status. Missing table (not migrated yet) means none.
+const DRIVER_DOCUMENT_COLUMNS = "document_type, expires_on, source, verification_status";
+async function loadDriverDocuments(driverId) {
+  const { data, error } = await supabase
+    .from("driver_document_records")
+    .select(DRIVER_DOCUMENT_COLUMNS)
+    .eq("driver_id", driverId)
+    .is("superseded_at", null);
+  if (error) {
+    if (error.code === "42P01" || error.code === "PGRST205") return [];
+    throw error;
+  }
+  return data || [];
 }
 
 const digitsOnly = (v) => String(v || "").replace(/\D/g, "").slice(-10);
@@ -6320,11 +6326,12 @@ app.post(
     const driver = await loadDriverForReview(id);
     if (!driver) return fail(res, "Driver not found.", 404);
 
-    const [related, staffOverrides] = await Promise.all([findRelatedDrivers(driver), hasStaffComplianceOverride(driver.id)]);
+    const [related, staffOverrides, documents] = await Promise.all([findRelatedDrivers(driver), hasStaffComplianceOverride(driver.id), loadDriverDocuments(driver.id)]);
     const review = driverReviewAssist.reviewDriver(driver, {
       integrations: { persona: Boolean(PERSONA_API_KEY) && ENABLE_PERSONA, checkr: Boolean(CHECKR_API_KEY) && ENABLE_CHECKR },
       staffOverrides,
-      related
+      related,
+      documents
     });
 
     auditLog({
@@ -25129,6 +25136,10 @@ const assistantPilotTestHooks =
       assistantPilotState.provider = undefined;
       assistantPilotState.embedder = undefined;
       assistantPilotState.vectorStores = {};
+    },
+    // undefined = no provider was ever looked up or built.
+    providerState() {
+      return assistantPilotState.provider;
     }
   };
 // Assistant request accounting and daily limits (lib/agent/usage.js):

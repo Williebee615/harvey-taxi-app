@@ -88,9 +88,9 @@ describeWithBrowser("assistant pilot page", () => {
     const firstTurn = page.locator(".turn").nth(1);
     await firstTurn.locator(".sources a").first().waitFor();
     expect(await firstTurn.locator(".text").innerText()).toBe("Riders and drivers can reach support by email [S1].");
-    expect(await firstTurn.locator(".label").innerText()).toMatch(/AI-generated from our published pages/i);
+    expect(await firstTurn.locator(".label").textContent()).toBe("Assistant preview · AI-generated from published information");
     expect(await firstTurn.locator(".sources a").first().getAttribute("href")).toBe("https://harveytaxiservice.com/support.html");
-    expect(await page.locator("#title").innerText()).toBe("Harvey Taxi assistant (pilot)");
+    expect(await page.locator("#title").innerText()).toBe("Harvey Taxi assistant preview — answers from published information");
     expect(await firstTurn.locator(".chips .chip").count()).toBeGreaterThan(0);
 
     await page.fill("#q", "and for drivers?");
@@ -114,6 +114,20 @@ describeWithBrowser("assistant pilot page", () => {
 
     await page.click("#clear");
     expect(await page.locator(".turn").count()).toBe(0);
+    await page.close();
+  });
+
+  test("a quoted (non-model) answer is labelled as quoted, never as AI-generated", async () => {
+    // eslint-disable-next-line global-require
+    require("../server").__assistantPilot.setProvider(null);
+    const page = await browser.newPage();
+    await page.goto(`${base}/assistant-pilot.html`);
+    await page.fill("#q", "How do I contact Harvey Taxi support?");
+    await page.click("form button");
+    const turn = page.locator(".turn").nth(1);
+    await turn.locator(".sources a").first().waitFor();
+    expect(await turn.locator(".label").textContent()).toBe("Assistant preview · quoted from published information");
+    expect(await page.evaluate(() => document.body.innerText)).not.toMatch(/AI-generated/i);
     await page.close();
   });
 });

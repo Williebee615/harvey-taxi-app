@@ -51,6 +51,8 @@ const EXPECTED_ORDER = [
   "20261014030000_htaf_applications_phone_idx.sql",
   // Covered by test/db/adminCapabilityGrants.db.test.js.
   "20261014050000_admin_capability_grants.sql",
+  // Covered by test/db/driverDocumentRecords.db.test.js.
+  "20261014060000_driver_document_records.sql",
   // Covered by test/db/agentModelUsage.db.test.js.
   "20261014070000_agent_model_usage_visitor_role.sql",
   // Covered by test/db/assistantPassageEmbeddings.db.test.js.
