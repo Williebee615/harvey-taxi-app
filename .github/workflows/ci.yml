@@ -114,15 +114,31 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      # Fails the job (never skips) if the service or PostGIS isn't usable.
-      - name: Verify Postgres and PostGIS
+      # pgvector (production offers it through Supabase) isn't in the PostGIS
+      # image; install it from the image's own PostgreSQL apt repository. The
+      # image is Debian bullseye, whose PostgreSQL packages have moved to
+      # apt-archive.postgresql.org; fall back to it when the main repository
+      # no longer serves bullseye.
+      - name: Install pgvector in the database container
+        run: |
+          docker exec ${{ job.services.postgres.id }} sh -ec '
+            if ! apt-get update -qq; then
+              sed -i "s#http://apt.postgresql.org/pub/repos/apt#http://apt-archive.postgresql.org/pub/repos/apt#" /etc/apt/sources.list.d/*.list
+              apt-get update -qq
+            fi
+            apt-get install -y -qq postgresql-17-pgvector
+          '
+
+      # Fails the job (never skips) if the service, PostGIS or pgvector isn't usable.
+      - name: Verify Postgres, PostGIS and pgvector
         env:
           PGPASSWORD: postgres
         run: |
           psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 \
             -c "select version();" \
             -c "create extension if not exists postgis;" \
-            -c "select postgis_full_version();"
+            -c "select postgis_full_version();" \
+            -c "select name, default_version from pg_available_extensions where name = 'vector';"
 
       - name: Run database tests
         env:
