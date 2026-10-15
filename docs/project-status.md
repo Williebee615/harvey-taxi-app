@@ -568,3 +568,39 @@ Nothing else is authorized to merge, deploy, migrate or activate.
 
   Until applied, the code treats each table as absent (no expiration dates shown, refund ledger "not migrated", keyword-only retrieval).
 - **Still off:** all assistant model flags, `refunds_enabled`, vectors flags, and the review assistants.
+
+## 13. Update 2026-10-15 (UTC): four migrations applied
+
+- **[Owner decision 2026-10-15]** "Approved to apply all four migrations."
+- **[Verified 2026-10-15 02:31–02:32 UTC, production]** Applied from the repository files, verbatim:
+
+  | Migration file | Recorded as | Result |
+  |---|---|---|
+  | `20261014060000_driver_document_records.sql` | `20261015023107 driver_document_records` | Table created, 0 rows |
+  | `20261014070000_agent_model_usage_visitor_role.sql` | `20261015023112 agent_model_usage_visitor_role` | Role check now allows `visitor`; the existing 76 rows (rider/driver) are unchanged |
+  | `20261015010000_payment_refunds.sql` | `20261015023140 payment_refunds` | Ledger and two functions created, 0 rows |
+  | `20261015020000_assistant_passage_embeddings.sql` (#249) | `20261015023211 assistant_passage_embeddings` | pgvector 0.8.0 installed in the `extensions` schema; table, HNSW index and match function created, 0 rows |
+
+- **Pre-checks, read-only:**
+  - none of the tables existed;
+  - existing usage roles fit the new constraint;
+  - `drivers.id` is text, matching the new foreign key;
+  - pgvector was available but not yet installed.
+- **Post-checks:**
+  - all three new tables have row-level security on, no access policies, and no anon or authenticated access;
+  - the three new functions are executable by `service_role` only;
+  - security advisor: the only new notices are the expected "RLS enabled, no policy" ones for these server-only tables.
+- **Functional check (rolled back, no rows written):** a first refund reservation was `reserved`, a retry with the same key `replayed`, and a request over the captured amount `exceeds_refundable`. The vector match function returned 0 rows on the empty table.
+- **Still off:** `refunds_enabled`, the vectors flags and the model flags. No row was written to any new table.
+- **Rollback** (only while the tables are empty):
+
+  ```sql
+  drop table public.driver_document_records;
+  drop table public.payment_refunds;
+  drop function public.reserve_payment_refund;
+  drop function public.record_payment_refund_result;
+  drop table public.assistant_passage_embeddings;
+  drop function public.match_assistant_passages;
+  ```
+
+  Restore the role check without 'visitor' only if no visitor rows exist.
