@@ -32,6 +32,11 @@ API_KEY = os.environ.get("MEMBRANE_API_KEY", "")
 MAX_INPUTS = 64
 MAX_CHARS = 4000
 MAX_BODY = 1_000_000
+# Texts run through the model this many at a time: a batch of 64 passages of
+# 512 tokens needs well over 1 GB for attention alone, more than a 2 GB
+# instance can spare next to the model, and an out-of-memory kill drops the
+# connection with no reply.
+CHUNK = 8
 
 tok = Tokenizer.from_file(f"{MODEL_DIR}/tokenizer.json")
 tok.enable_truncation(max_length=512)
@@ -47,6 +52,8 @@ except OSError:
 
 
 def embed(texts):
+    if len(texts) > CHUNK:
+        return np.concatenate([embed(texts[i:i + CHUNK]) for i in range(0, len(texts), CHUNK)])
     enc = tok.encode_batch(texts)
     ids = np.array([e.ids for e in enc], dtype=np.int64)
     mask = np.array([e.attention_mask for e in enc], dtype=np.int64)
@@ -79,15 +86,19 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if self.path.rstrip("/") != "/v1/embeddings":
             return self._send(404, {"error": "not_found"})
+        length = int(self.headers.get("Content-Length", 0) or 0)
+        if length <= 0 or length > MAX_BODY:
+            self.close_connection = True
+            return self._send(413 if length > MAX_BODY else 400, {"error": "bad_body"})
+        # Read the body before any refusal: replying while the client is still
+        # sending makes it see a reset connection instead of the status code.
+        raw = self.rfile.read(length)
         if API_KEY:
             given = self.headers.get("Authorization", "")
             if not hmac.compare_digest(given.encode(), f"Bearer {API_KEY}".encode()):
                 return self._send(401, {"error": "unauthorized"})
-        length = int(self.headers.get("Content-Length", 0) or 0)
-        if length <= 0 or length > MAX_BODY:
-            return self._send(413 if length > MAX_BODY else 400, {"error": "bad_body"})
         try:
-            body = json.loads(self.rfile.read(length))
+            body = json.loads(raw)
             inputs = body["input"] if isinstance(body["input"], list) else [body["input"]]
             if not inputs or len(inputs) > MAX_INPUTS or not all(isinstance(t, str) for t in inputs):
                 raise ValueError("input")
@@ -95,7 +106,11 @@ class Handler(BaseHTTPRequestHandler):
         except (ValueError, KeyError, TypeError, json.JSONDecodeError):
             return self._send(400, {"error": "bad_request"})
         started = time.monotonic()
-        vecs = embed(inputs)
+        try:
+            vecs = embed(inputs)
+        except Exception as err:  # never the text, only the error type
+            sys.stderr.write(f"membrane embed_failed {type(err).__name__}\n")
+            return self._send(500, {"error": "embed_failed"})
         return self._send(200, {
             "object": "list",
             "model": body.get("model"),
