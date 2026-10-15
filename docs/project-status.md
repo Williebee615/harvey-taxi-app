@@ -800,7 +800,6 @@ The owner set these; the values were read from the calibration page.
   - (a) add the key;
   - (b) set `ENABLE_PERSONA=false`;
   - (c) leave it as is.
-- `npm audit` lists 5 production advisories (1 critical `proxy-addr`, 1 high `axios`, 3 moderate `qs`/`body-parser`/`express`), all fixable without breaking changes. A pull request is offered and not yet made.
 
 **Rollback:** set `assistant_pilot_harvey_taxi_vectors_enabled` to `false`; it takes effect on the next question. Unsetting `MEMBRANE_BASE_URL` disables vectors everywhere.
 
@@ -808,6 +807,38 @@ The owner set these; the values were read from the calibration page.
 - **Completed:** membrane live, #253 merged and deployed, calibration done, Harvey Taxi vectors on and verified live.
 - **Remaining:**
   - HTAF vectors, after more labeled questions;
-  - the three owner items above;
+  - the two owner items above;
   - the LoRA training run (separate approval).
 - **Next authorized action:** none pending. Each item above needs owner approval.
+
+## 20. Update 2026-10-15 (UTC): security dependency update (#254)
+
+- **[Owner decision 2026-10-15]** "prepare the security update PR", then "Approved to merge #254".
+- **What changed** (lockfile only; `package.json` unchanged):
+
+  | Package | Severity | From | To |
+  |---|---|---|---|
+  | `proxy-addr` | critical | 2.0.7 | 2.0.8 |
+  | `axios` | high | 1.18.1 | 1.20.0 |
+  | `qs` | moderate | 6.15.3 | 6.16.1 |
+  | `body-parser` | moderate | 1.20.6 | 1.20.8 |
+  | `express` | moderate | 4.22.2 | 4.22.3 |
+
+  Test-only tools (`brace-expansion`, `js-yaml`) were updated too.
+- **[Verified] Before merge:**
+  - `npm audit --omit=dev`: 0 vulnerabilities.
+  - Local full suite: 2,421 passed. Database suite: 149 passed.
+  - CI: 6 of 6 checks passed on `8e65dac`.
+- **[Verified] After merge:**
+  - Merged as `4e6895b`. Production `/api/health` reported `4e6895b` at 12:26:21 UTC.
+  - `/`, `/support.html`, `/terms.html` and `/privacy.html` return 200.
+  - The calibration page still returns 401 without a sign-in.
+  - Harvey Taxi assistant:
+    - right after the restart, it answered with `keyword` retrieval while the vector index rebuilt;
+    - about 40 seconds later it answered with `hybrid` retrieval again ("Can I get my account erased?" → 7. Your Choices);
+    - off-topic questions still get `unsupported` ("not covered").
+- **[Unresolved]** One moderate `sprintf-js` advisory remains inside Jest (test tooling only, not deployed). The only fix npm offers is a downgrade to Jest 25.
+- **[Recommendation]** After each deploy, vectors are briefly off until the index rebuilds (about 10–40 s). Answers in that window use keyword search. This is acceptable for the pilot. Switching to the `pgvector` store would remove the gap.
+- **Handoff:**
+  - **Completed:** #254 merged, deployed and verified.
+  - **Next authorized action:** none pending.
