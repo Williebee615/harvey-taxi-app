@@ -605,3 +605,51 @@ Nothing else is authorized to merge, deploy, migrate or activate.
   ```
 
   Restore the role check without 'visitor' only if no visitor rows exist.
+
+## 16. End-to-end wiring audit (2026-10-15 UTC)
+
+**Owner request 2026-10-15:** "make sure the full production from front to back ends are all wired properly." Read-only against production; fixes in PR `claude/production-wiring-fixes`, not merged.
+
+**[Verified 2026-10-15 ~09:30 UTC]**
+- **Production version:** `5e09660` (`/api/health`), the head of `main`. CI passed on it and on every merge since #243.
+- **Pages:** all 51 pages load (200 or redirect). 11 of 12 linked assets load. The Settings page logo pointed to a missing file and showed an "HT" placeholder; fixed in the PR.
+- **Database:** all 30 tables and 14 functions the server code uses exist in production.
+- **Apps:**
+  - The rider app (`mobile/`) and driver app (`driver-app/`) point to `https://harveytaxiservice.com`.
+  - The driver app's trip steps (`enroute`, `arrived`, `start`, `complete`) match server routes.
+  - The root-level `App.js`, `src/` and `app.json` are an older, unshipped app; its dead addresses don't affect users.
+- **Live endpoints:**
+  - health, HTAF public stats, Stripe publishable key (test mode), assistant status and the assistant pilot answer correctly;
+  - admin, payment-report and support-handoff routes refuse requests without a sign-in (401).
+- **Server errors:** none in the last 72 hours apart from 29 rows from 2026-10-13 (earlier blocked-origin probes).
+
+**Wiring problems found on reachable pages:**
+
+| Problem | Effect | Fix in PR |
+|---|---|---|
+| Rider dashboard "Send Support Request" called `/api/support/request`, which doesn't exist | Riders' support messages were never sent | Sends to the same support queue as the assistant (`/api/agent/rider/handoff`): opens a case and emails support, and the rider sees the case reference |
+| Rider dashboard status refresh called `/api/riders/status`, which doesn't exist (and looked riders up by email) | Approval status could be stale | Uses `/api/riders/:id/readiness`; no lookup by email |
+| Support page "Payments" card linked to `payment.html`, whose two calls don't exist | Dead payment page | Card now opens the rider dashboard |
+| `POST /api/persona/inquiry` had no sign-in check | Anyone with an account ID could overwrite its Persona inquiry and reset its status. Unused by any page; 0 calls in 30 days | Only the signed-in rider or driver can start a check for their own account |
+
+**Guard tests added:**
+- `test/live-api-wiring.test.js`: every API address on live pages and in both apps must be a server route. Known gaps are listed with reasons.
+- `test/server.persona-inquiry-auth.test.js`
+- `test/rider-dashboard-wiring.browser.test.js`
+
+**[Unresolved] Owner decisions:**
+- **[Owner decision 2026-10-15]** "Persona and Checkr should only be handled by back ends; no front-end buttons required."
+  - Removed the rider dashboard "Start Persona" button and the driver sign-up "Start Persona Verification" button (the driver one did nothing).
+  - A guard test now fails if any page or app offers a control that starts either check.
+  - **[Verified, code]** No back-end job starts checks automatically either. `/api/persona/inquiry` (sign-in protected) and `/api/checkr/start` (driver or admin) have no callers. Results arrive through the Persona and Checkr webhooks, so checks are started outside the app (e.g. the Persona and Checkr dashboards).
+  - **[Unresolved]** Whether the server should start them automatically at a set step (for example after a driver's phone is verified) is a separate decision.
+- **20 pages no link reaches:**
+  - old dispatch, GPS and live-map consoles;
+  - autonomous-vehicle demos;
+  - `test-earnings.html`, `pay.html` and `rider-live-*`.
+
+  Many call routes that don't exist. Recommendation: remove them or mark them internal. `assistant-pilot.html` is unlinked on purpose.
+- **Already known:** Stripe webhook secret not set (webhook returns 503); HTAF domain not verifiable from this environment; embedding calibration blocked by network policy.
+
+**Handoff:**
+- **Next authorized action:** none. Merging the PR needs owner approval.

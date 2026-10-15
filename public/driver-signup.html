@@ -771,7 +771,6 @@
           </div>
 
           <div class="actions">
-            <button id="launchPersonaBtn" class="btn hidden" type="button">Start Persona Verification</button>
             <button id="openDashboardBtn" class="btn hidden" type="button">Open Driver Dashboard</button>
           </div>
 
@@ -1896,7 +1895,6 @@
       setPill("smsPill", "ok", "Verified");
       setTimelineStep("timelineSms", "done");
       setTimelineStep("timelinePersona", "active");
-      $("launchPersonaBtn")?.classList.remove("hidden");
       showStatus("Phone number verified successfully.", "success");
       trackEvent("driver_sms_verified");
     } catch (err) {
@@ -2005,11 +2003,6 @@
     bindConsentVisuals();
     trackEvent("driver_signup_start_over");
     window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
-  function launchPersonaVerification() {
-    trackEvent("driver_persona_launch_clicked");
-    showStatus("Persona identity verification will open in a new step. Contact support if this does not load.", "info");
   }
 
   function openDriverDashboard() {
@@ -2237,7 +2230,6 @@
     $("resendEmailBtn")?.addEventListener("click", resendEmailLink);
     $("resendSmsBtn")?.addEventListener("click", resendSmsCode);
     $("startOverBtn")?.addEventListener("click", startOver);
-    $("launchPersonaBtn")?.addEventListener("click", launchPersonaVerification);
     $("openDashboardBtn")?.addEventListener("click", openDriverDashboard);
   }
 

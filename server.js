@@ -9022,6 +9022,18 @@ app.post(
 
     }
 
+    // Only the signed-in rider or driver can start a check for their own
+    // account: this writes persona_inquiry_id/persona_status on that row.
+    const callerId = userType === "rider"
+      ? (await resolveVerifiedRiderSession(req))?.id
+      : verifyDriverSession(req.headers["x-driver-token"])?.driver_id;
+    if (!callerId) {
+      return fail(res, "Please sign in to start identity verification.", 401);
+    }
+    if (String(callerId) !== cleanString(req.body.user_id, 100)) {
+      return fail(res, "You can only start identity verification for your own account.", 403);
+    }
+
     let inquiry;
 
     try {
