@@ -617,3 +617,17 @@ Nothing else is authorized to merge, deploy, migrate or activate.
   - **[Verified 02:4x UTC]** This session still gets proxy 403; the policy applies to new sessions.
 - **Remaining:** run the calibration in a new session. Tools and steps are in `training/membrane/local/README.md` on branch `claude/membrane-calibration`, which is pushed, with no PR.
 - **Next authorized action:** calibration only. It is local and read-only, with no production change. Enabling the vectors flags, setting `MEMBRANE_*` on Render, hosting a membrane, training, and refunds each need a separate approval.
+
+## 15. Calibration attempt (2026-10-15 ~03:05 UTC, separate session)
+
+- **[Verified, owner-relayed report]** A new session was started after the owner edited the allowed domains. It was still refused by the proxy for `huggingface.co` (403), so no model was downloaded and the hybrid calibration did not run.
+- **[Unresolved]** Whether the three domains saved in the environment settings. The owner is re-checking.
+- **[Verified, same report] Keyword-only baseline** on the 19 calibration questions:
+  - 4 of 15 answerable questions found the right page in the top 2;
+  - 2 found the wrong page;
+  - 9 found nothing;
+  - 0 of 4 off-topic questions were answered.
+
+  This is the bar hybrid search must beat.
+- **[Verified, this session]** `scripts/membrane-calibrate.js` on this branch now suggests a threshold only when every correct score is above every off-topic score; otherwise it reports "no clean separation". Raised in that session's report.
+- **Next authorized action:** re-run the calibration in a new session once Hugging Face is reachable. There is no production change.
