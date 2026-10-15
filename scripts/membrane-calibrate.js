@@ -66,7 +66,15 @@ const LABELED = [
   }
   const covered = rows.filter((r) => r.expect && r.topCorrect).map((r) => r.top);
   const uncovered = rows.filter((r) => !r.expect).map((r) => r.top);
-  const suggested = covered.length && uncovered.length ? (Math.min(...covered) + Math.max(...uncovered)) / 2 : null;
+  // A threshold only exists when every correctly matched question scores
+  // above every out-of-scope one; if the ranges overlap, no single cutoff
+  // separates them and none is suggested.
+  const lowestCorrect = covered.length ? Math.min(...covered) : null;
+  const highestOffTopic = uncovered.length ? Math.max(...uncovered) : null;
+  const separable = lowestCorrect !== null && highestOffTopic !== null && lowestCorrect > highestOffTopic;
+  const suggested = separable ? (lowestCorrect + highestOffTopic) / 2 : null;
+  console.log(`lowest correct top-1 similarity: ${lowestCorrect === null ? "n/a" : lowestCorrect.toFixed(3)}; highest off-topic: ${highestOffTopic === null ? "n/a" : highestOffTopic.toFixed(3)}`);
+  if (!separable) console.log("NO CLEAN SEPARATION: correct and off-topic scores overlap (or a group is empty). No threshold is suggested; review the table before choosing one.");
   const threshold = Number(process.env.MEMBRANE_MIN_SIMILARITY) || suggested || 0.5;
 
   const results = { keyword: { hit: 0, falseAnswer: 0 }, hybrid: { hit: 0, falseAnswer: 0 } };
