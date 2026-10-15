@@ -842,3 +842,28 @@ The owner set these; the values were read from the calibration page.
 - **Handoff:**
   - **Completed:** #254 merged, deployed and verified.
   - **Next authorized action:** none pending.
+
+## 21. Update 2026-10-15 (UTC): HTS logo on Harvey Taxi pages (PR `claude/hts-logo`, not merged)
+
+- **[Owner decision 2026-10-15]** Owner's request: "We need to implement HTS Logo everywhere needed." This is a request for the work, not approval to merge or deploy.
+- **What changes:**
+  - **New asset:** `public/hts-logo-192.png`, a tight crop of the existing app icon (`mobile/assets/icon.png`) without its dark border.
+  - **Placeholder marks replaced with the logo** on 12 header marks across 11 pages:
+    - the "HT" text badges on `index`, `driver-dashboard` and `admin-dashboard`;
+    - the "H" badge in the rider dashboard's ride wizard;
+    - the empty marks and colored dots on `rider-dashboard` (2), `rider-signup`, `driver-signup`, `support`, `privacy`, `privacy-policy`, `app-review` and `admin-live-dispatch-map`.
+  - `settings` now uses the cropped logo.
+  - **Browser-tab and home-screen icons** added to 16 Harvey Taxi pages that had none, including admin and login pages, `terms`, `pay` and `payment`.
+  - **HTAF pages** (`foundation`, `htaf-*`, `contact`, `leadership`, `admin-htaf`) keep the HTAF logo and are unchanged.
+- **[Verified 2026-10-15, local]**
+  - Phone-width (412 px) screenshots of 12 pages: the logo loads and renders at 40–54 px on each.
+  - New guard test `test/hts-logo.test.js`:
+    - no "HT"/"H" or empty placeholder marks on Harvey Taxi pages;
+    - the HTS logo is present on 10 key pages;
+    - HTAF pages don't use the HTS logo.
+  - Full suite: 2,475 passed.
+- **Not changed:**
+  - The rider and driver mobile apps already use the HTS icon, splash and logo. They need no change and no new build.
+  - `og-image.png` (the link preview) already shows the HTS logo.
+- **[Unresolved]** HTAF pages have no favicon of their own, so browsers show the site default (`favicon.ico`, the HTS logo) in their tabs. Fixing that needs an HTAF favicon file and owner approval.
+- **Handoff:** **Next authorized action:** merge on the owner's approval. Render then auto-deploys; verify the logo on harveytaxiservice.com.

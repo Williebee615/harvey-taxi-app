@@ -1154,6 +1154,13 @@
     }
   </style>
   <script src="/language-pref.js"></script>
+  <style>
+    /* HTS logo in the brand mark (replaces the placeholder initials/dot). */
+    .hts-logo-mark { overflow: hidden; padding: 0 !important; background: #0b1a3a !important; display: block !important; flex: 0 0 auto; position: relative; }
+    .hts-logo-mark::before, .hts-logo-mark::after { content: none !important; display: none !important; }
+    .hts-logo-mark > img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: inherit; }
+    .logo-dot.hts-logo-mark { width: 40px !important; height: 40px !important; border-radius: 12px !important; }
+  </style>
 </head>
 
 <body>
@@ -1181,7 +1188,7 @@
     <!-- TOP NAV -->
     <header class="topbar">
       <a class="brand-wrap" href="index.html" aria-label="Harvey Taxi Home" data-track="home_brand">
-        <div class="logo-mark" aria-hidden="true">HT</div>
+        <div class="logo-mark hts-logo-mark" aria-hidden="true"><img src="/hts-logo-192.png" alt="" width="48" height="48" decoding="async" /></div>
         <div class="brand-stack">
           <div class="brand">HARVEY TAXI</div>
           <div class="brand-sub" data-i18n="brandSub">Tennessee Mobility Platform</div>
