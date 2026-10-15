@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Assistant (pilot)</title>
+<style>
+  :root { --bg:#f7f7f8; --card:#fff; --ink:#1b1f24; --muted:#5b6470; --line:#dde1e6; --accent:#0b5cad; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#111418; --card:#1a1f25; --ink:#e8eaed; --muted:#a3acb8; --line:#2c333b; --accent:#6aa8f0; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; }
+  main { max-width:720px; margin:0 auto; padding:16px; }
+  h1 { font-size:1.25rem; margin:8px 0 2px; }
+  .note { color:var(--muted); font-size:.9rem; margin:0 0 12px; }
+  #log { display:flex; flex-direction:column; gap:12px; margin-bottom:12px; }
+  .turn { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 14px; }
+  .turn.user { align-self:flex-end; max-width:85%; border-color:var(--accent); }
+  .label { font-size:.75rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin-bottom:4px; }
+  .text { white-space:pre-wrap; overflow-wrap:anywhere; }
+  .sources { margin:8px 0 0; padding-left:18px; font-size:.9rem; }
+  .sources a { color:var(--accent); }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .chip, button { font:inherit; border:1px solid var(--line); background:var(--card); color:var(--ink); border-radius:999px; padding:4px 10px; cursor:pointer; }
+  .handoff { margin-top:8px; font-size:.9rem; }
+  .handoff a { color:var(--accent); }
+  form { display:flex; gap:8px; }
+  textarea { flex:1; font:inherit; padding:10px; border-radius:10px; border:1px solid var(--line); background:var(--card); color:var(--ink); resize:vertical; min-height:44px; }
+  form button { border-radius:10px; padding:0 16px; background:var(--accent); color:#fff; border-color:var(--accent); }
+  .row { display:flex; justify-content:space-between; align-items:center; margin-top:8px; }
+</style>
+</head>
+<body>
+<main>
+  <h1 id="title">Information assistant (pilot)</h1>
+  <p class="note">Answers come only from our published pages, with links to each source. It can't see applications, accounts, payments or locations, and it doesn't make decisions. Your conversation is kept only on this page and is gone when you reload it.</p>
+  <div id="log" aria-live="polite"></div>
+  <form id="ask">
+    <textarea id="q" maxlength="1000" placeholder="Ask a question" aria-label="Your question" required></textarea>
+    <button type="submit">Send</button>
+  </form>
+  <div class="row"><span class="note" id="status"></span><button type="button" id="clear">Clear conversation</button></div>
+</main>
+<script>
+(function () {
+  "use strict";
+  var history = []; // in memory only: never written to storage or sent anywhere but this request
+  var log = document.getElementById("log");
+  var busy = false;
+
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+  function safeHref(href) {
+    try {
+      var u = new URL(href, location.origin);
+      return u.protocol === "https:" || u.protocol === "http:" ? u.href : "#";
+    } catch (e) { return "#"; }
+  }
+
+  function addUser(text) {
+    var t = el("div", "turn user");
+    t.appendChild(el("div", "label", "You"));
+    t.appendChild(el("div", "text", text));
+    log.appendChild(t);
+  }
+
+  function addAssistant() {
+    var t = el("div", "turn");
+    var label = el("div", "label", "Assistant");
+    var text = el("div", "text", "");
+    t.appendChild(label);
+    t.appendChild(text);
+    log.appendChild(t);
+    return { root: t, label: label, text: text };
+  }
+
+  function render(view, type, data) {
+    if (type === "meta" && data.organization) document.getElementById("title").textContent = data.organization + " assistant (pilot)";
+    else if (type === "delta") view.text.textContent += data.text;
+    else if (type === "replace") view.text.textContent = data.text;
+    else if (type === "sources" && data.items && data.items.length) {
+      var ol = el("ol", "sources");
+      data.items.forEach(function (s) {
+        var li = el("li");
+        var a = el("a", "", s.title + " — " + s.section);
+        a.href = safeHref(s.url);
+        a.target = "_blank";
+        a.rel = "noopener";
+        li.appendChild(el("span", "", "[" + s.ref + "] "));
+        li.appendChild(a);
+        if (s.effective_date) li.appendChild(el("span", "", " (effective " + s.effective_date + ")"));
+        ol.appendChild(li);
+      });
+      view.root.appendChild(ol);
+    } else if (type === "followups" && data.items && data.items.length) {
+      var chips = el("div", "chips");
+      data.items.forEach(function (q) {
+        var b = el("button", "chip", q);
+        b.type = "button";
+        b.addEventListener("click", function () { ask(q.replace(/^Tell me about "(.*)" \(.*\)$/, "Tell me about $1")); });
+        chips.appendChild(b);
+      });
+      view.root.appendChild(chips);
+    } else if (type === "handoff") {
+      var h = el("div", "handoff");
+      h.appendChild(el("span", "", "Need a person? "));
+      var a = el("a", "", data.label);
+      a.href = safeHref(data.href);
+      h.appendChild(a);
+      view.root.appendChild(h);
+    } else if (type === "done") {
+      view.label.textContent = data.mode === "model" ? "Assistant · AI-generated from our published pages" : "Assistant · quoted from our published pages";
+      if (data.uncertain) view.label.textContent += " · not covered";
+    }
+  }
+
+  async function ask(question) {
+    if (busy || !question.trim()) return;
+    busy = true;
+    document.getElementById("status").textContent = "Answering…";
+    addUser(question);
+    var view = addAssistant();
+    try {
+      var res = await fetch("/api/assistant/pilot/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+        body: JSON.stringify({ message: question, history: history.slice(-8) })
+      });
+      if (!res.ok || !res.body) {
+        view.text.textContent = res.status === 404 ? "The assistant pilot isn't switched on." : res.status === 429 ? "Too many questions. Please wait a minute." : "Sorry, something went wrong. Please use the contact page.";
+        return;
+      }
+      var reader = res.body.getReader();
+      var decoder = new TextDecoder();
+      var buffer = "";
+      for (;;) {
+        var chunk = await reader.read();
+        if (chunk.done) break;
+        buffer += decoder.decode(chunk.value, { stream: true });
+        var parts = buffer.split("\n\n");
+        buffer = parts.pop();
+        parts.forEach(function (block) {
+          var m = /^event: (\w+)\ndata: (.*)$/s.exec(block);
+          if (m) render(view, m[1], JSON.parse(m[2]));
+        });
+      }
+      history.push({ role: "user", text: question }, { role: "assistant", text: view.text.textContent });
+    } catch (e) {
+      view.text.textContent = "Sorry, the assistant is unavailable. Please use the contact page.";
+    } finally {
+      busy = false;
+      document.getElementById("status").textContent = "";
+    }
+  }
+
+  document.getElementById("ask").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var q = document.getElementById("q");
+    var v = q.value;
+    q.value = "";
+    ask(v);
+  });
+  document.getElementById("clear").addEventListener("click", function () {
+    history = [];
+    log.textContent = "";
+  });
+})();
+</script>
+</body>
+</html>

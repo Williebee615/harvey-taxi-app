@@ -884,6 +884,10 @@ function isAllowedOrigin(origin) {
 const BUILD_SHA = env("RENDER_GIT_COMMIT", null);
 // Short commit for /api/health. Only hex characters are ever exposed.
 const BUILD_VERSION = /^[0-9a-f]{7,40}$/i.test(String(BUILD_SHA || "")) ? String(BUILD_SHA).slice(0, 7).toLowerCase() : "unknown";
+// Synthetic test records (smoke tests, QA) use the reserved .test domain
+// (RFC 6761), which can never belong to a real person. They are excluded
+// from public totals.
+const isSyntheticEmail = (email) => /@example\.test$/i.test(String(email || "").trim());
 
 app.use((req, res, next) => {
 
@@ -5331,7 +5335,7 @@ app.get(
 
     const stats =
 
-      computeHtafPublicStats((data || []).map((row) => row.status));
+      computeHtafPublicStats((data || []).filter((row) => !isSyntheticEmail(row.email)).map((row) => row.status));
 
     return ok(res, {
 
@@ -19189,7 +19193,7 @@ app.get(
     {
       const { data, error } = await supabase
         .from("htaf_applications")
-        .select("status");
+        .select("status, email");
       if (!error && Array.isArray(data)) {
         htafTotal = data.length;
         htafByStatus = data.reduce((acc, r) => {
@@ -24934,6 +24938,142 @@ const modelBudget = createModelBudget({
   },
   log: (msg) => console.warn("⚠️ Assistant model budget:", msg)
 });
+
+/* =========================================================
+   ASSISTANT PILOT (docs/assistant-platform-architecture.md)
+
+   Conversational help from each organization's approved PUBLIC pages,
+   with source citations, follow-up questions and streaming. Separate
+   per organization (decided by the host, never the request), off by
+   default (assistant_pilot_<org>_enabled), and the model is a second,
+   separate switch: assistant_pilot_<org>_model_enabled AND the
+   server setting ASSISTANT_PILOT_MODEL_APPROVED=true. Without both, the
+   pilot answers extractively from the same sources and calls nothing
+   external. No transcript or memory is stored; unanswered questions are
+   logged as a topic label only.
+========================================================= */
+
+const assistantPilotOrgs = require("./lib/assistantPilot/orgs");
+const assistantPilotCorpus = require("./lib/assistantPilot/corpus");
+const { runTurn: runAssistantPilotTurn } = require("./lib/assistantPilot/orchestrator");
+const { createGateway: createAssistantPilotGateway, anthropicProvider } = require("./lib/assistantPilot/gateway");
+
+const assistantPilotState = { corpora: {}, provider: undefined };
+function assistantPilotCorpusFor(org) {
+  if (!assistantPilotState.corpora[org]) {
+    assistantPilotState.corpora[org] = assistantPilotCorpus.buildOrgCorpus(org, { sections: assistantPilotCorpus.loadPublishedSections(org) });
+  }
+  return assistantPilotState.corpora[org];
+}
+function assistantPilotProvider() {
+  if (assistantPilotState.provider !== undefined) return assistantPilotState.provider;
+  if (!claudeConfig.configured) return (assistantPilotState.provider = null);
+  // eslint-disable-next-line global-require
+  const Anthropic = require("@anthropic-ai/sdk").default || require("@anthropic-ai/sdk");
+  // eslint-disable-next-line global-require
+  const { clientOptions } = require("./lib/agent/claudeClient");
+  return (assistantPilotState.provider = anthropicProvider({ sdk: new Anthropic(clientOptions(claudeConfig)), model: claudeConfig.model }));
+}
+
+async function logAssistantPilotGap({ org, topic }) {
+  // Topic label only (never the visitor's words), as the existing assistants do.
+  if (org === "htaf") {
+    const { error } = await supabase.from("htaf_assistant_questions").insert({ question_excerpt: topic, intent: "htaf_assistant_pilot" });
+    if (error) console.warn("⚠️ Assistant pilot gap not logged:", logErrorCodeForPilot(error));
+    return;
+  }
+  await auditLog({ action: "assistant_pilot_gap", entity_type: "assistant", entity_id: org, metadata: { org, topic } }).catch(() => {});
+}
+const logErrorCodeForPilot = (error) => (error && error.code ? String(error.code).slice(0, 20) : "unknown");
+
+const assistantPilotRateLimit = rateLimit({
+  windowMs: 60_000,
+  max: Math.max(1, Math.min(Number(process.env.ASSISTANT_PILOT_PER_MINUTE) || 10, 1000)),
+  keyPrefix: "assistant_pilot"
+});
+const ASSISTANT_PILOT_TURN_DEADLINE_MS = 30_000;
+
+app.post(
+  "/api/assistant/pilot/chat",
+  assistantPilotRateLimit,
+  asyncRoute(async (req, res) => {
+    const org = assistantPilotOrgs.orgForHost(req.hostname, FOUNDATION_HOSTS);
+    const conf = assistantPilotOrgs.ORGS[org];
+    const body = req.body && typeof req.body === "object" ? req.body : {};
+    // The organization comes from the host. A request naming another
+    // organization is refused rather than silently answered.
+    if (body.org !== undefined && body.org !== org) return fail(res, "This assistant serves a different organization.", 403);
+    if ((await getSystemFlag(conf.enabledFlag, "false")) !== "true") return fail(res, "The assistant pilot is not enabled.", 404);
+    const modelEnabled =
+      (await getSystemFlag(conf.modelFlag, "false")) === "true" && String(process.env.ASSISTANT_PILOT_MODEL_APPROVED || "") === "true";
+
+    const controller = new AbortController();
+    const deadline = setTimeout(() => controller.abort(), ASSISTANT_PILOT_TURN_DEADLINE_MS);
+    res.on("close", () => controller.abort());
+
+    const wantsStream = String(req.headers.accept || "").includes("text/event-stream");
+    const collected = { text: "", events: [] };
+    let emit;
+    if (wantsStream) {
+      res.writeHead(200, { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-store", "X-Accel-Buffering": "no", Connection: "keep-alive" });
+      emit = (type, data) => {
+        if (!res.writableEnded) res.write(`event: ${type}\ndata: ${JSON.stringify(data)}\n\n`);
+      };
+    } else {
+      emit = (type, data) => {
+        if (type === "delta") collected.text += data.text;
+        else if (type === "replace") collected.text = data.text;
+        collected.events.push({ type, ...data });
+      };
+    }
+    const provider = modelEnabled ? assistantPilotProvider() : null;
+    try {
+      await runAssistantPilotTurn({
+        viewer: { org, role: "visitor" },
+        message: body.message,
+        history: body.history,
+        deps: {
+          corpus: assistantPilotCorpusFor(org),
+          modelEnabled,
+          gateway: provider ? createAssistantPilotGateway({ provider, budget: modelBudget, appTarget: `assistant_pilot:${org}` }) : null,
+          logGap: logAssistantPilotGap,
+          signal: controller.signal
+        },
+        emit
+      });
+    } finally {
+      clearTimeout(deadline);
+    }
+    if (wantsStream) return res.end();
+    const pick = (type) => (collected.events.filter((e) => e.type === type).pop() || {});
+    return ok(res, {
+      org,
+      reply: collected.text,
+      mode: pick("done").mode,
+      uncertain: Boolean(pick("done").uncertain),
+      sources: pick("sources").items || [],
+      followups: pick("followups").items || [],
+      handoff: pick("handoff").href ? { label: pick("handoff").label, href: pick("handoff").href } : null
+    });
+  })
+);
+
+// Test-only seams: a fake provider and a fresh corpus. Undefined outside tests.
+const assistantPilotTestHooks =
+  process.env.NODE_ENV !== "test"
+    ? undefined
+    : {
+    setProvider(p) {
+      assistantPilotState.provider = p;
+    },
+    setCorpus(org, corpus) {
+      assistantPilotState.corpora[org] = corpus;
+    },
+    reset() {
+      assistantPilotState.corpora = {};
+      assistantPilotState.provider = undefined;
+    }
+  };
 // Assistant request accounting and daily limits (lib/agent/usage.js):
 // in memory, no database reads or writes per request.
 const agentUsage = createAgentUsageMeter();
@@ -27373,4 +27513,4 @@ if (require.main === module) {
 // runOfferExpirySweep is exported only so tests can drive the real
 // Supabase adapters for the offer-expiry sweep; production runs it on the
 // interval set up under require.main === module below.
-module.exports = { app, runReviewDemoTick, runOfferExpirySweep, runUnusedHoldSweep, runAgentCoordinationSweep, reconcileStripeHolds, runScheduledReconciliation, purgeRiderLocations, runDriverHoursSweep };
+module.exports = { app, __assistantPilot: assistantPilotTestHooks, runReviewDemoTick, runOfferExpirySweep, runUnusedHoldSweep, runAgentCoordinationSweep, reconcileStripeHolds, runScheduledReconciliation, purgeRiderLocations, runDriverHoursSweep };

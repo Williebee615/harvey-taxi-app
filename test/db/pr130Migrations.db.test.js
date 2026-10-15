@@ -52,7 +52,9 @@ const EXPECTED_ORDER = [
   // Covered by test/db/adminCapabilityGrants.db.test.js.
   "20261014050000_admin_capability_grants.sql",
   // Covered by test/db/driverDocumentRecords.db.test.js.
-  "20261014060000_driver_document_records.sql"
+  "20261014060000_driver_document_records.sql",
+  // Covered by test/db/agentModelUsage.db.test.js.
+  "20261014070000_agent_model_usage_visitor_role.sql"
 ];
 
 // Synthetic pre-existing row (no production data), inserted after the
