@@ -366,6 +366,16 @@
     }
   </style>
   <script src="/language-pref.js"></script>
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+  <link rel="apple-touch-icon" href="/icon-192.png" />
+  <style>
+    /* HTS logo in the brand mark (replaces the placeholder initials/dot). */
+    .hts-logo-mark { overflow: hidden; padding: 0 !important; background: #0b1a3a !important; display: block !important; flex: 0 0 auto; position: relative; }
+    .hts-logo-mark::before, .hts-logo-mark::after { content: none !important; display: none !important; }
+    .hts-logo-mark > img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: inherit; }
+    .logo-dot.hts-logo-mark { width: 40px !important; height: 40px !important; border-radius: 12px !important; }
+  </style>
 </head>
 
 <body>
@@ -408,7 +418,7 @@
   <!-- TOPBAR -->
   <header class="topbar">
     <div class="brand">
-      <div class="logo" aria-hidden="true"></div>
+      <div class="logo hts-logo-mark" aria-hidden="true"><img src="/hts-logo-192.png" alt="" width="48" height="48" decoding="async" /></div>
       <div>
         <h1 data-i18n="brand">HARVEY TAXI</h1>
         <p data-i18n="portal">Driver Onboarding Portal</p>
