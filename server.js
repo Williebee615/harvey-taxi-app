@@ -25065,6 +25065,10 @@ const assistantPilotTestHooks =
     reset() {
       assistantPilotState.corpora = {};
       assistantPilotState.provider = undefined;
+    },
+    // undefined = no provider was ever looked up or built.
+    providerState() {
+      return assistantPilotState.provider;
     }
   };
 // Assistant request accounting and daily limits (lib/agent/usage.js):
