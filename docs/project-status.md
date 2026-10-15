@@ -490,3 +490,53 @@ Nothing else is authorized to merge, deploy, migrate or activate.
   - The HTAF and driver review assistants.
 - **Not linked:** `/assistant-pilot.html` isn't linked from any page.
 - **Rollback:** set either flag to `false`; it takes effect on the next request.
+
+## 11. Update 2026-10-15 (UTC): verified facts and outstanding checks
+
+### 11.1 Production state **[Verified 2026-10-15 01:42 UTC unless noted]**
+- **Version:** `/api/health` reports `version: 44ec21b` (#244) and `database: connected`.
+- **Merged since 2026-10-13:**
+  - #239 `d825e48`: phone index and outcome tracking;
+  - #240 `5e415de`: structured error logs;
+  - #241 `6bae686`: version in health;
+  - #242 `9d07b18`: synthetic records excluded from totals, smoke-test plan;
+  - #244 `44ec21b`: assistant pilot.
+- **`system_flags`:**
+  - `assistant_pilot_harvey_taxi_enabled` = `true` and `assistant_pilot_htaf_enabled` = `true` (set 2026-10-14 11:53).
+  - `htaf_review_assist_enabled` = `false`.
+  - These have no row, so they are off: `driver_review_assist_enabled`, `stripe_reconciliation_enabled`, `unused_hold_sweep_enabled`, and all `assistant_pilot_*_model_enabled` flags.
+- **`admin_capability_grants`:** applied, 0 rows.
+- **Not applied:**
+  - `driver_document_records` (#243, migration 060000);
+  - migration `20261014070000` (visitor role in the usage ledger).
+- **Payments:** 0 `payments` rows; 0 rides with `payment_id`. Stripe is in test mode (`pk_test_`). `STRIPE_WEBHOOK_SECRET` is not set, so the webhook returns 503. No webhook endpoints are registered. 166 test PaymentIntents, all cancelled (2026-10-14).
+
+### 11.2 Assistant pilot: verification results
+- **[Verified 2026-10-14, Harvey Taxi domain]** The pilot is quote-only. Results:
+  - A supported question gets a quoted answer with sources.
+  - A private-record question gets the boundary answer.
+  - Naming the other organization gets 403.
+  - SSE streaming works.
+- **Correction to an earlier report:** the 2026-10-14 summary said all four test questions behaved correctly, but the unsupported question had not been run at that point.
+  - **[Verified 2026-10-14 11:59 UTC]** It was then run live and returned mode `unsupported`.
+  - Exactly one audit row was written: `assistant_pilot_gap` with metadata `{org: "harvey_taxi", topic: "Unanswered question about: other"}`. It holds no IP address, user agent or question wording.
+- **[Verified, tests: #245]** Quote-only mode makes no outbound call even with provider credentials present. The test uses a fake `ANTHROPIC_API_KEY`; with the model flag absent, without the server approval, or set to `"TRUE"`, the answer is extractive, no provider is constructed, and there are zero outbound http, https or fetch calls.
+- **[Unverified] HTAF live check:** harveytransportationfoundation.com is blocked by this environment's network policy (proxy 403). The pilot is enabled there but has not been live-verified.
+  - Owner test: https://harveytransportationfoundation.com/assistant-pilot.html, ask "How do I apply?"
+  - Allowing the host in this environment's network settings would let Claude verify it.
+
+### 11.3 Open PRs (none merged; each merge needs owner approval)
+| PR | What | Checks |
+|---|---|---|
+| #245 | Page label "Assistant preview — answers from published information"; quoted vs AI-generated label; no-provider test | 6/6 green |
+| #246 | HTAF Privacy §13 "Children Under 18" (owner's wording) | 6/6 green |
+| #247 | Anthropic model proposal (data flow, terms, costs) and retention implementation gaps (docs only) | pending |
+| #243 | Driver document records (entry separate from verification; no automatic suspension); main merged in at `83bbd60` | local: 2,338 unit and 135 database tests passed |
+| #218 | This status record | — |
+
+### 11.4 Outstanding checks
+- **Owner:** HTAF live check (above).
+- **Owner:** Anthropic Console data-retention setting / zero data retention, and DPA acceptance (#247).
+- **Owner:** Supabase backup retention and Render log retention (#247, G10/G11).
+- Supervised review-assistant smoke tests: they wait until you're signed in (`docs/review-assistant-smoke-tests.md`).
+- Payment reconciliation and refunds: in progress; read-only and Stripe test mode only; no live refunds.
