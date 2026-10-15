@@ -700,3 +700,36 @@ Nothing else is authorized to merge, deploy, migrate or activate.
   - `admin-live-dispatch-map` and `mobility-os-prototype`, whose calls all work;
   - `admin-gps`, `pay` and `admin-account--deletion`, which have no dead calls (the last duplicates the dashboard's deletion panel).
 - **Handoff:** after this PR merges, verify the production version and that the removed pages return 404.
+
+## 18. Update 2026-10-15 (UTC): embedding service (membrane) for vector search
+
+- **[Owner decision 2026-10-15]** "Approved": an embedding server on Render as a private service, about $25/month (Render Standard; third-party price, to confirm on Render). Covers preparing the service, merging it, and calibrating against it.
+  - Turning vectors on for one organization follows calibration, per the approved plan.
+  - Vectors stay off until the threshold is set.
+- **Added (PR `claude/membrane-service`):**
+  - **`membrane-service/`:** Dockerfile, `serve.py`, `fetch.py`.
+    - Downloads `intfloat/multilingual-e5-small` at build, falling back to `Xenova/multilingual-e5-small` if the first has no ONNX file, and records the commit and license.
+    - Serves `/v1/embeddings` and `/health`.
+    - Requires a shared key; never logs request text.
+  - **`GET /api/admin/membrane/calibration`:** owner only, read-only. Shows the service's health and the calibration scores, run inside Render where the private address is reachable.
+  - **Index building** now allows 60 seconds per batch; a visitor's query keeps the short timeout.
+  - **E5 query/passage prefixes** are applied automatically.
+- **[Verified 2026-10-15, local]** End to end with a stand-in model in the same ONNX format:
+  - health check works;
+  - missing key gives 401;
+  - 384-dimension vectors come back;
+  - the real published pages (31 + 65 passages) embed through the service;
+  - the calibration correctly refuses to suggest a threshold when scores overlap.
+
+  Full suite: 2,421 passed.
+- **[Verified 2026-10-15, local Docker]** The image builds from this Dockerfile with the stand-in model in place of the download step. Running as Render does (`PORT=10000`, `RENDER=true`):
+  - listens on `0.0.0.0:10000` as a non-root user;
+  - health check works; missing key gives 401;
+  - all 96 passages embed through it;
+  - no request text appears in its logs.
+- **[Unverified]**
+  - The model download step (`fetch.py`): Hugging Face is blocked here. It runs on Render's first build.
+  - The real model's quality: it awaits the calibration page.
+- **Owner steps:** in `membrane-service/README.md`. Create the private service, set four environment variables on the web service, then open the calibration page.
+- **Handoff:**
+  - **Next authorized action:** after the owner's Render setup, read the calibration report, set `MEMBRANE_MIN_SIMILARITY`, and enable vectors for one organization.

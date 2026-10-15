@@ -24970,7 +24970,8 @@ const modelBudget = createModelBudget({
 const assistantPilotOrgs = require("./lib/assistantPilot/orgs");
 const assistantPilotCorpus = require("./lib/assistantPilot/corpus");
 const { runTurn: runAssistantPilotTurn } = require("./lib/assistantPilot/orchestrator");
-const { readMembraneConfig } = require("./lib/membrane/config");
+const { readMembraneConfig, describeMembraneConfig } = require("./lib/membrane/config");
+const { runCalibration: runMembraneCalibration } = require("./lib/membrane/calibration");
 const { createMembraneEmbedder } = require("./lib/membrane/embeddings");
 const { buildMemoryStore, pgvectorStore } = require("./lib/assistantPilot/vectors");
 const { createGateway: createAssistantPilotGateway, anthropicProvider } = require("./lib/assistantPilot/gateway");
@@ -25041,6 +25042,39 @@ async function assistantPilotVectorsFor(org) {
   }
   return null;
 }
+
+/* Admin: membrane status and embedding calibration (read-only). Owner
+   account only. Runs inside Render, where the membrane's private address is
+   reachable, and returns scores for the fixed calibration questions; it
+   writes nothing, changes no flag and stores no text. */
+app.get(
+  "/api/admin/membrane/calibration",
+  requireAdmin,
+  rateLimit({ windowMs: 60_000, max: 3, keyPrefix: "membrane_calibration" }),
+  asyncRoute(async (req, res) => {
+    const { role } = await resolveAdminRoleForRequest(req);
+    if (role !== "super_admin") return fail(res, "Membrane calibration requires the owner account.", 403);
+    const config = describeMembraneConfig(membraneConfig);
+    if (!membraneConfig.configured) return ok(res, { config, health: null, calibration: null });
+    let health = null;
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 5000);
+      const r = await fetch(`${membraneConfig.baseUrl}/health`, { signal: controller.signal });
+      clearTimeout(timer);
+      health = { status: r.status, ...(r.ok ? await r.json() : {}) };
+    } catch {
+      health = { status: "unreachable" };
+    }
+    const embedder = createMembraneEmbedder({ ...membraneConfig, timeoutMs: 30_000 });
+    try {
+      const calibration = await runMembraneCalibration({ embedder, minSimilarity: membraneMinSimilarity() });
+      return ok(res, { config, health, current_min_similarity: membraneMinSimilarity(), calibration });
+    } catch (err) {
+      return ok(res, { config, health, calibration: null, error: (err && err.code) || "calibration_failed" });
+    }
+  })
+);
 
 async function logAssistantPilotGap({ org, topic }) {
   // Topic label only (never the visitor's words), as the existing assistants do.
