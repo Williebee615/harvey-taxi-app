@@ -553,6 +553,7 @@ Nothing else is authorized to merge, deploy, migrate or activate.
   | #247 | `aa0d14d` | Anthropic model proposal; retention implementation gaps (docs) |
   | #243 | `6d34d97` | Driver document records (entry separate from verification; no automatic suspension) |
   | #248 | `e3979c7` | Read-only payment reconciliation; test-mode refund ledger (off) |
+  | #249 | `5716415` | Membrane: own-model vector search, hybrid RAG, LoRA/QLoRA pipeline (off). CI now installs pgvector from PostgreSQL's archive repository (the PostGIS image is Debian bullseye). |
 
 - **[Verified 2026-10-15 02:28 UTC, production]**
   - `/api/health` reports `version: e3979c7`.
