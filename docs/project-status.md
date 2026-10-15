@@ -843,7 +843,7 @@ The owner set these; the values were read from the calibration page.
   - **Completed:** #254 merged, deployed and verified.
   - **Next authorized action:** none pending.
 
-## 21. Update 2026-10-15 (UTC): HTS logo on Harvey Taxi pages (PR `claude/hts-logo`, not merged)
+## 21. Update 2026-10-15 (UTC): HTS logo on Harvey Taxi pages (#256)
 
 - **[Owner decision 2026-10-15]** Owner's request: "We need to implement HTS Logo everywhere needed." This is a request for the work, not approval to merge or deploy.
 - **What changes:**
@@ -865,5 +865,28 @@ The owner set these; the values were read from the calibration page.
 - **Not changed:**
   - The rider and driver mobile apps already use the HTS icon, splash and logo. They need no change and no new build.
   - `og-image.png` (the link preview) already shows the HTS logo.
-- **[Unresolved]** HTAF pages have no favicon of their own, so browsers show the site default (`favicon.ico`, the HTS logo) in their tabs. Fixing that needs an HTAF favicon file and owner approval.
-- **Handoff:** **Next authorized action:** merge on the owner's approval. Render then auto-deploys; verify the logo on harveytaxiservice.com.
+- **[Owner decision 2026-10-15]** "Once successfully tested authorization granted to merge". Merged as `ff12bb0` after CI passed 6 of 6.
+- **[Verified 2026-10-15 12:47 UTC]**
+  - Production `/api/health` reported `ff12bb0`.
+  - `/hts-logo-192.png`, `/icon-192.png` and `/favicon.ico` return 200.
+  - Live HTML: the logo replaces the old marks on `/` and on `rider-dashboard` (top bar, sign-in screen and the Request Your Ride wizard).
+  - `foundation.html` has no HTS logo.
+  - HTML is served `no-cache`, and `service-worker.js` handles notifications only, so it doesn't cache pages.
+  - The owner's 12:45–12:46 UTC phone screenshots showing "HT" were taken before the deploy.
+- **HTAF tab icon:** addressed in §22.
+
+## 22. Update 2026-10-15 (UTC): HTAF tab icon (PR `claude/htaf-favicon`, not merged)
+
+- **[Owner decision 2026-10-15]** Owner's request: "Add the HTAF logo as the HTAF tab icon." This is a request for the work, not approval to merge.
+- **New files, all made from the existing `public/htaf-logo.webp`:**
+  - `htaf-favicon.ico` (16/32/48 px, transparent);
+  - `htaf-icon-192.png` (transparent);
+  - `htaf-apple-touch-icon.png` (180 px on white, because iOS can't show transparency).
+- **Pages:** tab and home-screen icon tags added to `foundation`, `htaf-application`, `htaf-privacy`, `htaf-service-providers`, `htaf-terms`, `contact`, `leadership` and `admin-htaf`. Before, those pages had no icon tags, so browsers fell back to the HTS `favicon.ico`.
+- **[Verified 2026-10-15, local]**
+  - Guard tests:
+    - HTAF pages use the HTAF icons and not the HTS ones;
+    - Harvey Taxi pages don't use the HTAF icons;
+    - the icon files exist.
+  - Full suite: 2,519 passed.
+- **Handoff:** **Next authorized action:** merge on the owner's approval, then verify the icons on the live HTAF pages.
