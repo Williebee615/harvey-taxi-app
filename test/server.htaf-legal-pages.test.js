@@ -386,11 +386,18 @@ describe("Privacy Policy content", () => {
       "10. Data Retention",
       "11. Security",
       "12. Your Rights and Choices",
-      "13. Children",
+      "13. Children Under 18",
       "14. Changes to This Policy",
       "15. Text Messages (SMS)",
       "16. Contact Us"
     ]);
+  });
+
+  test("children under 18: no direct applications; an authorized adult applies on the child's behalf (owner wording, 2026-10-15)", () => {
+    expect(text).toContain("HTAF does not accept applications directly from individuals under 18.");
+    expect(text).toContain("A parent, legal guardian, or adult caregiver authorized by the parent or legal guardian must submit the application on the child's behalf.");
+    expect(text).toContain("Children under 18 may be considered for transportation assistance, subject to HTAF's eligibility requirements.");
+    expect(text).not.toMatch(/children under 13/i);
   });
 
   test("states that documents are not collected online, and keeps the 90-day rule as a future procedure", () => {
