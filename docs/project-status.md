@@ -653,3 +653,25 @@ Nothing else is authorized to merge, deploy, migrate or activate.
 
 **Handoff:**
 - **Next authorized action:** none. Merging the PR needs owner approval.
+
+## 17. Update 2026-10-15 (UTC): #250 merged; dead pages removed
+
+- **[Owner decision 2026-10-15]** "Authorization granted for all production improvements." Read as covering:
+  - merging #250;
+  - the recommended removal of unreachable, non-working pages.
+
+  It does **not** cover:
+  - automatic Persona/Checkr starts (a product choice, and each check costs money);
+  - model, vector or refund activation (model activation stays off until the owner reviews the proposal).
+- **[Verified, Git]** #250 merged as `2c20aef` on green CI (6/6).
+- **Removed 8 pages** that no page, app or server route links to, whose API calls were all or nearly all dead:
+  - `admin-dispatch-console`, `admin-dispatch`, `admin-rider-approval`, `admin-support`;
+  - `autonomous-analytics`, `autonomous-test`, `av-control`;
+  - `test-earnings`.
+
+  Current admin functions are in `admin-dashboard.html`.
+- **Kept:**
+  - the five redirect pages (`active-trip`, `rider-trip`, `rider-tracking`, `rider-live-*`), which forward old links to the rider dashboard;
+  - `admin-live-dispatch-map` and `mobility-os-prototype`, whose calls all work;
+  - `admin-gps`, `pay` and `admin-account--deletion`, which have no dead calls (the last duplicates the dashboard's deletion panel).
+- **Handoff:** after this PR merges, verify the production version and that the removed pages return 404.
