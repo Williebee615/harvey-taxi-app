@@ -733,3 +733,112 @@ Nothing else is authorized to merge, deploy, migrate or activate.
 - **Owner steps:** in `membrane-service/README.md`. Create the private service, set four environment variables on the web service, then open the calibration page.
 - **Handoff:**
   - **Next authorized action:** after the owner's Render setup, read the calibration report, set `MEMBRANE_MIN_SIMILARITY`, and enable vectors for one organization.
+
+## 19. Update 2026-10-15 (UTC): membrane live; Harvey Taxi vectors on
+
+**[Verified 2026-10-15 ~11:46 UTC]** **Render private service `harvey-membrane`.**
+- **Configuration:** Docker, Standard plan (1 CPU, 2 GB), internal address `harvey-membrane:10000`. Source: the owner's screenshots of Render.
+- **[Owner decision]** Price $25/month, confirmed by the owner in Render's plan picker.
+- **Model:** `intfloat/multilingual-e5-small`, commit `614241f622f53c4eeff9890bdc4f31cfecc418b3`, license MIT, `onnx/model.onnx`, 384 dimensions. Source: the build log the owner pasted.
+- **Credential:** `MEMBRANE_API_KEY` is stored in Render environment variables on both `harvey-membrane` and `harvey-taxi-app-2`. The value is not recorded.
+
+**Web service settings on `harvey-taxi-app-2`:**
+- `MEMBRANE_BASE_URL=http://harvey-membrane:10000/v1`
+- `MEMBRANE_EMBED_MODEL=multilingual-e5-small`
+- `MEMBRANE_TIMEOUT_MS=3000`
+- `MEMBRANE_MIN_SIMILARITY=0.81`
+
+The owner set these; the values were read from the calibration page.
+
+**Setup issues, all resolved:**
+- the placeholder `abcd` was used in the address;
+- the service ID was added into the hostname;
+- a stray hyphen was left in the hostname;
+- the first calibration run failed with `network`. Probable cause: running 64 passages at once ran out of memory. Not confirmed from logs.
+
+**[Owner decision 2026-10-15]** "Approved to merge #253". **[Verified]**
+- Merged as `154f084` after CI passed (6 of 6 checks) and the local full suite passed (2,421).
+- Production `/api/health` reported `154f084` at 11:46:42 UTC.
+- `harvey-membrane` rebuilt on `154f084` and went live at 11:46:25 UTC.
+- #253 changes:
+  - the service runs texts through the model 8 at a time;
+  - the website sends at most 16 texts per request;
+  - a refusal is sent only after the request is read.
+
+**[Verified 2026-10-15 ~11:58 UTC] Calibration** (owner-only page, from the owner's screenshots):
+- Index build: Harvey Taxi 31 passages, HTAF 65 passages, about 36 seconds in total on 1 CPU.
+- Top-1 vector match: right page for 9 of 15 answerable questions.
+- Score ranges overlap: lowest correct 0.805 against highest off-topic 0.806. No threshold was suggested.
+- With `MEMBRANE_MIN_SIMILARITY=0.81`, combined search found the right page in the top 2 for **10 of 15** questions, against 4 of 15 for keyword search. Off-topic questions answered: **0** (keyword search also 0).
+  - **Harvey Taxi:** 5 of 6. One wrong page: "Can a 12 year old use the app?" returned Legal & Information Pages.
+  - **HTAF:** 5 of 9. Three wrong pages, all on eligibility, whether a trip is guaranteed, and who sees requests. One question not found (tax-exempt).
+
+**[Owner decision 2026-10-15]** "Approve Harvey Taxi vectors". Scope: Harvey Taxi only.
+- Set `assistant_pilot_harvey_taxi_vectors_enabled = true` in `system_flags` at 12:00:00 UTC.
+- HTAF has no vectors flag, so it stays keyword-only.
+
+**[Verified 2026-10-15 ~12:03 UTC] Live answers on harveytaxiservice.com** (streamed requests):
+
+| Question | Retrieval | Sections cited |
+|---|---|---|
+| "Is a car always available when I request one?" | `hybrid` | Ride Requests and Availability; Support Guidance |
+| "Can I get my account erased?" | `hybrid` | 7. Your Choices; Acceptable Use |
+| "Do drivers see my phone number?" | `hybrid` | 3. Sharing of Information; Contact Harvey Taxi |
+| "Recommend a good pizza place" | `keyword` | none: `unsupported` ("not covered") |
+| "Do you fly helicopters?" | `keyword` | none: `unsupported` ("not covered") |
+
+**[Recommendation]**
+- Watch Harvey Taxi's "not covered" and wrong-page rate: the off-topic margin is only 0.004.
+- Before turning on HTAF:
+  - add at least 30 staff-written labeled questions, including off-topic ones;
+  - fix the HTAF eligibility mismatches.
+- The harmless `membrane 501 HEAD /` line comes from Render's start-up probe; handle `HEAD` in a later change.
+
+**[Unresolved] Owner items:**
+- The Render "Payment failed" banner; the workspace runs the live website.
+- Persona: `ENABLE_PERSONA` is on with no `PERSONA_API_KEY`, so new drivers can't pass verification without manual admin action. Options:
+  - (a) add the key;
+  - (b) set `ENABLE_PERSONA=false`;
+  - (c) leave it as is.
+
+**Rollback:** set `assistant_pilot_harvey_taxi_vectors_enabled` to `false`; it takes effect on the next question. Unsetting `MEMBRANE_BASE_URL` disables vectors everywhere.
+
+**Handoff:**
+- **Completed:** membrane live, #253 merged and deployed, calibration done, Harvey Taxi vectors on and verified live.
+- **Remaining:**
+  - HTAF vectors, after more labeled questions;
+  - the two owner items above;
+  - the LoRA training run (separate approval).
+- **Next authorized action:** none pending. Each item above needs owner approval.
+
+## 20. Update 2026-10-15 (UTC): security dependency update (#254)
+
+- **[Owner decision 2026-10-15]** "prepare the security update PR", then "Approved to merge #254".
+- **What changed** (lockfile only; `package.json` unchanged):
+
+  | Package | Severity | From | To |
+  |---|---|---|---|
+  | `proxy-addr` | critical | 2.0.7 | 2.0.8 |
+  | `axios` | high | 1.18.1 | 1.20.0 |
+  | `qs` | moderate | 6.15.3 | 6.16.1 |
+  | `body-parser` | moderate | 1.20.6 | 1.20.8 |
+  | `express` | moderate | 4.22.2 | 4.22.3 |
+
+  Test-only tools (`brace-expansion`, `js-yaml`) were updated too.
+- **[Verified] Before merge:**
+  - `npm audit --omit=dev`: 0 vulnerabilities.
+  - Local full suite: 2,421 passed. Database suite: 149 passed.
+  - CI: 6 of 6 checks passed on `8e65dac`.
+- **[Verified] After merge:**
+  - Merged as `4e6895b`. Production `/api/health` reported `4e6895b` at 12:26:21 UTC.
+  - `/`, `/support.html`, `/terms.html` and `/privacy.html` return 200.
+  - The calibration page still returns 401 without a sign-in.
+  - Harvey Taxi assistant:
+    - right after the restart, it answered with `keyword` retrieval while the vector index rebuilt;
+    - about 40 seconds later it answered with `hybrid` retrieval again ("Can I get my account erased?" → 7. Your Choices);
+    - off-topic questions still get `unsupported` ("not covered").
+- **[Unresolved]** One moderate `sprintf-js` advisory remains inside Jest (test tooling only, not deployed). The only fix npm offers is a downgrade to Jest 25.
+- **[Recommendation]** After each deploy, vectors are briefly off until the index rebuilds (about 10–40 s). Answers in that window use keyword search. This is acceptable for the pilot. Switching to the `pgvector` store would remove the gap.
+- **Handoff:**
+  - **Completed:** #254 merged, deployed and verified.
+  - **Next authorized action:** none pending.
