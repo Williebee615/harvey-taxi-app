@@ -540,3 +540,31 @@ Nothing else is authorized to merge, deploy, migrate or activate.
 - **Owner:** Supabase backup retention and Render log retention (#247, G10/G11).
 - Supervised review-assistant smoke tests: they wait until you're signed in (`docs/review-assistant-smoke-tests.md`).
 - Payment reconciliation and refunds: in progress; read-only and Stripe test mode only; no live refunds.
+
+## 12. Update 2026-10-15 (UTC): merges approved ("Approved to merge all")
+
+- **[Owner decision 2026-10-15]** "Approved to merge all". This covers merging the open PRs. It does **not** cover applying migrations, turning flags on, renting GPUs or enabling refunds; each of those still needs its own approval.
+- **[Verified 2026-10-15, Git]** Merged (squash), each on green CI:
+
+  | PR | Commit | What |
+  |---|---|---|
+  | #245 | `abf0708` | "Assistant preview — answers from published information" label; quote-only can't reach a provider |
+  | #246 | `f7943fa` | HTAF Privacy §13 "Children Under 18" (owner wording) |
+  | #247 | `aa0d14d` | Anthropic model proposal; retention implementation gaps (docs) |
+  | #243 | `6d34d97` | Driver document records (entry separate from verification; no automatic suspension) |
+  | #248 | `e3979c7` | Read-only payment reconciliation; test-mode refund ledger (off) |
+
+- **[Verified 2026-10-15 02:28 UTC, production]**
+  - `/api/health` reports `version: e3979c7`.
+  - The pilot page shows "Assistant preview — answers from published information".
+  - The Harvey Taxi pilot answers from published pages, with 2 sources.
+  - The refund and reconciliation-report routes return 401 without an admin session.
+- **[Unverified]** HTAF §13 live: `/htaf-privacy.html` redirects to harveytransportationfoundation.com, which this environment can't reach. The deployed code contains the new heading.
+- **Not applied (each needs separate approval):**
+  - `20261014060000` driver document records;
+  - `20261015010000` refund ledger;
+  - `20261015020000` pgvector store (#249);
+  - `20261014070000` usage-ledger visitor role.
+
+  Until applied, the code treats each table as absent (no expiration dates shown, refund ledger "not migrated", keyword-only retrieval).
+- **Still off:** all assistant model flags, `refunds_enabled`, vectors flags, and the review assistants.
