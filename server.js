@@ -24949,9 +24949,12 @@ const modelBudget = createModelBudget({
 const assistantPilotOrgs = require("./lib/assistantPilot/orgs");
 const assistantPilotCorpus = require("./lib/assistantPilot/corpus");
 const { runTurn: runAssistantPilotTurn } = require("./lib/assistantPilot/orchestrator");
+const { readMembraneConfig } = require("./lib/membrane/config");
+const { createMembraneEmbedder } = require("./lib/membrane/embeddings");
+const { buildMemoryStore, pgvectorStore } = require("./lib/assistantPilot/vectors");
 const { createGateway: createAssistantPilotGateway, anthropicProvider } = require("./lib/assistantPilot/gateway");
 
-const assistantPilotState = { corpora: {}, provider: undefined };
+const assistantPilotState = { corpora: {}, provider: undefined, embedder: undefined, vectorStores: {} };
 function assistantPilotCorpusFor(org) {
   if (!assistantPilotState.corpora[org]) {
     assistantPilotState.corpora[org] = assistantPilotCorpus.buildOrgCorpus(org, { sections: assistantPilotCorpus.loadPublishedSections(org) });
@@ -24966,6 +24969,56 @@ function assistantPilotProvider() {
   // eslint-disable-next-line global-require
   const { clientOptions } = require("./lib/agent/claudeClient");
   return (assistantPilotState.provider = anthropicProvider({ sdk: new Anthropic(clientOptions(claudeConfig)), model: claudeConfig.model }));
+}
+
+// Vector retrieval through the membrane (Harvey Taxi's own model service;
+// lib/membrane). Used only when the organization's vectors flag is "true",
+// the membrane is configured with a server we run, and
+// MEMBRANE_MIN_SIMILARITY has been calibrated. The index is built in the
+// background; until it is ready, or if the membrane fails, answers use
+// keyword retrieval exactly as before.
+const membraneConfig = readMembraneConfig();
+const MEMBRANE_INDEX_RETRY_MS = 5 * 60_000;
+function membraneMinSimilarity() {
+  const v = Number(process.env.MEMBRANE_MIN_SIMILARITY);
+  return Number.isFinite(v) && v > 0 && v < 1 ? v : null;
+}
+function assistantPilotEmbedder() {
+  if (assistantPilotState.embedder !== undefined) return assistantPilotState.embedder;
+  return (assistantPilotState.embedder = createMembraneEmbedder(membraneConfig));
+}
+async function assistantPilotVectorsFor(org) {
+  const conf = assistantPilotOrgs.ORGS[org];
+  if ((await getSystemFlag(conf.vectorsFlag, "false")) !== "true") return null;
+  const embedder = assistantPilotEmbedder();
+  const minSimilarity = membraneMinSimilarity();
+  if (!embedder || minSimilarity === null) return null;
+  if (process.env.MEMBRANE_VECTOR_STORE === "pgvector") {
+    const rpc = async (name, args) => {
+      const { data, error } = await supabase.rpc(name, args);
+      if (error) throw new Error("vector_store_unavailable");
+      return data;
+    };
+    return { store: pgvectorStore({ org, model: embedder.model, rpc }), embedder, minSimilarity };
+  }
+  const slot = assistantPilotState.vectorStores[org] || (assistantPilotState.vectorStores[org] = { store: null, building: null, failedAt: 0 });
+  const corpus = assistantPilotCorpusFor(org);
+  if (slot.store && slot.corpus === corpus) return { store: slot.store, embedder, minSimilarity };
+  if (!slot.building && Date.now() - slot.failedAt > MEMBRANE_INDEX_RETRY_MS) {
+    slot.building = buildMemoryStore({ corpus, embedder })
+      .then((store) => {
+        slot.store = store;
+        slot.corpus = corpus;
+      })
+      .catch((err) => {
+        slot.failedAt = Date.now();
+        console.warn("⚠️ Membrane vector index not built:", { org, error_code: (err && err.code) || "error" });
+      })
+      .finally(() => {
+        slot.building = null;
+      });
+  }
+  return null;
 }
 
 async function logAssistantPilotGap({ org, topic }) {
@@ -25027,6 +25080,7 @@ app.post(
         history: body.history,
         deps: {
           corpus: assistantPilotCorpusFor(org),
+          vectors: await assistantPilotVectorsFor(org),
           modelEnabled,
           gateway: provider ? createAssistantPilotGateway({ provider, budget: modelBudget, appTarget: `assistant_pilot:${org}` }) : null,
           logGap: logAssistantPilotGap,
@@ -25062,9 +25116,19 @@ const assistantPilotTestHooks =
     setCorpus(org, corpus) {
       assistantPilotState.corpora[org] = corpus;
     },
+    setEmbedder(e) {
+      assistantPilotState.embedder = e;
+      assistantPilotState.vectorStores = {};
+    },
+    vectorIndexReady(org) {
+      const slot = assistantPilotState.vectorStores[org];
+      return slot && slot.building ? slot.building.then(() => Boolean(slot.store)) : Promise.resolve(Boolean(slot && slot.store));
+    },
     reset() {
       assistantPilotState.corpora = {};
       assistantPilotState.provider = undefined;
+      assistantPilotState.embedder = undefined;
+      assistantPilotState.vectorStores = {};
     }
   };
 // Assistant request accounting and daily limits (lib/agent/usage.js):

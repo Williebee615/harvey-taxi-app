@@ -1,1 +1,6 @@
 node_modules/
+
+# Membrane fine-tuning: generated data and model outputs (regenerate; never commit weights)
+training/membrane/data/
+training/membrane/out/
+__pycache__/
