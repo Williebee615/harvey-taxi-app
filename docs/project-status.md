@@ -638,7 +638,11 @@ Nothing else is authorized to merge, deploy, migrate or activate.
 - `test/rider-dashboard-wiring.browser.test.js`
 
 **[Unresolved] Owner decisions:**
-- **Rider "Start Persona" button:** calls `/api/riders/start-persona`, which doesn't exist. Riders' Persona needs Persona's hosted flow (the existing route returns only an inquiry ID). Options: build it, or hide the button.
+- **[Owner decision 2026-10-15]** "Persona and Checkr should only be handled by back ends; no front-end buttons required."
+  - Removed the rider dashboard "Start Persona" button and the driver sign-up "Start Persona Verification" button (the driver one did nothing).
+  - A guard test now fails if any page or app offers a control that starts either check.
+  - **[Verified, code]** No back-end job starts checks automatically either. `/api/persona/inquiry` (sign-in protected) and `/api/checkr/start` (driver or admin) have no callers. Results arrive through the Persona and Checkr webhooks, so checks are started outside the app (e.g. the Persona and Checkr dashboards).
+  - **[Unresolved]** Whether the server should start them automatically at a set step (for example after a driver's phone is verified) is a separate decision.
 - **20 pages no link reaches:**
   - old dispatch, GPS and live-map consoles;
   - autonomous-vehicle demos;

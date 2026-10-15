@@ -31,9 +31,7 @@ const KNOWN_GAPS = {
   // Fallbacks after /api/drivers/signup, which exists and is tried first.
   "/api/driver/signup": "driver-signup fallback",
   "/api/driver/apply": "driver-signup fallback",
-  "/api/signup/driver": "driver-signup fallback",
-  // "Start Persona" for riders needs Persona's hosted flow; owner decision pending (2026-10-15).
-  "/api/riders/start-persona": "rider Persona flow not built"
+  "/api/signup/driver": "driver-signup fallback"
 };
 
 function serverRoutes() {
@@ -100,4 +98,18 @@ test("pages no longer call the dead support, status and payment addresses", () =
   expect(read("public/support.html")).not.toMatch(/href="payment\.html"/);
   expect(read("public/settings.html")).not.toMatch(/images\/harvey-taxi-logo\.png/);
   expect(fs.existsSync(path.join(ROOT, "public/icon-192.png"))).toBe(true);
+});
+
+// Owner decision 2026-10-15: Persona and Checkr are handled by the back end
+// only. No page or app may offer a control that starts either check.
+test("no front-end control starts a Persona or Checkr check", () => {
+  const files = [...walk("public").filter((f) => /\.(html|js)$/.test(f)), ...APP_FILES];
+  const offending = [];
+  for (const f of files) {
+    const s = read(f);
+    if (/\/api\/(persona\/inquiry|checkr\/start|riders\/start-persona)/.test(s)) offending.push(`${f}: calls a start route`);
+    if (/<button[^>]*>[^<]*(Start|Launch|Begin)[^<]*(Persona|Checkr)/i.test(s)) offending.push(`${f}: start button`);
+    if (/id="(personaBtn|launchPersonaBtn|checkrBtn)"/.test(s)) offending.push(`${f}: start button id`);
+  }
+  expect(offending).toEqual([]);
 });

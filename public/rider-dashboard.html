@@ -3900,14 +3900,6 @@
             </button>
 
             <button
-              class="btn success"
-              type="button"
-              id="personaBtn"
-            >
-              Start Persona
-            </button>
-
-            <button
               class="btn ghost"
               type="button"
               id="refreshBtn"
@@ -12629,58 +12621,9 @@
       }
     }
 
-    async function startPersona() {
-      if (!state.riderId && !state.riderProfile?.email) {
-        showSystemNotice(
-          "Rider profile not found. Please sign up first.",
-          "danger"
-        );
-
-        window.setTimeout(() => {
-          window.location.href = "rider-signup.html";
-        }, 700);
-
-        return;
-      }
-
-      try {
-        const data = await requestJson(
-          "/api/riders/start-persona",
-          {
-            method: "POST",
-            body: JSON.stringify({
-              riderId: state.riderId,
-              rider_id: state.riderId,
-              email: state.riderProfile?.email
-            })
-          }
-        );
-
-        const url =
-          data?.persona?.hostedUrl ||
-          data?.persona?.hosted_url ||
-          data?.hostedUrl ||
-          data?.hosted_url ||
-          data?.url;
-
-        if (url) {
-          window.location.href = url;
-          return;
-        }
-
-        showSystemNotice(
-          data.message ||
-            "Persona verification started. Check your verification flow.",
-          "success"
-        );
-
-      } catch (error) {
-        showSystemNotice(
-          error.message || "Could not start Persona verification.",
-          "danger"
-        );
-      }
-    }
+    // Identity (Persona) and background (Checkr) checks are handled by the
+    // back end only; riders and drivers have no button to start them
+    // (owner decision 2026-10-15).
 
     async function sendSupportRequest() {
       const subject = safe(els.quickSupportSubject?.value);
@@ -12925,10 +12868,6 @@
       els.addPlaceForm?.addEventListener("submit", addSavedPlace);
 
       els.enablePushBtn?.addEventListener("click", enablePushNotifications);
-
-      document
-        .getElementById("personaBtn")
-        ?.addEventListener("click", startPersona);
 
       document
         .getElementById("refreshBtn")
