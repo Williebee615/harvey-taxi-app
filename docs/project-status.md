@@ -605,3 +605,15 @@ Nothing else is authorized to merge, deploy, migrate or activate.
   ```
 
   Restore the role check without 'visitor' only if no visitor rows exist.
+
+## 14. Session handoff (2026-10-15 UTC)
+
+- **Completed:**
+  - **[Verified, Git]** #243, #245, #246, #247, #248, #249 and #218 merged.
+  - **[Verified, production]** `version 5716415` is live.
+  - **[Verified, production]** The four migrations are applied and verified (§13).
+- **[Owner decision 2026-10-15]** "Allow huggingface.co and calibrate the embeddings."
+  - The owner added `huggingface.co`, `cdn-lfs.huggingface.co` and `cas-bridge.xethub.hf.co` to the cloud environment's allowed domains.
+  - **[Verified 02:4x UTC]** This session still gets proxy 403; the policy applies to new sessions.
+- **Remaining:** run the calibration in a new session. Tools and steps are in `training/membrane/local/README.md` on branch `claude/membrane-calibration`, which is pushed, with no PR.
+- **Next authorized action:** calibration only. It is local and read-only, with no production change. Enabling the vectors flags, setting `MEMBRANE_*` on Render, hosting a membrane, training, and refunds each need a separate approval.
