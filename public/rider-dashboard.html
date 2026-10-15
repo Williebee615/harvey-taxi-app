@@ -11656,17 +11656,26 @@
       // replace the signed-out "Finish rider setup" copy shown above.
       restoreDefaultHeroCopy();
 
-      const query = state.riderId
-        ? `riderId=${encodeURIComponent(state.riderId)}`
-        : `email=${encodeURIComponent(state.riderProfile.email)}`;
+      // Refresh approval status from the readiness route (the only rider
+      // status route the server has). Needs the rider ID; there is no
+      // lookup by email.
+      if (!state.riderId) {
+        renderRider();
+        return;
+      }
 
       try {
         const data = await requestJson(
-          `/api/riders/status?${query}`
+          `/api/riders/${encodeURIComponent(state.riderId)}/readiness`
         );
 
-        if (data.rider) {
-          saveRider(data.rider);
+        if (data && data.rider_id) {
+          saveRider({
+            ...state.riderProfile,
+            id: state.riderProfile?.id || data.rider_id,
+            status: data.status ?? state.riderProfile?.status,
+            approval_status: data.approval_status ?? state.riderProfile?.approval_status
+          });
         }
 
         renderRider();
@@ -12688,20 +12697,25 @@
       }
 
       try {
-        await requestJson("/api/support/request", {
-          method: "POST",
-          body: JSON.stringify({
-            riderId: state.riderId || null,
-            rider_id: state.riderId || null,
-            email: state.riderProfile?.email || "",
-            subject,
-            message,
-            source: "rider-dashboard.html"
-          })
-        });
+        // Same support queue as the assistant's "send to support" step:
+        // the rider typed and sent this themselves, so it is approved.
+        // One request_id per message, so a double tap creates one case.
+        const summary = `${subject}\n\n${message}`;
+        if (sendSupportRequest.pending && sendSupportRequest.pending.summary === summary) return;
+        const requestId = `dash-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+        sendSupportRequest.pending = { summary };
+        let data;
+        try {
+          data = await requestJson("/api/agent/rider/handoff", {
+            method: "POST",
+            body: JSON.stringify({ approved: true, kind: "general", summary, request_id: requestId })
+          });
+        } finally {
+          sendSupportRequest.pending = null;
+        }
 
         showSystemNotice(
-          "Support request sent. Harvey Taxi support will review it.",
+          (data && data.message) || "Support request sent. Harvey Taxi support will review it.",
           "success"
         );
 
@@ -12710,8 +12724,7 @@
 
       } catch (error) {
         showSystemNotice(
-          error.message ||
-            "Support request could not be sent. Please open Support instead.",
+          `${error.message || "Support request could not be sent."} You can also use the Support page (support.html).`,
           "danger"
         );
       }
