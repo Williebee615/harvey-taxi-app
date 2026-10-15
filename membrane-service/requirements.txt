@@ -1,0 +1,5 @@
+# Local membrane for calibration only (CPU, localhost). Not for Render.
+onnxruntime==1.20.1
+tokenizers==0.20.3
+numpy<2.2
+huggingface_hub==0.26.2

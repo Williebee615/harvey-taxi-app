@@ -606,6 +606,31 @@ Nothing else is authorized to merge, deploy, migrate or activate.
 
   Restore the role check without 'visitor' only if no visitor rows exist.
 
+## 14. Session handoff (2026-10-15 UTC)
+
+- **Completed:**
+  - **[Verified, Git]** #243, #245, #246, #247, #248, #249 and #218 merged.
+  - **[Verified, production]** `version 5716415` is live.
+  - **[Verified, production]** The four migrations are applied and verified (§13).
+- **[Owner decision 2026-10-15]** "Allow huggingface.co and calibrate the embeddings."
+  - The owner added `huggingface.co`, `cdn-lfs.huggingface.co` and `cas-bridge.xethub.hf.co` to the cloud environment's allowed domains.
+  - **[Verified 02:4x UTC]** This session still gets proxy 403; the policy applies to new sessions.
+- **Remaining:** run the calibration in a new session. Tools and steps are in `training/membrane/local/README.md` on branch `claude/membrane-calibration`, which is pushed, with no PR.
+- **Next authorized action:** calibration only. It is local and read-only, with no production change. Enabling the vectors flags, setting `MEMBRANE_*` on Render, hosting a membrane, training, and refunds each need a separate approval.
+
+## 15. Calibration attempt (2026-10-15 ~03:05 UTC, separate session)
+
+- **[Verified, owner-relayed report]** A new session was started after the owner edited the allowed domains. It was still refused by the proxy for `huggingface.co` (403), so no model was downloaded and the hybrid calibration did not run.
+- **[Unresolved]** Whether the three domains saved in the environment settings. The owner is re-checking.
+- **[Verified, same report] Keyword-only baseline** on the 19 calibration questions:
+  - 4 of 15 answerable questions found the right page in the top 2;
+  - 2 found the wrong page;
+  - 9 found nothing;
+  - 0 of 4 off-topic questions were answered.
+
+  This is the bar hybrid search must beat.
+- **[Verified, this session]** `scripts/membrane-calibrate.js` on this branch now suggests a threshold only when every correct score is above every off-topic score; otherwise it reports "no clean separation". Raised in that session's report.
+- **Next authorized action:** re-run the calibration in a new session once Hugging Face is reachable. There is no production change.
 ## 16. End-to-end wiring audit (2026-10-15 UTC)
 
 **Owner request 2026-10-15:** "make sure the full production from front to back ends are all wired properly." Read-only against production; fixes in PR `claude/production-wiring-fixes`, not merged.
@@ -675,3 +700,36 @@ Nothing else is authorized to merge, deploy, migrate or activate.
   - `admin-live-dispatch-map` and `mobility-os-prototype`, whose calls all work;
   - `admin-gps`, `pay` and `admin-account--deletion`, which have no dead calls (the last duplicates the dashboard's deletion panel).
 - **Handoff:** after this PR merges, verify the production version and that the removed pages return 404.
+
+## 18. Update 2026-10-15 (UTC): embedding service (membrane) for vector search
+
+- **[Owner decision 2026-10-15]** "Approved": an embedding server on Render as a private service, about $25/month (Render Standard; third-party price, to confirm on Render). Covers preparing the service, merging it, and calibrating against it.
+  - Turning vectors on for one organization follows calibration, per the approved plan.
+  - Vectors stay off until the threshold is set.
+- **Added (PR `claude/membrane-service`):**
+  - **`membrane-service/`:** Dockerfile, `serve.py`, `fetch.py`.
+    - Downloads `intfloat/multilingual-e5-small` at build, falling back to `Xenova/multilingual-e5-small` if the first has no ONNX file, and records the commit and license.
+    - Serves `/v1/embeddings` and `/health`.
+    - Requires a shared key; never logs request text.
+  - **`GET /api/admin/membrane/calibration`:** owner only, read-only. Shows the service's health and the calibration scores, run inside Render where the private address is reachable.
+  - **Index building** now allows 60 seconds per batch; a visitor's query keeps the short timeout.
+  - **E5 query/passage prefixes** are applied automatically.
+- **[Verified 2026-10-15, local]** End to end with a stand-in model in the same ONNX format:
+  - health check works;
+  - missing key gives 401;
+  - 384-dimension vectors come back;
+  - the real published pages (31 + 65 passages) embed through the service;
+  - the calibration correctly refuses to suggest a threshold when scores overlap.
+
+  Full suite: 2,421 passed.
+- **[Verified 2026-10-15, local Docker]** The image builds from this Dockerfile with the stand-in model in place of the download step. Running as Render does (`PORT=10000`, `RENDER=true`):
+  - listens on `0.0.0.0:10000` as a non-root user;
+  - health check works; missing key gives 401;
+  - all 96 passages embed through it;
+  - no request text appears in its logs.
+- **[Unverified]**
+  - The model download step (`fetch.py`): Hugging Face is blocked here. It runs on Render's first build.
+  - The real model's quality: it awaits the calibration page.
+- **Owner steps:** in `membrane-service/README.md`. Create the private service, set four environment variables on the web service, then open the calibration page.
+- **Handoff:**
+  - **Next authorized action:** after the owner's Render setup, read the calibration report, set `MEMBRANE_MIN_SIMILARITY`, and enable vectors for one organization.
