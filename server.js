@@ -526,6 +526,8 @@ const {
   buildPaymentOpsAlert
 } = require("./lib/unusedHolds");
 const { describePaymentConfig, describeStripeAccount } = require("./lib/paymentConfig");
+const paymentReconciliation = require("./lib/paymentReconciliation");
+const refunds = require("./lib/refunds");
 const { toVerifyE164, smsSkippedLogDetails, describeTwilioError } = require("./lib/twilioSafety");
 
 // AI Agent Manager (docs/ai-agent-manager.md). No OpenAI/Anthropic
@@ -26969,6 +26971,110 @@ app.post(
     const summary = await reconcileStripeHolds({ mode: "dry_run" });
     const reconciliationEnabled = (await getSystemFlag("stripe_reconciliation_enabled", "false")) === "true";
     return ok(res, { dry_run: true, scheduled_reconciliation_enabled: reconciliationEnabled, reconciliation: summary });
+  })
+);
+
+/* =========================================================
+   ADMIN: PAYMENT RECONCILIATION REPORT (read-only)
+   Compares Stripe PaymentIntents and refunds with payments, rides and the
+   refund ledger, and returns discrepancy codes with identifiers and
+   amounts only. Writes nothing anywhere. Owner or finance role.
+========================================================= */
+const RECONCILE_REPORT_LOOKBACK_DAYS = 90;
+async function listStripeAll(list, params, maxPages = 20) {
+  const items = [];
+  let startingAfter;
+  for (let page = 0; page < maxPages; page += 1) {
+    const res = await list({ ...params, limit: 100, ...(startingAfter ? { starting_after: startingAfter } : {}) });
+    items.push(...(res.data || []));
+    if (!res.has_more || !res.data || !res.data.length) return { items, truncated: false };
+    startingAfter = res.data[res.data.length - 1].id;
+  }
+  return { items, truncated: true };
+}
+
+app.post(
+  "/api/admin/payments/reconcile/report",
+  requireAdmin,
+  rateLimit({ windowMs: 60_000, max: 5, keyPrefix: "payment_reconcile_report" }),
+  asyncRoute(async (req, res) => {
+    const { role } = await resolveAdminRoleForRequest(req);
+    if (!computeShadowWouldAllow(role, "finance.read")) return fail(res, "Payment reconciliation requires the finance permission.", 403);
+    if (!stripe) return fail(res, "Stripe is not configured.", 503);
+    const nowSec = Math.floor(Date.now() / 1000);
+    const window = { gte: nowSec - RECONCILE_REPORT_LOOKBACK_DAYS * 86400, lte: nowSec };
+    const [intents, refunds] = await Promise.all([
+      listStripeAll((p) => stripe.paymentIntents.list(p), { created: window }),
+      listStripeAll((p) => stripe.refunds.list(p), { created: window })
+    ]);
+    const [payments, rides, ledger] = await Promise.all([
+      supabase.from("payments").select("id, amount, status, stripe_latest_status, ride_id, provider, created_at"),
+      supabase.from("rides").select("id, payment_id, payment_status, created_at").not("payment_id", "is", null),
+      supabase.from("payment_refunds").select("payment_intent_id, stripe_refund_id, amount_cents, status")
+    ]);
+    if (payments.error || rides.error) return fail(res, "Could not read payment records.", 500);
+    const ledgerMissing = Boolean(ledger.error);
+    const report = paymentReconciliation.reconcilePayments({
+      intents: intents.items,
+      refunds: refunds.items,
+      payments: payments.data || [],
+      rides: rides.data || [],
+      ledger: ledgerMissing ? [] : ledger.data || [],
+      expectLivemode: describePaymentConfig({ secretKey: STRIPE_SECRET_KEY }).secret_key_mode === "live",
+      window
+    });
+    auditLog({ actor_type: "admin", actor_id: req.admin && req.admin.email, action: "payment_reconciliation_report", entity_type: "payments", metadata: { discrepancies: report.summary.discrepancies } }).catch(() => {});
+    return ok(res, {
+      read_only: true,
+      window_days: RECONCILE_REPORT_LOOKBACK_DAYS,
+      truncated: intents.truncated || refunds.truncated,
+      refund_ledger: ledgerMissing ? "not_migrated" : "present",
+      ...report
+    });
+  })
+);
+
+/* =========================================================
+   ADMIN: REFUND A CAPTURED PAYMENT (lib/refunds.js)
+   Off unless refunds_enabled is "true". Owner (super_admin) only, one
+   person-initiated refund per request. Test mode only: a live-mode key or
+   PaymentIntent is refused in lib/refunds.js whatever the flag says.
+========================================================= */
+app.post(
+  "/api/admin/payments/:paymentIntentId/refunds",
+  requireAdmin,
+  rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "payment_refund" }),
+  asyncRoute(async (req, res) => {
+    const { role } = await resolveAdminRoleForRequest(req);
+    if (role !== "super_admin") return fail(res, "Refunds require the owner account.", 403);
+    if ((await getSystemFlag("refunds_enabled", "false")) !== "true") return fail(res, "Refunds are turned off.", 403);
+    const body = req.body || {};
+    const result = await refunds.requestRefund({
+      stripe,
+      secretKey: STRIPE_SECRET_KEY,
+      rpc: async (name, args) => {
+        const { data, error } = await supabase.rpc(name, args);
+        if (error) throw error;
+        return data;
+      },
+      paymentIntentId: cleanString(req.params.paymentIntentId, 80),
+      amountCents: Number.isInteger(body.amount_cents) ? body.amount_cents : NaN,
+      reasonCode: cleanString(body.reason_code, 40),
+      idempotencyKey: typeof body.idempotency_key === "string" ? body.idempotency_key.slice(0, 200) : "",
+      requestedBy: req.admin && req.admin.email
+    });
+    // Identifiers, amounts and fixed codes only.
+    auditLog({
+      actor_type: "admin",
+      actor_id: req.admin && req.admin.email,
+      action: "payment_refund_requested",
+      entity_type: "payment",
+      entity_id: cleanString(req.params.paymentIntentId, 80),
+      metadata: { amount_cents: Number.isInteger(body.amount_cents) ? body.amount_cents : null, reason_code: cleanString(body.reason_code, 40), outcome: result.ok ? (result.refund && result.refund.status) : result.error, ledger_id: result.refund ? result.refund.id : null }
+    }).catch(() => {});
+    if (result.ok) return ok(res, { refund: result.refund, replayed: Boolean(result.replayed) });
+    const status = result.retryable ? 503 : result.error === refunds.REFUND_ERROR.LIVE_MODE_REFUSED ? 403 : result.error === refunds.REFUND_ERROR.INTENT_NOT_FOUND ? 404 : result.error === refunds.REFUND_ERROR.EXCEEDS_REFUNDABLE || result.error === refunds.REFUND_ERROR.IDEMPOTENCY_MISMATCH ? 409 : 400;
+    return res.status(status).json({ ok: false, error: result.error, retryable: Boolean(result.retryable), refund: result.refund || null, field: result.field || undefined });
   })
 );
 
