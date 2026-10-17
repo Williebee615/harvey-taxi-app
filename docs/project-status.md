@@ -1479,3 +1479,27 @@ The earlier §26 [Unresolved] item is resolved.
 - **Done:** #273 merged; phase 2 built and tested locally.
 - **Remaining:** merge approval for the phase 2 PR; separate approval to apply its migration; then the first pilot store's catalog.
 - **Next authorized action:** none. Merging and applying the migration each need the owner's approval.
+
+**[Owner decision 2026-10-17]** "Approved to merge #274". **[Verified 2026-10-17]** All six CI checks were green on head `cb49da3`; merged as `0d209be`.
+
+**[Verified 2026-10-17 21:12 UTC, production]**
+- `/api/health` reports `0d209be`, healthy, database connected.
+- `/merchant-portal.html` and `/admin-dashboard.html` return 200.
+- `GET /api/merchant/catalog` without a session returns 401; `GET /api/admin/catalog/held` without admin returns 401.
+- `public.catalog_items` doesn't exist yet (the migration isn't applied). Until it is, the portal hides the Catalog card and the admin section says the catalog isn't set up.
+
+**[Owner decision 2026-10-17]** "Approved to apply the catalog migration".
+
+**[Verified 2026-10-17 21:15 UTC, production]** Migration `catalog_items` applied to `orgahzncmzptljapqffj`, identical to the merged file (same SHA-256 as `main`).
+- RLS on, 0 policies. `anon` and `authenticated` have no access; `service_role` can insert.
+- 19 columns. Indexes: `catalog_items_pkey`, `catalog_items_store_name_idx`, `catalog_items_merchant_idx`, `catalog_items_held_idx`.
+- 0 rows. `/api/health` still healthy on `0d209be`.
+
+**The catalog is now live** for signed-in stores (`/merchant-portal.html`, Catalog card) and for staff (admin dashboard, "Catalog Items Held for Review"). Customers can't see it until ordering (phase 3).
+
+**[Unresolved]** No store has added an item yet; the first real item will be the first end-to-end check in production.
+
+**Handoff:**
+- **Done:** phase 2 deployed and its migration applied.
+- **Remaining:** the first pilot store's catalog; optional staff view of a store's full catalog (not built; needs the owner's go-ahead); the accountant's sales-tax guidance; counsel's merchant agreement.
+- **Next authorized action:** none pending.
