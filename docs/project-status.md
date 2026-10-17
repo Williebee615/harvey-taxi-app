@@ -1080,7 +1080,31 @@ Both terms are recorded in plan §4 (items 7–8) and shown on the application p
   - the HTAF-domain redirect check, to be done by opening it in a browser.
 - **Next authorized action:** none. Merging this status/wording PR needs the owner's approval.
 
-## 27. Update 2026-10-17 (UTC): assistant knowledge sources (PR `claude/vector-knowledge-sources`, not merged)
+**[Owner decision 2026-10-17]** "Approved to merge #262": merged as `795970a`. **[Verified 2026-10-17 18:15 UTC, production]** `/api/health` reports version `795970a`, and the application page shows the payout-timing wording.
+
+**[Owner decision 2026-10-17]** Approved:
+- submitting one clearly marked test application end to end, then deleting it;
+- keeping its audit-log entry, which isn't identifying.
+
+**[Verified 2026-10-17 18:12 UTC, production]** End-to-end test through `POST /api/merchants/apply`:
+- **What was submitted:**
+  - business name "TEST APPLICATION - Claude verification - delete";
+  - email `merchant-e2e-test@example.invalid`;
+  - phone in the fictional 555-01xx range.
+- **What was confirmed:**
+  - the response was 201, and the record was stored as `pending` in `TN`;
+  - the phone number was normalized to `+16155550100`, and the exclusions confirmation was recorded;
+  - a second application with the same email in upper case was refused with 409;
+  - one `audit_logs` entry (`merchant_application_submitted`) was written. It contains only the record ID and category, and is kept under the retention rule.
+
+**[Unresolved]** The test record (ID `02ca8c15-00c3-4405-b3c3-45386b601c13`) has **not** been deleted:
+- Three delete attempts through the database connector were cancelled at its confirmation step, at about 18:14, 18:20 and 18:25 UTC. This session can't approve that kind of production deletion.
+- A read-only check confirmed the row is still present, with status `pending`, and is the only row in `merchants`.
+- It appears in the admin dashboard's merchant list until it is removed.
+- The owner can delete that one row in the Supabase table editor, or approve the connector's confirmation prompt.
+- **[Verified 2026-10-17 18:30 and 18:51 UTC, production]** The owner reported deleting the row in Supabase. Read-only checks afterwards still found it in `orgahzncmzptljapqffj` `public.merchants` (1 row, this ID). **[Unresolved]** The deletion may not have been saved, or may have been made in another project.
+
+## 27. Update 2026-10-17 (UTC): assistant knowledge sources (#264, merged as `9f4abb7`)
 
 **[Owner decision 2026-10-17]** Option A ("add the published merchant application page as a searchable vector source and allow the vector search to read admin-approved articles") and option B (policy facts → draft articles for admin approval).
 
@@ -1113,6 +1137,46 @@ Both terms are recorded in plan §4 (items 7–8) and shown on the application p
 
 **[Unresolved]** Merchant test record `02ca8c15-…` is still in production. See §26.
 
+**[Owner decision 2026-10-17]** "Approved … merge … PR #264". Merged as `9f4abb7`; all six CI checks were green.
+
+**[Owner decision 2026-10-17]** The owner supplied policy facts for option B. Drafting is recorded in §28.
+
 **Handoff:**
-- **Next authorized action:** none. Merging this PR needs the owner's approval.
-- **After deploy:** check that the pilot answers a merchant question with the `/merchant-apply.html` source.
+- **Next:** check that the pilot answers a merchant question with the `/merchant-apply.html` source once `9f4abb7` is live.
+
+## 28. Update 2026-10-17 (UTC): policy articles from the owner's facts (option B)
+
+**[Owner decision 2026-10-17]** The owner supplied policy facts and asked for draft articles for admin review.
+
+**[Verified 2026-10-17, code]** Each fact was checked against the app before drafting.
+- **Cancellation fee:** the database enforces `rides.cancellation_fee_cents = 0`, and riders are shown $0.00.
+- **Fares:** base fare, per mile, per minute and booking fee, with a minimum fare. There is no peak, airport, toll or wait-time charge.
+- **Wheelchair-accessible vehicles:** no dispatch option exists.
+- **Pet-friendly tiers:** none exist.
+- **Account deletion:** a request that staff review, not instant.
+- **Lost items:** reported through Support in the app and linked to the latest trip in the last 14 days.
+
+**Created in production as drafts (ids 1–5):**
+- `service-area`;
+- `lost-and-found`;
+- `service-animals-pets-car-seats`;
+- `driver-requirements`;
+- `rider-age-account-deletion`.
+
+All have status `draft` and version 1, and each has a `knowledge.article_created` audit entry with actor `claude-code-session`. Drafts aren't public or quoted until an admin approves them on `/admin-knowledge.html`.
+
+**Wording changed from the owner's facts, to match the app:**
+- Account deletion: "submit a deletion request" instead of "instantly".
+- Pets: no "pet-friendly tiers".
+- Lost items: no "ride history details" route.
+- Insurance: "meets Tennessee's requirements for transportation network company (rideshare) drivers" instead of "commercial or personal". **[Recommendation]** Counsel to confirm.
+
+**[Unresolved] Not drafted, because they conflict with live behaviour (owner decision needed):**
+- **Pricing surcharges** (peak, airport, tolls, wait time after 5 minutes): not charged by the app. Airport wording also falls under the standing rule against airport claims.
+- **Cancellation fee** after the driver is en route: the app charges $0.
+- **Wheelchair-accessible vehicles** via specialized dispatch: not built.
+- **HTAF eligibility** "within Davidson County": HTAF's published pages say "eligible Tennessee residents". The other HTAF facts (no guarantee, privacy, 501(c)(3) status, EIN 41-5115030) are already published and answered.
+
+**Handoff:**
+- **Next authorized action:** an admin reviews and approves the five drafts.
+- The owner decides each of the four held items: either describe current behaviour, or build it first.
