@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harvey Taxi — Store Portal</title>
+  <meta name="description" content="Sign-in for Harvey Taxi partner stores." />
+  <meta name="robots" content="noindex" />
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+  <link rel="apple-touch-icon" href="/icon-192.png" />
+  <style>
+    :root { --bg-1: #06101f; --bg-2: #0a1830; --panel: rgba(10, 20, 40, 0.88); --line: rgba(126, 174, 255, 0.16); --text: #f5f8ff; --muted: #b4c0df; --blue: #6aa8ff; --green: #74f5b2; --gold: #ffd972; --danger: #ff8aa0; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { min-height: 100vh; font-family: Arial, Helvetica, sans-serif; color: var(--text); background: linear-gradient(180deg, var(--bg-1), var(--bg-2)); line-height: 1.5; }
+    a { color: var(--blue); }
+    .shell { width: min(100%, 720px); margin: 0 auto; padding: 18px 16px 48px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 18px; background: rgba(7, 15, 31, 0.82); }
+    .brand-wrap { display: flex; align-items: center; gap: 12px; }
+    .brand-mark { width: 44px; height: 44px; border-radius: 12px; }
+    .brand h1 { font-size: 18px; letter-spacing: 0.06em; }
+    .brand p { font-size: 13px; color: var(--muted); }
+    .card { margin-top: 18px; padding: 20px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); }
+    h2 { font-size: 20px; margin-bottom: 8px; }
+    p { color: var(--muted); font-size: 15px; }
+    label { display: grid; gap: 4px; font-size: 14px; margin-top: 10px; }
+    input { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: #0b1a33; color: var(--text); font-size: 16px; }
+    button { margin-top: 12px; padding: 11px 16px; border: 0; border-radius: 12px; background: var(--blue); color: #06101f; font-weight: 700; font-size: 15px; cursor: pointer; }
+    button.secondary { background: transparent; color: var(--text); border: 1px solid var(--line); }
+    button[disabled] { opacity: 0.6; cursor: wait; }
+    .status { min-height: 22px; margin-top: 10px; font-size: 15px; }
+    .status.error { color: var(--danger); }
+    .status.success { color: var(--green); }
+    .notice { border-left: 4px solid var(--gold); padding: 10px 12px; background: rgba(255, 217, 114, 0.08); border-radius: 8px; margin-top: 12px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { text-align: left; padding: 8px 4px; border-bottom: 1px solid var(--line); font-size: 15px; }
+    td input[type=time] { padding: 6px 8px; font-size: 15px; }
+    td input[type=checkbox] { width: auto; }
+    [hidden] { display: none !important; }
+    @media (max-width: 520px) { th.hide-sm { display: none; } td { display: block; border: 0; padding: 4px 0; } tr { display: block; border-bottom: 1px solid var(--line); padding: 8px 0; } }
+    .hts-logo-mark { overflow: hidden; padding: 0 !important; background: #0b1a3a !important; display: block !important; flex: 0 0 auto; position: relative; }
+    .hts-logo-mark > img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: inherit; }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand-wrap">
+        <div class="brand-mark hts-logo-mark" role="img" aria-label="Harvey Taxi Service logo"><img src="/hts-logo-192.png" alt="" width="48" height="48" decoding="async" /></div>
+        <div class="brand"><h1>HARVEY TAXI</h1><p>Store portal</p></div>
+      </div>
+      <button type="button" class="secondary" id="signOut" hidden>Sign out</button>
+    </header>
+
+    <section class="card" id="signInCard">
+      <h2>Store sign-in</h2>
+      <p>For stores approved for the Harvey Taxi delivery pilot. We'll text a code to the phone Harvey Taxi set up for your store. Not a partner yet? <a href="/merchant-apply.html">Apply here</a>.</p>
+      <form id="phoneForm" novalidate>
+        <label>Phone number<input id="phone" type="tel" autocomplete="tel" placeholder="(615) 555-0100" required /></label>
+        <button type="submit" id="sendCode">Text me a code</button>
+      </form>
+      <form id="codeForm" novalidate hidden>
+        <label>6-digit code<input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="8" required /></label>
+        <button type="submit" id="verify">Sign in</button>
+        <button type="button" class="secondary" id="changePhone">Use a different phone</button>
+      </form>
+      <div class="status" id="signInStatus" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="card" id="storeCard" hidden>
+      <h2 id="storeName">Your store</h2>
+      <p id="storeAddress"></p>
+      <p class="notice"><strong>Delivery isn't live yet.</strong> Set your hours now; customers will see them when ordering opens.</p>
+      <h2 style="margin-top:18px">Opening hours</h2>
+      <p>Nashville time. One opening window per day, closing the same day.</p>
+      <form id="hoursForm" novalidate>
+        <table>
+          <thead><tr><th>Day</th><th class="hide-sm">Closed</th><th class="hide-sm">Opens</th><th class="hide-sm">Closes</th></tr></thead>
+          <tbody id="hoursRows"></tbody>
+        </table>
+        <button type="submit" id="saveHours">Save hours</button>
+        <div class="status" id="hoursStatus" role="status" aria-live="polite"></div>
+      </form>
+    </section>
+  </div>
+
+  <script>
+    (function () {
+      const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+      const $ = (id) => document.getElementById(id);
+      const show = (el, msg, kind) => { el.textContent = msg; el.className = "status" + (kind ? " " + kind : ""); };
+
+      async function call(path, options) {
+        const res = await fetch(path, {
+          method: (options && options.method) || "GET",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json", "X-Requested-With": "harvey-merchant-portal" },
+          body: options && options.body ? JSON.stringify(options.body) : undefined
+        });
+        const data = await res.json().catch(function () { return {}; });
+        return { ok: res.ok, status: res.status, data: data };
+      }
+
+      function renderHours(hours) {
+        const byDay = {};
+        (hours || []).forEach(function (h) { byDay[h.day_of_week] = h; });
+        $("hoursRows").innerHTML = "";
+        DAYS.forEach(function (name, day) {
+          const h = byDay[day] || { closed: false, opens_at: "09:00", closes_at: "21:00" };
+          const tr = document.createElement("tr");
+          tr.dataset.day = String(day);
+          tr.innerHTML =
+            '<td><strong></strong></td>' +
+            '<td><label style="display:flex;gap:6px;align-items:center;margin:0"><input type="checkbox" class="closed" /> Closed</label></td>' +
+            '<td><input type="time" class="opens" aria-label="" /></td>' +
+            '<td><input type="time" class="closes" aria-label="" /></td>';
+          tr.querySelector("strong").textContent = name;
+          tr.querySelector(".closed").checked = Boolean(h.closed);
+          tr.querySelector(".opens").value = h.opens_at || "";
+          tr.querySelector(".closes").value = h.closes_at || "";
+          tr.querySelector(".opens").setAttribute("aria-label", name + " opens");
+          tr.querySelector(".closes").setAttribute("aria-label", name + " closes");
+          const sync = function () { const c = tr.querySelector(".closed").checked; tr.querySelector(".opens").disabled = c; tr.querySelector(".closes").disabled = c; };
+          tr.querySelector(".closed").addEventListener("change", sync);
+          sync();
+          $("hoursRows").appendChild(tr);
+        });
+      }
+
+      async function loadStore() {
+        const r = await call("/api/merchant/me");
+        if (!r.ok) {
+          $("storeCard").hidden = true; $("signOut").hidden = true; $("signInCard").hidden = false;
+          if (r.status === 403 || r.status === 503) show($("signInStatus"), r.data.error || "Store sign-in isn't available right now.", "error");
+          return;
+        }
+        const s = r.data.store;
+        $("storeName").textContent = s.business_name;
+        $("storeAddress").textContent = [s.address_line, s.city, s.postal_code].filter(Boolean).join(", ");
+        renderHours(r.data.hours);
+        $("signInCard").hidden = true; $("storeCard").hidden = false; $("signOut").hidden = false;
+      }
+
+      $("phoneForm").addEventListener("submit", async function (e) {
+        e.preventDefault();
+        $("sendCode").disabled = true;
+        const r = await call("/api/merchant/session/start", { method: "POST", body: { phone: $("phone").value } });
+        $("sendCode").disabled = false;
+        if (!r.ok) { show($("signInStatus"), r.data.error || "We couldn't send a code. Please try again.", "error"); return; }
+        $("phoneForm").hidden = true; $("codeForm").hidden = false;
+        show($("signInStatus"), "If this phone is set up for a partner store, a code is on its way.");
+        $("code").focus();
+      });
+
+      $("changePhone").addEventListener("click", function () { $("codeForm").hidden = true; $("phoneForm").hidden = false; show($("signInStatus"), ""); });
+
+      $("codeForm").addEventListener("submit", async function (e) {
+        e.preventDefault();
+        $("verify").disabled = true;
+        const r = await call("/api/merchant/session/verify", { method: "POST", body: { phone: $("phone").value, code: $("code").value.trim() } });
+        $("verify").disabled = false;
+        if (!r.ok) { show($("signInStatus"), r.data.error || "Invalid or expired code.", "error"); return; }
+        $("code").value = "";
+        show($("signInStatus"), "");
+        loadStore();
+      });
+
+      $("hoursForm").addEventListener("submit", async function (e) {
+        e.preventDefault();
+        const days = Array.from(document.querySelectorAll("#hoursRows tr")).map(function (tr) {
+          const closed = tr.querySelector(".closed").checked;
+          return { day_of_week: Number(tr.dataset.day), closed: closed, opens_at: closed ? null : tr.querySelector(".opens").value, closes_at: closed ? null : tr.querySelector(".closes").value };
+        });
+        $("saveHours").disabled = true;
+        const r = await call("/api/merchant/hours", { method: "PUT", body: { days: days } });
+        $("saveHours").disabled = false;
+        if (r.status === 401) { loadStore(); return; }
+        show($("hoursStatus"), r.ok ? "Hours saved." : (r.data.error || "Hours could not be saved."), r.ok ? "success" : "error");
+      });
+
+      $("signOut").addEventListener("click", async function () {
+        await call("/api/merchant/session/logout", { method: "POST" });
+        $("storeCard").hidden = true; $("signOut").hidden = true; $("signInCard").hidden = false;
+        $("codeForm").hidden = true; $("phoneForm").hidden = false;
+        show($("signInStatus"), "Signed out.");
+      });
+
+      loadStore();
+    })();
+  </script>
+</body>
+</html>

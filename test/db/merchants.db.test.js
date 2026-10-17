@@ -23,7 +23,7 @@ describeDb("merchants migration", () => {
   });
 
   beforeEach(async () => {
-    await q("truncate public.merchants");
+    await q("truncate public.merchants cascade");
   });
 
   test("a new application is pending in Tennessee, with an id and timestamps", async () => {

@@ -109,6 +109,25 @@ Labels: **[Verified]** = checked in the code or the production database on the d
     - who carries chargebacks;
     - payout timing.
 
+## 4c. Phase 1b: store sign-in and hours
+
+**[Owner decision 2026-10-17]** "Proceed with initializing Phase 1b (Merchant Sign-In & Store Hours)."
+
+- **Sign-in access (admin dashboard):** for an approved store, staff click "Give sign-in access" and enter a phone and name. They can remove it again, which ends that person's sessions at once. Both actions are audited.
+- **Store portal (`/merchant-portal.html`):** the store enters its phone and receives a one-time code by text (Twilio Verify, the same service riders use). The session is a signed, HttpOnly cookie that lasts 12 hours. Sign-out ends every session for that person.
+  - **No enumeration:** a phone that isn't set up gets the same reply, and no text is sent.
+  - **Paused stores:** a suspended or rejected store can't sign in or change anything.
+- **Hours:** one opening window per weekday, in Nashville time, closing the same day. Saving is audited. **[Limitation]** Hours past midnight (for example 11:00–01:00) and split shifts aren't supported yet.
+- **Database (migration `20261017020000_merchant_users_hours.sql`, needs separate approval):**
+  - `merchant_users`: one active sign-in per phone; `session_version` for sign-out.
+  - `merchant_hours`: one row per store and weekday.
+  - `bump_merchant_user_session_version()`.
+  - All server-only, with RLS on.
+- **Owner setup before stores can sign in [Unresolved]:**
+  1. Approve and apply the migration.
+  2. Add `MERCHANT_SESSION_SECRET` (a long random value) to the Render web service's environment. Until it is set, the portal says sign-in isn't available.
+  3. Each code text is a Twilio Verify charge, as for rider sign-in.
+
 ## 5. What happens now
 
 - Delivery booking is paused (#260, verified live 2026-10-17).
