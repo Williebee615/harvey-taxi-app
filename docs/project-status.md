@@ -1261,3 +1261,32 @@ The earlier §26 [Unresolved] item is resolved.
   - the agent-action rule in the docs;
   - merchant screening flags;
   - the refund rules engine, which comes with phase 3 (orders).
+
+## 31. Update 2026-10-17 (UTC): agent action rules (PR `claude/agent-action-rules`, not merged)
+
+**[Owner decision 2026-10-17]** "Write agent action rules."
+
+**Changes (documentation and tests only; no behaviour change):**
+- **New `docs/agent-action-rules.md`:** every agent action follows propose → check → approve → apply, under eleven rules:
+  1. agents read; the server writes;
+  2. answers come from approved text;
+  3. the check is code, not another model;
+  4. automatic actions need an owner-approved switch, starting in shadow mode;
+  5. the kill switch overrides everything;
+  6. every change is conditional and audited;
+  7. decisions about people stay with people;
+  8. money moves only with a person's approval;
+  9. private data stays private;
+  10. heavy model work runs outside the website;
+  11. approval doesn't carry over.
+
+  Each rule marks where the code already enforces it. A checklist covers adding a new agent action.
+- **New `test/agent-action-rules.test.js`:**
+  - the agent tool files make no database writes;
+  - every pilot tool is read-only;
+  - the kill switch, shadow mode and dispatch pause each prevent automation;
+  - every file the document cites exists.
+- **`CLAUDE.md`:** one line pointing to the rules.
+
+**Handoff:**
+- **Next authorized action:** none. Merging needs the owner's approval.

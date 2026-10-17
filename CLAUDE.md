@@ -16,3 +16,5 @@ Rules:
 ## Standing owner rules
 
 Every merge, migration, deployment, build, store upload or submission, paid upgrade, and feature activation needs the owner's explicit approval. Approval in one context doesn't carry to another.
+
+Automated agent actions follow `docs/agent-action-rules.md` (propose → check → approve → apply; agents never decide about people or move money).
