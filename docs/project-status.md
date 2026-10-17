@@ -1079,3 +1079,26 @@ Both terms are recorded in plan §4 (items 7–8) and shown on the application p
   - Stripe Connect (phase 5);
   - the HTAF-domain redirect check, to be done by opening it in a browser.
 - **Next authorized action:** none. Merging this status/wording PR needs the owner's approval.
+
+**[Owner decision 2026-10-17]** "Approved to merge #262": merged as `795970a`. **[Verified 2026-10-17 18:15 UTC, production]** `/api/health` reports version `795970a`, and the application page shows the payout-timing wording.
+
+**[Owner decision 2026-10-17]** Approved:
+- submitting one clearly marked test application end to end, then deleting it;
+- keeping its audit-log entry, which isn't identifying.
+
+**[Verified 2026-10-17 18:12 UTC, production]** End-to-end test through `POST /api/merchants/apply`:
+- **What was submitted:**
+  - business name "TEST APPLICATION - Claude verification - delete";
+  - email `merchant-e2e-test@example.invalid`;
+  - phone in the fictional 555-01xx range.
+- **What was confirmed:**
+  - the response was 201, and the record was stored as `pending` in `TN`;
+  - the phone number was normalized to `+16155550100`, and the exclusions confirmation was recorded;
+  - a second application with the same email in upper case was refused with 409;
+  - one `audit_logs` entry (`merchant_application_submitted`) was written. It contains only the record ID and category, and is kept under the retention rule.
+
+**[Unresolved]** The test record (ID `02ca8c15-00c3-4405-b3c3-45386b601c13`) has **not** been deleted:
+- Both delete attempts through the database connector were cancelled at its confirmation step, at about 18:14 and 18:20 UTC.
+- A read-only check confirmed the row is still present, with status `pending`, and is the only row in `merchants`.
+- It appears in the admin dashboard's merchant list until it is removed.
+- The owner can delete that one row in the Supabase table editor, or approve the connector's confirmation prompt.
