@@ -1177,6 +1177,25 @@ All have status `draft` and version 1, and each has a `knowledge.article_created
 - **Wheelchair-accessible vehicles** via specialized dispatch: not built.
 - **HTAF eligibility** "within Davidson County": HTAF's published pages say "eligible Tennessee residents". The other HTAF facts (no guarantee, privacy, 501(c)(3) status, EIN 41-5115030) are already published and answered.
 
+**[Owner decision 2026-10-17]** Option A for the four held items: publish articles describing what the app supports today.
+- **Pricing:** base fare, per mile, per minute, booking fee and minimum fare. Unbuilt surcharges are omitted.
+- **Cancellation:** the current $0 fee, while counsel reviews any future fee.
+- **Wheelchair-accessible vehicles:** standard vehicles today; specialized dispatch is on the roadmap.
+- **HTAF eligibility:** use the published wording, "eligible Tennessee residents".
+
+PR #263 merged as `5ab78da`.
+
+**[Verified 2026-10-17 18:54 UTC, production]** Created drafts (ids 6–8), each with a `knowledge.article_created` audit entry:
+- `fares`: no airport or surcharge wording;
+- `cancellation-fees`: "$0.00, shown before you confirm";
+- `wheelchair-accessible-vehicles`: standard vehicles now, specialized dispatch "on the roadmap".
+
+**HTAF:** no change needed. Its published pages already say "eligible Tennessee residents", and its assistant answers from them. Harvey Taxi articles are published on Harvey Taxi's `/policies.html`, so HTAF content doesn't belong there.
+
+**[Recommendation]** Before saying more about accessibility, counsel should advise on ADA duties for rideshare platforms.
+
+**[Unresolved]** The test merchant row `02ca8c15-…` was still present at 18:53 UTC.
+
 **Handoff:**
-- **Next authorized action:** an admin reviews and approves the five drafts.
-- The owner decides each of the four held items: either describe current behaviour, or build it first.
+- **Next authorized action:** the owner, as admin, reads and approves the eight drafts (ids 1–8) on `/admin-knowledge.html`. Approval refreshes the assistant immediately. None has been approved by this session.
+- The owner deletes the test merchant row in the Supabase table editor and confirms the dialog.
