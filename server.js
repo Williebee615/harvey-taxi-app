@@ -274,11 +274,14 @@ const ENABLE_RIDER_APPROVAL_GATE = envBool("ENABLE_RIDER_APPROVAL_GATE", true);
 
 const ENABLE_AUTO_REDISPATCH = envBool("ENABLE_AUTO_REDISPATCH", true);
 
-const ENABLE_DELIVERY = envBool("ENABLE_DELIVERY", true);
+// Owner decision 2026-10-17: delivery booking is paused (off unless set
+// to true on Render) until the merchant portal and the full merchant /
+// rider / driver flow are tested. Enforced in rejectUnavailableRideType().
+const ENABLE_DELIVERY = envBool("ENABLE_DELIVERY", false);
 
-const ENABLE_FOOD_DELIVERY = envBool("ENABLE_FOOD_DELIVERY", true);
+const ENABLE_FOOD_DELIVERY = envBool("ENABLE_FOOD_DELIVERY", false);
 
-const ENABLE_GROCERY_DELIVERY = envBool("ENABLE_GROCERY_DELIVERY", true);
+const ENABLE_GROCERY_DELIVERY = envBool("ENABLE_GROCERY_DELIVERY", false);
 
 const ENABLE_HTAF_APPLICATIONS = envBool("ENABLE_HTAF_APPLICATIONS", true);
 // HTAF ride creation (applicant data copied to a transportation
@@ -6776,6 +6779,12 @@ app.get(
 
         ENABLE_HTAF_APPLICATIONS,
 
+      delivery: {
+        enabled: ENABLE_DELIVERY,
+        food: deliveryBookingEnabled("food"),
+        grocery: deliveryBookingEnabled("grocery")
+      },
+
       pricing: {
 
         base_fare:
@@ -12316,10 +12325,24 @@ const QUOTE_TOKEN_INVALID_REASONS = new Set([
 // certified operator, permits and insurance are in place; the rider app
 // shows a waitlist instead. A request naming that ride type is refused
 // (never silently turned into a human-driver ride).
-function rejectUnavailableRideType(req, res) {
-  if (cleanString(req.body && req.body.ride_type, 50).toLowerCase() !== "autonomous") return false;
-  fail(res, "Autonomous rides are not available yet. You can join the waitlist from the Ride Center.", 400);
+function deliveryBookingEnabled(rideType) {
+  if (!ENABLE_DELIVERY) return false;
+  if (rideType === "food") return ENABLE_FOOD_DELIVERY;
+  if (rideType === "grocery") return ENABLE_GROCERY_DELIVERY;
   return true;
+}
+
+function rejectUnavailableRideType(req, res) {
+  const rideType = cleanString(req.body && req.body.ride_type, 50).toLowerCase();
+  if (rideType === "autonomous") {
+    fail(res, "Autonomous rides are not available yet. You can join the waitlist from the Ride Center.", 400);
+    return true;
+  }
+  if (isDeliveryRideType(rideType) && !deliveryBookingEnabled(rideType)) {
+    fail(res, "Delivery is paused while we finish merchant ordering. You can join the waitlist from the Delivery Center.", 400);
+    return true;
+  }
+  return false;
 }
 
 function verifyAndConsumeRideQuote(req, res) {

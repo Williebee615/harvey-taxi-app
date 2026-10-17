@@ -4,6 +4,11 @@
 // drivers and anonymous callers get "not found". The assigned driver never
 // receives the delivery PIN.
 process.env.NODE_ENV = "test";
+// Delivery booking is off by default (owner decision 2026-10-17); these
+// tests exercise the delivery flow itself.
+process.env.ENABLE_DELIVERY = "true";
+process.env.ENABLE_FOOD_DELIVERY = "true";
+process.env.ENABLE_GROCERY_DELIVERY = "true";
 process.env.API_RATE_LIMIT_PER_MINUTE = "100000";
 process.env.SUPABASE_URL = "http://localhost:54321";
 process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";

@@ -12,6 +12,11 @@
 //   NODE_PATH="$(npm root -g)" npx jest test/rider-delivery-center.browser
 
 process.env.NODE_ENV = "test";
+// Delivery booking is off by default (owner decision 2026-10-17); these
+// tests exercise the delivery flow itself.
+process.env.ENABLE_DELIVERY = "true";
+process.env.ENABLE_FOOD_DELIVERY = "true";
+process.env.ENABLE_GROCERY_DELIVERY = "true";
 process.env.SUPABASE_URL = "http://localhost:54321";
 process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
 process.env.RIDER_SESSION_SECRET = "test-rider-session-secret";

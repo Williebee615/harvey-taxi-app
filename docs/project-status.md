@@ -931,7 +931,7 @@ The owner set these; the values were read from the calibration page.
   - The live `rider-dashboard.html` has the waitlist link and no `modeAutonomousBtn`.
   - The live `driver-signup.html` has the owner-program link and no autonomous radio button.
 
-## 24. Update 2026-10-17 (UTC): drivers can't go online; manual verification button (PR `claude/manual-driver-verification`, not merged)
+## 24. Update 2026-10-17 (UTC): drivers can't go online; manual verification button (#259)
 
 **[Verified 2026-10-17, production database, read-only]** Driver readiness, excluding test, review and owner accounts.
 - 19 drivers have `approval_status = approved`, and **none can go online**:
@@ -966,8 +966,43 @@ The owner set these; the values were read from the calibration page.
 - **`ADMIN_SESSION_SECRET` is not set**, so admin sessions are signed with `ADMIN_PASSWORD`. **[Recommendation]** Set a dedicated, generated `ADMIN_SESSION_SECRET`.
 - **Not read by the code:** `AV_ENABLED`, `HUMAN_DRIVER_ENABLED`, `DISPATCH_MODE` and `OPENAI_SUPPORT_MODEL` (checked with grep on 17 Oct). They can be removed later; there's no rush.
 
+**[Owner decision 2026-10-17]** "Approved to merge #259". Merged as `3a9a9ca` after CI passed 6 of 6.
+
+**[Verified 2026-10-17 17:40 UTC, production]**
+- Production reported `3a9a9ca`.
+- The live `admin-dashboard.html` contains the manual verification form and the per-driver status row.
+- `/api/admin/drivers` still returns 401 without a sign-in.
+
 **Handoff:**
-- **Next authorized action:** merge on the owner's approval.
 - **Owner actions in Render:**
   - add `ADMIN_API_TOKEN` (use Generate);
   - set `ENABLE_PERSONA` and `ENABLE_CHECKR` as decided.
+
+## 25. Update 2026-10-17 (UTC): delivery paused; merchant portal planned (PR `claude/delivery-pause`, not merged)
+
+**[Verified 2026-10-17, production]**
+- `/api/rides/estimate` with `ride_type: food` returned 200 with a $11.50 delivery quote: delivery could be booked.
+- The home page meanwhile says delivery is "planned and can't be booked".
+- `ENABLE_DELIVERY`, `ENABLE_FOOD_DELIVERY` and `ENABLE_GROCERY_DELIVERY` were only reported in status output and never enforced. None is set on Render, according to the owner's screenshot of setting names.
+
+**[Owner decision 2026-10-17]**
+- "We need the delivery section to work properly on all ends for merchant, rider and driver."
+- Merchant model chosen: **Merchant portal** (stores sign up, receive orders, mark them ready, are paid through Harvey Taxi).
+- Until it is ready: **pause delivery**.
+
+**Changes:**
+- **Server:**
+  - the three switches now default to off, and are enforced: `/api/rides/estimate` and every quoted ride request refuse food and grocery with "Delivery is paused…";
+  - `/api/config/public` reports `delivery: {enabled, food, grocery}`;
+  - deliveries already in progress are unaffected.
+- **Rider Delivery Center:** a "Delivery is paused" notice with a waitlist email. The request buttons show the notice instead of opening the booking flow.
+- **Tests:** four delivery test files set the switches on, because they exercise the flow itself. New `test/server.delivery-paused.test.js`.
+- **New file:** `docs/merchant-portal-plan.md`. It covers the current state, the target flow, six phases and owner decisions (commission, pricing, exclusions, missing items, substitutions, pilot stores), plus questions for an accountant (Tennessee marketplace-facilitator sales tax), counsel and Stripe.
+
+**[Verified 2026-10-17, local]** Full suite passed (2,524), plus 6 new tests.
+
+**To turn delivery back on later:** set `ENABLE_DELIVERY` (and the food/grocery switch) to `true` on Render. This is an activation, so it needs the owner's approval.
+
+**Handoff:**
+- **Next authorized action:** merge on the owner's approval.
+- **Then:** the owner's answers to plan §4, followed by phase 1 (merchant accounts; its migration needs separate approval).
