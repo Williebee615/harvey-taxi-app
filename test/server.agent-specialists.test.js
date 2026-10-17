@@ -12,6 +12,11 @@ process.env.ADMIN_EMAIL = "ops@example.test";
 process.env.ADMIN_PASSWORD = "test-admin-password";
 process.env.ADMIN_SESSION_SECRET = "test-admin-session-secret";
 process.env.NODE_ENV = "test";
+// Delivery booking is off by default (owner decision 2026-10-17); these
+// tests exercise the delivery flow itself.
+process.env.ENABLE_DELIVERY = "true";
+process.env.ENABLE_FOOD_DELIVERY = "true";
+process.env.ENABLE_GROCERY_DELIVERY = "true";
 process.env.API_RATE_LIMIT_PER_MINUTE = "100000";
 delete process.env.AGENT_LLM_BASE_URL;
 delete process.env.OPENAI_API_KEY;

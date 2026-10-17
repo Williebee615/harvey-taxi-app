@@ -530,6 +530,24 @@
       width: 100%;
     }
 
+    .delivery-paused-note {
+      margin: 0 0 14px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 200, 90, 0.45);
+      background: rgba(255, 200, 90, 0.08);
+      line-height: 1.5;
+    }
+
+    .delivery-paused-note.hidden {
+      display: none;
+    }
+
+    .delivery-paused-note a {
+      color: inherit;
+      font-weight: 800;
+    }
+
     a.service-card {
       display: block;
       text-decoration: none;
@@ -3297,6 +3315,10 @@
           <p>Food and grocery deliveries: request a delivery, follow your active delivery, see delivery history and get delivery support.</p>
         </div>
       </div>
+      <p class="delivery-paused-note hidden" id="deliveryPausedNote" role="status">
+        <strong>Delivery is paused.</strong> We're finishing ordering with local restaurants and stores, so new deliveries can't be requested yet. Any delivery already in progress still shows below.
+        <a href="mailto:support@harveytaxiservice.com?subject=Waitlist%3A%20food%20delivery&amp;body=Please%20add%20me%20to%20the%20delivery%20waitlist.%20My%20city%3A%20" data-intent="waitlist_delivery">Join the delivery waitlist by email</a>.
+      </p>
       <div class="services-grid">
         <button class="service-card" type="button" data-action="food" data-center="delivery" id="requestFoodDeliveryBtn">
           <div class="service-icon">🍔</div>
@@ -11506,8 +11528,40 @@
       goDelivery("grocery");
     }
 
+    // Delivery booking can be paused on the server (owner decision
+    // 2026-10-17). /api/config/public says which types are open; while
+    // paused, the request buttons show the notice instead of the booking
+    // flow. The server refuses paused types regardless.
+    let deliveryAvailability = null;
+    async function loadDeliveryAvailability() {
+      try {
+        const res = await fetch("/api/config/public", { credentials: "same-origin", cache: "no-store" });
+        const data = await res.json();
+        deliveryAvailability = data && data.delivery ? data.delivery : null;
+      } catch (error) {
+        deliveryAvailability = null;
+      }
+      const paused = deliveryAvailability !== null && !(deliveryAvailability.enabled && (deliveryAvailability.food || deliveryAvailability.grocery));
+      const note = document.getElementById("deliveryPausedNote");
+      if (note) note.classList.toggle("hidden", !paused);
+      for (const id of ["requestFoodDeliveryBtn", "requestGroceryDeliveryBtn"]) {
+        const btn = document.getElementById(id);
+        if (btn) btn.setAttribute("aria-describedby", paused ? "deliveryPausedNote" : "");
+      }
+    }
+    loadDeliveryAvailability();
+
     function goDelivery(type) {
-      goRide(type === "grocery" ? "grocery" : "food");
+      const kind = type === "grocery" ? "grocery" : "food";
+      if (deliveryAvailability && !(deliveryAvailability.enabled && deliveryAvailability[kind])) {
+        const note = document.getElementById("deliveryPausedNote");
+        if (note) {
+          note.classList.remove("hidden");
+          note.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+        return;
+      }
+      goRide(kind);
     }
 
     // ride_type=scheduled is read by request-ride.html's

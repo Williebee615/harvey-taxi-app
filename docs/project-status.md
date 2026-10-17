@@ -927,3 +927,32 @@ The owner set these; the values were read from the calibration page.
   - Minimum rider age (owner decision).
 - **Handoff:**
   - **Next authorized action:** merge on the owner's approval. Render deploys; then verify the Ride Center card and that the server refuses the ride type on production.
+
+## 25. Update 2026-10-17 (UTC): delivery paused; merchant portal planned (PR `claude/delivery-pause`, not merged)
+
+**[Verified 2026-10-17, production]**
+- `/api/rides/estimate` with `ride_type: food` returned 200 with a $11.50 delivery quote: delivery could be booked.
+- The home page meanwhile says delivery is "planned and can't be booked".
+- `ENABLE_DELIVERY`, `ENABLE_FOOD_DELIVERY` and `ENABLE_GROCERY_DELIVERY` were only reported in status output and never enforced. None is set on Render, according to the owner's screenshot of setting names.
+
+**[Owner decision 2026-10-17]**
+- "We need the delivery section to work properly on all ends for merchant, rider and driver."
+- Merchant model chosen: **Merchant portal** (stores sign up, receive orders, mark them ready, are paid through Harvey Taxi).
+- Until it is ready: **pause delivery**.
+
+**Changes:**
+- **Server:**
+  - the three switches now default to off, and are enforced: `/api/rides/estimate` and every quoted ride request refuse food and grocery with "Delivery is paused…";
+  - `/api/config/public` reports `delivery: {enabled, food, grocery}`;
+  - deliveries already in progress are unaffected.
+- **Rider Delivery Center:** a "Delivery is paused" notice with a waitlist email. The request buttons show the notice instead of opening the booking flow.
+- **Tests:** four delivery test files set the switches on, because they exercise the flow itself. New `test/server.delivery-paused.test.js`.
+- **New file:** `docs/merchant-portal-plan.md`. It covers the current state, the target flow, six phases and owner decisions (commission, pricing, exclusions, missing items, substitutions, pilot stores), plus questions for an accountant (Tennessee marketplace-facilitator sales tax), counsel and Stripe.
+
+**[Verified 2026-10-17, local]** Full suite passed (2,524), plus 6 new tests.
+
+**To turn delivery back on later:** set `ENABLE_DELIVERY` (and the food/grocery switch) to `true` on Render. This is an activation, so it needs the owner's approval.
+
+**Handoff:**
+- **Next authorized action:** merge on the owner's approval.
+- **Then:** the owner's answers to plan §4, followed by phase 1 (merchant accounts; its migration needs separate approval).
