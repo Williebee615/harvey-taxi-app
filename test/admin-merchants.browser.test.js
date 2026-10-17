@@ -50,7 +50,9 @@ describeWithBrowser("Admin dashboard: merchant applications", () => {
       catalog_items: [
         { id: "I-SYN-1", merchant_id: "M-SYN-1", name: "Rum cake", section: "Bakery", price_cents: 1499, available: true, substitutable: false, review_status: "held", review_flags: ["alcohol"], archived_at: null, updated_at: "2026-10-17T01:00:00Z" },
         { id: "I-SYN-2", merchant_id: "M-SYN-1", name: "Vodka", section: null, price_cents: 2000, available: true, substitutable: false, review_status: "held", review_flags: ["alcohol"], archived_at: null, updated_at: "2026-10-17T02:00:00Z" },
-        { id: "I-SYN-3", merchant_id: "M-SYN-1", name: "Whole milk", section: "Dairy", price_cents: 449, available: true, substitutable: true, review_status: "listed", review_flags: [], archived_at: null, updated_at: "2026-10-17T03:00:00Z" }
+        { id: "I-SYN-3", merchant_id: "M-SYN-1", name: "Whole milk", section: "Dairy", price_cents: 449, available: true, substitutable: true, review_status: "listed", review_flags: [], archived_at: null, updated_at: "2026-10-17T03:00:00Z" },
+        { id: "I-SYN-4", merchant_id: "M-SYN-1", name: "<img src=x onerror=window.__xss=1> Tea", section: null, price_cents: 299, available: false, substitutable: false, review_status: "listed", review_flags: [], archived_at: null, updated_at: "2026-10-17T04:00:00Z" },
+        { id: "I-SYN-5", merchant_id: "M-SYN-1", name: "Removed item", section: null, price_cents: 100, available: true, substitutable: false, review_status: "listed", review_flags: [], archived_at: "2026-10-17T05:00:00Z", updated_at: "2026-10-17T05:00:00Z" }
       ],
       drivers: [], riders: [], rides: [], htaf_applications: [], audit_logs: [], system_flags: []
     });
@@ -135,6 +137,44 @@ describeWithBrowser("Admin dashboard: merchant applications", () => {
     await page.waitForFunction(() => /No items waiting for review/.test(document.getElementById("heldItemsList").textContent));
     expect(mockClient._state.catalog_items.find((i) => i.id === "I-SYN-2")).toMatchObject({ review_status: "blocked", review_reason: "Alcohol is excluded (term 3)." });
     expect(mockClient._state.audit_logs.map((a) => a.action)).toEqual(["catalog_item_allowed", "catalog_item_blocked"]);
+    await context.close();
+  });
+
+  test("staff view a store's full catalog, read-only", async () => {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 1600 } });
+    await context.addCookies([{ name: "htaf_admin_session", value: session("owner@harvey.example"), url: base }]);
+    await context.route(/^https?:\/\/(?!127\.0\.0\.1)/, (route) => route.abort());
+    const page = await context.newPage();
+    await page.goto(`${base}/admin-dashboard.html`, { waitUntil: "load" });
+
+    // Only stores that can have a catalog get the button (M-SYN-2 was rejected above).
+    const btn = page.locator('button[data-merchant-catalog="M-SYN-1"]');
+    await btn.waitFor();
+    expect(await page.locator('button[data-merchant-catalog="M-SYN-2"]').count()).toBe(0);
+    const before = JSON.stringify(mockClient._state.catalog_items);
+    const auditBefore = mockClient._state.audit_logs.length;
+
+    await btn.click();
+    const panel = page.locator('.merchant-catalog[data-catalog-for="M-SYN-1"]');
+    await panel.locator("table").waitFor();
+    expect(await btn.getAttribute("aria-expanded")).toBe("true");
+    expect(await panel.locator(".catalog-counts").innerText()).toMatch(/4 items • 3 listed • 0 held • 1 hidden • 1 out of stock/);
+    expect(await panel.locator("tbody tr").count()).toBe(4);
+    expect(await panel.innerText()).not.toMatch(/Removed item/);
+    const vodka = panel.locator('tr[data-catalog-item="I-SYN-2"]');
+    expect(await vodka.innerText()).toMatch(/hidden by staff/i);
+    expect(await vodka.innerText()).toMatch(/Hidden by owner@harvey\.example .*Alcohol is excluded \(term 3\)\./);
+    expect(await panel.locator('tr[data-catalog-item="I-SYN-1"]').innerText()).toMatch(/Allowed by owner@harvey\.example/);
+    // Store-entered text is shown as text, never run as HTML.
+    expect(await panel.locator('tr[data-catalog-item="I-SYN-4"]').innerText()).toContain("<img src=x onerror=window.__xss=1> Tea");
+    expect(await page.evaluate(() => window.__xss)).toBeUndefined();
+    // No buttons that change items in the panel.
+    expect(await panel.locator("button, input").count()).toBe(0);
+
+    await btn.click();
+    expect(await panel.isHidden()).toBe(true);
+    expect(JSON.stringify(mockClient._state.catalog_items)).toBe(before);
+    expect(mockClient._state.audit_logs.length).toBe(auditBefore);
     await context.close();
   });
 });

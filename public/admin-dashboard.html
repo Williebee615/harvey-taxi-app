@@ -63,6 +63,7 @@
     .item-top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
     .item-title{font-weight:950;line-height:1.35}.item-sub{color:var(--muted);font-size:.9rem;line-height:1.5;word-break:break-word}
     .verify-row{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 2px}.verify-chip{font-size:.75rem;font-weight:900;padding:5px 9px;border-radius:999px;border:1px solid var(--line)}.verify-chip.ok{color:#bff7da;border-color:rgba(91,227,162,.45)}.verify-chip.no{color:#ffd0d6;border-color:rgba(255,120,140,.45)}
+    .merchant-catalog{margin:10px 0;overflow-x:auto}.merchant-catalog table{width:100%;border-collapse:collapse;font-size:13px}.merchant-catalog th,.merchant-catalog td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
     .merchant-flags{margin:10px 0;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,217,114,.45);background:rgba(255,217,114,.08);line-height:1.45}.merchant-flags ul{margin:6px 0 4px 18px}
     #manualVerifyDialog{max-width:560px;width:calc(100% - 32px);border:1px solid var(--line);border-radius:18px;background:#0b1530;color:inherit;padding:18px}#manualVerifyDialog::backdrop{background:rgba(0,0,0,.6)}#manualVerifyDialog label{display:flex;gap:8px;align-items:flex-start;margin:8px 0;line-height:1.4}#manualVerifyDialog textarea,#manualVerifyDialog input[type=password]{width:100%;box-sizing:border-box;margin-top:6px;padding:10px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:inherit}
     .badge{display:inline-flex;padding:7px 11px;border-radius:999px;font-size:.75rem;font-weight:950;text-transform:uppercase;border:1px solid transparent}
@@ -421,6 +422,7 @@ async function loadMerchants(){
       ${(m.review_flags || []).length ? `<div class="merchant-flags" role="note" aria-label="Review flags"><strong>⚠ Check before deciding:</strong><ul>${m.review_flags.map(f => `<li>${esc(f.label)}</li>`).join("")}</ul><span class="item-sub">Flags are hints for staff, not decisions.</span></div>` : ""}
       ${m.reviewed_at ? `<div class="item-sub">Reviewed by ${esc(m.reviewed_by)} ${esc(new Date(m.reviewed_at).toLocaleString())}${m.review_reason ? ": " + esc(m.review_reason) : ""}</div>` : ""}
       ${m.status === "approved" ? `<div class="item-sub merchant-signin"><strong>Store sign-in:</strong> ${(m.sign_in_users || []).filter(u => u.status === "active").map(u => `${esc(u.name)} (${esc(u.phone)}) <button class="danger" type="button" data-merchant-user-remove="${esc(u.id)}">Remove</button>`).join(" ") || "nobody yet"} <button class="neutral" type="button" data-merchant-signin-add="${esc(m.id)}" data-default-phone="${esc(m.contact_phone)}" data-default-name="${esc(m.contact_name)}">Give sign-in access</button></div>` : ""}
+      ${["approved", "suspended"].includes(m.status) ? `<div class="item-sub"><button class="neutral" type="button" data-merchant-catalog="${esc(m.id)}" aria-expanded="false">View catalog</button></div><div class="merchant-catalog" data-catalog-for="${esc(m.id)}" hidden></div>` : ""}
       <div class="actions">${(MERCHANT_ACTIONS[m.status] || []).map(d => `<button class="${d === "approve" ? "success" : "danger"}" type="button" data-merchant-id="${esc(m.id)}" data-merchant-decision="${d}">${d[0].toUpperCase() + d.slice(1)}</button>`).join("")}</div>
     </div>`).join("") : `<div class="empty">No merchant applications yet.</div>`;
 }
@@ -462,6 +464,35 @@ document.getElementById("heldItemsList").addEventListener("click", async (event)
     showError(e.message);
   }
   loadHeldItems();
+});
+// A store's full catalog (merchant portal phase 2), read-only. Held items
+// are decided in "Catalog Items Held for Review".
+const CATALOG_STATUS = { listed: ["listed", "ok"], held: ["held for review", "warn"], blocked: ["hidden by staff", "bad"] };
+document.getElementById("merchantsList").addEventListener("click", async (event) => {
+  const btn = event.target.closest("button[data-merchant-catalog]");
+  if (!btn) return;
+  const panel = document.querySelector(`.merchant-catalog[data-catalog-for="${CSS.escape(btn.dataset.merchantCatalog)}"]`);
+  if (!panel) return;
+  if (!panel.hidden) { panel.hidden = true; btn.textContent = "View catalog"; btn.setAttribute("aria-expanded", "false"); return; }
+  panel.hidden = false; btn.textContent = "Hide catalog"; btn.setAttribute("aria-expanded", "true");
+  panel.innerHTML = `<div class="empty">Loading catalog...</div>`;
+  let data;
+  try { data = await api(`/api/admin/merchants/${encodeURIComponent(btn.dataset.merchantCatalog)}/catalog`); }
+  catch (e) { panel.innerHTML = `<div class="empty">The catalog could not be loaded: ${esc(e.message)}</div>`; return; }
+  if (data.not_set_up) { panel.innerHTML = `<div class="empty">The catalog isn't set up yet (database migration not applied).</div>`; return; }
+  const items = data.items || [];
+  if (!items.length) { panel.innerHTML = `<div class="empty">This store hasn't added any items yet.</div>`; return; }
+  const c = data.counts || {};
+  panel.innerHTML = `
+    <div class="item-sub catalog-counts">${c.total} items • ${c.listed || 0} listed • ${c.held || 0} held • ${c.blocked || 0} hidden • ${c.out_of_stock || 0} out of stock. Read-only.</div>
+    <table><thead><tr><th>Item</th><th>Section</th><th>Price</th><th>In stock</th><th>Substitutable</th><th>Status</th></tr></thead><tbody>
+    ${items.map(i => {
+      const [label, cls] = CATALOG_STATUS[i.review_status] || [i.review_status, "blue"];
+      const detail = i.review_status === "held" ? `Possible: ${esc((i.review_flag_labels || []).join(", "))}`
+        : i.reviewed_at ? `${i.review_status === "blocked" ? "Hidden" : "Allowed"} by ${esc(i.reviewed_by)} ${esc(new Date(i.reviewed_at).toLocaleString())}${i.review_reason ? ": " + esc(i.review_reason) : ""}` : "";
+      return `<tr data-catalog-item="${esc(i.id)}"><td><strong>${esc(i.name)}</strong>${i.description ? `<div class="item-sub">${esc(i.description)}</div>` : ""}</td><td>${esc(i.section || "")}</td><td>$${(i.price_cents / 100).toFixed(2)}</td><td>${i.available ? "yes" : "no"}</td><td>${i.substitutable ? "yes" : "no"}</td><td><span class="badge ${cls}">${esc(label)}</span>${detail ? `<div class="item-sub">${detail}</div>` : ""}</td></tr>`;
+    }).join("")}
+    </tbody></table>`;
 });
 // Store sign-in access (merchant portal phase 1b). Giving access lets that
 // phone sign in to /merchant-portal.html with a texted code; removing it
