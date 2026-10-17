@@ -60,6 +60,12 @@ Labels: **[Verified]** = checked in the code or the production database on the d
 
 **[Recommendation]** An order completed late on Sunday is still inside its 48-hour dispute window when Monday's payout runs. A missing-item amount confirmed after a payout is deducted from the next payout. The merchant agreement should say so.
 
+**[Owner decision 2026-10-17]** The merchant agreement (counsel to draft) includes:
+- the 12% commission-only structure;
+- weekly Monday payout initiation;
+- a clause that adjustments for orders completed late on Sunday, whose 48-hour dispute window runs past Monday's payout, are applied to the following week's payout;
+- a statement that Monday is the payout transfer date and bank arrival depends on Stripe and the merchant's bank. The application page says the same.
+
 **[To confirm with Stripe]** "Monday" is when the payout is sent. The day funds reach the merchant's bank depends on Stripe's payout timing for the account and its bank.
 
 **Phase 1a** (PR `claude/merchant-portal-phase1`): public application page, admin review, `merchants` table. Its migration needs separate approval.
