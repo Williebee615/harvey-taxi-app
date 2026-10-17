@@ -978,7 +978,7 @@ The owner set these; the values were read from the calibration page.
   - add `ADMIN_API_TOKEN` (use Generate);
   - set `ENABLE_PERSONA` and `ENABLE_CHECKR` as decided.
 
-## 25. Update 2026-10-17 (UTC): delivery paused; merchant portal planned (PR `claude/delivery-pause`, not merged)
+## 25. Update 2026-10-17 (UTC): delivery paused; merchant portal planned (#260, merged as `fcfd7f8`)
 
 **[Verified 2026-10-17, production]**
 - `/api/rides/estimate` with `ride_type: food` returned 200 with a $11.50 delivery quote: delivery could be booked.
@@ -1003,6 +1003,45 @@ The owner set these; the values were read from the calibration page.
 
 **To turn delivery back on later:** set `ENABLE_DELIVERY` (and the food/grocery switch) to `true` on Render. This is an activation, so it needs the owner's approval.
 
+**[Owner decision 2026-10-17]** "Approved to merge #260". Merged as `fcfd7f8`.
+
+**[Verified 2026-10-17 17:48 UTC, production]**
+- `/api/health` reports version `fcfd7f8`.
+- `/api/rides/estimate` refuses `food` and `grocery` (400, "Delivery is paused…"); `standard` returns 200.
+- `/api/config/public` reports `delivery: {enabled: false, food: false, grocery: false}`.
+- The production database had 0 food or grocery rides, so no booked delivery was affected.
+
 **Handoff:**
-- **Next authorized action:** merge on the owner's approval.
-- **Then:** the owner's answers to plan §4, followed by phase 1 (merchant accounts; its migration needs separate approval).
+- **Done:** delivery paused and verified live.
+- **Next:** see §26.
+
+## 26. Update 2026-10-17 (UTC): merchant terms locked; merchant portal phase 1a (PR `claude/merchant-portal-phase1`, not merged)
+
+**[Owner decision 2026-10-17]** "Approve the recommended versions" of the six merchant terms. Recorded in `docs/merchant-portal-plan.md` §4:
+1. Commission 12% of the item subtotal, on completed orders only; card fees come out of Harvey Taxi's 12%.
+2. Merchants set their prices; if higher than in store, riders see a disclosure.
+3. Extended list of excluded items (8 groups); applicants must confirm.
+4. Missing items: the customer is refunded immediately and the amount deducted from the merchant's payout (48-hour photo-backed dispute window); Harvey Taxi absorbs it when the merchant wins; claims above a monthly limit go to manual review.
+5. Substitutions: chosen by the customer per item at checkout; refund after 7 minutes without an answer; 15% card-authorization buffer for groceries.
+6. Pilot: 5 stores (3 restaurants, 2 grocery or convenience), only once at least 5 drivers are fully verified.
+
+**[Owner decision 2026-10-17]** Payouts and fees confirmed:
+- **Payouts:** weekly, every Monday, for the prior Monday-to-Sunday's completed orders. This is to be set in Stripe Connect in phase 5. Stripe Connect isn't set up yet, so nothing is configured today.
+- **Fees:** commission only, 12%. No monthly or fixed fee.
+
+Both terms are recorded in plan §4 (items 7–8) and shown on the application page.
+
+**Phase 1a changes (not merged, not deployed):**
+- **Migration (not applied):** `supabase/migrations/20261017010000_merchants.sql` creates `public.merchants` (applications and review status). RLS on, no client access; one open application per contact email; reject/suspend need a reason.
+- **Server:** `POST /api/merchants/apply` (public, 5 per hour per address), `GET /api/admin/merchants` and `PATCH /api/admin/merchants/:id/review` (admin sign-in; approve, reject or suspend; conditional update; audit entry). Before the migration is applied, applications return 503 and the admin list shows "not set up".
+- **Pages:** new `public/merchant-apply.html` (HTS-branded; says delivery isn't live; lists terms in brief and the exclusions); a "Partner With Us" card on the home page; a "Merchant Applications" section on the admin dashboard. On the HTAF domain the page redirects to the HTAF home page.
+- **Not included:** merchant sign-in, catalog, orders and payouts (phases 1b–5). Delivery booking stays paused.
+
+**[Verified 2026-10-17, local]** New tests: `lib/merchants.test.js` (15), `test/server.merchants.test.js` (14), `test/db/merchants.db.test.js` (5, real Postgres), `test/admin-merchants.browser.test.js` (1, Chromium). Full suite: 2,562 passed; the one failure (the migration-list test, which must name each new migration) was fixed and rerun. Database suite: 154 passed, 4 skipped.
+
+**[Recommendation]** Before collecting real applications, have counsel review the terms summary on the application page and the privacy wording.
+
+**Handoff:**
+- **Done:** terms recorded; phase 1a built and tested locally.
+- **Remaining:** merge; apply the migration; phase 1b (merchant sign-in) onward. Payout schedule and fee terms go into Stripe Connect (phase 5) and into the merchant agreement (counsel).
+- **Next authorized action:** none yet. Merge needs the owner's approval, and applying the `merchants` migration needs **separate** approval.
