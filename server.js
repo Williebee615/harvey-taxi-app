@@ -21045,6 +21045,35 @@ app.post(
   })
 );
 
+// Staff view of one store's full catalog: every live item in every review
+// state, with who decided and why. Read-only; held items are decided through
+// the review route below.
+app.get(
+  "/api/admin/merchants/:id/catalog",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const id = cleanString(req.params.id, 64);
+    const { data: store, error: storeError } = await supabase.from("merchants").select("id, business_name, status").eq("id", id).maybeSingle();
+    if (storeError) return fail(res, "The store could not be loaded.", 502);
+    if (!store) return fail(res, "Store not found.", 404);
+    const { data, error } = await supabase
+      .from("catalog_items")
+      .select(`${CATALOG_FIELDS}, reviewed_by, reviewed_at, created_at`)
+      .eq("merchant_id", store.id)
+      .is("archived_at", null)
+      .order("name", { ascending: true })
+      .limit(catalogRules.MAX_ITEMS_PER_STORE);
+    if (error) return error.code === "42P01" ? ok(res, { store, items: [], counts: {}, not_set_up: true }) : fail(res, "The catalog could not be loaded.", 502);
+    const items = (data || []).map(catalogItemView);
+    const counts = { total: items.length, listed: 0, held: 0, blocked: 0, out_of_stock: 0 };
+    for (const i of items) {
+      counts[i.review_status] = (counts[i.review_status] || 0) + 1;
+      if (!i.available) counts.out_of_stock += 1;
+    }
+    return ok(res, { store, items, counts });
+  })
+);
+
 // Staff review of held items.
 app.get(
   "/api/admin/catalog/held",

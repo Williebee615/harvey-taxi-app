@@ -132,3 +132,36 @@ test("a suspended store can't use its catalog", async () => {
   expect((await as(A).get("/api/merchant/catalog")).status).toBe(403);
   expect((await as(A).post("/api/merchant/catalog/items", { name: "Milk", price: "1" })).status).toBe(403);
 });
+
+describe("staff view of a store's full catalog", () => {
+  const admin = (r) => r.set("x-admin-token", "test-admin-token");
+  test("admin only; one store's live items in every state, with counts and decisions; changes nothing", async () => {
+    await as(A).post("/api/merchant/catalog/items", { name: "Whole milk", price: "4.49", section: "Dairy" });
+    const beer = (await as(A).post("/api/merchant/catalog/items", { name: "Craft beer", price: "12.99" })).body.item;
+    const vodka = (await as(A).post("/api/merchant/catalog/items", { name: "Vodka", price: "20" })).body.item;
+    const bread = (await as(A).post("/api/merchant/catalog/items", { name: "Bread", price: "3" })).body.item;
+    await as(A).patch(`/api/merchant/catalog/items/${bread.id}`, { available: false });
+    const gone = (await as(A).post("/api/merchant/catalog/items", { name: "Old item", price: "1" })).body.item;
+    await as(A).del(`/api/merchant/catalog/items/${gone.id}`);
+    await as(B).post("/api/merchant/catalog/items", { name: "Other store item", price: "2" });
+    await admin(request(app).post(`/api/admin/catalog/items/${vodka.id}/review`)).send({ decision: "block", reason: "Alcohol is excluded (term 3)." });
+
+    expect((await request(app).get("/api/admin/merchants/M1/catalog")).status).toBe(401);
+    expect((await as(A).get("/api/admin/merchants/M1/catalog")).status).toBe(401);
+
+    const before = JSON.stringify(items());
+    const auditBefore = mockClient._state.audit_logs.length;
+    const res = await admin(request(app).get("/api/admin/merchants/M1/catalog"));
+    expect(res.status).toBe(200);
+    expect(res.body.store).toMatchObject({ id: "M1", business_name: "TEST Store M1", status: "approved" });
+    expect(res.body.items.map((i) => i.name).sort()).toEqual(["Bread", "Craft beer", "Vodka", "Whole milk"]);
+    expect(res.body.counts).toEqual({ total: 4, listed: 2, held: 1, blocked: 1, out_of_stock: 1 });
+    expect(res.body.items.find((i) => i.id === beer.id)).toMatchObject({ review_status: "held", review_flag_labels: ["Alcohol"] });
+    expect(res.body.items.find((i) => i.id === vodka.id)).toMatchObject({ review_status: "blocked", review_reason: "Alcohol is excluded (term 3).", reviewed_by: expect.any(String) });
+    expect(JSON.stringify(items())).toBe(before);
+    expect(mockClient._state.audit_logs.length).toBe(auditBefore);
+
+    expect((await admin(request(app).get("/api/admin/merchants/NOPE/catalog"))).status).toBe(404);
+    expect((await admin(request(app).get("/api/admin/merchants/M2/catalog"))).body.items.map((i) => i.name)).toEqual(["Other store item"]);
+  });
+});

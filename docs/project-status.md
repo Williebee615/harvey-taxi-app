@@ -1503,3 +1503,20 @@ The earlier §26 [Unresolved] item is resolved.
 - **Done:** phase 2 deployed and its migration applied.
 - **Remaining:** the first pilot store's catalog; optional staff view of a store's full catalog (not built; needs the owner's go-ahead); the accountant's sales-tax guidance; counsel's merchant agreement.
 - **Next authorized action:** none pending.
+
+## 36. Update 2026-10-17 (UTC): staff view of a store's full catalog (PR `claude/admin-store-catalog-view`, not merged)
+
+**[Owner decision 2026-10-17]** "Build the staff full-catalog view".
+
+**Changes (not merged, not deployed; no migration):** details are in `docs/merchant-portal-plan.md` §4d.
+- **Server:** `GET /api/admin/merchants/:id/catalog` (admin only). It returns the store, its live items in every review state with who decided and why, and counts (total, listed, held, hidden, out of stock). Read-only; it writes nothing.
+- **Admin dashboard:** "View catalog" on approved and suspended stores opens a read-only table under the store. Store-entered text is escaped. Held items are still decided in "Catalog Items Held for Review".
+
+**[Verified 2026-10-17, local]**
+- `test/server.merchant-catalog.test.js`: now 10 tests. The new one checks admin-only access (no session and a store session both get 401), one store's items only, removed items left out, counts, staff decisions shown, an unknown store gets 404, and nothing written or audited.
+- `test/admin-merchants.browser.test.js`: now 3 tests (Chromium). The new one checks the button appears only for stores that can have a catalog, the counts and table, reasons shown, removed items left out, a store item name containing HTML is shown as text and not run, no controls in the panel, and nothing changed.
+
+**Handoff:**
+- **Done:** the staff full-catalog view is built and tested locally. Full suite: 2,693 passed.
+- **Remaining:** merge approval.
+- **Next authorized action:** none. Merging needs the owner's approval.
