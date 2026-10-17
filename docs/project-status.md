@@ -1326,21 +1326,32 @@ The earlier §26 [Unresolved] item is resolved.
 - `GET /api/admin/merchants` without sign-in returns 401.
 - `merchants` has 0 rows, so no flags show until stores apply.
 
-## 33. Update 2026-10-17 (UTC): refund rules engine (PR `claude/refund-rules-engine`, not merged)
+## 33. Update 2026-10-17 (UTC): refund engine (PR #270, `claude/refund-rules-engine`, not merged)
 
 **[Owner decision 2026-10-17]** "Build the refund rules engine."
 
+**[Owner decision 2026-10-17] Term 4 conflict resolution:**
+- **Approval:** agent rule 8 (human approval) takes precedence over the "refunded straight away" wording in term 4. Missing-item refunds are prepared automatically as proposals, and an authorized admin or staff member approves each one before money moves through Stripe Connect.
+- **Claim window:** refund requests must be made within 48 hours of order completion.
+
 **Changes (no behaviour change; nothing calls the engine until phase 3):**
-- **New `lib/refundRules.js`:** commission, grocery authorization, substitution timeout, missing-item refund plan, merchant dispute and deduction status, and payout week in Nashville time. Pure functions in whole cents. Details are in `docs/merchant-portal-plan.md` §4b.
-- **New `lib/refundRules.test.js` (22 tests):** every rule, refusals, the abuse limit, daylight-saving and late-Sunday payout cases, and a guard that the module never calls Stripe, the database or the network.
+- **New `lib/refundEngine.js`.** Pure functions in whole cents, using Nashville time. Details are in `docs/merchant-portal-plan.md` §4b. It covers:
+  - commission;
+  - grocery authorization;
+  - substitution timeout;
+  - the missing-item refund plan, including the 48-hour claim window, the pickup-checklist photo check, the purchase-value cap and the abuse limit;
+  - `buildRefundProposal` (frozen, `pending_review`, `requires_human_approval: true`, the same key every time for the same claim);
+  - merchant dispute status;
+  - payout weeks with rollover.
+- **New `lib/refundEngine.test.js` (30 tests):** every rule and refusal, the claim-window edges, the photo-contradiction and no-photo cases, proposal immutability and key, daylight saving and late-Sunday rollover, and a guard that the module never calls Stripe, the database or the network.
 
 **[Recommendation, built in]** On a missing item, the merchant returns its net share, and Harvey Taxi reverses its 12% on that item.
 
-**[Unresolved: owner decisions before phase 3 goes live]**
-1. Instant refunds (term 4) vs. person approval (agent rule 8 and the standing rule).
-2. The monthly claim limit.
-3. The customer's window to report a missing item.
-4. Who bears the refunded sales tax (accountant).
+**[Assumption, built in]** If the photos contradict a claim, or there is no photo, a person reviews it; it is never refused automatically.
+
+**[Unresolved: before phase 3 goes live]**
+- The monthly claim limit.
+- Who bears the refunded sales tax (accountant).
 
 **Handoff:**
 - **Next authorized action:** none. Merging needs the owner's approval.

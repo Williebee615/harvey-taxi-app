@@ -70,28 +70,33 @@ Labels: **[Verified]** = checked in the code or the production database on the d
 
 **Phase 1a** (PR `claude/merchant-portal-phase1`): public application page, admin review, `merchants` table. Its migration needs separate approval.
 
-## 4b. Refund rules engine (built ahead of phase 3)
+## 4b. Refund engine (built ahead of phase 3)
 
 **[Owner decision 2026-10-17]** "Build the refund rules engine."
 
-`lib/refundRules.js` holds the money rules as pure functions. They work in whole cents, use Nashville time, and have no Stripe or database calls. Phase 3 (orders) will call them.
+**[Owner decision 2026-10-17] Term 4 conflict resolved:**
+- **Approval:** agent rule 8 (a person approves) takes precedence over "refunded straight away". The engine prepares each missing-item refund as a proposal, and an authorized admin or staff member reviews and approves it before any money moves through Stripe.
+- **Claim window:** customers report a missing item within 48 hours of order completion.
+
+`lib/refundEngine.js` holds the money rules as pure functions. They work in whole cents, use Nashville time, and have no Stripe, database or network calls. Phase 3 (orders) will call them.
 
 | Function | Rule |
 |---|---|
 | `commission` | 12% of the item subtotal, completed orders only (term 1) |
 | `itemAuthorizationCents` | Grocery holds the subtotal plus 15% (term 5) |
 | `substitutionOutcome` | No answer within 7 minutes → refund the item (term 5) |
-| `planMissingItemRefund` | Customer gets the items plus their sales tax; tip and delivery fee aren't included. Over the monthly limit, or with no limit set → manual review. Returns `stage_refund`, a proposal for a person to approve (agent rule 8), never a payment (term 4) |
-| `merchantDeductionStatus` | Nothing is deducted during the 48-hour dispute window. A merchant win → Harvey Taxi absorbs; a loss, or no dispute → deduct (term 4) |
-| `payoutWeek` | Monday-to-Sunday weeks in Nashville time, paid the following Monday. A deduction confirmed after a payout comes off the next one (term 7 and its agreement clause) |
+| `planMissingItemRefund` | **Refused:** a claim more than 48 hours after completion, an item not in the order, or more than is left unrefunded.<br>**Refund amount:** the items plus their sales tax; tip and delivery fee excluded, and capped at the item's purchase value.<br>**Photo check:** claims are checked against the store's pickup checklist photos. If the photos contradict the claim, or there is no photo, a person reviews it. Over the monthly limit, or with no limit set, a person also reviews it. |
+| `buildRefundProposal` | Packages a plan as a frozen proposal: `status: "pending_review"`, `requires_human_approval: true`, with amounts, photo IDs and reasons. It carries a key that is the same every time for the same claim, so a claim can't be paid twice. It never moves money. |
+| `merchantDeductionStatus` | Nothing is deducted during the merchant's 48-hour dispute window. A merchant win → Harvey Taxi absorbs; a loss, or no dispute → deduct (term 4) |
+| `payoutWeek` | Monday-to-Sunday weeks in Nashville time, paid the following Monday. A late-Sunday adjustment confirmed after Monday rolls over to the next payout (term 7 and its agreement clause) |
 
-**[Recommendation, built in; owner to confirm]** On a missing item, the merchant returns what it was paid for it (price less 12%), and Harvey Taxi gives up its 12% commission on that item. This matches term 1 ("a fully refunded order pays nothing"), so the merchant never loses more than it received.
+**[Recommendation, built in; owner to confirm]** On a missing item, the merchant returns what it was paid for it (price less 12%), and Harvey Taxi gives up its 12% commission on that item. This matches term 1, so the merchant never loses more than it received.
+
+**[Assumption, built in]** "Match the item-checklist photo records" is read as follows: the store's pickup checklist has a photo per item with a packed quantity. A claim the photos contradict, or one without a photo, goes to a person; it is never refused automatically.
 
 **[Unresolved: owner decisions before phase 3 goes live]**
-1. **"Refunded straight away" (term 4) vs. "no refund without a person's approval"** (agent rule 8, and the standing rule against live refunds without approval). Today the engine only stages refunds. For instant refunds, the owner would approve one switch for missing-item refunds within the limit. It would start in shadow mode and stay subject to the kill switch, under agent rule 4.
-2. **The monthly claim limit** per customer. Until it is set, every claim goes to manual review.
-3. **How long customers have to report a missing item** after delivery. No window is set yet.
-4. **Who bears the refunded sales tax:** waits on the accountant's Tennessee marketplace-facilitator answer (item 7 below).
+1. **The monthly claim limit** per customer. Until it is set, every claim goes to manual review.
+2. **Who bears the refunded sales tax:** waits on the accountant's Tennessee marketplace-facilitator answer (item 7 below).
 
 ## 4a. Still to confirm
 
