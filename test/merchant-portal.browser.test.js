@@ -48,6 +48,7 @@ describeWithBrowser("Store portal", () => {
         merchants: [{ id: "M1", business_name: "TEST Fixture Grocer", category: "grocery", address_line: "100 Test Ave", city: "Nashville", postal_code: "37203", contact_name: "Owner", contact_phone: "+16155550123", contact_email: "o@example.test", status: "approved", created_at: "2026-10-17T00:00:00Z" }],
         merchant_users: [{ id: "U1", merchant_id: "M1", phone: "+16155550123", name: "Test Owner", role: "owner", status: "active", session_version: 0 }],
         merchant_hours: [],
+        catalog_items: [],
         audit_logs: []
       },
       { rpc: { bump_merchant_user_session_version: (args, state) => { const u = state.merchant_users.find((x) => x.id === args.p_user_id); u.session_version += 1; return { data: u.session_version, error: null }; } } }
@@ -104,6 +105,39 @@ describeWithBrowser("Store portal", () => {
     await page.click("#saveHours");
     await page.waitForFunction(() => /Monday: closing time must be after/.test(document.getElementById("hoursStatus").textContent));
 
+    // Catalog: a clean item is listed; a possibly-excluded one is held for review.
+    await page.locator("#catalogCard").waitFor();
+    await page.fill("#itemName", "Whole milk");
+    await page.fill("#itemPrice", "4.49");
+    await page.fill("#itemSection", "Dairy");
+    await page.check("#itemSubstitutable");
+    await page.click("#addItem");
+    await page.waitForFunction(() => /Whole milk added\./.test(document.getElementById("itemStatus").textContent));
+    await page.fill("#itemName", "Craft beer");
+    await page.fill("#itemPrice", "12.99");
+    await page.click("#addItem");
+    await page.waitForFunction(() => /after a Harvey Taxi review/.test(document.getElementById("itemStatus").textContent));
+    await page.waitForFunction(() => document.querySelectorAll("#itemRows tr").length === 2);
+    expect(mockClient._state.catalog_items.map((i) => [i.name, i.price_cents, i.review_status, i.substitutable])).toEqual([["Whole milk", 449, "listed", true], ["Craft beer", 1299, "held", false]]);
+
+    // Edit a price in the table.
+    const milk = page.locator("#itemRows tr", { hasText: "Whole milk" });
+    await milk.locator(".p").fill("4.99");
+    await milk.locator(".save").click();
+    await page.waitForFunction(() => /Whole milk saved\./.test(document.getElementById("itemStatus").textContent));
+    expect(mockClient._state.catalog_items.find((i) => i.name === "Whole milk").price_cents).toBe(499);
+
+    // CSV: preview first (nothing changes), then import.
+    await page.setInputFiles("#csvFile", { name: "items.csv", mimeType: "text/csv", buffer: Buffer.from("name,price,section\nBread,3.25,Bakery\nwhole milk,5.10,Dairy\nEggs,abc,\n") });
+    await page.click("#previewImport");
+    await page.locator("#runImport").waitFor();
+    expect(await page.locator("#importStatus").innerText()).toMatch(/line 4/);
+    expect(mockClient._state.catalog_items).toHaveLength(2);
+    await page.click("#runImport");
+    await page.waitForFunction(() => document.querySelectorAll("#itemRows tr").length === 3);
+    expect(mockClient._state.catalog_items.find((i) => i.name === "Bread")).toMatchObject({ price_cents: 325, review_status: "listed" });
+    expect(mockClient._state.catalog_items.find((i) => i.name === "Whole milk").price_cents).toBe(510);
+
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
     await page.click("#signOut");
@@ -112,6 +146,7 @@ describeWithBrowser("Store portal", () => {
     await page.reload();
     await page.locator("#signInCard").waitFor();
     expect(await page.locator("#storeCard").isHidden()).toBe(true);
+    expect(await page.locator("#catalogCard").isHidden()).toBe(true);
     await context.close();
   });
 });

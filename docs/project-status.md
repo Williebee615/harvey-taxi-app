@@ -1445,3 +1445,37 @@ The earlier §26 [Unresolved] item is resolved.
   - counsel's merchant agreement;
   - phase 2 (catalog).
 - **Next authorized action:** none pending.
+
+## 35. Update 2026-10-17 (UTC): #273 merged; merchant portal phase 2, store catalog (PR `claude/merchant-catalog-phase2`, not merged)
+
+**[Owner decision 2026-10-17]** "Approved to merge #273". **[Verified 2026-10-17]** All six CI checks were green on head `44e8ed1`; merged as `03bae5c` (documentation only).
+
+**[Owner decision 2026-10-17]** "Start phase 2 catalog". Scope: items, prices, availability, substitution flags and CSV import; excluded items held for staff review, never rejected automatically; photos deferred; one PR; the migration needs separate approval.
+
+**Changes (not merged, not deployed):** details are in `docs/merchant-portal-plan.md` §4d.
+- **Migration `20261017030000_catalog_items.sql` (not applied; needs separate owner approval):** `catalog_items`. One live item per name per store (ignoring case). A hidden item must record who hid it, when, and a reason of at least 10 characters. RLS on, no client access.
+- **`lib/catalog.js`:** item validation, price parsing, excluded-category screening (8 categories, whole words), and the CSV parser.
+- **Server:**
+  - store routes: `GET /api/merchant/catalog`, `POST|PATCH|DELETE /api/merchant/catalog/items`, `POST /api/merchant/catalog/import` (with a preview mode);
+  - admin routes: `GET /api/admin/catalog/held`, `POST /api/admin/catalog/items/:id/review` (allow, or keep hidden with a reason).
+
+  Every write is audited.
+- **Store portal:** a Catalog card (add, edit, remove, CSV preview and import).
+- **Admin dashboard:** "Catalog Items Held for Review".
+
+**[Verified 2026-10-17, local]**
+- New tests:
+  - `lib/catalog.test.js` (37);
+  - `test/server.merchant-catalog.test.js` (9): held vs listed, duplicate names, other stores' items, a hidden item can't be edited back, CSV preview and import, re-import by name;
+  - `test/db/catalogItems.db.test.js` (6, real Postgres);
+  - the browser tests for the store portal and the admin dashboard now cover the catalog (Chromium).
+- Full suite: 2,691 passed (217 skipped: database and environment-gated suites). Database suite: 164 passed, 4 skipped.
+
+**[Unresolved]**
+- Customers can't see the catalog yet; that comes with ordering (phase 3).
+- Item tax categories wait on the accountant's sales-tax guidance.
+
+**Handoff:**
+- **Done:** #273 merged; phase 2 built and tested locally.
+- **Remaining:** merge approval for the phase 2 PR; separate approval to apply its migration; then the first pilot store's catalog.
+- **Next authorized action:** none. Merging and applying the migration each need the owner's approval.

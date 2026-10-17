@@ -20896,6 +20896,191 @@ app.post(
 );
 
 /* =========================================================
+   MERCHANT PORTAL, PHASE 2: STORE CATALOG
+   Owner decision 2026-10-17 ("Start phase 2 catalog"). A signed-in store
+   manages its own items (lib/catalog.js): add, edit, remove, CSV import.
+   Items whose text suggests an excluded category (merchant term 3) are
+   held for staff review, never rejected automatically; staff allow them
+   or keep them hidden with a reason (docs/agent-action-rules.md, rule 7).
+   An item staff kept hidden can be removed but not edited back. No
+   ordering yet (phase 3); no photos yet.
+========================================================= */
+const catalogRules = require("./lib/catalog");
+const CATALOG_FIELDS = "id, merchant_id, name, section, description, price_cents, available, substitutable, review_status, review_flags, review_reason, sort_order, updated_at";
+const TEXT_FIELDS = ["name", "section", "description"];
+
+function catalogItemView(i) {
+  return { ...i, review_flag_labels: (i.review_flags || []).map((f) => catalogRules.LABELS[f] || f) };
+}
+async function loadStoreItem(req, id) {
+  const { data } = await supabase.from("catalog_items").select(CATALOG_FIELDS).eq("id", cleanString(id, 64)).eq("merchant_id", req.merchant.id).is("archived_at", null).maybeSingle();
+  return data || null;
+}
+// The database enforces this too (catalog_items_store_name_idx); checking
+// first gives the store a clear message.
+async function itemNameTaken(merchantId, name, exceptId = null) {
+  const { data } = await supabase.from("catalog_items").select("id, name").eq("merchant_id", merchantId).is("archived_at", null);
+  return (data || []).some((i) => i.id !== exceptId && String(i.name).toLowerCase() === name.toLowerCase());
+}
+async function liveItemCount(merchantId) {
+  const { data } = await supabase.from("catalog_items").select("id").eq("merchant_id", merchantId).is("archived_at", null);
+  return (data || []).length;
+}
+
+app.get(
+  "/api/merchant/catalog",
+  requireMerchant,
+  asyncRoute(async (req, res) => {
+    const { data, error } = await supabase.from("catalog_items").select(CATALOG_FIELDS).eq("merchant_id", req.merchant.id).is("archived_at", null).order("name", { ascending: true }).limit(catalogRules.MAX_ITEMS_PER_STORE);
+    if (error) return fail(res, error.code === "42P01" ? "The catalog isn't set up yet." : "The catalog could not be loaded.", error.code === "42P01" ? 503 : 502);
+    return ok(res, { items: (data || []).map(catalogItemView), limits: { max_items: catalogRules.MAX_ITEMS_PER_STORE, max_import_rows: catalogRules.MAX_IMPORT_ROWS } });
+  })
+);
+
+app.post(
+  "/api/merchant/catalog/items",
+  requireMerchant,
+  asyncRoute(async (req, res) => {
+    const checked = catalogRules.validateItem(req.body || {});
+    if (!checked.ok) return fail(res, checked.error, 400);
+    if ((await liveItemCount(req.merchant.id)) >= catalogRules.MAX_ITEMS_PER_STORE) return fail(res, `A store can list up to ${catalogRules.MAX_ITEMS_PER_STORE} items.`, 409);
+    if (await itemNameTaken(req.merchant.id, checked.value.name)) return fail(res, "An item with that name is already in your catalog.", 409);
+    const review = catalogRules.reviewStateFor(catalogRules.screenItem(checked.value));
+    const { data, error } = await supabase
+      .from("catalog_items")
+      .insert({ id: crypto.randomUUID(), merchant_id: req.merchant.id, ...checked.value, ...review, created_by: req.merchantUser.id, updated_by: req.merchantUser.id })
+      .select(CATALOG_FIELDS)
+      .single();
+    if (error) {
+      if (error.code === "23505") return fail(res, "An item with that name is already in your catalog.", 409);
+      return fail(res, "The item could not be saved.", 502);
+    }
+    auditLog({ actor_type: "merchant_user", actor_id: req.merchantUser.id, action: "catalog_item_created", entity_type: "catalog_item", entity_id: data.id, metadata: { merchant_id: req.merchant.id, review_status: data.review_status }, req }).catch(() => {});
+    return ok(res, { item: catalogItemView(data) }, 201);
+  })
+);
+
+app.patch(
+  "/api/merchant/catalog/items/:id",
+  requireMerchant,
+  asyncRoute(async (req, res) => {
+    const item = await loadStoreItem(req, req.params.id);
+    if (!item) return fail(res, "Item not found.", 404);
+    if (item.review_status === "blocked") return fail(res, "Harvey Taxi kept this item hidden. You can remove it, or contact Harvey Taxi.", 409);
+    const checked = catalogRules.validateItem(req.body || {}, { partial: true });
+    if (!checked.ok) return fail(res, checked.error, 400);
+    if (checked.value.name && (await itemNameTaken(req.merchant.id, checked.value.name, item.id))) return fail(res, "An item with that name is already in your catalog.", 409);
+    const patch = { ...checked.value, updated_by: req.merchantUser.id, updated_at: nowIso() };
+    // Changed text is screened again; a staff decision on the old text no longer applies.
+    if (TEXT_FIELDS.some((k) => k in checked.value && checked.value[k] !== item[k])) {
+      Object.assign(patch, catalogRules.reviewStateFor(catalogRules.screenItem({ ...item, ...checked.value })), { reviewed_by: null, reviewed_at: null, review_reason: null });
+    }
+    const { data, error } = await supabase.from("catalog_items").update(patch).eq("id", item.id).eq("merchant_id", req.merchant.id).neq("review_status", "blocked").select(CATALOG_FIELDS).maybeSingle();
+    if (error) return fail(res, error.code === "23505" ? "An item with that name is already in your catalog." : "The item could not be saved.", error.code === "23505" ? 409 : 502);
+    if (!data) return fail(res, "This item changed. Reload and try again.", 409);
+    auditLog({ actor_type: "merchant_user", actor_id: req.merchantUser.id, action: "catalog_item_updated", entity_type: "catalog_item", entity_id: item.id, metadata: { merchant_id: req.merchant.id, fields: Object.keys(checked.value), review_status: data.review_status }, req }).catch(() => {});
+    return ok(res, { item: catalogItemView(data) });
+  })
+);
+
+app.delete(
+  "/api/merchant/catalog/items/:id",
+  requireMerchant,
+  asyncRoute(async (req, res) => {
+    const item = await loadStoreItem(req, req.params.id);
+    if (!item) return fail(res, "Item not found.", 404);
+    const { error } = await supabase.from("catalog_items").update({ archived_at: nowIso(), updated_by: req.merchantUser.id, updated_at: nowIso() }).eq("id", item.id).eq("merchant_id", req.merchant.id);
+    if (error) return fail(res, "The item could not be removed.", 502);
+    auditLog({ actor_type: "merchant_user", actor_id: req.merchantUser.id, action: "catalog_item_removed", entity_type: "catalog_item", entity_id: item.id, metadata: { merchant_id: req.merchant.id }, req }).catch(() => {});
+    return ok(res, { removed: true });
+  })
+);
+
+// CSV import. dry_run: true returns what would happen; otherwise new names
+// are added and existing names updated (matched case-insensitively).
+app.post(
+  "/api/merchant/catalog/import",
+  requireMerchant,
+  rateLimit({ windowMs: 60 * 60_000, max: 30, keyPrefix: "merchant_catalog_import", keyFn: (req) => `m:${req.merchant && req.merchant.id}` }),
+  asyncRoute(async (req, res) => {
+    const parsed = catalogRules.parseCatalogCsv(req.body && req.body.csv);
+    if (!parsed.ok) return fail(res, parsed.error, 400);
+    const { data: existing, error: readError } = await supabase.from("catalog_items").select(CATALOG_FIELDS).eq("merchant_id", req.merchant.id).is("archived_at", null).limit(catalogRules.MAX_ITEMS_PER_STORE);
+    if (readError) return fail(res, "The catalog could not be loaded.", 502);
+    const byName = new Map((existing || []).map((i) => [i.name.toLowerCase(), i]));
+    const creates = [];
+    const updates = [];
+    const skipped = [];
+    for (const { line, value } of parsed.items) {
+      const current = byName.get(value.name.toLowerCase());
+      const review = catalogRules.reviewStateFor(catalogRules.screenItem({ ...(current || {}), ...value }));
+      if (!current) creates.push({ line, value, review });
+      else if (current.review_status === "blocked") skipped.push({ line, error: `"${current.name}" is hidden by Harvey Taxi and wasn't changed.` });
+      else updates.push({ line, value, review, current });
+    }
+    if ((existing || []).length + creates.length > catalogRules.MAX_ITEMS_PER_STORE) return fail(res, `A store can list up to ${catalogRules.MAX_ITEMS_PER_STORE} items.`, 409);
+    const held = [...creates, ...updates].filter((r) => r.review.review_status === "held").map((r) => r.value.name);
+    const summary = { create: creates.length, update: updates.length, held, errors: [...parsed.errors, ...skipped] };
+    if (req.body.dry_run === true) return ok(res, { dry_run: true, ...summary });
+
+    const now = nowIso();
+    if (creates.length) {
+      const rows = creates.map((r) => ({ id: crypto.randomUUID(), merchant_id: req.merchant.id, ...r.value, ...r.review, created_by: req.merchantUser.id, updated_by: req.merchantUser.id }));
+      const { error } = await supabase.from("catalog_items").insert(rows);
+      if (error) return fail(res, "The import could not be saved. Nothing was added.", 502);
+    }
+    let updated = 0;
+    for (const r of updates) {
+      // Matched by name, so the item keeps the name it has ("WHOLE MILK" in
+      // a file updates "Whole milk" without renaming it).
+      r.value = { ...r.value, name: r.current.name };
+      const textChanged = TEXT_FIELDS.some((k) => k in r.value && r.value[k] !== r.current[k]);
+      const patch = { ...r.value, updated_by: req.merchantUser.id, updated_at: now, ...(textChanged ? { ...r.review, reviewed_by: null, reviewed_at: null, review_reason: null } : {}) };
+      const { data } = await supabase.from("catalog_items").update(patch).eq("id", r.current.id).eq("merchant_id", req.merchant.id).neq("review_status", "blocked").select("id").maybeSingle();
+      if (data) updated += 1;
+      else summary.errors.push({ line: r.line, error: `"${r.current.name}" changed during the import and wasn't updated.` });
+    }
+    auditLog({ actor_type: "merchant_user", actor_id: req.merchantUser.id, action: "catalog_imported", entity_type: "merchant", entity_id: req.merchant.id, metadata: { created: creates.length, updated, held: held.length, errors: summary.errors.length }, req }).catch(() => {});
+    return ok(res, { dry_run: false, ...summary, update: updated });
+  })
+);
+
+// Staff review of held items.
+app.get(
+  "/api/admin/catalog/held",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const { data, error } = await supabase.from("catalog_items").select(CATALOG_FIELDS).eq("review_status", "held").is("archived_at", null).order("updated_at", { ascending: true }).limit(200);
+    if (error) return error.code === "42P01" ? ok(res, { items: [], not_set_up: true }) : fail(res, "Held items could not be loaded.", 502);
+    const ids = [...new Set((data || []).map((i) => i.merchant_id))];
+    const names = {};
+    if (ids.length) {
+      const { data: stores } = await supabase.from("merchants").select("id, business_name").in("id", ids);
+      for (const s of stores || []) names[s.id] = s.business_name;
+    }
+    return ok(res, { items: (data || []).map((i) => ({ ...catalogItemView(i), store_name: names[i.merchant_id] || null })) });
+  })
+);
+
+app.post(
+  "/api/admin/catalog/items/:id/review",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const id = cleanString(req.params.id, 64);
+    const decision = cleanString(req.body && req.body.decision, 10);
+    const reason = cleanString(req.body && req.body.reason, 500);
+    if (!["allow", "block"].includes(decision)) return fail(res, "Decision must be allow or block.", 400);
+    if (decision === "block" && reason.length < 10) return fail(res, "Give a reason of at least 10 characters.", 400);
+    const patch = { review_status: decision === "allow" ? "listed" : "blocked", reviewed_by: req.admin.email || req.admin.id, reviewed_at: nowIso(), review_reason: reason || null };
+    const { data, error } = await supabase.from("catalog_items").update(patch).eq("id", id).eq("review_status", "held").is("archived_at", null).select("id, merchant_id, review_status").maybeSingle();
+    if (error) return fail(res, "The review could not be saved.", 502);
+    if (!data) return fail(res, "This item isn't waiting for review any more. Reload and try again.", 409);
+    auditLog({ actor_type: "admin", actor_id: req.admin.email, action: `catalog_item_${decision === "allow" ? "allowed" : "blocked"}`, entity_type: "catalog_item", entity_id: id, metadata: { merchant_id: data.merchant_id, reason: reason || null }, req }).catch(() => {});
+    return ok(res, { item: data });
+  })
+);
+
+/* =========================================================
 
    ADMIN MANUAL CONTACT-VERIFICATION OVERRIDE (DRIVER)
 

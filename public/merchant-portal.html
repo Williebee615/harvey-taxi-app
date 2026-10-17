@@ -38,6 +38,7 @@
     td input[type=checkbox] { width: auto; }
     [hidden] { display: none !important; }
     @media (max-width: 520px) { th.hide-sm { display: none; } td { display: block; border: 0; padding: 4px 0; } tr { display: block; border-bottom: 1px solid var(--line); padding: 8px 0; } }
+    code { background: rgba(255,255,255,.06); padding: 1px 5px; border-radius: 6px; }
     .hts-logo-mark { overflow: hidden; padding: 0 !important; background: #0b1a3a !important; display: block !important; flex: 0 0 auto; position: relative; }
     .hts-logo-mark > img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: inherit; }
   </style>
@@ -81,6 +82,31 @@
         <button type="submit" id="saveHours">Save hours</button>
         <div class="status" id="hoursStatus" role="status" aria-live="polite"></div>
       </form>
+    </section>
+
+    <section class="card" id="catalogCard" hidden>
+      <h2>Your items</h2>
+      <p>Prices are what customers will pay through Harvey Taxi. Items that might be on the <a href="/merchant-apply.html">excluded list</a> wait for a Harvey Taxi review before customers can see them.</p>
+      <form id="addItemForm" novalidate>
+        <label>Item name<input id="itemName" maxlength="120" required /></label>
+        <label>Price ($)<input id="itemPrice" inputmode="decimal" placeholder="4.99" required /></label>
+        <label>Section (optional)<input id="itemSection" maxlength="60" placeholder="Dairy" /></label>
+        <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="itemSubstitutable" style="width:auto" /> Can be substituted if out of stock</label>
+        <button type="submit" id="addItem">Add item</button>
+        <div class="status" id="itemStatus" role="status" aria-live="polite"></div>
+      </form>
+      <table>
+        <thead><tr><th>Item</th><th class="hide-sm">Price</th><th class="hide-sm">In stock</th><th class="hide-sm">Substitute OK</th><th class="hide-sm"></th></tr></thead>
+        <tbody id="itemRows"></tbody>
+      </table>
+      <p id="itemsEmpty">No items yet.</p>
+
+      <h2 style="margin-top:18px">Import from a spreadsheet</h2>
+      <p>Save your sheet as CSV with a header row. Required columns: <code>name</code>, <code>price</code>. Optional: <code>section</code>, <code>description</code>, <code>available</code> (yes/no), <code>substitutable</code> (yes/no). Items with the same name are updated. Up to 500 rows.</p>
+      <label>CSV file<input type="file" id="csvFile" accept=".csv,text/csv" /></label>
+      <button type="button" id="previewImport">Preview</button>
+      <button type="button" id="runImport" hidden>Import</button>
+      <div class="status" id="importStatus" role="status" aria-live="polite"></div>
     </section>
   </div>
 
@@ -127,10 +153,59 @@
         });
       }
 
+      const money = (c) => "$" + (c / 100).toFixed(2);
+      function statusText(i) {
+        if (i.review_status === "held") return "Waiting for Harvey Taxi review (" + i.review_flag_labels.join(", ") + ")";
+        if (i.review_status === "blocked") return "Hidden by Harvey Taxi" + (i.review_reason ? ": " + i.review_reason : "");
+        return "";
+      }
+      function renderItems(items) {
+        $("itemRows").innerHTML = "";
+        $("itemsEmpty").hidden = items.length > 0;
+        items.forEach(function (i) {
+          const tr = document.createElement("tr");
+          tr.dataset.id = i.id;
+          tr.innerHTML =
+            '<td><strong class="n"></strong><div class="s" style="font-size:13px;color:var(--muted)"></div><div class="r" style="font-size:13px;color:var(--gold)"></div></td>' +
+            '<td><input class="p" inputmode="decimal" style="max-width:110px" aria-label="" /></td>' +
+            '<td><input type="checkbox" class="a" style="width:auto" aria-label="" /></td>' +
+            '<td><input type="checkbox" class="sub" style="width:auto" aria-label="" /></td>' +
+            '<td><button type="button" class="save secondary">Save</button> <button type="button" class="del secondary">Remove</button></td>';
+          tr.querySelector(".n").textContent = i.name;
+          tr.querySelector(".s").textContent = i.section || "";
+          tr.querySelector(".r").textContent = statusText(i);
+          tr.querySelector(".p").value = (i.price_cents / 100).toFixed(2);
+          tr.querySelector(".p").setAttribute("aria-label", i.name + " price");
+          tr.querySelector(".a").checked = i.available;
+          tr.querySelector(".a").setAttribute("aria-label", i.name + " in stock");
+          tr.querySelector(".sub").checked = i.substitutable;
+          tr.querySelector(".sub").setAttribute("aria-label", i.name + " can be substituted");
+          if (i.review_status === "blocked") { tr.querySelector(".save").disabled = true; tr.querySelectorAll("input").forEach(function (x) { x.disabled = true; }); }
+          tr.querySelector(".save").addEventListener("click", async function () {
+            const r = await call("/api/merchant/catalog/items/" + encodeURIComponent(i.id), { method: "PATCH", body: { price: tr.querySelector(".p").value, available: tr.querySelector(".a").checked, substitutable: tr.querySelector(".sub").checked } });
+            show($("itemStatus"), r.ok ? i.name + " saved." : (r.data.error || "Could not save."), r.ok ? "success" : "error");
+            if (r.ok) loadCatalog();
+          });
+          tr.querySelector(".del").addEventListener("click", async function () {
+            if (!window.confirm("Remove " + i.name + " from your catalog?")) return;
+            const r = await call("/api/merchant/catalog/items/" + encodeURIComponent(i.id), { method: "DELETE" });
+            show($("itemStatus"), r.ok ? i.name + " removed." : (r.data.error || "Could not remove."), r.ok ? "success" : "error");
+            loadCatalog();
+          });
+          $("itemRows").appendChild(tr);
+        });
+      }
+      async function loadCatalog() {
+        const r = await call("/api/merchant/catalog");
+        if (!r.ok) { $("catalogCard").hidden = true; return; }
+        $("catalogCard").hidden = false;
+        renderItems(r.data.items || []);
+      }
+
       async function loadStore() {
         const r = await call("/api/merchant/me");
         if (!r.ok) {
-          $("storeCard").hidden = true; $("signOut").hidden = true; $("signInCard").hidden = false;
+          $("storeCard").hidden = true; $("catalogCard").hidden = true; $("signOut").hidden = true; $("signInCard").hidden = false;
           if (r.status === 403 || r.status === 503) show($("signInStatus"), r.data.error || "Store sign-in isn't available right now.", "error");
           return;
         }
@@ -139,6 +214,7 @@
         $("storeAddress").textContent = [s.address_line, s.city, s.postal_code].filter(Boolean).join(", ");
         renderHours(r.data.hours);
         $("signInCard").hidden = true; $("storeCard").hidden = false; $("signOut").hidden = false;
+        loadCatalog();
       }
 
       $("phoneForm").addEventListener("submit", async function (e) {
@@ -178,9 +254,38 @@
         show($("hoursStatus"), r.ok ? "Hours saved." : (r.data.error || "Hours could not be saved."), r.ok ? "success" : "error");
       });
 
+      $("addItemForm").addEventListener("submit", async function (e) {
+        e.preventDefault();
+        $("addItem").disabled = true;
+        const r = await call("/api/merchant/catalog/items", { method: "POST", body: { name: $("itemName").value, price: $("itemPrice").value, section: $("itemSection").value, substitutable: $("itemSubstitutable").checked } });
+        $("addItem").disabled = false;
+        if (!r.ok) { show($("itemStatus"), r.data.error || "Could not add the item.", "error"); return; }
+        show($("itemStatus"), r.data.item.review_status === "held" ? r.data.item.name + " added. It will be visible after a Harvey Taxi review." : r.data.item.name + " added.", "success");
+        $("addItemForm").reset();
+        loadCatalog();
+      });
+
+      let csvText = "";
+      async function runImport(dryRun) {
+        const f = $("csvFile").files && $("csvFile").files[0];
+        if (!f) { show($("importStatus"), "Choose a CSV file first.", "error"); return; }
+        csvText = await f.text();
+        const r = await call("/api/merchant/catalog/import", { method: "POST", body: { csv: csvText, dry_run: dryRun } });
+        if (!r.ok) { show($("importStatus"), r.data.error || "Import failed.", "error"); $("runImport").hidden = true; return; }
+        const d = r.data;
+        const parts = [(dryRun ? "Will add " : "Added ") + d.create + ", " + (dryRun ? "update " : "updated ") + d.update + "."];
+        if (d.held.length) parts.push(d.held.length + " will wait for review: " + d.held.slice(0, 5).join(", ") + (d.held.length > 5 ? "…" : "") + ".");
+        if (d.errors.length) parts.push(d.errors.length + " line(s) skipped, e.g. line " + d.errors[0].line + ": " + d.errors[0].error);
+        show($("importStatus"), parts.join(" "), d.errors.length ? "error" : "success");
+        $("runImport").hidden = !dryRun || (d.create + d.update === 0);
+        if (!dryRun) loadCatalog();
+      }
+      $("previewImport").addEventListener("click", function () { runImport(true); });
+      $("runImport").addEventListener("click", function () { runImport(false); });
+
       $("signOut").addEventListener("click", async function () {
         await call("/api/merchant/session/logout", { method: "POST" });
-        $("storeCard").hidden = true; $("signOut").hidden = true; $("signInCard").hidden = false;
+        $("storeCard").hidden = true; $("catalogCard").hidden = true; $("signOut").hidden = true; $("signInCard").hidden = false;
         $("codeForm").hidden = true; $("phoneForm").hidden = false;
         show($("signInStatus"), "Signed out.");
       });
