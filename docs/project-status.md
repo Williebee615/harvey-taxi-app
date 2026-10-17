@@ -1015,7 +1015,7 @@ The owner set these; the values were read from the calibration page.
 - **Done:** delivery paused and verified live.
 - **Next:** see §26.
 
-## 26. Update 2026-10-17 (UTC): merchant terms locked; merchant portal phase 1a (PR `claude/merchant-portal-phase1`, not merged)
+## 26. Update 2026-10-17 (UTC): merchant terms locked; merchant portal phase 1a (#261, merged as `1d5321b`)
 
 **[Owner decision 2026-10-17]** "Approve the recommended versions" of the six merchant terms. Recorded in `docs/merchant-portal-plan.md` §4:
 1. Commission 12% of the item subtotal, on completed orders only; card fees come out of Harvey Taxi's 12%.
@@ -1044,4 +1044,38 @@ Both terms are recorded in plan §4 (items 7–8) and shown on the application p
 **Handoff:**
 - **Done:** terms recorded; phase 1a built and tested locally.
 - **Remaining:** merge; apply the migration; phase 1b (merchant sign-in) onward. Payout schedule and fee terms go into Stripe Connect (phase 5) and into the merchant agreement (counsel).
-- **Next authorized action:** none yet. Merge needs the owner's approval, and applying the `merchants` migration needs **separate** approval.
+- **Next authorized action:** none. Applying the `merchants` migration needs the owner's **separate** approval.
+
+**[Owner decision 2026-10-17]** "Approved to merge #261". Merged as `1d5321b`. All six CI checks were green on the merged head.
+
+**[Verified 2026-10-17 18:08 UTC, production]**
+- `/api/health` reports version `1d5321b`.
+- `/merchant-apply.html` returns 200 and shows "Delivery isn't live yet". The home page links to it.
+- `GET /api/admin/merchants` without sign-in returns 401.
+- `POST /api/merchants/apply` with an empty body returns 400 (validation). No application was submitted.
+- Food and grocery estimates are still refused (400).
+- The `public.merchants` table does **not** exist in production (read-only check), so valid applications will get 503 "not open yet" until the migration is applied.
+- **[Unresolved]** The redirect of `/merchant-apply.html` on the HTAF domain wasn't checked live, because this session can't reach that host. It is covered by local tests.
+
+**[Owner decision 2026-10-17]** Approved creating the `merchants` table in production "to enable live vendor applications".
+
+**[Verified 2026-10-17 18:11 UTC, production]** Migration `merchants` applied to `orgahzncmzptljapqffj`.
+- RLS on, 0 policies. `anon` and `authenticated` have no access; `service_role` can insert and update.
+- 19 columns. Indexes: `merchants_pkey`, `merchants_open_contact_email_idx`, `merchants_status_created_idx`.
+- A test insert inside a transaction that was then rolled back confirmed:
+  - the defaults `pending` and `TN`;
+  - a second open application with the same email (different case) is blocked;
+  - a rejection with a reason under 10 characters is blocked.
+- 0 rows afterwards. No test application was kept.
+- **Vendor applications are now open.** A valid submission on `/merchant-apply.html` is stored as `pending` for admin review. Delivery booking remains paused.
+
+**[Owner decision 2026-10-17]** The merchant agreement (counsel) will include: the 12% commission-only structure; weekly Monday payout initiation; late-Sunday adjustments applied to the next week's payout; and that Monday is the transfer date, with bank arrival depending on Stripe and the merchant's bank. The application page wording is updated to match (this PR).
+
+**Handoff (2026-10-17):**
+- **Done:** phase 1a live; table applied and verified.
+- **Remaining:**
+  - counsel drafts the merchant agreement;
+  - phase 1b (merchant sign-in, store hours);
+  - Stripe Connect (phase 5);
+  - the HTAF-domain redirect check, to be done by opening it in a browser.
+- **Next authorized action:** none. Merging this status/wording PR needs the owner's approval.
