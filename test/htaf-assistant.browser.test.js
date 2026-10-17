@@ -54,8 +54,8 @@ describeWithBrowser("HTAF Assistant widget (390px)", () => {
     }
   });
 
-  async function open(pathname) {
-    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  async function open(pathname, viewport = { width: 390, height: 844 }) {
+    const context = await browser.newContext({ viewport, isMobile: true, hasTouch: true });
     const page = await context.newPage();
     page.errors = [];
     page.on("pageerror", (e) => page.errors.push(e.message));
@@ -108,5 +108,58 @@ describeWithBrowser("HTAF Assistant widget (390px)", () => {
     await askAndWait(page, '<img src=x onerror="window.__pwned=1"> what is this');
     expect(await page.evaluate(() => window.__pwned)).toBeUndefined();
     expect(await page.locator("#htafAssistPanel img").count()).toBe(0);
+  });
+
+  // The floating button must never sit on top of the 501(c)(3) status
+  // lines (owner report 2026-10-17: it covered the home page badge on a
+  // phone). Checked at the top, mid-page and the bottom of each page.
+  const coverage = (page) =>
+    page.evaluate(() => {
+      const btn = document.querySelector('[data-testid="htaf-assist-open"]');
+      const b = btn.getBoundingClientRect();
+      // Stepping aside is a short fade, so read the state the page has
+      // chosen rather than sampling the fade mid-way.
+      const visible = !btn.classList.contains("htaf-assist-yield");
+      const covered = [...document.querySelectorAll("[data-htaf-keep-clear]")].filter((e) => {
+        const r = e.getBoundingClientRect();
+        return b.left < r.right && b.right > r.left && b.top < r.bottom && b.bottom > r.top;
+      }).length;
+      return { visible, covered };
+    });
+
+  test.each([
+    ["/", 360, 740],
+    ["/", 390, 844],
+    ["/", 412, 915],
+    ["/contact.html", 360, 740],
+    ["/htaf-application.html", 360, 740]
+  ])("%s at %ipx x %ipx: 'Ask HTAF' never covers the 501(c)(3) status lines", async (pathname, width, height) => {
+    flags[0].value = "true";
+    const page = await open(pathname, { width, height });
+    expect(await page.locator("[data-htaf-keep-clear]").count()).toBeGreaterThan(0);
+    const total = await page.evaluate(() => document.documentElement.scrollHeight);
+    for (let y = 0; y <= total; y += 120) {
+      await page.evaluate((top) => window.scrollTo(0, top), y);
+      await page.waitForTimeout(60);
+      const c = await coverage(page);
+      expect({ y, coversWhileVisible: c.visible && c.covered > 0 }).toEqual({ y, coversWhileVisible: false });
+    }
+    expect(page.errors).toEqual([]);
+  });
+
+  test("360px home: the button steps aside over the badge, comes back after scrolling, and stays while the panel is open", async () => {
+    flags[0].value = "true";
+    const page = await open("/", { width: 360, height: 740 });
+    // At the top of the page the button would cover the badge (the reported case).
+    expect(await coverage(page)).toEqual({ visible: false, covered: 1 });
+    await page.waitForFunction(() => getComputedStyle(document.querySelector('[data-testid="htaf-assist-open"]')).visibility === "hidden");
+    await page.evaluate(() => window.scrollTo(0, 400));
+    await page.waitForFunction(() => getComputedStyle(document.querySelector('[data-testid="htaf-assist-open"]')).visibility === "visible" && !document.querySelector('[data-testid="htaf-assist-open"]').classList.contains("htaf-assist-yield"));
+    await page.click('[data-testid="htaf-assist-open"]');
+    expect(await page.locator("#htafAssistPanel").isVisible()).toBe(true);
+    // With the panel open the button is how you close it, so it stays.
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.waitForTimeout(100);
+    expect((await coverage(page)).visible).toBe(true);
   });
 });

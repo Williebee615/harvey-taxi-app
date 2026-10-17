@@ -31,6 +31,8 @@
       ".htaf-assist-btn{position:fixed;right:16px;bottom:calc(var(--navH,0px) + 16px + env(safe-area-inset-bottom));z-index:1000;border:1px solid rgba(110,231,249,.5);background:#0b1730;color:#e7f6ff;border-radius:999px;padding:12px 16px;font:700 15px/1.2 system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.35);cursor:pointer}" +
       ".htaf-assist-panel{position:fixed;right:16px;bottom:calc(var(--navH,0px) + 76px + env(safe-area-inset-bottom));z-index:1001;width:min(380px,calc(100vw - 32px));max-height:min(560px,calc(100vh - 160px));display:flex;flex-direction:column;background:#0b1730;color:#e7f6ff;border:1px solid rgba(110,231,249,.35);border-radius:16px;box-shadow:0 12px 32px rgba(0,0,0,.45);font:15px/1.45 system-ui,sans-serif}" +
       ".htaf-assist-panel[hidden]{display:none}" +
+      ".htaf-assist-btn.htaf-assist-yield{opacity:0;visibility:hidden;pointer-events:none}" +
+      "@media (prefers-reduced-motion:no-preference){.htaf-assist-btn{transition:opacity .15s,visibility .15s}}" +
       ".htaf-assist-head{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.08)}" +
       ".htaf-assist-head strong{font-size:16px}" +
       ".htaf-assist-close{background:none;border:0;color:#e7f6ff;font-size:22px;line-height:1;cursor:pointer;padding:4px 8px}" +
@@ -71,6 +73,41 @@
     log.scrollTop = log.scrollHeight;
   }
 
+  // The launcher floats over the page, so it steps aside while it would
+  // cover content a page marks with data-htaf-keep-clear (for example the
+  // 501(c)(3) status line, which must stay readable). It stays put while
+  // the panel is open or the launcher has keyboard focus.
+  function keepClear(button, panel) {
+    var queued = false;
+    function overlaps(a, b) {
+      return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+    }
+    function update() {
+      queued = false;
+      var b = button.getBoundingClientRect();
+      var cover = false;
+      if (panel.hidden && document.activeElement !== button) {
+        var marked = document.querySelectorAll("[data-htaf-keep-clear]");
+        for (var i = 0; i < marked.length && !cover; i += 1) cover = overlaps(b, marked[i].getBoundingClientRect());
+      }
+      button.classList.toggle("htaf-assist-yield", cover);
+    }
+    function schedule() {
+      if (queued) return;
+      queued = true;
+      window.requestAnimationFrame(update);
+    }
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    window.addEventListener("load", schedule);
+    button.addEventListener("focus", schedule);
+    button.addEventListener("blur", schedule);
+    button.addEventListener("click", schedule);
+    // Text size and language changes move the marked lines.
+    if (window.ResizeObserver) new window.ResizeObserver(schedule).observe(document.body);
+    update();
+  }
+
   function build() {
     injectStyles();
     var button = el("button", { type: "button", class: "htaf-assist-btn", "aria-expanded": "false", "aria-controls": "htafAssistPanel", "data-testid": "htaf-assist-open" }, "Ask HTAF");
@@ -108,6 +145,7 @@
     button.addEventListener("click", function () {
       toggle(panel.hidden);
     });
+    keepClear(button, panel);
     close.addEventListener("click", function () {
       toggle(false);
       button.focus();

@@ -1574,3 +1574,42 @@ The earlier §26 [Unresolved] item is resolved.
   - the accountant's advice;
   - counsel's draft.
 - **Next authorized action:** none. Merging needs the owner's approval.
+
+**[Owner decision 2026-10-17]** "Approved. Proceed to merge PR #278". **[Verified 2026-10-17]** All six CI checks were green on head `994760b`; merged as `accf704`.
+
+**[Verified 2026-10-17 21:55 UTC, production]**
+- `/api/health` reports `accf704`, healthy, database connected.
+- `/merchant-catalog-template.csv` and `/merchant-catalog-example.csv` return 200 `text/csv` with the expected header row; `robots.txt` disallows both.
+- The store portal serves the import guide; the admin dashboard serves "Import a CSV for this store".
+- `POST /api/admin/merchants/:id/catalog/import` without admin returns 401; `POST /api/merchant/catalog/import` without a store session returns 401.
+- The HTAF-domain redirect of the CSV files couldn't be checked from the build environment (its network proxy refuses `harveytransportationfoundation.com`). **[Verified 2026-10-17 by the owner's phone screenshot]** opening it on the HTAF domain landed on the HTAF home page, not a download. The address bar in the screenshot doesn't show the full path.
+
+## 38. Update 2026-10-17 (UTC): "Ask HTAF" button no longer covers the 501(c)(3) status line (PR `claude/htaf-ask-button-overlap`, not merged)
+
+**[Owner decision 2026-10-17]** "Approved. Proceed with the CSS/layout adjustment to prevent the floating Ask HTAF assistant button from overlapping the nonprofit credibility badge", with a phone-width browser test, bundled with the pending status entries.
+
+**Problem [Verified 2026-10-17]:** the owner's phone screenshot showed the floating "Ask HTAF" button covering the end of the home page badge "Tennessee-Based 501(c)(3) Public Charity". It was reproduced locally in Chromium at 360 x 740 (the button overlapped the badge at the top of the page); at 390 x 844 and 412 x 915 it did not.
+
+**Change (not merged, not deployed; no migration, no server change):**
+- `public/htaf-assist.js`: the button steps aside (a short fade) while it would cover any element marked `data-htaf-keep-clear`, and comes back once that content scrolls away. It doesn't step aside while the chat panel is open (it is the close control) or while it has keyboard focus. It rechecks on scroll, resize, load and text-size or language changes.
+- Marked as keep-clear: the home page badge and the footer status line ("501(c)(3) public charity · EIN …") on the home, contact and application pages.
+
+**[Verified 2026-10-17, local]**
+- `test/htaf-assistant.browser.test.js`: 6 new Chromium tests.
+  - Scrolling each page top to bottom in 120-pixel steps, the button never covers a status line while shown: home at 360 x 740, 390 x 844 and 412 x 915; contact and application at 360 x 740.
+  - At 360 x 740 on the home page, the button steps aside at the top, returns after scrolling, and stays while the panel is open.
+- The new tests fail against the previous script (3 of 11 failed) and pass with the fix.
+- HTAF browser suites: 25 passed. Full suite: 2,706 passed.
+
+**[Unresolved] Open owner items (unchanged since §37):**
+1. First pilot store's catalog: no application yet. The daily onboarding check (scheduled task "Merchant onboarding daily check", 08:46 America/Chicago, read-only, reports only changes; first run 2026-10-18) will report the first application.
+2. Accountant's written advice on Tennessee marketplace-facilitator rules, including refunds.
+3. Counsel's merchant agreement draft (12% commission, Monday payouts, 48-hour missing-item claim window with rollover).
+
+**Handoff:**
+- **Done:** #278 merged and verified in production; the button overlap is fixed and tested locally.
+- **Remaining:**
+  - merge approval for this PR;
+  - after merge, confirm on a phone that the badge is readable;
+  - the three open items above.
+- **Next authorized action:** none. Merging needs the owner's approval.
