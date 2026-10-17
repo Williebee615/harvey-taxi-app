@@ -1199,3 +1199,42 @@ PR #263 merged as `5ab78da`.
 **Handoff:**
 - **Next authorized action:** the owner, as admin, reads and approves the eight drafts (ids 1–8) on `/admin-knowledge.html`. Approval refreshes the assistant immediately. None has been approved by this session.
 - The owner deletes the test merchant row in the Supabase table editor and confirms the dialog.
+
+**[Verified 2026-10-17 18:59 UTC, production]** #265 merged as `849cfad`.
+- An admin approved all eight articles (ids 1–8) on `/admin-knowledge.html` between 18:57 and 18:58 UTC. None was approved by this session, and all are still version 1, so the wording is unchanged from the drafts.
+- `/api/knowledge/articles` lists all eight.
+- The assistant pilot answered "Is there a fee to cancel a ride?" by quoting `cancellation-fees`, with the source `/policies.html#cancellation-fees`.
+- **[Unresolved]** Test merchant row `02ca8c15-…` was still present at 18:59 UTC.
+
+## 29. Update 2026-10-17 (UTC): trusted client IP for rate limits (PR `claude/trusted-client-ip`, not merged)
+
+**[Owner decision 2026-10-17]** Next step 1: rate-limit hardening against IP spoofing.
+
+**[Verified 2026-10-17 ~19:02 UTC, production, before the fix]** Five empty applications to `POST /api/merchants/apply` (refused with 400, nothing stored) from one spoofed `X-Forwarded-For` value, then a sixth, returned 400 ×5 and then 429. One more with a different spoofed value returned 400, meaning a fresh allowance.
+- `getClientIp` used the first `X-Forwarded-For` entry. Render appends to that header rather than replacing it, so the first entry is whatever the client wrote.
+- Every rate limit, usage key and audit `ip_address` used this function.
+
+**Responses show `server: cloudflare` and `cf-ray`**, so traffic arrives through Render's Cloudflare edge.
+
+**Change (not merged, not deployed):** `getClientIp` in `server.js` now uses, in order:
+1. `CF-Connecting-IP`, when it is a valid IP. Cloudflare sets this header and overwrites any value a client sends.
+2. Otherwise `req.ip`, the address the nearest proxy saw (`trust proxy` 1).
+3. Otherwise the socket address.
+
+The first `X-Forwarded-For` entry is no longer used. Public `/api/health` is unchanged; it still reports up/down and the version only.
+
+**Test:** `test/server.client-ip.test.js` (3) checks that:
+- a client-written `X-Forwarded-For` entry doesn't reset the limit;
+- `CF-Connecting-IP` decides the caller whatever `X-Forwarded-For` says, and a different caller keeps its own allowance;
+- a malformed edge header is ignored.
+
+**[Verified 2026-10-17, local]** Full suite: 2,570 passed.
+
+**[Unresolved]** Whether Render forwards `CF-Connecting-IP` to the app is an inference from a community report and Cloudflare's normal behaviour; Render's docs don't state it.
+
+**After deploy, verify:**
+- Repeat the production test with a changed `X-Forwarded-For` and with a spoofed `CF-Connecting-IP`. Both must not reset the limit.
+- Check that new audit `ip_address` values differ between callers. If every caller had the same address, everyone would share one rate-limit bucket.
+
+**Handoff:**
+- **Next authorized action:** none. Merging needs the owner's approval.
