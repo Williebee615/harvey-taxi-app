@@ -1102,7 +1102,7 @@ Both terms are recorded in plan §4 (items 7–8) and shown on the application p
 - A read-only check confirmed the row is still present, with status `pending`, and is the only row in `merchants`.
 - It appears in the admin dashboard's merchant list until it is removed.
 - The owner can delete that one row in the Supabase table editor, or approve the connector's confirmation prompt.
-- **[Verified 2026-10-17 18:33 UTC, production]** The owner reported deleting the row in Supabase. A read-only check afterwards still found it in `orgahzncmzptljapqffj` `public.merchants` (1 row, this ID). **[Unresolved]** The deletion may not have been saved, or may have been made in another project.
+- **[Verified 2026-10-17 18:30 and 18:51 UTC, production]** The owner reported deleting the row in Supabase. Read-only checks afterwards still found it in `orgahzncmzptljapqffj` `public.merchants` (1 row, this ID). **[Unresolved]** The deletion may not have been saved, or may have been made in another project.
 
 ## 27. Update 2026-10-17 (UTC): assistant knowledge sources (#264, merged as `9f4abb7`)
 
@@ -1143,3 +1143,40 @@ Both terms are recorded in plan §4 (items 7–8) and shown on the application p
 
 **Handoff:**
 - **Next:** check that the pilot answers a merchant question with the `/merchant-apply.html` source once `9f4abb7` is live.
+
+## 28. Update 2026-10-17 (UTC): policy articles from the owner's facts (option B)
+
+**[Owner decision 2026-10-17]** The owner supplied policy facts and asked for draft articles for admin review.
+
+**[Verified 2026-10-17, code]** Each fact was checked against the app before drafting.
+- **Cancellation fee:** the database enforces `rides.cancellation_fee_cents = 0`, and riders are shown $0.00.
+- **Fares:** base fare, per mile, per minute and booking fee, with a minimum fare. There is no peak, airport, toll or wait-time charge.
+- **Wheelchair-accessible vehicles:** no dispatch option exists.
+- **Pet-friendly tiers:** none exist.
+- **Account deletion:** a request that staff review, not instant.
+- **Lost items:** reported through Support in the app and linked to the latest trip in the last 14 days.
+
+**Created in production as drafts (ids 1–5):**
+- `service-area`;
+- `lost-and-found`;
+- `service-animals-pets-car-seats`;
+- `driver-requirements`;
+- `rider-age-account-deletion`.
+
+All have status `draft` and version 1, and each has a `knowledge.article_created` audit entry with actor `claude-code-session`. Drafts aren't public or quoted until an admin approves them on `/admin-knowledge.html`.
+
+**Wording changed from the owner's facts, to match the app:**
+- Account deletion: "submit a deletion request" instead of "instantly".
+- Pets: no "pet-friendly tiers".
+- Lost items: no "ride history details" route.
+- Insurance: "meets Tennessee's requirements for transportation network company (rideshare) drivers" instead of "commercial or personal". **[Recommendation]** Counsel to confirm.
+
+**[Unresolved] Not drafted, because they conflict with live behaviour (owner decision needed):**
+- **Pricing surcharges** (peak, airport, tolls, wait time after 5 minutes): not charged by the app. Airport wording also falls under the standing rule against airport claims.
+- **Cancellation fee** after the driver is en route: the app charges $0.
+- **Wheelchair-accessible vehicles** via specialized dispatch: not built.
+- **HTAF eligibility** "within Davidson County": HTAF's published pages say "eligible Tennessee residents". The other HTAF facts (no guarantee, privacy, 501(c)(3) status, EIN 41-5115030) are already published and answered.
+
+**Handoff:**
+- **Next authorized action:** an admin reviews and approves the five drafts.
+- The owner decides each of the four held items: either describe current behaviour, or build it first.
