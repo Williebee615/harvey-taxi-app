@@ -300,6 +300,11 @@
         <div class="list" id="merchantsList"><div class="empty">Loading merchant applications...</div></div>
       </section>
 
+      <section class="card" id="heldItemsCard">
+        <div class="card-head"><div><div class="title">Catalog Items Held for Review</div><div class="sub">Store items that may be on the excluded list. Allow them, or keep them hidden with a reason.</div></div><span class="item-sub" id="heldItemsCount">0</span></div>
+        <div class="list" id="heldItemsList"><div class="empty">Loading held items...</div></div>
+      </section>
+
       <section class="card">
         <div class="card-head"><div><div class="title">Financial Overview</div><div class="sub">Revenue and driver payout readiness.</div></div></div>
         <div class="list" id="financialList"><div class="empty">No financial data loaded.</div></div>
@@ -419,6 +424,45 @@ async function loadMerchants(){
       <div class="actions">${(MERCHANT_ACTIONS[m.status] || []).map(d => `<button class="${d === "approve" ? "success" : "danger"}" type="button" data-merchant-id="${esc(m.id)}" data-merchant-decision="${d}">${d[0].toUpperCase() + d.slice(1)}</button>`).join("")}</div>
     </div>`).join("") : `<div class="empty">No merchant applications yet.</div>`;
 }
+// Catalog items held for review (merchant portal phase 2, term 3). Staff
+// decide; nothing is rejected automatically. Each decision is audited.
+async function loadHeldItems(){
+  const list = document.getElementById("heldItemsList");
+  let data;
+  try { data = await api("/api/admin/catalog/held"); }
+  catch (e) { list.innerHTML = `<div class="empty">Held items could not be loaded: ${esc(e.message)}</div>`; return; }
+  const items = data.items || [];
+  document.getElementById("heldItemsCount").textContent = items.length;
+  if (data.not_set_up) { list.innerHTML = `<div class="empty">The catalog isn't set up yet (database migration not applied).</div>`; return; }
+  list.innerHTML = items.length ? items.map(i => `
+    <div class="item">
+      <div class="item-top">
+        <div><div class="item-title">${esc(i.name)}</div><div class="item-sub">${esc(i.store_name || "")} • $${(i.price_cents / 100).toFixed(2)}${i.section ? " • " + esc(i.section) : ""}</div></div>
+        <span class="badge warn">held</span>
+      </div>
+      ${i.description ? `<div class="item-sub">${esc(i.description)}</div>` : ""}
+      <div class="item-sub">Possible: ${esc((i.review_flag_labels || []).join(", "))}</div>
+      <div class="actions"><button class="success" type="button" data-held-item="${esc(i.id)}" data-held-decision="allow">Allow</button><button class="danger" type="button" data-held-item="${esc(i.id)}" data-held-decision="block">Keep hidden</button></div>
+    </div>`).join("") : `<div class="empty">No items waiting for review.</div>`;
+}
+document.getElementById("heldItemsList").addEventListener("click", async (event) => {
+  const btn = event.target.closest("button[data-held-decision]");
+  if (!btn) return;
+  const decision = btn.dataset.heldDecision;
+  let reason = "";
+  if (decision === "block") {
+    reason = (window.prompt("Reason to keep this item hidden (at least 10 characters; the store sees it):") || "").trim();
+    if (reason.length < 10) { showError("A reason of at least 10 characters is required."); return; }
+  }
+  btn.disabled = true;
+  try {
+    await api(`/api/admin/catalog/items/${encodeURIComponent(btn.dataset.heldItem)}/review`, { method: "POST", body: JSON.stringify({ decision, reason }) });
+    showResult(decision === "allow" ? "Item allowed." : "Item kept hidden.");
+  } catch (e) {
+    showError(e.message);
+  }
+  loadHeldItems();
+});
 // Store sign-in access (merchant portal phase 1b). Giving access lets that
 // phone sign in to /merchant-portal.html with a texted code; removing it
 // also ends that person's sessions. Both are audited.
@@ -647,6 +691,7 @@ async function loadDashboard(){
     refreshSystemStatus();
     loadDeletionRequests();
     loadMerchants();
+    loadHeldItems();
   }catch(err){
     showError(err.message);
   }

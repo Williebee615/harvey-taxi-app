@@ -47,6 +47,11 @@ describeWithBrowser("Admin dashboard: merchant applications", () => {
         { id: "M-SYN-1", business_name: "TEST Synthetic Diner", category: "restaurant", address_line: "100 Test Ave", city: "Nashville", postal_code: "37203", contact_name: "Test Owner", contact_email: "diner@example.test", contact_phone: "+16155550100", website: null, prices_differ_from_store: false, status: "pending", created_at: "2026-10-17T00:00:00Z" },
         { id: "M-SYN-2", business_name: "TEST Synthetic Market", category: "grocery", address_line: "200 Test Ave", city: "Nashville", postal_code: "37203", contact_name: "Test Grocer", contact_email: "market@mailinator.com", contact_phone: "+16155550101", website: null, prices_differ_from_store: true, status: "pending", created_at: "2026-10-16T00:00:00Z" }
       ],
+      catalog_items: [
+        { id: "I-SYN-1", merchant_id: "M-SYN-1", name: "Rum cake", section: "Bakery", price_cents: 1499, available: true, substitutable: false, review_status: "held", review_flags: ["alcohol"], archived_at: null, updated_at: "2026-10-17T01:00:00Z" },
+        { id: "I-SYN-2", merchant_id: "M-SYN-1", name: "Vodka", section: null, price_cents: 2000, available: true, substitutable: false, review_status: "held", review_flags: ["alcohol"], archived_at: null, updated_at: "2026-10-17T02:00:00Z" },
+        { id: "I-SYN-3", merchant_id: "M-SYN-1", name: "Whole milk", section: "Dairy", price_cents: 449, available: true, substitutable: true, review_status: "listed", review_flags: [], archived_at: null, updated_at: "2026-10-17T03:00:00Z" }
+      ],
       drivers: [], riders: [], rides: [], htaf_applications: [], audit_logs: [], system_flags: []
     });
     // eslint-disable-next-line global-require
@@ -98,6 +103,38 @@ describeWithBrowser("Admin dashboard: merchant applications", () => {
     await page.waitForFunction(() => !document.querySelector('button[data-merchant-id="M-SYN-2"]'));
     expect(mockClient._state.merchants.find((m) => m.id === "M-SYN-2")).toMatchObject({ status: "rejected", review_reason: "Sells items on the excluded list." });
     expect(mockClient._state.audit_logs.map((a) => a.action)).toEqual(["merchant_approved", "merchant_rejected"]);
+    await context.close();
+  });
+
+  test("held catalog items: allow, or keep hidden only with a reason, each audited", async () => {
+    mockClient._state.audit_logs.length = 0;
+    const context = await browser.newContext({ viewport: { width: 1280, height: 1600 } });
+    await context.addCookies([{ name: "htaf_admin_session", value: session("owner@harvey.example"), url: base }]);
+    await context.route(/^https?:\/\/(?!127\.0\.0\.1)/, (route) => route.abort());
+    const page = await context.newPage();
+    await page.goto(`${base}/admin-dashboard.html`, { waitUntil: "load" });
+
+    const list = page.locator("#heldItemsList");
+    await list.locator("text=Rum cake").waitFor();
+    expect(await page.locator("#heldItemsCount").innerText()).toBe("2");
+    expect(await list.innerText()).toMatch(/TEST Synthetic Diner/);
+    expect(await list.innerText()).toMatch(/Possible: Alcohol/);
+    expect(await list.innerText()).not.toMatch(/Whole milk/);
+
+    await page.click('button[data-held-item="I-SYN-1"][data-held-decision="allow"]');
+    await page.waitForFunction(() => !document.querySelector('button[data-held-item="I-SYN-1"]'));
+    expect(mockClient._state.catalog_items.find((i) => i.id === "I-SYN-1")).toMatchObject({ review_status: "listed", reviewed_by: "owner@harvey.example" });
+
+    page.once("dialog", (d) => d.accept("no"));
+    await page.click('button[data-held-item="I-SYN-2"][data-held-decision="block"]');
+    await page.waitForFunction(() => /at least 10 characters/.test(document.body.innerText));
+    expect(mockClient._state.catalog_items.find((i) => i.id === "I-SYN-2").review_status).toBe("held");
+
+    page.once("dialog", (d) => d.accept("Alcohol is excluded (term 3)."));
+    await page.click('button[data-held-item="I-SYN-2"][data-held-decision="block"]');
+    await page.waitForFunction(() => /No items waiting for review/.test(document.getElementById("heldItemsList").textContent));
+    expect(mockClient._state.catalog_items.find((i) => i.id === "I-SYN-2")).toMatchObject({ review_status: "blocked", review_reason: "Alcohol is excluded (term 3)." });
+    expect(mockClient._state.audit_logs.map((a) => a.action)).toEqual(["catalog_item_allowed", "catalog_item_blocked"]);
     await context.close();
   });
 });

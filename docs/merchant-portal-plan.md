@@ -34,7 +34,7 @@ Labels: **[Verified]** = checked in the code or the production database on the d
 | Phase | Delivers | Needs |
 |---|---|---|
 | 1. Merchant accounts | Merchant sign-up, admin approval, store profile (address, hours, contact) and merchant user logins | One migration: `merchants`, `merchant_users`, `merchant_hours` |
-| 2. Catalog | Merchants manage items, prices, availability and photos; menu import from a spreadsheet | Migration: `catalog_items` |
+| 2. Catalog | Merchants manage items, prices, availability and substitution; CSV import (photos deferred, see §4d) | Migration: `catalog_items` |
 | 3. Orders | Rider cart and checkout; the merchant inbox (accept, reject, prep time, ready); the order linked to its delivery trip | Migration: `orders`, `order_items`; the Stripe charge for the full order |
 | 4. Driver integration | Dispatch timed to "ready"; a pickup code; item list on the driver screen; reporting an item that's unavailable | Driver app labels need a new build |
 | 5. Merchant payouts | Stripe Connect onboarding, payout schedule, commission and reconciliation | A Stripe Connect platform profile; the money-movement agreement |
@@ -130,8 +130,28 @@ Labels: **[Verified]** = checked in the code or the production database on the d
   2. Add `MERCHANT_SESSION_SECRET` (a long random value) to the Render web service's environment. Until it is set, the portal says sign-in isn't available.
   3. Each code text is a Twilio Verify charge, as for rider sign-in.
 
+## 4d. Phase 2: store catalog
+
+**[Owner decision 2026-10-17]** "Start phase 2 catalog". Scope: items, prices, availability, substitution flags and CSV import, with excluded-item screening that holds items for staff review and never rejects them automatically. Photos are deferred. One PR; the migration needs separate approval.
+
+- **Store portal (`/merchant-portal.html`, new "Catalog" card):**
+  - add an item: name, price, section, and whether it can be substituted (merchant term 5);
+  - edit the price, "in stock" and "can be substituted" in the table; remove an item (it is archived, not deleted);
+  - CSV import with a preview first. Columns: `name` and `price` (required), `section`, `description`, `available`, `substitutable` (yes/no). Rows are matched to existing items by name, ignoring case; a match updates that item and keeps its name. Bad rows are skipped and listed by line number.
+  - Every change is audited.
+- **Screening (merchant term 3):** an item whose name, section or description mentions an excluded category is **held** and isn't visible to customers until staff decide. Categories: alcohol; tobacco or vape; cannabis, hemp or CBD; prescription medicine; weapons or ammunition; gift cards, prepaid cards or lottery; hazardous materials; live animals. Matching uses whole words ("ginger ale" isn't held). False alarms such as "rum cake" are expected; resolving them is what the review is for.
+  - Editing an item's text screens it again and clears the earlier staff decision.
+- **Admin dashboard ("Catalog Items Held for Review"):** staff allow an item, or keep it hidden with a reason of at least 10 characters that the store sees. Both decisions are audited. The store can't edit a hidden item back, or re-import it; it can only remove it.
+- **Limits:** up to 1,000 items per store; a price from $0.01 to $1,000.00; up to 500 rows and 200 KB per import; 30 imports per hour per store. One live item per name per store, enforced by the database.
+- **Not in phase 2:**
+  - photos (deferred by the owner);
+  - customers seeing the catalog, and ordering (phase 3);
+  - item-level tax categories (waiting on the accountant's sales-tax guidance).
+- **Database (migration `20261017030000_catalog_items.sql`, needs separate approval):** `catalog_items`, server-only with RLS on. Until it is applied, the portal hides the Catalog card and the admin section says the catalog isn't set up.
+
 ## 5. What happens now
 
-- Delivery booking is paused (#260, verified live 2026-10-17).
-- Phase 1a (applications and admin review) is PR `claude/merchant-portal-phase1`. Its `merchants` migration needs the owner's separate approval before it is applied.
-- Phase 1b (merchant sign-in, store hours) follows after phase 1a is merged.
+**[Verified 2026-10-17, production]** Phases 1a and 1b are live (applications, admin review, store sign-in, store hours). Delivery booking stays paused (#260).
+
+- Phase 2 (catalog) is PR `claude/merchant-catalog-phase2`. Merging it and applying its migration each need the owner's approval.
+- Phase 3 (orders) needs the accountant's sales-tax guidance and counsel's merchant agreement first.
