@@ -1262,7 +1262,7 @@ The earlier §26 [Unresolved] item is resolved.
   - merchant screening flags;
   - the refund rules engine, which comes with phase 3 (orders).
 
-## 31. Update 2026-10-17 (UTC): agent action rules (PR `claude/agent-action-rules`, not merged)
+## 31. Update 2026-10-17 (UTC): agent action rules (#268, merged as `a31cb3c`)
 
 **[Owner decision 2026-10-17]** "Write agent action rules."
 
@@ -1287,6 +1287,35 @@ The earlier §26 [Unresolved] item is resolved.
   - the kill switch, shadow mode and dispatch pause each prevent automation;
   - every file the document cites exists.
 - **`CLAUDE.md`:** one line pointing to the rules.
+
+**Handoff:**
+- **Next authorized action:** none. Merging needs the owner's approval.
+
+**[Verified 2026-10-17 19:30 UTC]** #268 merged as `a31cb3c`; production `/api/health` reports `a31cb3c`, healthy. The full suite on `main` passed: 2,584, with the usual 21 suites skipped.
+
+## 32. Update 2026-10-17 (UTC): merchant screening flags (PR `claude/merchant-screening`, not merged)
+
+**[Owner decision 2026-10-17]** Flag suspicious merchant applications for manual admin review; never reject automatically.
+
+**Changes (not merged, not deployed):**
+- **New `lib/merchantScreening.js`:** a pure function that works out review flags when the admin list is read. Nothing is stored, no status changes and there is no database migration, in line with `docs/agent-action-rules.md` rules 1 and 7. The flags:
+  - throwaway-inbox email domain (a short list; a miss gives no flag);
+  - ZIP outside 370–372 (the Nashville pilot area), or no ZIP;
+  - street address with no number;
+  - placeholder-looking business name;
+  - same phone or same street address as another application, with addresses normalized so "Street" and "St." match;
+  - same email or phone as a rejected application;
+  - a related application within 24 hours.
+- **`GET /api/admin/merchants`:** each application now carries `review_flags` (code and label).
+- **Admin dashboard, Merchant Applications:** flagged applications show a "⚠ Check before deciding" box listing the reasons, with the note "Flags are hints for staff, not decisions". Approve, reject and suspend are unchanged.
+
+**[Verified 2026-10-17, local]**
+- New `lib/merchantScreening.test.js` (5).
+- `test/server.merchants.test.js` +1: flags are present, the row is unchanged, and a flagged application can still be approved.
+- The browser test checks that the flag box shows on the flagged application only.
+- Full suite: 2,590 passed.
+
+**[Recommendation]** Review the flag list after the first real applications, and remove any flag that mostly produces false alarms.
 
 **Handoff:**
 - **Next authorized action:** none. Merging needs the owner's approval.

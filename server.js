@@ -20597,6 +20597,7 @@ app.patch(
    delivery booking stays paused (rejectUnavailableRideType).
 ========================================================= */
 const merchantRules = require("./lib/merchants");
+const { screenMerchants } = require("./lib/merchantScreening");
 
 app.post(
   "/api/merchants/apply",
@@ -20635,7 +20636,10 @@ app.get(
       if (error.code === "42P01") return ok(res, { merchants: [], not_set_up: true });
       return fail(res, "Merchants could not be loaded.", 502);
     }
-    return ok(res, { merchants: data || [] });
+    // Review flags for staff, computed on read; they never change an
+    // application (docs/agent-action-rules.md, rules 1 and 7).
+    const flags = screenMerchants(data || []);
+    return ok(res, { merchants: (data || []).map((m) => ({ ...m, review_flags: flags[m.id] || [] })) });
   })
 );
 
