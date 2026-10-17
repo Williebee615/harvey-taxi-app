@@ -1520,3 +1520,16 @@ The earlier §26 [Unresolved] item is resolved.
 - **Done:** the staff full-catalog view is built and tested locally. Full suite: 2,693 passed.
 - **Remaining:** merge approval.
 - **Next authorized action:** none. Merging needs the owner's approval.
+
+**[Owner decision 2026-10-17]** "Approved to merge #276". **[Verified 2026-10-17]** All six CI checks were green on head `5ad2442`; merged as `46f480d`.
+
+**[Verified 2026-10-17 21:37 UTC, production]**
+- `/api/health` reports `46f480d`, healthy, database connected.
+- `GET /api/admin/merchants/:id/catalog` without admin returns 401.
+- `/admin-dashboard.html` serves the "View catalog" code.
+- A request during the switchover got 404 from the previous server; 15 seconds later the route answered 401. Recorded so it isn't mistaken for a fault.
+
+**Handoff:**
+- **Done:** the staff full-catalog view is live (no migration).
+- **Remaining:** the first pilot store's catalog; the accountant's sales-tax guidance; counsel's merchant agreement.
+- **Next authorized action:** none pending.
