@@ -45,7 +45,7 @@ describeWithBrowser("Admin dashboard: merchant applications", () => {
     mockClient = createFakeSupabase({
       merchants: [
         { id: "M-SYN-1", business_name: "TEST Synthetic Diner", category: "restaurant", address_line: "100 Test Ave", city: "Nashville", postal_code: "37203", contact_name: "Test Owner", contact_email: "diner@example.test", contact_phone: "+16155550100", website: null, prices_differ_from_store: false, status: "pending", created_at: "2026-10-17T00:00:00Z" },
-        { id: "M-SYN-2", business_name: "TEST Synthetic Market", category: "grocery", address_line: "200 Test Ave", city: "Nashville", postal_code: "37203", contact_name: "Test Grocer", contact_email: "market@example.test", contact_phone: "+16155550101", website: null, prices_differ_from_store: true, status: "pending", created_at: "2026-10-16T00:00:00Z" }
+        { id: "M-SYN-2", business_name: "TEST Synthetic Market", category: "grocery", address_line: "200 Test Ave", city: "Nashville", postal_code: "37203", contact_name: "Test Grocer", contact_email: "market@mailinator.com", contact_phone: "+16155550101", website: null, prices_differ_from_store: true, status: "pending", created_at: "2026-10-16T00:00:00Z" }
       ],
       drivers: [], riders: [], rides: [], htaf_applications: [], audit_logs: [], system_flags: []
     });
@@ -76,6 +76,10 @@ describeWithBrowser("Admin dashboard: merchant applications", () => {
     const list = page.locator("#merchantsList");
     await list.locator("text=TEST Synthetic Diner").waitFor();
     expect(await page.locator("#merchantsCount").innerText()).toBe("2");
+    // Review flags show on the flagged application only, as hints.
+    const flagged = list.locator(".item", { hasText: "TEST Synthetic Market" }).locator(".merchant-flags");
+    expect(await flagged.innerText()).toMatch(/throwaway-inbox/);
+    expect(await list.locator(".item", { hasText: "TEST Synthetic Diner" }).innerText()).not.toMatch(/throwaway-inbox/);
 
     page.once("dialog", (d) => d.accept());
     await page.click('button[data-merchant-id="M-SYN-1"][data-merchant-decision="approve"]');

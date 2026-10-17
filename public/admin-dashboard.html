@@ -63,6 +63,7 @@
     .item-top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
     .item-title{font-weight:950;line-height:1.35}.item-sub{color:var(--muted);font-size:.9rem;line-height:1.5;word-break:break-word}
     .verify-row{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 2px}.verify-chip{font-size:.75rem;font-weight:900;padding:5px 9px;border-radius:999px;border:1px solid var(--line)}.verify-chip.ok{color:#bff7da;border-color:rgba(91,227,162,.45)}.verify-chip.no{color:#ffd0d6;border-color:rgba(255,120,140,.45)}
+    .merchant-flags{margin:10px 0;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,217,114,.45);background:rgba(255,217,114,.08);line-height:1.45}.merchant-flags ul{margin:6px 0 4px 18px}
     #manualVerifyDialog{max-width:560px;width:calc(100% - 32px);border:1px solid var(--line);border-radius:18px;background:#0b1530;color:inherit;padding:18px}#manualVerifyDialog::backdrop{background:rgba(0,0,0,.6)}#manualVerifyDialog label{display:flex;gap:8px;align-items:flex-start;margin:8px 0;line-height:1.4}#manualVerifyDialog textarea,#manualVerifyDialog input[type=password]{width:100%;box-sizing:border-box;margin-top:6px;padding:10px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:inherit}
     .badge{display:inline-flex;padding:7px 11px;border-radius:999px;font-size:.75rem;font-weight:950;text-transform:uppercase;border:1px solid transparent}
     .ok{background:rgba(109,255,179,.12);color:var(--green);border-color:rgba(109,255,179,.2)}
@@ -412,6 +413,7 @@ async function loadMerchants(){
       </div>
       <div class="item-sub">${esc(m.contact_name)} • ${esc(m.contact_email)} • ${esc(m.contact_phone)}${m.website ? " • " + esc(m.website) : ""}</div>
       <div class="item-sub">Prices may differ from in store: ${m.prices_differ_from_store ? "yes" : "no"} • Applied ${esc(new Date(m.created_at).toLocaleString())}</div>
+      ${(m.review_flags || []).length ? `<div class="merchant-flags" role="note" aria-label="Review flags"><strong>⚠ Check before deciding:</strong><ul>${m.review_flags.map(f => `<li>${esc(f.label)}</li>`).join("")}</ul><span class="item-sub">Flags are hints for staff, not decisions.</span></div>` : ""}
       ${m.reviewed_at ? `<div class="item-sub">Reviewed by ${esc(m.reviewed_by)} ${esc(new Date(m.reviewed_at).toLocaleString())}${m.review_reason ? ": " + esc(m.review_reason) : ""}</div>` : ""}
       <div class="actions">${(MERCHANT_ACTIONS[m.status] || []).map(d => `<button class="${d === "approve" ? "success" : "danger"}" type="button" data-merchant-id="${esc(m.id)}" data-merchant-decision="${d}">${d[0].toUpperCase() + d.slice(1)}</button>`).join("")}</div>
     </div>`).join("") : `<div class="empty">No merchant applications yet.</div>`;

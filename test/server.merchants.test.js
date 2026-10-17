@@ -143,3 +143,15 @@ test("the application page is HTS-branded, says delivery isn't live, and lists t
   expect(html).toMatch(/Delivery isn't live yet/);
   for (const item of EXCLUDED_ITEMS) expect(html).toContain(item);
 });
+
+describe("review flags", () => {
+  test("the admin list carries review flags, and a flagged application stays pending and can still be approved", async () => {
+    mockSupabaseClient._state.merchants = [merchant({ contact_email: "x@mailinator.com", address_line: "Main Street", postal_code: "38103" })];
+    const res = await admin(request(app).get("/api/admin/merchants"));
+    expect(res.body.merchants[0].review_flags.map((f) => f.code)).toEqual(expect.arrayContaining(["disposable_email", "address_no_number", "zip_outside_pilot"]));
+    expect(mockSupabaseClient._state.merchants[0].status).toBe("pending");
+    expect(mockSupabaseClient._state.merchants[0].review_flags).toBeUndefined();
+    const approve = await admin(request(app).patch("/api/admin/merchants/M1/review")).send({ decision: "approve" });
+    expect(approve.status).toBe(200);
+  });
+});
