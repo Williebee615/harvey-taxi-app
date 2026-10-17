@@ -530,6 +530,11 @@
       width: 100%;
     }
 
+    a.service-card {
+      display: block;
+      text-decoration: none;
+    }
+
     .service-icon {
       margin-bottom: 12px;
     }
@@ -3654,19 +3659,20 @@
             </span>
           </button>
 
-          <button
+          <a
             class="service-card"
-            type="button"
-            data-action="autonomous" data-center="ride"
+            href="mailto:support@harveytaxiservice.com?subject=Waitlist%3A%20autonomous%20rides&amp;body=Please%20add%20me%20to%20the%20autonomous%20rides%20waitlist.%20My%20city%3A%20"
+            data-center="ride"
+            data-intent="waitlist_autonomous"
           >
             <div class="service-icon">🤖</div>
 
-            <strong>AV Pilot</strong>
+            <strong>Autonomous rides</strong>
 
             <span>
-              Open autonomous pilot mode.
+              Coming soon. Harvey Taxi does not operate autonomous vehicles today and they can't be booked. Join the waitlist by email.
             </span>
-          </button>
+          </a>
 
           <button
             class="service-card"
@@ -4283,7 +4289,7 @@
             <p class="hero-copy" id="heroCopy">
               Harvey Taxi connects approved riders with drivers,
               dispatch systems, precise pickup intelligence,
-              payment authorization, and future autonomous pilot systems.
+              payment authorization, and ride lifecycle updates.
             </p>
 
             <!-- MODES -->
@@ -4316,19 +4322,6 @@
 
                 <span>
                   Ride to or from the airport, with a flat airport surcharge.
-                </span>
-              </button>
-
-              <button
-                type="button"
-                class="mode-chip"
-                id="modeAutonomousBtn"
-                data-mode="autonomous"
-              >
-                <strong>Autonomous Pilot</strong>
-
-                <span>
-                  Clearly labeled autonomous pilot experience.
                 </span>
               </button>
 
@@ -5500,7 +5493,7 @@
 
       <p class="footer-note">
         Harvey Taxi Service LLC • Tennessee ride access •
-        Driver rides, autonomous pilot systems, food delivery,
+        Driver rides, food delivery,
         grocery delivery, and foundation support features
         may vary by approval status, operational availability,
         location coverage, and dispatch conditions.
@@ -6754,7 +6747,9 @@
     function normalizeMode(mode) {
       const clean = safeLower(mode);
 
-      if (["driver", "airport", "autonomous", "food", "grocery"].includes(clean)) {
+      // "autonomous" is not a bookable mode (owner decision 2026-10-17):
+      // an old ?mode=autonomous link opens the standard ride flow.
+      if (["driver", "airport", "food", "grocery"].includes(clean)) {
         return clean;
       }
 
@@ -6808,21 +6803,6 @@
         merchantErrorText: null
       },
 
-      autonomous: {
-        rideType: "autonomous",
-        isDelivery: false,
-        eyebrow: "AUTONOMOUS PILOT MODE",
-        title: "Request Autonomous Pilot",
-        copy: "This mode is clearly labeled for Harvey Taxi autonomous pilot development and AV-ready future operations.",
-        cardTitle: "Autonomous Pilot Request",
-        cardCopy: "Submit a clearly labeled autonomous pilot request where operationally available.",
-        badge: "Pilot Mode",
-        pickupLabel: "Pickup Location",
-        destinationPlaceholder: "Enter destination",
-        merchantLabel: null,
-        merchantPlaceholder: null,
-        merchantErrorText: null
-      },
 
       food: {
         rideType: "food",
@@ -8424,8 +8404,7 @@
         requested_mode: state.mode,
 
         service_type:
-          state.mode === "driver" ||
-          state.mode === "autonomous"
+          state.mode === "driver"
             ? "ride"
             : state.mode,
 
@@ -12731,7 +12710,7 @@
           break;
 
         case "autonomous":
-          goRide("autonomous");
+          window.location.href = "mailto:support@harveytaxiservice.com?subject=Waitlist%3A%20autonomous%20rides&body=Please%20add%20me%20to%20the%20autonomous%20rides%20waitlist.%20My%20city%3A%20";
           break;
 
         case "food":
