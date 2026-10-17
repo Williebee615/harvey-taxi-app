@@ -1699,8 +1699,6 @@ function normalizeRideType(value) {
 
     "foundation",
 
-    "autonomous",
-
     "delivery",
 
     "food",
@@ -12314,7 +12312,18 @@ const QUOTE_TOKEN_INVALID_REASONS = new Set([
 //
 // Sends the (sanitized, PII-free) failure response itself and returns
 // null on any failure, so callers can just `if (!quote) return;`.
+// Owner decision 2026-10-17: autonomous rides are not offered until a
+// certified operator, permits and insurance are in place; the rider app
+// shows a waitlist instead. A request naming that ride type is refused
+// (never silently turned into a human-driver ride).
+function rejectUnavailableRideType(req, res) {
+  if (cleanString(req.body && req.body.ride_type, 50).toLowerCase() !== "autonomous") return false;
+  fail(res, "Autonomous rides are not available yet. You can join the waitlist from the Ride Center.", 400);
+  return true;
+}
+
 function verifyAndConsumeRideQuote(req, res) {
+  if (rejectUnavailableRideType(req, res)) return null;
   if (!RIDE_QUOTE_SECRET) {
     fail(res, "Ride quotes are not configured.", 503);
     return null;
@@ -12392,6 +12401,8 @@ app.post(
   "/api/rides/estimate",
 
   asyncRoute(async (req, res) => {
+
+    if (rejectUnavailableRideType(req, res)) return;
 
     const miles =
 

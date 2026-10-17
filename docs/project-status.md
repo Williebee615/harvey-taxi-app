@@ -875,7 +875,7 @@ The owner set these; the values were read from the calibration page.
   - The owner's 12:45–12:46 UTC phone screenshots showing "HT" were taken before the deploy.
 - **HTAF tab icon:** addressed in §22.
 
-## 22. Update 2026-10-15 (UTC): HTAF tab icon (PR `claude/htaf-favicon`, not merged)
+## 22. Update 2026-10-15 (UTC): HTAF tab icon (#257)
 
 - **[Owner decision 2026-10-15]** Owner's request: "Add the HTAF logo as the HTAF tab icon." This is a request for the work, not approval to merge.
 - **New files, all made from the existing `public/htaf-logo.webp`:**
@@ -889,4 +889,41 @@ The owner set these; the values were read from the calibration page.
     - Harvey Taxi pages don't use the HTAF icons;
     - the icon files exist.
   - Full suite: 2,519 passed.
-- **Handoff:** **Next authorized action:** merge on the owner's approval, then verify the icons on the live HTAF pages.
+- **[Owner decision 2026-10-15]** "Approved to merge #257". Merged as `487b7fb` after CI passed 6 of 6.
+- **[Verified 2026-10-15 13:01 UTC]**
+  - Production reported `487b7fb`.
+  - The three HTAF icon files return 200.
+  - `foundation`, `htaf-application` and `contact` link to the HTAF icons; `/` does not.
+
+## 23. Update 2026-10-17 (UTC): autonomous rides become a waitlist (PR `claude/autonomous-waitlist`, not merged)
+
+- **Context:**
+  - Apple's guideline update of 16 October 2026 adds 2.5.19 (no hidden, dormant or undocumented features).
+  - **[Verified 2026-10-17, code]** The rider dashboard offered "Autonomous Pilot" as a bookable ride. The server accepted `ride_type: "autonomous"` as an ordinary ride and matched it to human drivers.
+  - **[Verified 2026-10-17, code]** The driver sign-up's "Autonomous Pilot" choice was ignored by the server, so those applicants were filed as ordinary human drivers.
+- **[Owner decision 2026-10-17]** The owner's vision: AV-owning drivers send their vehicles on Harvey Taxi missions, plus a Harvey Taxi autonomous fleet. The owner approved option (a): a rider waitlist, a vehicle-owner interest list and a server block, so the option stays visible but can't be booked. A lawyer and insurance brief was also requested (`docs/legal/autonomous-vehicles-brief.md`).
+- **Changes:**
+  - **Rider dashboard:**
+    - "AV Pilot" becomes "Autonomous rides: coming soon", linking to an email waitlist (the same pattern the home page already uses).
+    - The booking wizard's Autonomous Pilot option is removed.
+    - Old `?mode=autonomous` links open the standard ride flow.
+    - The "future autonomous pilot systems" wording is removed.
+  - **Driver sign-up:**
+    - The "Autonomous Pilot" driver mode is removed.
+    - New text: "Autonomous Vehicle Owner Program: planned, not available", with a link to register interest by email, and "every Harvey Taxi trip has a licensed human driver".
+  - **Server:** `/api/rides/estimate` and every ride request that uses a fare quote refuse `ride_type: "autonomous"` with "Autonomous rides are not available yet". It is never quietly turned into a standard ride. `autonomous` is also removed from the accepted ride types.
+  - **No database migration.** The waitlists go to support@ by email, as on the home page. The existing `autonomous_pilot_enabled` flag (false) is unchanged and unused.
+  - **New file:** `docs/app-review/review-notes-2026-10.md`, draft Notes for Review for both apps.
+- **[Verified 2026-10-17, local]**
+  - New tests in `test/server.autonomous-unavailable.test.js`:
+    - an autonomous estimate is refused;
+    - an autonomous request with a valid quote is refused and creates no ride;
+    - standard rides still work;
+    - the screens have no booking mode and do have the waitlist links.
+  - Full suite: 2,524 passed. One earlier run had the known intermittent `booking-flow.browser` failure; it passes alone and on the re-run.
+- **Not changed:** `mobile/src/navigation.js` still lists `autonomous` as a deep-link mode. That's harmless, because the dashboard now opens the standard flow. A change there would need a new app build, so it's left for the next build.
+- **[Unresolved]**
+  - Whether delivery is enabled in production must be confirmed before the review notes are used.
+  - Minimum rider age (owner decision).
+- **Handoff:**
+  - **Next authorized action:** merge on the owner's approval. Render deploys; then verify the Ride Center card and that the server refuses the ride type on production.

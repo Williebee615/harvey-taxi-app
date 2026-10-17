@@ -349,6 +349,9 @@
     .debug { margin-top: 14px; font-size: .78rem; color: rgba(185,199,232,.72); line-height: 1.5; word-break: break-word; }
 
     .mini-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+    .av-interest { margin: 14px 0 0; color: var(--muted); font-size: .9rem; line-height: 1.5; }
+    .av-interest strong { color: var(--text); display: block; margin-bottom: 2px; }
+    .av-interest a { color: var(--cyan, #5ee7ff); font-weight: 800; }
     .mini-pill { border: 1px solid var(--line); background: rgba(255,255,255,.035); color: var(--muted); padding: 9px 12px; border-radius: 999px; font-size: .82rem; font-weight: 900; }
 
     @media (max-width: 900px) {
@@ -591,14 +594,12 @@
                   <span data-i18n="humanDriverDesc">Standard Harvey Taxi driver onboarding.</span>
                 </div>
               </label>
-              <label class="choice">
-                <input type="radio" name="driverType" value="autonomous" />
-                <div class="choice-card">
-                  <strong data-i18n="autonomous">Autonomous Pilot</strong>
-                  <span data-i18n="autonomousDesc">Future AV pilot readiness program.</span>
-                </div>
-              </label>
             </div>
+            <p class="av-interest" data-intent="waitlist_av_owner">
+              <strong>Own a vehicle with a self-driving system?</strong>
+              The Autonomous Vehicle Owner Program is planned, not available: Harvey Taxi does not operate autonomous vehicles today, and every Harvey Taxi trip has a licensed human driver.
+              <a href="mailto:support@harveytaxiservice.com?subject=Waitlist%3A%20autonomous%20vehicle%20owner%20program&amp;body=I%20own%20a%20vehicle%20with%20a%20self-driving%20system%20and%20want%20to%20hear%20about%20the%20Harvey%20Taxi%20autonomous%20vehicle%20owner%20program.%0AMake%2Fmodel%2Fyear%3A%20%0ASelf-driving%20system%3A%20%0ACity%3A%20">Register interest by email</a>.
+            </p>
             <div class="mini-row">
               <div class="mini-pill">AI Dispatch</div>
               <div class="mini-pill">Real-Time Missions</div>
