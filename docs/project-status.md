@@ -1204,9 +1204,9 @@ PR #263 merged as `5ab78da`.
 - An admin approved all eight articles (ids 1–8) on `/admin-knowledge.html` between 18:57 and 18:58 UTC. None was approved by this session, and all are still version 1, so the wording is unchanged from the drafts.
 - `/api/knowledge/articles` lists all eight.
 - The assistant pilot answered "Is there a fee to cancel a ride?" by quoting `cancellation-fees`, with the source `/policies.html#cancellation-fees`.
-- **[Unresolved]** Test merchant row `02ca8c15-…` was still present at 18:59 UTC.
+- Test merchant row `02ca8c15-…`: see the resolution below.
 
-## 29. Update 2026-10-17 (UTC): trusted client IP for rate limits (PR `claude/trusted-client-ip`, not merged)
+## 29. Update 2026-10-17 (UTC): trusted client IP for rate limits (#266, merged as `2e98bfd`)
 
 **[Owner decision 2026-10-17]** Next step 1: rate-limit hardening against IP spoofing.
 
@@ -1236,5 +1236,28 @@ The first `X-Forwarded-For` entry is no longer used. Public `/api/health` is unc
 - Repeat the production test with a changed `X-Forwarded-For` and with a spoofed `CF-Connecting-IP`. Both must not reset the limit.
 - Check that new audit `ip_address` values differ between callers. If every caller had the same address, everyone would share one rate-limit bucket.
 
+**[Owner decision 2026-10-17]** "Approved … merge PR #266". Merged as `2e98bfd`; all six CI checks were green. Live at 19:10 UTC (`/api/health` version `2e98bfd`).
+
+**[Verified 2026-10-17 19:10–19:18 UTC, production]**
+- **Forged edge header:** a request carrying a client-supplied `CF-Connecting-IP` was refused by Cloudflare with 403 before reaching the app, so the header can't be forged.
+- **Real address recorded:** the owner's admin actions after the fix (`dispatch_paused` 19:15:23 and `dispatch_resumed` 19:15:27) recorded the same public address as the owner's article approvals at 18:57–18:58, before the fix. It is not in a Cloudflare or private range, so the app receives Cloudflare's header and keys on the real caller. Addresses are not recorded here.
+- **Limiter counts per caller:** this session's test machine sends from a rotating pool of at least 10 addresses (160.79.106.x). 40 empty applications produced 3 × 429, consistent with per-address limits.
+
 **Handoff:**
-- **Next authorized action:** none. Merging needs the owner's approval.
+- **Done:** the IP-spoofing bypass is closed and verified in production.
+- **Remaining:** none for this item.
+
+## 30. Update 2026-10-17 (UTC): test merchant row removed
+
+**[Verified 2026-10-17 19:12 UTC, production]** The owner ran the scoped delete in the Supabase SQL editor of `orgahzncmzptljapqffj`; the owner's screenshot shows it returned the row's ID. A read-only check afterwards found 0 rows in `public.merchants`.
+
+Its `merchant_application_submitted` audit entry, which holds only the record ID and category, is kept under the retention rule (owner decision 2026-10-17).
+
+The earlier §26 [Unresolved] item is resolved.
+
+**Handoff:**
+- **Done:** the merchant end-to-end test is complete and cleaned up.
+- **Next authorized action:** none pending. Open owner choices from the earlier list:
+  - the agent-action rule in the docs;
+  - merchant screening flags;
+  - the refund rules engine, which comes with phase 3 (orders).
