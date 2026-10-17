@@ -1293,7 +1293,7 @@ The earlier §26 [Unresolved] item is resolved.
 
 **[Verified 2026-10-17 19:30 UTC]** #268 merged as `a31cb3c`; production `/api/health` reports `a31cb3c`, healthy. The full suite on `main` passed: 2,584, with the usual 21 suites skipped.
 
-## 32. Update 2026-10-17 (UTC): merchant screening flags (PR `claude/merchant-screening`, not merged)
+## 32. Update 2026-10-17 (UTC): merchant screening flags (#269, merged as `057c910`)
 
 **[Owner decision 2026-10-17]** Flag suspicious merchant applications for manual admin review; never reject automatically.
 
@@ -1316,6 +1316,31 @@ The earlier §26 [Unresolved] item is resolved.
 - Full suite: 2,590 passed.
 
 **[Recommendation]** Review the flag list after the first real applications, and remove any flag that mostly produces false alarms.
+
+**Handoff:**
+- **Next authorized action:** none. Merging needs the owner's approval.
+
+**[Verified 2026-10-17 19:43 UTC, production]** #269 merged as `057c910`.
+- `/api/health` reports `057c910`, healthy.
+- The live admin dashboard includes the flag display.
+- `GET /api/admin/merchants` without sign-in returns 401.
+- `merchants` has 0 rows, so no flags show until stores apply.
+
+## 33. Update 2026-10-17 (UTC): refund rules engine (PR `claude/refund-rules-engine`, not merged)
+
+**[Owner decision 2026-10-17]** "Build the refund rules engine."
+
+**Changes (no behaviour change; nothing calls the engine until phase 3):**
+- **New `lib/refundRules.js`:** commission, grocery authorization, substitution timeout, missing-item refund plan, merchant dispute and deduction status, and payout week in Nashville time. Pure functions in whole cents. Details are in `docs/merchant-portal-plan.md` §4b.
+- **New `lib/refundRules.test.js` (22 tests):** every rule, refusals, the abuse limit, daylight-saving and late-Sunday payout cases, and a guard that the module never calls Stripe, the database or the network.
+
+**[Recommendation, built in]** On a missing item, the merchant returns its net share, and Harvey Taxi reverses its 12% on that item.
+
+**[Unresolved: owner decisions before phase 3 goes live]**
+1. Instant refunds (term 4) vs. person approval (agent rule 8 and the standing rule).
+2. The monthly claim limit.
+3. The customer's window to report a missing item.
+4. Who bears the refunded sales tax (accountant).
 
 **Handoff:**
 - **Next authorized action:** none. Merging needs the owner's approval.

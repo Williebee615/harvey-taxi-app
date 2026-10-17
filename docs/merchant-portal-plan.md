@@ -70,6 +70,29 @@ Labels: **[Verified]** = checked in the code or the production database on the d
 
 **Phase 1a** (PR `claude/merchant-portal-phase1`): public application page, admin review, `merchants` table. Its migration needs separate approval.
 
+## 4b. Refund rules engine (built ahead of phase 3)
+
+**[Owner decision 2026-10-17]** "Build the refund rules engine."
+
+`lib/refundRules.js` holds the money rules as pure functions. They work in whole cents, use Nashville time, and have no Stripe or database calls. Phase 3 (orders) will call them.
+
+| Function | Rule |
+|---|---|
+| `commission` | 12% of the item subtotal, completed orders only (term 1) |
+| `itemAuthorizationCents` | Grocery holds the subtotal plus 15% (term 5) |
+| `substitutionOutcome` | No answer within 7 minutes → refund the item (term 5) |
+| `planMissingItemRefund` | Customer gets the items plus their sales tax; tip and delivery fee aren't included. Over the monthly limit, or with no limit set → manual review. Returns `stage_refund`, a proposal for a person to approve (agent rule 8), never a payment (term 4) |
+| `merchantDeductionStatus` | Nothing is deducted during the 48-hour dispute window. A merchant win → Harvey Taxi absorbs; a loss, or no dispute → deduct (term 4) |
+| `payoutWeek` | Monday-to-Sunday weeks in Nashville time, paid the following Monday. A deduction confirmed after a payout comes off the next one (term 7 and its agreement clause) |
+
+**[Recommendation, built in; owner to confirm]** On a missing item, the merchant returns what it was paid for it (price less 12%), and Harvey Taxi gives up its 12% commission on that item. This matches term 1 ("a fully refunded order pays nothing"), so the merchant never loses more than it received.
+
+**[Unresolved: owner decisions before phase 3 goes live]**
+1. **"Refunded straight away" (term 4) vs. "no refund without a person's approval"** (agent rule 8, and the standing rule against live refunds without approval). Today the engine only stages refunds. For instant refunds, the owner would approve one switch for missing-item refunds within the limit. It would start in shadow mode and stay subject to the kill switch, under agent rule 4.
+2. **The monthly claim limit** per customer. Until it is set, every claim goes to manual review.
+3. **How long customers have to report a missing item** after delivery. No window is set yet.
+4. **Who bears the refunded sales tax:** waits on the accountant's Tennessee marketplace-facilitator answer (item 7 below).
+
 ## 4a. Still to confirm
 
 7. **[To confirm with an accountant]** Tennessee sales tax on marketplace sales. Tennessee has marketplace-facilitator rules that may require Harvey Taxi to collect and remit sales tax on the stores' sales. Confirm the threshold and how it applies before phase 3 handles real money.
