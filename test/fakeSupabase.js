@@ -160,7 +160,9 @@ function createFakeSupabase(seed = {}, options = {}) {
           }
 
           if (isUpsert) {
-            const idx = rows.findIndex((r) => r[keyField] === clean[keyField]);
+            // onConflict may name several columns ("merchant_id,day_of_week").
+            const keys = String(keyField).split(",").map((k) => k.trim());
+            const idx = rows.findIndex((r) => keys.every((k) => r[k] === clean[k]));
             if (idx >= 0) {
               rows[idx] = { ...rows[idx], ...clean };
               return rows[idx];

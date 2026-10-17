@@ -1370,3 +1370,46 @@ The earlier §26 [Unresolved] item is resolved.
 
 **Handoff:**
 - **Next authorized action:** none. Merging needs the owner's approval.
+
+## 34. Update 2026-10-17 (UTC): merchant portal phase 1b, store sign-in and hours (PR `claude/merchant-portal-phase1b`, not merged)
+
+**[Owner decision 2026-10-17]** Phase 1b approved: merchant sign-in and store hours.
+
+**Changes (not merged, not deployed):** details are in `docs/merchant-portal-plan.md` §4c.
+- **Migration `20261017020000_merchant_users_hours.sql` (not applied; needs separate owner approval):**
+  - `merchant_users` (phone sign-ins, `session_version`);
+  - `merchant_hours` (one window per weekday);
+  - `bump_merchant_user_session_version()`.
+
+  RLS on, no client access.
+- **`lib/merchantAuth.js`:** a signed merchant session token (the same design as riders) and store-hours validation.
+- **Server:**
+  - `POST /api/merchant/session/start|verify|logout`: Twilio Verify SMS, limits per address and per phone, no account enumeration;
+  - `GET /api/merchant/me`;
+  - `PUT /api/merchant/hours`;
+  - admin `POST /api/admin/merchants/:id/users` (approved stores only) and `POST /api/admin/merchant-users/:id/disable` (ends sessions);
+  - the admin merchant list now shows each store's sign-in people.
+
+  Every write is audited.
+- **New `public/merchant-portal.html`:** HTS-branded, noindex. It redirects on the HTAF domain and is disallowed in `robots.txt`.
+- **Admin dashboard:** "Give sign-in access" and "Remove" on approved stores.
+
+**[Verified 2026-10-17, local]**
+- New tests:
+  - `lib/merchantAuth.test.js` (10);
+  - `test/server.merchant-portal.test.js` (10): no enumeration, wrong code, cookie flags, header required, hours saved and refused, sign-out and access removal end sessions, suspended store blocked, forged cookie refused;
+  - `test/db/merchantUsersHours.db.test.js` (4, real Postgres);
+  - `test/merchant-portal.browser.test.js` (1, Chromium at phone width).
+- `test/fakeSupabase.js`: upserts now match on multi-column keys.
+- `test/db/merchants.db.test.js`: now clears dependent rows.
+- Full suite: 2,643 passed. Database suite: 158 passed.
+
+**[Unresolved: owner setup before stores can sign in]**
+1. Approve the migration.
+2. Add `MERCHANT_SESSION_SECRET` on Render (name only recorded here).
+3. Twilio Verify charges per code.
+
+**[Limitation]** Hours past midnight and split shifts aren't supported yet.
+
+**Handoff:**
+- **Next authorized action:** none. Merging needs the owner's approval; the migration needs separate approval.

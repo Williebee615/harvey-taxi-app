@@ -1,6 +1,7 @@
 User-agent: *
 Disallow: /admin
 Disallow: /api/
+Disallow: /merchant-portal.html
 Disallow: /driver-dashboard.html
 Disallow: /driver-missions.html
 Disallow: /driver-wallet.html

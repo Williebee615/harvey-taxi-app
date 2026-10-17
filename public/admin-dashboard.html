@@ -415,9 +415,35 @@ async function loadMerchants(){
       <div class="item-sub">Prices may differ from in store: ${m.prices_differ_from_store ? "yes" : "no"} • Applied ${esc(new Date(m.created_at).toLocaleString())}</div>
       ${(m.review_flags || []).length ? `<div class="merchant-flags" role="note" aria-label="Review flags"><strong>⚠ Check before deciding:</strong><ul>${m.review_flags.map(f => `<li>${esc(f.label)}</li>`).join("")}</ul><span class="item-sub">Flags are hints for staff, not decisions.</span></div>` : ""}
       ${m.reviewed_at ? `<div class="item-sub">Reviewed by ${esc(m.reviewed_by)} ${esc(new Date(m.reviewed_at).toLocaleString())}${m.review_reason ? ": " + esc(m.review_reason) : ""}</div>` : ""}
+      ${m.status === "approved" ? `<div class="item-sub merchant-signin"><strong>Store sign-in:</strong> ${(m.sign_in_users || []).filter(u => u.status === "active").map(u => `${esc(u.name)} (${esc(u.phone)}) <button class="danger" type="button" data-merchant-user-remove="${esc(u.id)}">Remove</button>`).join(" ") || "nobody yet"} <button class="neutral" type="button" data-merchant-signin-add="${esc(m.id)}" data-default-phone="${esc(m.contact_phone)}" data-default-name="${esc(m.contact_name)}">Give sign-in access</button></div>` : ""}
       <div class="actions">${(MERCHANT_ACTIONS[m.status] || []).map(d => `<button class="${d === "approve" ? "success" : "danger"}" type="button" data-merchant-id="${esc(m.id)}" data-merchant-decision="${d}">${d[0].toUpperCase() + d.slice(1)}</button>`).join("")}</div>
     </div>`).join("") : `<div class="empty">No merchant applications yet.</div>`;
 }
+// Store sign-in access (merchant portal phase 1b). Giving access lets that
+// phone sign in to /merchant-portal.html with a texted code; removing it
+// also ends that person's sessions. Both are audited.
+document.getElementById("merchantsList").addEventListener("click", async (event) => {
+  const add = event.target.closest("button[data-merchant-signin-add]");
+  const remove = event.target.closest("button[data-merchant-user-remove]");
+  if (!add && !remove) return;
+  try {
+    if (add) {
+      const phone = (window.prompt("Phone that will sign in for this store (US):", add.dataset.defaultPhone || "") || "").trim();
+      if (!phone) return;
+      const name = (window.prompt("Person's name:", add.dataset.defaultName || "") || "").trim();
+      if (!name) return;
+      await api(`/api/admin/merchants/${encodeURIComponent(add.dataset.merchantSigninAdd)}/users`, { method: "POST", body: JSON.stringify({ phone, name }) });
+      showResult("Sign-in access given. They can sign in at /merchant-portal.html.");
+    } else {
+      if (!window.confirm("Remove this person's sign-in access? Their sessions end immediately.")) return;
+      await api(`/api/admin/merchant-users/${encodeURIComponent(remove.dataset.merchantUserRemove)}/disable`, { method: "POST", body: "{}" });
+      showResult("Sign-in access removed.");
+    }
+  } catch (e) {
+    showError(e.message);
+  }
+  loadMerchants();
+});
 document.getElementById("merchantsList").addEventListener("click", async (event) => {
   const btn = event.target.closest("button[data-merchant-decision]");
   if (!btn) return;

@@ -60,7 +60,9 @@ const EXPECTED_ORDER = [
   // Covered by test/db/assistantPassageEmbeddings.db.test.js.
   "20261015020000_assistant_passage_embeddings.sql",
   // Covered by test/db/merchants.db.test.js.
-  "20261017010000_merchants.sql"
+  "20261017010000_merchants.sql",
+  // Covered by test/db/merchantUsersHours.db.test.js.
+  "20261017020000_merchant_users_hours.sql"
 ];
 
 // Synthetic pre-existing row (no production data), inserted after the

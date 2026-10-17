@@ -750,7 +750,8 @@ const FOUNDATION_REDIRECTS = new Map([
   // Harvey Taxi's approved assistant answers (docs/ai-knowledge.md).
   ["/policies.html", "/contact.html"],
   // Harvey Taxi's merchant (delivery pilot) application.
-  ["/merchant-apply.html", "/"]
+  ["/merchant-apply.html", "/"],
+  ["/merchant-portal.html", "/"]
 ]);
 
 app.use((req, res, next) => {
@@ -20639,7 +20640,14 @@ app.get(
     // Review flags for staff, computed on read; they never change an
     // application (docs/agent-action-rules.md, rules 1 and 7).
     const flags = screenMerchants(data || []);
-    return ok(res, { merchants: (data || []).map((m) => ({ ...m, review_flags: flags[m.id] || [] })) });
+    // Sign-in people per store (phase 1b); missing before its migration.
+    const ids = (data || []).map((m) => m.id);
+    const usersByMerchant = {};
+    if (ids.length) {
+      const { data: users } = await supabase.from("merchant_users").select("id, merchant_id, name, phone, status, last_sign_in_at").in("merchant_id", ids);
+      for (const u of users || []) (usersByMerchant[u.merchant_id] = usersByMerchant[u.merchant_id] || []).push(u);
+    }
+    return ok(res, { merchants: (data || []).map((m) => ({ ...m, review_flags: flags[m.id] || [], sign_in_users: usersByMerchant[m.id] || [] })) });
   })
 );
 
@@ -20677,6 +20685,213 @@ app.patch(
       metadata: { from: merchant.status, to: plan.update.status, reason: plan.update.review_reason }
     }).catch(() => {});
     return ok(res, { merchant: updated });
+  })
+);
+
+/* =========================================================
+   MERCHANT PORTAL, PHASE 1B: SIGN-IN AND STORE HOURS
+   Owner decision 2026-10-17. Staff give an approved store sign-in access
+   (one phone per person). The store signs in with a one-time code texted
+   to that phone (Twilio Verify, as for riders), then sets its weekly
+   opening hours. Same session design as riders: signed HttpOnly cookie,
+   session_version for sign-out and access removal, and a custom request
+   header on every call (CSRF). A suspended or rejected store can't sign
+   in or change anything.
+========================================================= */
+const merchantAuth = require("./lib/merchantAuth");
+const MERCHANT_SESSION_SECRET = env("MERCHANT_SESSION_SECRET", "");
+const MERCHANT_SESSION_TTL_HOURS = envNumber("MERCHANT_SESSION_TTL_HOURS", 12);
+const MERCHANT_SESSION_COOKIE = "harvey_merchant_session";
+const MERCHANT_CLIENT_HEADER_VALUE = "harvey-merchant-portal";
+const MERCHANT_USER_FIELDS = "id, merchant_id, phone, name, role, status, session_version, created_at, last_sign_in_at";
+
+function hasMerchantClientHeader(req) {
+  return req.headers["x-requested-with"] === MERCHANT_CLIENT_HEADER_VALUE;
+}
+function setMerchantSessionCookie(res, token, maxAgeSeconds) {
+  const attrs = [`${MERCHANT_SESSION_COOKIE}=${encodeURIComponent(token)}`, "Path=/", "HttpOnly", "SameSite=Lax", `Max-Age=${maxAgeSeconds}`];
+  if (IS_PRODUCTION) attrs.push("Secure");
+  res.append("Set-Cookie", attrs.join("; "));
+}
+function merchantLoginDestinationKey(req) {
+  return hashLoginDestination({ phone: cleanString(req.body?.phone, 32), email: "" });
+}
+// Exactly one active sign-in for this phone, at an approved store.
+async function findMerchantUserByPhone(rawPhone) {
+  const e164 = riderPhoneToE164(rawPhone);
+  if (!e164) return null;
+  const { data, error } = await supabase.from("merchant_users").select(MERCHANT_USER_FIELDS).eq("phone", e164).eq("status", "active").limit(2);
+  if (error || !data || data.length !== 1) return null;
+  const { data: merchant } = await supabase.from("merchants").select("id, status").eq("id", data[0].merchant_id).maybeSingle();
+  if (!merchant || merchant.status !== "approved") return null;
+  return { user: data[0], e164 };
+}
+
+async function requireMerchant(req, res, next) {
+  try {
+    if (!MERCHANT_SESSION_SECRET) return fail(res, "Store sign-in isn't available right now.", 503);
+    if (!hasMerchantClientHeader(req)) return fail(res, "This request could not be verified.", 403);
+    const check = merchantAuth.verifyMerchantSession({ token: parseCookies(req)[MERCHANT_SESSION_COOKIE], secret: MERCHANT_SESSION_SECRET });
+    if (!check.ok) return fail(res, "Please sign in.", 401);
+    const { data: user } = await supabase.from("merchant_users").select(MERCHANT_USER_FIELDS).eq("id", check.payload.merchant_user_id).maybeSingle();
+    if (!user || user.status !== "active" || user.merchant_id !== check.payload.merchant_id || user.session_version !== check.payload.session_version) {
+      return fail(res, "Please sign in.", 401);
+    }
+    const { data: merchant } = await supabase.from("merchants").select(merchantRules.ADMIN_MERCHANT_FIELDS.join(",")).eq("id", user.merchant_id).maybeSingle();
+    if (!merchant || merchant.status !== "approved") return fail(res, "This store's access is paused. Please contact Harvey Taxi.", 403);
+    req.merchantUser = user;
+    req.merchant = merchant;
+    return next();
+  } catch (err) {
+    return fail(res, "Please try again.", 500);
+  }
+}
+
+// Same response whether or not the phone belongs to a store: no account
+// enumeration. A code is texted only to an active sign-in at an approved store.
+app.post(
+  "/api/merchant/session/start",
+  rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "merchant_session_start_ip" }),
+  rateLimit({ windowMs: 10 * 60_000, max: 3, keyPrefix: "merchant_session_start_dest", keyFn: merchantLoginDestinationKey }),
+  asyncRoute(async (req, res) => {
+    if (!MERCHANT_SESSION_SECRET) return fail(res, "Store sign-in isn't available right now.", 503);
+    if (!hasMerchantClientHeader(req)) return fail(res, "This request could not be verified.", 403);
+    if (!riderPhoneToE164(cleanString(req.body.phone, 32))) return fail(res, "Enter a 10-digit US phone number.", 400);
+    if (!twilioClient || !TWILIO_VERIFY_SERVICE_SID) return fail(res, "Store sign-in isn't available right now.", 503);
+    const found = await findMerchantUserByPhone(cleanString(req.body.phone, 32));
+    if (found) {
+      try {
+        await twilioClient.verify.services(TWILIO_VERIFY_SERVICE_SID).verifications.create({ to: found.e164, channel: "sms" });
+      } catch (err) {
+        console.error("❌ Merchant sign-in: Twilio Verify send failed:", describeTwilioError(err));
+      }
+    }
+    return ok(res, { sent: true });
+  })
+);
+
+app.post(
+  "/api/merchant/session/verify",
+  rateLimit({ windowMs: 60_000, max: 15, keyPrefix: "merchant_session_verify_ip" }),
+  rateLimit({ windowMs: 10 * 60_000, max: 10, keyPrefix: "merchant_session_verify_dest", keyFn: merchantLoginDestinationKey }),
+  asyncRoute(async (req, res) => {
+    if (!MERCHANT_SESSION_SECRET) return fail(res, "Store sign-in isn't available right now.", 503);
+    if (!hasMerchantClientHeader(req)) return fail(res, "This request could not be verified.", 403);
+    const code = cleanString(req.body.code, 12);
+    const invalid = () => fail(res, "Invalid or expired code.", 400);
+    if (!code || !twilioClient || !TWILIO_VERIFY_SERVICE_SID) return invalid();
+    const found = await findMerchantUserByPhone(cleanString(req.body.phone, 32));
+    if (!found) return invalid();
+    let check;
+    try {
+      check = await twilioClient.verify.services(TWILIO_VERIFY_SERVICE_SID).verificationChecks.create({ to: found.e164, code });
+    } catch (err) {
+      console.error("❌ Merchant sign-in: Twilio Verify check failed:", describeTwilioError(err));
+      return invalid();
+    }
+    if (!check || check.status !== "approved") return invalid();
+    const token = merchantAuth.signMerchantSession({
+      merchantUserId: found.user.id,
+      merchantId: found.user.merchant_id,
+      sessionVersion: found.user.session_version,
+      secret: MERCHANT_SESSION_SECRET,
+      ttlHours: MERCHANT_SESSION_TTL_HOURS
+    });
+    setMerchantSessionCookie(res, token, Math.round(MERCHANT_SESSION_TTL_HOURS * 3600));
+    supabase.from("merchant_users").update({ last_sign_in_at: nowIso() }).eq("id", found.user.id).then(() => {}, () => {});
+    auditLog({ actor_type: "merchant_user", actor_id: found.user.id, action: "merchant_sign_in", entity_type: "merchant", entity_id: found.user.merchant_id, req }).catch(() => {});
+    return ok(res, { signed_in: true });
+  })
+);
+
+// Sign-out ends every session for this person (session_version + 1).
+app.post(
+  "/api/merchant/session/logout",
+  requireMerchant,
+  asyncRoute(async (req, res) => {
+    await supabase.rpc("bump_merchant_user_session_version", { p_user_id: req.merchantUser.id });
+    setMerchantSessionCookie(res, "", 0);
+    auditLog({ actor_type: "merchant_user", actor_id: req.merchantUser.id, action: "merchant_sign_out", entity_type: "merchant", entity_id: req.merchant.id, req }).catch(() => {});
+    return ok(res, { signed_out: true });
+  })
+);
+
+app.get(
+  "/api/merchant/me",
+  requireMerchant,
+  asyncRoute(async (req, res) => {
+    const { data: hours } = await supabase.from("merchant_hours").select("day_of_week, closed, opens_at, closes_at, updated_at").eq("merchant_id", req.merchant.id);
+    const m = req.merchant;
+    return ok(res, {
+      store: { id: m.id, business_name: m.business_name, category: m.category, address_line: m.address_line, city: m.city, postal_code: m.postal_code, status: m.status },
+      user: { name: req.merchantUser.name, role: req.merchantUser.role },
+      hours: (hours || []).map((h) => ({ ...h, opens_at: h.opens_at ? String(h.opens_at).slice(0, 5) : null, closes_at: h.closes_at ? String(h.closes_at).slice(0, 5) : null })),
+      time_zone: "America/Chicago"
+    });
+  })
+);
+
+app.put(
+  "/api/merchant/hours",
+  requireMerchant,
+  asyncRoute(async (req, res) => {
+    const checked = merchantAuth.validateStoreHours(req.body && req.body.days);
+    if (!checked.ok) return fail(res, checked.error, 400);
+    const now = nowIso();
+    const rows = checked.rows.map((r) => ({ ...r, merchant_id: req.merchant.id, updated_by: req.merchantUser.id, updated_at: now }));
+    const { error } = await supabase.from("merchant_hours").upsert(rows, { onConflict: "merchant_id,day_of_week" });
+    if (error) return fail(res, "Hours could not be saved.", 502);
+    auditLog({ actor_type: "merchant_user", actor_id: req.merchantUser.id, action: "merchant_hours_updated", entity_type: "merchant", entity_id: req.merchant.id, metadata: { days: checked.rows }, req }).catch(() => {});
+    return ok(res, { hours: checked.rows });
+  })
+);
+
+// Staff give an approved store sign-in access for one phone.
+app.post(
+  "/api/admin/merchants/:id/users",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const id = cleanString(req.params.id, 64);
+    const phone = riderPhoneToE164(cleanString(req.body && req.body.phone, 32));
+    const name = cleanString(req.body && req.body.name, 120);
+    if (!phone) return fail(res, "Enter a 10-digit US phone number.", 400);
+    if (!name || name.length < 2) return fail(res, "Enter the person's name.", 400);
+    const { data: merchant } = await supabase.from("merchants").select("id, status").eq("id", id).maybeSingle();
+    if (!merchant) return fail(res, "Merchant not found.", 404);
+    if (merchant.status !== "approved") return fail(res, "Only an approved store can be given sign-in access.", 409);
+    const { data, error } = await supabase
+      .from("merchant_users")
+      .insert({ id: crypto.randomUUID(), merchant_id: id, phone, name, role: "owner", status: "active", session_version: 0, created_by: req.admin.email || req.admin.id })
+      .select(MERCHANT_USER_FIELDS)
+      .single();
+    if (error) {
+      if (error.code === "23505") return fail(res, "That phone already signs in to a store.", 409);
+      if (error.code === "42P01") return fail(res, "Store sign-in isn't set up yet.", 503);
+      return fail(res, "Sign-in access could not be saved.", 502);
+    }
+    auditLog({ actor_type: "admin", actor_id: req.admin.email, action: "merchant_user_added", entity_type: "merchant", entity_id: id, metadata: { merchant_user_id: data.id }, req }).catch(() => {});
+    return ok(res, { user: { id: data.id, name: data.name, phone: data.phone, status: data.status } }, 201);
+  })
+);
+
+// Removing access also ends that person's sessions.
+app.post(
+  "/api/admin/merchant-users/:id/disable",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const id = cleanString(req.params.id, 64);
+    const { data: updated, error } = await supabase
+      .from("merchant_users")
+      .update({ status: "disabled", disabled_by: req.admin.email || req.admin.id, disabled_at: nowIso() })
+      .eq("id", id)
+      .eq("status", "active")
+      .select("id, merchant_id")
+      .maybeSingle();
+    if (error) return fail(res, "Access could not be removed.", 502);
+    if (!updated) return fail(res, "That sign-in is already removed or doesn't exist.", 409);
+    await supabase.rpc("bump_merchant_user_session_version", { p_user_id: id });
+    auditLog({ actor_type: "admin", actor_id: req.admin.email, action: "merchant_user_disabled", entity_type: "merchant", entity_id: updated.merchant_id, metadata: { merchant_user_id: id }, req }).catch(() => {});
+    return ok(res, { disabled: true });
   })
 );
 
