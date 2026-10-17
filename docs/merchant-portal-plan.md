@@ -53,7 +53,14 @@ Labels: **[Verified]** = checked in the code or the production database on the d
 5. **Substitutions:** the customer chooses per item at checkout: "contact me", "store's best match" or "refund if out of stock". Merchants only mark which items can be substituted. With no answer within 7 minutes, the item is refunded. Grocery orders are authorized with a 15% buffer; only the final amount is captured.
 6. **Pilot:** 5 midtown/downtown Nashville stores (3 restaurants, 2 grocery or convenience). Each signs the merchant agreement before going live. Precondition: at least 5 drivers fully verified and able to go online (0 of 19 on 2026-10-17).
 
-**[Unresolved: assumptions to confirm before phase 5]** Weekly merchant payouts; no monthly merchant fee.
+**[Owner decision 2026-10-17]** (confirms the two earlier assumptions)
+
+7. **Payouts:** weekly, every Monday, for the prior week's completed orders (Monday to Sunday). Set as the Stripe Connect payout schedule when phase 5 is built.
+8. **Fees:** commission only (12% of the item subtotal, per term 1). No monthly, subscription or fixed fee. To be written into the merchant agreement and fee schedule.
+
+**[Recommendation]** An order completed late on Sunday is still inside its 48-hour dispute window when Monday's payout runs. A missing-item amount confirmed after a payout is deducted from the next payout. The merchant agreement should say so.
+
+**[To confirm with Stripe]** "Monday" is when the payout is sent. The day funds reach the merchant's bank depends on Stripe's payout timing for the account and its bank.
 
 **Phase 1a** (PR `claude/merchant-portal-phase1`): public application page, admin review, `merchants` table. Its migration needs separate approval.
 

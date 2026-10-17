@@ -1025,7 +1025,11 @@ The owner set these; the values were read from the calibration page.
 5. Substitutions: chosen by the customer per item at checkout; refund after 7 minutes without an answer; 15% card-authorization buffer for groceries.
 6. Pilot: 5 stores (3 restaurants, 2 grocery or convenience), only once at least 5 drivers are fully verified.
 
-**[Unresolved]** Weekly payouts and no monthly merchant fee are **assumptions** for the owner to confirm before phase 5 (payouts).
+**[Owner decision 2026-10-17]** Payouts and fees confirmed:
+- **Payouts:** weekly, every Monday, for the prior Monday-to-Sunday's completed orders. This is to be set in Stripe Connect in phase 5. Stripe Connect isn't set up yet, so nothing is configured today.
+- **Fees:** commission only, 12%. No monthly or fixed fee.
+
+Both terms are recorded in plan §4 (items 7–8) and shown on the application page.
 
 **Phase 1a changes (not merged, not deployed):**
 - **Migration (not applied):** `supabase/migrations/20261017010000_merchants.sql` creates `public.merchants` (applications and review status). RLS on, no client access; one open application per contact email; reject/suspend need a reason.
@@ -1039,5 +1043,5 @@ The owner set these; the values were read from the calibration page.
 
 **Handoff:**
 - **Done:** terms recorded; phase 1a built and tested locally.
-- **Remaining:** merge; apply the migration; phase 1b (merchant sign-in) onward.
+- **Remaining:** merge; apply the migration; phase 1b (merchant sign-in) onward. Payout schedule and fee terms go into Stripe Connect (phase 5) and into the merchant agreement (counsel).
 - **Next authorized action:** none yet. Merge needs the owner's approval, and applying the `merchants` migration needs **separate** approval.
