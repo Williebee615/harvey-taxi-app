@@ -94,9 +94,11 @@ Labels: **[Verified]** = checked in the code or the production database on the d
 
 **[Assumption, built in]** "Match the item-checklist photo records" is read as follows: the store's pickup checklist has a photo per item with a packed quantity. A claim the photos contradict, or one without a photo, goes to a person; it is never refused automatically.
 
-**[Unresolved: owner decisions before phase 3 goes live]**
-1. **The monthly claim limit** per customer. Until it is set, every claim goes to manual review.
-2. **Who bears the refunded sales tax:** waits on the accountant's Tennessee marketplace-facilitator answer (item 7 below).
+**[Owner decision 2026-10-17]** The monthly claim limit is **3 missing-item claims per customer per calendar month**. The 4th and later go to manual admin review. It is `MONTHLY_CLAIM_LIMIT` in `lib/refundEngine.js`.
+
+**[Unresolved: before phase 3 goes live]**
+- **Who bears the refunded sales tax:** waits on the accountant's written guidance on Tennessee marketplace-facilitator treatment (item 7 below).
+- **The merchant agreement:** waits on counsel's draft (12% commission only, Monday transfers, 48-hour dispute and rollover clause).
 
 ## 4a. Still to confirm
 
