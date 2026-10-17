@@ -895,7 +895,7 @@ The owner set these; the values were read from the calibration page.
   - The three HTAF icon files return 200.
   - `foundation`, `htaf-application` and `contact` link to the HTAF icons; `/` does not.
 
-## 23. Update 2026-10-17 (UTC): autonomous rides become a waitlist (PR `claude/autonomous-waitlist`, not merged)
+## 23. Update 2026-10-17 (UTC): autonomous rides become a waitlist (#258)
 
 - **Context:**
   - Apple's guideline update of 16 October 2026 adds 2.5.19 (no hidden, dormant or undocumented features).
@@ -925,5 +925,49 @@ The owner set these; the values were read from the calibration page.
 - **[Unresolved]**
   - Whether delivery is enabled in production must be confirmed before the review notes are used.
   - Minimum rider age (owner decision).
-- **Handoff:**
-  - **Next authorized action:** merge on the owner's approval. Render deploys; then verify the Ride Center card and that the server refuses the ride type on production.
+- **[Owner decision 2026-10-17]** "Approved to merge #258". Merged as `1316185` after CI passed 6 of 6.
+- **[Verified 2026-10-17 17:01 UTC, production]**
+  - An `autonomous` fare estimate returns 400 "Autonomous rides are not available yet…"; a `standard` estimate returns 200.
+  - The live `rider-dashboard.html` has the waitlist link and no `modeAutonomousBtn`.
+  - The live `driver-signup.html` has the owner-program link and no autonomous radio button.
+
+## 24. Update 2026-10-17 (UTC): drivers can't go online; manual verification button (PR `claude/manual-driver-verification`, not merged)
+
+**[Verified 2026-10-17, production database, read-only]** Driver readiness, excluding test, review and owner accounts.
+- 19 drivers have `approval_status = approved`, and **none can go online**:
+  - email verified: 0;
+  - phone verified: 0;
+  - identity (Persona) verified: 0;
+  - background check (`checkr_status`): `not_started` for all 19;
+  - vehicle on file: 19.
+- Riders: 2. Completed paid trips: 0.
+
+**[Owner decision 2026-10-17]** "Turn off Persona requirement for now, admins verify manually", then "Turn off checkr as well".
+- These are Render settings: `ENABLE_PERSONA=false` and `ENABLE_CHECKR=false`. The owner makes the change; this session can't reach Render.
+- **[Unverified]** Whether they have been set. The owner's screenshot of setting names (17 Oct) shows neither yet.
+- **[Recommendation]** Use them for testing and App Review only. Before any real passenger trip, record a background check per driver and confirm Tennessee's requirement with counsel; it's question 3 in the counsel brief.
+
+**[Owner decision 2026-10-17]** "Build the manual verification admin button". The PR:
+- **Admin dashboard:** each driver shows ✓/✗ for Email, Phone, ID and Background, plus a **Manual verification** button. Its form has:
+  - a tick box for each item the admin checked;
+  - a required reason;
+  - for ID and background only, a confirmation that equivalent documents were reviewed, and the admin token typed in for that one use. The token is never stored.
+- **Existing routes it uses:**
+  - email and phone: `PATCH /api/admin/drivers/:id/contact-verification-override`, with ordinary admin sign-in;
+  - ID and background: `PATCH /api/admin/drivers/:id/compliance-override`, with elevated (token) sign-in.
+  - Each writes the driver change and its audit record in one transaction, or neither. The database functions exist in production (verified 17 Oct).
+- **Server change:** the admin drivers list now includes three true/false fields: `email_verified`, `phone_verified`, `persona_verified`. They are flags only, never codes or provider data.
+- **[Verified 2026-10-17, local]**
+  - New browser test `test/manual-driver-verification.browser.test.js` covers: the status chips; email and phone recorded with the reason; ID and background refused without the documentation tick or the token; a wrong token refused with nothing changed; the correct token records both with `admin_token` auth and `reviewed_documentation`; and the token is in neither the page nor browser storage afterwards.
+  - Full suite: 2,525 passed.
+
+**[Unresolved] Render settings, from the owner's screenshot of setting names; values were not shown:**
+- **`ADMIN_API_TOKEN` is not set**, and neither is `HARVEY_ADMIN_TOKEN`. Without it, the ID and background part of the new button can't be used. Email and phone work with ordinary sign-in.
+- **`ADMIN_SESSION_SECRET` is not set**, so admin sessions are signed with `ADMIN_PASSWORD`. **[Recommendation]** Set a dedicated, generated `ADMIN_SESSION_SECRET`.
+- **Not read by the code:** `AV_ENABLED`, `HUMAN_DRIVER_ENABLED`, `DISPATCH_MODE` and `OPENAI_SUPPORT_MODEL` (checked with grep on 17 Oct). They can be removed later; there's no rush.
+
+**Handoff:**
+- **Next authorized action:** merge on the owner's approval.
+- **Owner actions in Render:**
+  - add `ADMIN_API_TOKEN` (use Generate);
+  - set `ENABLE_PERSONA` and `ENABLE_CHECKR` as decided.

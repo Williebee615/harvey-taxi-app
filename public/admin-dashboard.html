@@ -62,6 +62,8 @@
     .list{display:grid;gap:12px}.item{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:18px;padding:14px}
     .item-top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
     .item-title{font-weight:950;line-height:1.35}.item-sub{color:var(--muted);font-size:.9rem;line-height:1.5;word-break:break-word}
+    .verify-row{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 2px}.verify-chip{font-size:.75rem;font-weight:900;padding:5px 9px;border-radius:999px;border:1px solid var(--line)}.verify-chip.ok{color:#bff7da;border-color:rgba(91,227,162,.45)}.verify-chip.no{color:#ffd0d6;border-color:rgba(255,120,140,.45)}
+    #manualVerifyDialog{max-width:560px;width:calc(100% - 32px);border:1px solid var(--line);border-radius:18px;background:#0b1530;color:inherit;padding:18px}#manualVerifyDialog::backdrop{background:rgba(0,0,0,.6)}#manualVerifyDialog label{display:flex;gap:8px;align-items:flex-start;margin:8px 0;line-height:1.4}#manualVerifyDialog textarea,#manualVerifyDialog input[type=password]{width:100%;box-sizing:border-box;margin-top:6px;padding:10px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:inherit}
     .badge{display:inline-flex;padding:7px 11px;border-radius:999px;font-size:.75rem;font-weight:950;text-transform:uppercase;border:1px solid transparent}
     .ok{background:rgba(109,255,179,.12);color:var(--green);border-color:rgba(109,255,179,.2)}
     .warn{background:rgba(255,215,106,.13);color:var(--gold);border-color:rgba(255,215,106,.2)}
@@ -302,6 +304,89 @@
   <div class="footer">Harvey Taxi Service LLC • Production Admin Console</div>
 </div>
 
+<dialog id="manualVerifyDialog" aria-labelledby="mvTitle">
+  <form id="manualVerifyForm" method="dialog">
+    <div class="title" id="mvTitle">Manual verification</div>
+    <div class="item-sub" id="mvDriver"></div>
+    <p class="item-sub">Record only what you checked yourself. Each item is saved with your name, the time and your reason in the audit log.</p>
+    <label><input type="checkbox" id="mvEmail" /> <span>I confirmed the driver's email address myself</span></label>
+    <label><input type="checkbox" id="mvPhone" /> <span>I confirmed the driver's phone number myself</span></label>
+    <label><input type="checkbox" id="mvIdentity" /> <span>I reviewed the driver's government photo ID (identity)</span></label>
+    <label><input type="checkbox" id="mvBackground" /> <span>I reviewed a criminal background check and driving record and found nothing disqualifying</span></label>
+    <label style="display:block">What you checked and how (required, at least 10 characters)<textarea id="mvReason" rows="3" maxlength="1000"></textarea></label>
+    <div id="mvElevated" hidden>
+      <label><input type="checkbox" id="mvDocs" /> <span>I reviewed documentation equivalent to the Persona identity check and Checkr background check</span></label>
+      <label style="display:block">Admin token (needed for ID and background; used once, never saved)<input type="password" id="mvToken" autocomplete="off" /></label>
+    </div>
+    <div class="item-sub" id="mvError" role="alert" style="color:#ffd0d6"></div>
+    <div class="actions" style="margin-top:12px"><button type="button" class="success" id="mvSave">Save verification</button><button type="button" id="mvCancel">Cancel</button></div>
+  </form>
+</dialog>
+<script>
+// Manual verification. Email/phone use the contact-verification override
+// (ordinary admin sign-in); identity/background use the compliance
+// override, which the server only accepts with the admin token (elevated),
+// a written reason and a documentation confirmation. Each call writes the
+// driver change and its audit record together or not at all.
+let mvDriverId = null;
+function openManualVerify(id, name){
+  mvDriverId = id;
+  document.getElementById("mvDriver").textContent = name + " (" + id + ")";
+  for (const k of ["mvEmail","mvPhone","mvIdentity","mvBackground","mvDocs"]) document.getElementById(k).checked = false;
+  document.getElementById("mvReason").value = "";
+  document.getElementById("mvToken").value = "";
+  document.getElementById("mvError").textContent = "";
+  document.getElementById("mvElevated").hidden = true;
+  document.getElementById("manualVerifyDialog").showModal();
+}
+function mvSyncElevated(){
+  document.getElementById("mvElevated").hidden = !(document.getElementById("mvIdentity").checked || document.getElementById("mvBackground").checked);
+}
+document.getElementById("mvIdentity").addEventListener("change", mvSyncElevated);
+document.getElementById("mvBackground").addEventListener("change", mvSyncElevated);
+document.getElementById("mvCancel").addEventListener("click", () => { document.getElementById("mvToken").value = ""; document.getElementById("manualVerifyDialog").close(); });
+document.getElementById("mvSave").addEventListener("click", async () => {
+  const $v = (k) => document.getElementById(k);
+  const err = $v("mvError");
+  const email = $v("mvEmail").checked, phone = $v("mvPhone").checked, identity = $v("mvIdentity").checked, background = $v("mvBackground").checked;
+  const reason = $v("mvReason").value.trim();
+  const token = $v("mvToken").value;
+  err.textContent = "";
+  if (!email && !phone && !identity && !background) { err.textContent = "Tick at least one item you checked."; return; }
+  if (reason.length < 10) { err.textContent = "Describe what you checked and how (at least 10 characters)."; return; }
+  if ((identity || background) && !$v("mvDocs").checked) { err.textContent = "Confirm you reviewed equivalent documentation."; return; }
+  if ((identity || background) && !token) { err.textContent = "Enter the admin token to record ID or background checks."; return; }
+  const id = encodeURIComponent(mvDriverId);
+  const done = [];
+  try {
+    if (email || phone) {
+      const body = { reason };
+      if (email) body.email_verified = true;
+      if (phone) body.phone_verified = true;
+      await api(`/api/admin/drivers/${id}/contact-verification-override`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (email) done.push("email");
+      if (phone) done.push("phone");
+    }
+    if (identity || background) {
+      const body = { reason, reviewed_documentation: true };
+      if (identity) body.persona_verified = true;
+      if (background) body.checkr_status = "clear";
+      await api(`/api/admin/drivers/${id}/compliance-override`, { method: "PATCH", headers: { "Content-Type": "application/json", "x-admin-token": token }, body: JSON.stringify(body) });
+      if (identity) done.push("ID");
+      if (background) done.push("background check");
+    }
+  } catch (e) {
+    err.textContent = (done.length ? "Saved: " + done.join(", ") + ". Not saved: " : "Not saved: ") + e.message;
+    $v("mvToken").value = "";
+    loadDashboard();
+    return;
+  }
+  $v("mvToken").value = "";
+  $v("manualVerifyDialog").close();
+  showResult("Manual verification recorded (" + esc(done.join(", ")) + ") in the audit log.");
+  loadDashboard();
+});
+</script>
 <script>
 const API_BASE = window.HARVEY_API_BASE || window.location.origin;
 const state = { auto:true, timer:null, filter:"all", riders:[], drivers:[], rides:[], htaf:[], signedIn:false };
@@ -532,6 +617,18 @@ function renderRiders(items){
     </div>`).join("") : `<div class="empty">No pending riders.</div>`;
 }
 
+// What a driver still needs before going online (server readiness rules:
+// email, phone, identity, background check). Flags only, from the admin
+// drivers list.
+const CHECKR_CLEAR = ["clear","complete","completed","eligible_for_review"];
+function driverVerifyRow(d){
+  const chip = (ok, label) => `<span class="verify-chip ${ok ? "ok" : "no"}">${ok ? "✓" : "✗"} ${label}</span>`;
+  return `<div class="verify-row">${chip(d.email_verified === true, "Email")}${chip(d.phone_verified === true, "Phone")}${chip(d.persona_verified === true, "ID")}${chip(CHECKR_CLEAR.includes(String(d.checkr_status || "").toLowerCase()), "Background")}</div>`;
+}
+function driverVerifyButton(d){
+  return `<button onclick="openManualVerify('${esc(d.id)}', '${esc(((d.first_name || "") + " " + (d.last_name || "")).trim() || d.id)}')">Manual verification</button>`;
+}
+
 function renderDrivers(items){
   els.drivers.innerHTML = items.length ? items.map(d=>`
     <div class="item">
@@ -539,7 +636,8 @@ function renderDrivers(items){
         <div><div class="item-title">${esc(d.first_name)} ${esc(d.last_name)}</div><div class="item-sub">${esc(d.email)} • Checkr: ${esc(d.checkr_status || "not started")}</div></div>
         <span class="badge ${statusClass(d.approval_status)}">${esc(d.approval_status || d.status || "pending")}</span>
       </div>
-      <div class="actions"><button class="success" onclick="approveDriver('${esc(d.id)}')">Approve Driver</button><button onclick="runDriverReview('${esc(d.id)}')">Review Assistant</button></div>
+      ${driverVerifyRow(d)}
+      <div class="actions"><button class="success" onclick="approveDriver('${esc(d.id)}')">Approve Driver</button><button onclick="runDriverReview('${esc(d.id)}')">Review Assistant</button>${driverVerifyButton(d)}</div>
       <div class="driver-review" id="driverReview-${esc(d.id)}"></div>
     </div>`).join("") : `<div class="empty">No pending drivers.</div>`;
 }
@@ -601,6 +699,8 @@ function renderActiveDrivers(items){
         <div><div class="item-title">${esc(d.first_name)} ${esc(d.last_name)}</div><div class="item-sub">${esc(d.email)} • Checkr: ${esc(d.checkr_status || "not started")}</div></div>
         <span class="badge ${d.online ? "ok" : "blue"}">${d.online ? "Online" : "Offline"}</span>
       </div>
+      ${driverVerifyRow(d)}
+      <div class="actions">${driverVerifyButton(d)}</div>
     </div>`).join("") : `<div class="empty">No active drivers yet.</div>`;
 }
 
