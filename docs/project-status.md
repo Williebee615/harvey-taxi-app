@@ -1326,7 +1326,7 @@ The earlier §26 [Unresolved] item is resolved.
 - `GET /api/admin/merchants` without sign-in returns 401.
 - `merchants` has 0 rows, so no flags show until stores apply.
 
-## 33. Update 2026-10-17 (UTC): refund engine (PR #270, `claude/refund-rules-engine`, not merged)
+## 33. Update 2026-10-17 (UTC): refund engine (#270, merged as `e7e80ef`)
 
 **[Owner decision 2026-10-17]** "Build the refund rules engine."
 
@@ -1352,6 +1352,21 @@ The earlier §26 [Unresolved] item is resolved.
 **[Unresolved: before phase 3 goes live]**
 - The monthly claim limit.
 - Who bears the refunded sales tax (accountant).
+
+**Handoff:**
+- **Next authorized action:** none. Merging needs the owner's approval.
+
+**[Owner decision 2026-10-17]** "Approved to merge #270". Merged as `e7e80ef`; all six CI checks were green.
+
+**[Verified 2026-10-17 20:29 UTC, production]** `/api/health` reports `e7e80ef`, healthy. Nothing calls the engine yet; phase 3 will.
+
+**[Owner decision 2026-10-17]** The monthly claim limit is 3 missing-item claims per customer per calendar month; the 4th and later go to manual review. Set as `MONTHLY_CLAIM_LIMIT` (the default) in `lib/refundEngine.js`, with a test (PR `claude/claim-limit-status`, not merged).
+
+**[Unresolved]**
+- Who bears the refunded sales tax: waits on the accountant's written guidance.
+- The merchant agreement: waits on counsel's draft.
+
+**[Owner decision 2026-10-17]** Phase 1b approved: merchant sign-in and store hours. It is a separate PR, and its migration needs separate approval.
 
 **Handoff:**
 - **Next authorized action:** none. Merging needs the owner's approval.
