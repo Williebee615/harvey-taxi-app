@@ -25093,6 +25093,7 @@ const modelBudget = createModelBudget({
 
 const assistantPilotOrgs = require("./lib/assistantPilot/orgs");
 const assistantPilotCorpus = require("./lib/assistantPilot/corpus");
+const { articleSections: knowledgeArticleSections } = require("./lib/knowledge/search");
 const { runTurn: runAssistantPilotTurn } = require("./lib/assistantPilot/orchestrator");
 const { readMembraneConfig, describeMembraneConfig } = require("./lib/membrane/config");
 const { runCalibration: runMembraneCalibration } = require("./lib/membrane/calibration");
@@ -25100,10 +25101,25 @@ const { createMembraneEmbedder } = require("./lib/membrane/embeddings");
 const { buildMemoryStore, pgvectorStore } = require("./lib/assistantPilot/vectors");
 const { createGateway: createAssistantPilotGateway, anthropicProvider } = require("./lib/assistantPilot/gateway");
 
-const assistantPilotState = { corpora: {}, provider: undefined, embedder: undefined, vectorStores: {} };
+const assistantPilotState = { corpora: {}, provider: undefined, embedder: undefined, vectorStores: {}, published: {}, articlesKey: {}, pinned: {} };
+// Harvey Taxi's corpus is its published pages plus the admin-approved
+// articles (also public, on /policies.html), taken from knowledgeStore's
+// cached copy. When an article is approved, edited or retired the corpus is
+// rebuilt, which also rebuilds the vector index. HTAF has no articles.
 function assistantPilotCorpusFor(org) {
-  if (!assistantPilotState.corpora[org]) {
-    assistantPilotState.corpora[org] = assistantPilotCorpus.buildOrgCorpus(org, { sections: assistantPilotCorpus.loadPublishedSections(org) });
+  if (assistantPilotState.pinned[org]) return assistantPilotState.corpora[org]; // set by a test
+  const published = assistantPilotState.published[org] || (assistantPilotState.published[org] = assistantPilotCorpus.loadPublishedSections(org));
+  let rows = [];
+  if (org === "harvey_taxi") {
+    knowledgeStore.getIndex(); // refreshes the approved articles in the background when stale
+    rows = knowledgeStore.approved();
+  }
+  const articles = knowledgeArticleSections(rows.map((r) => ({ ...r, status: "approved" })));
+  // Every edit raises an article's version, so slug@version identifies its text.
+  const key = rows.map((r) => `${r.slug}@${r.version}`).sort().join("|");
+  if (!assistantPilotState.corpora[org] || assistantPilotState.articlesKey[org] !== key) {
+    assistantPilotState.corpora[org] = assistantPilotCorpus.buildOrgCorpus(org, { sections: [...published, ...articles] });
+    assistantPilotState.articlesKey[org] = key;
   }
   return assistantPilotState.corpora[org];
 }
@@ -25294,6 +25310,7 @@ const assistantPilotTestHooks =
     },
     setCorpus(org, corpus) {
       assistantPilotState.corpora[org] = corpus;
+      assistantPilotState.pinned[org] = true;
     },
     setEmbedder(e) {
       assistantPilotState.embedder = e;
@@ -25305,6 +25322,8 @@ const assistantPilotTestHooks =
     },
     reset() {
       assistantPilotState.corpora = {};
+      assistantPilotState.pinned = {};
+      assistantPilotState.articlesKey = {};
       assistantPilotState.provider = undefined;
       assistantPilotState.embedder = undefined;
       assistantPilotState.vectorStores = {};

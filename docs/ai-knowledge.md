@@ -37,7 +37,7 @@ Every change to state (book, cancel, change destination, account changes) stays 
 
 1. **Safety boundaries first.** Emergency, fraud, dispute, refund, account and screening messages get fixed guidance and a human-review case. No search runs.
 2. **Routing.** Policy questions, and anything that matches no other topic, go to the approved-knowledge search.
-3. **Approved knowledge** (`lib/knowledge/sources.js`): the published Terms of Service, Privacy Policy and Support pages. The text is read from the deployed pages at server start, so an answer always matches the live site.
+3. **Approved knowledge** (`lib/knowledge/sources.js`): the published Terms of Service, Privacy Policy, Support and merchant application (`/merchant-apply.html`, added 2026-10-17) pages. The text is read from the deployed pages at server start, so an answer always matches the live site. The assistant pilot (keyword and vector retrieval) also reads admin-approved articles, which are public on `/policies.html`; its index is rebuilt when an article is approved, edited or retired.
 4. **Search** (`lib/knowledge/search.js`):
    - In-process keyword ranking (BM25) over 31 page sections.
    - A heading that names what was asked gets extra weight.
