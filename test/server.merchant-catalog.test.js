@@ -165,3 +165,59 @@ describe("staff view of a store's full catalog", () => {
     expect((await admin(request(app).get("/api/admin/merchants/M2/catalog"))).body.items.map((i) => i.name)).toEqual(["Other store item"]);
   });
 });
+
+describe("staff-assisted import", () => {
+  const admin = (r) => r.set("x-admin-token", "test-admin-token");
+  const staffImport = (id, body) => admin(request(app).post(`/api/admin/merchants/${id}/catalog/import`)).send(body);
+  const csv = "name,price,section\nWhole milk,4.49,Dairy\nVodka,20,\nBread,abc,\n";
+
+  test("admin only; approved stores only; unknown store 404", async () => {
+    expect((await request(app).post("/api/admin/merchants/M1/catalog/import").send({ csv })).status).toBe(401);
+    expect((await as(A).post("/api/admin/merchants/M1/catalog/import", { csv })).status).toBe(401);
+    expect((await staffImport("NOPE", { csv })).status).toBe(404);
+    mockClient._state.merchants.find((m) => m.id === "M2").status = "suspended";
+    expect((await staffImport("M2", { csv })).status).toBe(409);
+    expect(items()).toEqual([]);
+  });
+
+  test("preview writes nothing; import adds to that store only, holds flagged items, is audited as staff", async () => {
+    const preview = await staffImport("M1", { csv, dry_run: true });
+    expect(preview.body).toMatchObject({ dry_run: true, create: 2, update: 0, held: ["Vodka"] });
+    expect(preview.body.errors.map((e) => e.line)).toEqual([4]);
+    expect(items()).toEqual([]);
+    expect(mockClient._state.audit_logs).toEqual([]);
+
+    const run = await staffImport("M1", { csv });
+    expect(run.body).toMatchObject({ dry_run: false, create: 2 });
+    expect(items().map((i) => [i.merchant_id, i.name, i.review_status, i.created_by])).toEqual([["M1", "Whole milk", "listed", null], ["M1", "Vodka", "held", null]]);
+    expect(mockClient._state.audit_logs.map((a) => [a.action, a.actor_type, a.entity_id])).toEqual([["catalog_imported_by_staff", "admin", "M1"]]);
+    // The store sees the items in its own portal; the other store doesn't.
+    expect((await as(A).get("/api/merchant/catalog")).body.items).toHaveLength(2);
+    expect((await as(B).get("/api/merchant/catalog")).body.items).toEqual([]);
+  });
+
+  test("a staff import never changes an item staff kept hidden", async () => {
+    await staffImport("M1", { csv });
+    const vodka = items().find((i) => i.name === "Vodka");
+    await admin(request(app).post(`/api/admin/catalog/items/${vodka.id}/review`)).send({ decision: "block", reason: "Alcohol is excluded (term 3)." });
+    const again = await staffImport("M1", { csv: "name,price\nvodka,1\nwhole milk,5\n" });
+    expect(again.body).toMatchObject({ create: 0, update: 1 });
+    expect(again.body.errors[0].error).toMatch(/hidden by Harvey Taxi/);
+    expect(items().find((i) => i.id === vodka.id)).toMatchObject({ price_cents: 2000, review_status: "blocked" });
+    expect(items().find((i) => i.name === "Whole milk").price_cents).toBe(500);
+  });
+});
+
+describe("onboarding files", () => {
+  test("template and example download as CSV on Harvey Taxi; HTAF's domain redirects them", async () => {
+    for (const f of ["/merchant-catalog-template.csv", "/merchant-catalog-example.csv"]) {
+      const r = await request(app).get(f);
+      expect(r.status).toBe(200);
+      expect(r.headers["content-type"]).toMatch(/text\/csv/);
+      expect(r.text).toMatch(/^name,price,section,description,available,substitutable/);
+      const htaf = await request(app).get(f).set("Host", "harveytransportationfoundation.com");
+      expect(htaf.status).toBeGreaterThanOrEqual(300);
+      expect(htaf.status).toBeLessThan(400);
+    }
+  });
+});

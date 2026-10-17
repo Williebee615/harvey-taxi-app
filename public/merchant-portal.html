@@ -41,7 +41,8 @@
     code { background: rgba(255,255,255,.06); padding: 1px 5px; border-radius: 6px; }
     .hts-logo-mark { overflow: hidden; padding: 0 !important; background: #0b1a3a !important; display: block !important; flex: 0 0 auto; position: relative; }
     .hts-logo-mark > img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: inherit; }
-  </style>
+        details#importGuide{margin:8px 0 12px}details#importGuide summary{cursor:pointer;font-weight:600}table.guide td,table.guide th{vertical-align:top}
+    </style>
 </head>
 <body>
   <div class="shell">
@@ -102,7 +103,29 @@
       <p id="itemsEmpty">No items yet.</p>
 
       <h2 style="margin-top:18px">Import from a spreadsheet</h2>
-      <p>Save your sheet as CSV with a header row. Required columns: <code>name</code>, <code>price</code>. Optional: <code>section</code>, <code>description</code>, <code>available</code> (yes/no), <code>substitutable</code> (yes/no). Items with the same name are updated. Up to 500 rows.</p>
+      <p>Download the <a href="/merchant-catalog-template.csv" download id="templateLink">blank template</a> and fill in one item per row, or start from the <a href="/merchant-catalog-example.csv" download id="exampleLink">example file</a> (replace its sample items with yours before importing).</p>
+      <details id="importGuide">
+        <summary>How to fill in the file</summary>
+        <table class="guide">
+          <thead><tr><th>Column</th><th>Needed?</th><th>What to enter</th></tr></thead>
+          <tbody>
+            <tr><td><code>name</code></td><td>Required</td><td>The item as customers will see it, 2 to 120 characters. Each name once per file.</td></tr>
+            <tr><td><code>price</code></td><td>Required</td><td>The price customers pay through Harvey Taxi, for example <code>4.99</code> ($0.01 to $1,000.00).</td></tr>
+            <tr><td><code>section</code></td><td>Optional</td><td>A group such as Dairy or Bakery, up to 60 characters.</td></tr>
+            <tr><td><code>description</code></td><td>Optional</td><td>Size, flavor or other details, up to 500 characters.</td></tr>
+            <tr><td><code>available</code></td><td>Optional</td><td><code>yes</code> if in stock now, <code>no</code> if not. Blank means yes.</td></tr>
+            <tr><td><code>substitutable</code></td><td>Optional</td><td><code>yes</code> if a driver may pick a similar item when it's out of stock. Blank means no.</td></tr>
+          </tbody>
+        </table>
+        <ul>
+          <li>In Excel or Google Sheets, save or download as <strong>CSV (UTF-8)</strong>. Keep the header row exactly as in the template.</li>
+          <li>Up to 500 rows and 200 KB per file; up to 1,000 items per store.</li>
+          <li>An item whose name is already in your catalog is updated, not duplicated (capitals don't matter).</li>
+          <li>Items that might be on the excluded list (for example alcohol, tobacco or vape, CBD, gift cards) wait for a Harvey Taxi review before customers can see them. This isn't a rejection.</li>
+          <li>Always press <strong>Preview</strong> first. Nothing changes until you press <strong>Import</strong>, and lines with problems are listed by line number.</li>
+        </ul>
+        <p>Prefer to email your spreadsheet? Send it to <a href="mailto:support@harveytaxiservice.com">support@harveytaxiservice.com</a> and Harvey Taxi staff can import it for you. The items then appear here, and the same review applies.</p>
+      </details>
       <label>CSV file<input type="file" id="csvFile" accept=".csv,text/csv" /></label>
       <button type="button" id="previewImport">Preview</button>
       <button type="button" id="runImport" hidden>Import</button>

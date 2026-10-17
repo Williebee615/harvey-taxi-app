@@ -1533,3 +1533,44 @@ The earlier §26 [Unresolved] item is resolved.
 - **Done:** the staff full-catalog view is live (no migration).
 - **Remaining:** the first pilot store's catalog; the accountant's sales-tax guidance; counsel's merchant agreement.
 - **Next authorized action:** none pending.
+
+## 37. Update 2026-10-17 (UTC): vendor onboarding kit and staff-assisted import (PR `claude/vendor-onboarding-kit`, not merged); open owner items recorded
+
+**[Owner decision 2026-10-17]** "Selected Next Milestone: 1. Vendor Onboarding Kit & 2. Staff-Assisted Import", built as one PR. The owner also asked that the open items below go into this PR's record rather than a separate documentation PR.
+
+**Changes (not merged, not deployed; no migration):** details are in `docs/merchant-portal-plan.md` §4d.
+- **Onboarding kit:**
+  - `public/merchant-catalog-template.csv` (header only) and `public/merchant-catalog-example.csv` (4 sample items);
+  - a "How to fill in the file" guide in the store portal's import section;
+  - both files redirect on the HTAF domain and are disallowed in `robots.txt`.
+- **Staff-assisted import:**
+  - `POST /api/admin/merchants/:id/catalog/import` (admin only, approved stores only);
+  - "Import a CSV for this store" on the admin dashboard.
+
+  The store and staff imports now share one function, so screening, limits and the hidden-item rule are identical. A staff import is audited as `catalog_imported_by_staff`; its items have no `created_by` store user.
+
+**[Verified 2026-10-17, local]**
+- `lib/catalog.test.js`: 2 new tests. The template is only the header row. The example parses with no errors and nothing held, and reads the yes/no columns and a quoted comma correctly.
+- `test/server.merchant-catalog.test.js`: 4 new tests:
+  - staff import is admin-only and for approved stores only;
+  - preview writes nothing; the import adds to the right store only;
+  - flagged items are held, and the import is audited as staff;
+  - a hidden item is never changed;
+  - the downloads are served as CSV and redirected on the HTAF domain.
+- Browser tests (Chromium): the portal guide and downloads; the staff import flow (preview first, held item reaches the review list).
+
+**[Unresolved] Open owner items (owner's tracking, 2026-10-17):**
+1. **First pilot store's catalog:** waiting for the first vendor's catalog upload. **[Verified 2026-10-17 21:41 UTC, production, read-only count]** 0 merchant applications (none pending or approved), 0 store sign-ins, 0 catalog items. The vendor must first apply at `/merchant-apply.html`; then staff approve it, give sign-in access, and the vendor (or staff, with this PR) imports the catalog.
+2. **Sales tax:** waiting for the accountant's written advice on Tennessee marketplace-facilitator rules, including how refunds are treated.
+3. **Merchant agreement:** waiting for counsel's draft. It must include the 12% commission, Monday payouts, and the 48-hour missing-item claim window with rollover.
+
+**Monitoring [Owner decision 2026-10-17]:** a daily read-only check, the scheduled task "Merchant onboarding daily check" (08:46 America/Chicago), counts applications by status, active store sign-ins and catalog items (live, held, hidden). It reports only when a count changes, gives counts only (no names or contact details), and takes no action. Baseline: all counts 0 at 21:41 UTC.
+
+**Handoff:**
+- **Done:** the onboarding kit and staff-assisted import are built and tested locally (full suite: 2,700 passed); the open items and the daily check are recorded.
+- **Remaining:**
+  - merge approval;
+  - the pilot vendor's application;
+  - the accountant's advice;
+  - counsel's draft.
+- **Next authorized action:** none. Merging needs the owner's approval.

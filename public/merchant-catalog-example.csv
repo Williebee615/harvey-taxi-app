@@ -1,0 +1,5 @@
+name,price,section,description,available,substitutable
+Whole milk (1 gallon),4.49,Dairy,Vitamin D whole milk,yes,yes
+Large eggs (dozen),3.99,Dairy,,yes,no
+Sourdough bread,5.25,Bakery,"Baked fresh daily, sliced",yes,yes
+Bananas (per lb),0.69,Produce,,no,yes

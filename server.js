@@ -751,7 +751,9 @@ const FOUNDATION_REDIRECTS = new Map([
   ["/policies.html", "/contact.html"],
   // Harvey Taxi's merchant (delivery pilot) application.
   ["/merchant-apply.html", "/"],
-  ["/merchant-portal.html", "/"]
+  ["/merchant-portal.html", "/"],
+  ["/merchant-catalog-template.csv", "/"],
+  ["/merchant-catalog-example.csv", "/"]
 ]);
 
 app.use((req, res, next) => {
@@ -20996,52 +20998,85 @@ app.delete(
   })
 );
 
-// CSV import. dry_run: true returns what would happen; otherwise new names
-// are added and existing names updated (matched case-insensitively).
+// CSV import, shared by the store portal and staff-assisted import.
+// dryRun returns what would happen; otherwise new names are added and
+// existing names updated (matched case-insensitively). Screening is the
+// same whoever imports: possibly-excluded items are held for review, so a
+// staff import never lists an item without the review step.
+// actor: { type: "merchant_user" | "admin", id, merchantUserId (or null) }.
+// Returns { status, body } for the route to send.
+async function runCatalogImport({ merchantId, csv, dryRun, actor, req }) {
+  const parsed = catalogRules.parseCatalogCsv(csv);
+  if (!parsed.ok) return { status: 400, error: parsed.error };
+  const { data: existing, error: readError } = await supabase.from("catalog_items").select(CATALOG_FIELDS).eq("merchant_id", merchantId).is("archived_at", null).limit(catalogRules.MAX_ITEMS_PER_STORE);
+  if (readError) return { status: readError.code === "42P01" ? 503 : 502, error: readError.code === "42P01" ? "The catalog isn't set up yet." : "The catalog could not be loaded." };
+  const byName = new Map((existing || []).map((i) => [i.name.toLowerCase(), i]));
+  const creates = [];
+  const updates = [];
+  const skipped = [];
+  for (const { line, value } of parsed.items) {
+    const current = byName.get(value.name.toLowerCase());
+    const review = catalogRules.reviewStateFor(catalogRules.screenItem({ ...(current || {}), ...value }));
+    if (!current) creates.push({ line, value, review });
+    else if (current.review_status === "blocked") skipped.push({ line, error: `"${current.name}" is hidden by Harvey Taxi and wasn't changed.` });
+    else updates.push({ line, value, review, current });
+  }
+  if ((existing || []).length + creates.length > catalogRules.MAX_ITEMS_PER_STORE) return { status: 409, error: `A store can list up to ${catalogRules.MAX_ITEMS_PER_STORE} items.` };
+  const held = [...creates, ...updates].filter((r) => r.review.review_status === "held").map((r) => r.value.name);
+  const summary = { create: creates.length, update: updates.length, held, errors: [...parsed.errors, ...skipped] };
+  if (dryRun) return { status: 200, body: { dry_run: true, ...summary } };
+
+  const now = nowIso();
+  const by = actor.merchantUserId || null;
+  if (creates.length) {
+    const rows = creates.map((r) => ({ id: crypto.randomUUID(), merchant_id: merchantId, ...r.value, ...r.review, created_by: by, updated_by: by }));
+    const { error } = await supabase.from("catalog_items").insert(rows);
+    if (error) return { status: 502, error: "The import could not be saved. Nothing was added." };
+  }
+  let updated = 0;
+  for (const r of updates) {
+    // Matched by name, so the item keeps the name it has ("WHOLE MILK" in
+    // a file updates "Whole milk" without renaming it).
+    r.value = { ...r.value, name: r.current.name };
+    const textChanged = TEXT_FIELDS.some((k) => k in r.value && r.value[k] !== r.current[k]);
+    const patch = { ...r.value, updated_by: by, updated_at: now, ...(textChanged ? { ...r.review, reviewed_by: null, reviewed_at: null, review_reason: null } : {}) };
+    const { data } = await supabase.from("catalog_items").update(patch).eq("id", r.current.id).eq("merchant_id", merchantId).neq("review_status", "blocked").select("id").maybeSingle();
+    if (data) updated += 1;
+    else summary.errors.push({ line: r.line, error: `"${r.current.name}" changed during the import and wasn't updated.` });
+  }
+  auditLog({ actor_type: actor.type, actor_id: actor.id, action: actor.type === "admin" ? "catalog_imported_by_staff" : "catalog_imported", entity_type: "merchant", entity_id: merchantId, metadata: { created: creates.length, updated, held: held.length, errors: summary.errors.length }, req }).catch(() => {});
+  return { status: 200, body: { dry_run: false, ...summary, update: updated } };
+}
+const sendImport = (res, r) => (r.error ? fail(res, r.error, r.status) : ok(res, r.body, r.status));
+// One limit per store, shared by the store and staff.
+const catalogImportLimit = (keyFn) => rateLimit({ windowMs: 60 * 60_000, max: 30, keyPrefix: "merchant_catalog_import", keyFn });
+
 app.post(
   "/api/merchant/catalog/import",
   requireMerchant,
-  rateLimit({ windowMs: 60 * 60_000, max: 30, keyPrefix: "merchant_catalog_import", keyFn: (req) => `m:${req.merchant && req.merchant.id}` }),
+  catalogImportLimit((req) => `m:${req.merchant && req.merchant.id}`),
   asyncRoute(async (req, res) => {
-    const parsed = catalogRules.parseCatalogCsv(req.body && req.body.csv);
-    if (!parsed.ok) return fail(res, parsed.error, 400);
-    const { data: existing, error: readError } = await supabase.from("catalog_items").select(CATALOG_FIELDS).eq("merchant_id", req.merchant.id).is("archived_at", null).limit(catalogRules.MAX_ITEMS_PER_STORE);
-    if (readError) return fail(res, "The catalog could not be loaded.", 502);
-    const byName = new Map((existing || []).map((i) => [i.name.toLowerCase(), i]));
-    const creates = [];
-    const updates = [];
-    const skipped = [];
-    for (const { line, value } of parsed.items) {
-      const current = byName.get(value.name.toLowerCase());
-      const review = catalogRules.reviewStateFor(catalogRules.screenItem({ ...(current || {}), ...value }));
-      if (!current) creates.push({ line, value, review });
-      else if (current.review_status === "blocked") skipped.push({ line, error: `"${current.name}" is hidden by Harvey Taxi and wasn't changed.` });
-      else updates.push({ line, value, review, current });
-    }
-    if ((existing || []).length + creates.length > catalogRules.MAX_ITEMS_PER_STORE) return fail(res, `A store can list up to ${catalogRules.MAX_ITEMS_PER_STORE} items.`, 409);
-    const held = [...creates, ...updates].filter((r) => r.review.review_status === "held").map((r) => r.value.name);
-    const summary = { create: creates.length, update: updates.length, held, errors: [...parsed.errors, ...skipped] };
-    if (req.body.dry_run === true) return ok(res, { dry_run: true, ...summary });
+    const r = await runCatalogImport({ merchantId: req.merchant.id, csv: req.body && req.body.csv, dryRun: req.body && req.body.dry_run === true, actor: { type: "merchant_user", id: req.merchantUser.id, merchantUserId: req.merchantUser.id }, req });
+    return sendImport(res, r);
+  })
+);
 
-    const now = nowIso();
-    if (creates.length) {
-      const rows = creates.map((r) => ({ id: crypto.randomUUID(), merchant_id: req.merchant.id, ...r.value, ...r.review, created_by: req.merchantUser.id, updated_by: req.merchantUser.id }));
-      const { error } = await supabase.from("catalog_items").insert(rows);
-      if (error) return fail(res, "The import could not be saved. Nothing was added.", 502);
-    }
-    let updated = 0;
-    for (const r of updates) {
-      // Matched by name, so the item keeps the name it has ("WHOLE MILK" in
-      // a file updates "Whole milk" without renaming it).
-      r.value = { ...r.value, name: r.current.name };
-      const textChanged = TEXT_FIELDS.some((k) => k in r.value && r.value[k] !== r.current[k]);
-      const patch = { ...r.value, updated_by: req.merchantUser.id, updated_at: now, ...(textChanged ? { ...r.review, reviewed_by: null, reviewed_at: null, review_reason: null } : {}) };
-      const { data } = await supabase.from("catalog_items").update(patch).eq("id", r.current.id).eq("merchant_id", req.merchant.id).neq("review_status", "blocked").select("id").maybeSingle();
-      if (data) updated += 1;
-      else summary.errors.push({ line: r.line, error: `"${r.current.name}" changed during the import and wasn't updated.` });
-    }
-    auditLog({ actor_type: "merchant_user", actor_id: req.merchantUser.id, action: "catalog_imported", entity_type: "merchant", entity_id: req.merchant.id, metadata: { created: creates.length, updated, held: held.length, errors: summary.errors.length }, req }).catch(() => {});
-    return ok(res, { dry_run: false, ...summary, update: updated });
+// Staff-assisted import: staff upload a store's CSV from the admin
+// dashboard (for example a spreadsheet the store emailed). Approved stores
+// only. Same preview, screening and limits as the store's own import;
+// held items still go to "Catalog Items Held for Review". Audited as
+// catalog_imported_by_staff.
+app.post(
+  "/api/admin/merchants/:id/catalog/import",
+  requireAdmin,
+  catalogImportLimit((req) => `m:${cleanString(req.params.id, 64)}`),
+  asyncRoute(async (req, res) => {
+    const { data: store, error } = await supabase.from("merchants").select("id, status").eq("id", cleanString(req.params.id, 64)).maybeSingle();
+    if (error) return fail(res, "The store could not be loaded.", 502);
+    if (!store) return fail(res, "Store not found.", 404);
+    if (store.status !== "approved") return fail(res, "Only approved stores can have items imported.", 409);
+    const r = await runCatalogImport({ merchantId: store.id, csv: req.body && req.body.csv, dryRun: req.body && req.body.dry_run === true, actor: { type: "admin", id: req.admin.email || req.admin.id, merchantUserId: null }, req });
+    return sendImport(res, r);
   })
 );
 
