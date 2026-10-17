@@ -19,6 +19,7 @@ const cors = require("cors");
 const path = require("path");
 
 const crypto = require("crypto");
+const net = require("net");
 
 const http = require("http");
 
@@ -1232,22 +1233,18 @@ async function redisRateHit(key, windowSeconds) {
 
 }
 
+// The caller's IP, for rate limits, usage keys and audit records.
+// Production traffic reaches the app through Render's Cloudflare edge,
+// which sets CF-Connecting-IP to the address that connected to it and
+// replaces any value a client sends. The first X-Forwarded-For entry is
+// not used: Render appends to that header, so its first entry is whatever
+// the client wrote (verified in production 2026-10-17: a changed header
+// got a fresh rate-limit allowance). Without the edge header, req.ip is
+// the address the nearest proxy saw ("trust proxy" 1 above).
 function getClientIp(req) {
-
-  return (
-
-    req.headers["x-forwarded-for"]
-
-      ?.split(",")[0]
-
-      ?.trim() ||
-
-    req.socket?.remoteAddress ||
-
-    "unknown"
-
-  );
-
+  const edge = String(req.headers["cf-connecting-ip"] || "").trim();
+  if (edge && net.isIP(edge)) return edge;
+  return req.ip || req.socket?.remoteAddress || "unknown";
 }
 
 // keyFn is an optional override for what identifies "one caller" --
