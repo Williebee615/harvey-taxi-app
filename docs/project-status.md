@@ -1079,3 +1079,40 @@ Both terms are recorded in plan §4 (items 7–8) and shown on the application p
   - Stripe Connect (phase 5);
   - the HTAF-domain redirect check, to be done by opening it in a browser.
 - **Next authorized action:** none. Merging this status/wording PR needs the owner's approval.
+
+## 27. Update 2026-10-17 (UTC): assistant knowledge sources (PR `claude/vector-knowledge-sources`, not merged)
+
+**[Owner decision 2026-10-17]** Option A ("add the published merchant application page as a searchable vector source and allow the vector search to read admin-approved articles") and option B (policy facts → draft articles for admin approval).
+
+**[Verified 2026-10-17, code and production database, before this change]**
+- The Harvey Taxi pilot corpus, which feeds keyword and vector retrieval, was three published pages: Terms, Privacy Policy and Support.
+- Admin-approved articles reached only the rule-based assistant.
+- Production had 0 knowledge articles.
+
+**Changes (not merged, not deployed):**
+- `lib/knowledge/sources.js`: adds `/merchant-apply.html` as an approved source. This applies to both assistants.
+- `server.js`: the pilot's Harvey Taxi corpus is the published pages plus the approved articles from the knowledge store's cached copy. When an article's slug@version set changes, the corpus is rebuilt, which also rebuilds the in-memory vector index. HTAF is unchanged (keyword only, no articles).
+- The `pgvector` store mode is not used in production (embeddings table empty), so it is unaffected. **[Unresolved]** It would need re-indexing if it is ever enabled.
+- Test: `test/server.assistant-pilot-knowledge-sources.test.js` (4). It covers:
+  - a merchant question answered from the page;
+  - an approved article quoted with its `/policies.html` link;
+  - a retired article no longer quoted;
+  - the vector index including the article and being rebuilt without it after retirement.
+
+**[Verified 2026-10-17, local]** Full suite 2,567 passed (21 suites skipped as usual). The assistant evaluation (`test/agent-eval`) passed unchanged.
+
+**[Unresolved]** Option B is waiting on the owner's facts. Policy wording must come from Harvey Taxi. Areas:
+- service area;
+- pricing beyond the estimate;
+- accessibility;
+- lost and found;
+- vehicle and insurance requirements;
+- minimum age;
+- account deletion;
+- HTAF eligibility, privacy, no-guarantee wording and tax status.
+
+**[Unresolved]** Merchant test record `02ca8c15-…` is still in production. See §26.
+
+**Handoff:**
+- **Next authorized action:** none. Merging this PR needs the owner's approval.
+- **After deploy:** check that the pilot answers a merchant question with the `/merchant-apply.html` source.
