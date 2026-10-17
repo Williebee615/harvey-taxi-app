@@ -127,6 +127,15 @@ describeWithBrowser("Store portal", () => {
     await page.waitForFunction(() => /Whole milk saved\./.test(document.getElementById("itemStatus").textContent));
     expect(mockClient._state.catalog_items.find((i) => i.name === "Whole milk").price_cents).toBe(499);
 
+    // Onboarding kit: the guide and both downloads.
+    await page.locator("#importGuide summary").click();
+    expect(await page.locator("#importGuide").innerText()).toMatch(/CSV \(UTF-8\)/);
+    for (const id of ["#templateLink", "#exampleLink"]) {
+      const href = await page.locator(id).getAttribute("href");
+      const body = await page.evaluate(async (h) => (await fetch(h)).text(), href);
+      expect(body.startsWith("name,price,section,description,available,substitutable")).toBe(true);
+    }
+
     // CSV: preview first (nothing changes), then import.
     await page.setInputFiles("#csvFile", { name: "items.csv", mimeType: "text/csv", buffer: Buffer.from("name,price,section\nBread,3.25,Bakery\nwhole milk,5.10,Dairy\nEggs,abc,\n") });
     await page.click("#previewImport");

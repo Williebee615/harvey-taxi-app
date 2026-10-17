@@ -63,6 +63,7 @@
     .item-top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
     .item-title{font-weight:950;line-height:1.35}.item-sub{color:var(--muted);font-size:.9rem;line-height:1.5;word-break:break-word}
     .verify-row{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 2px}.verify-chip{font-size:.75rem;font-weight:900;padding:5px 9px;border-radius:999px;border:1px solid var(--line)}.verify-chip.ok{color:#bff7da;border-color:rgba(91,227,162,.45)}.verify-chip.no{color:#ffd0d6;border-color:rgba(255,120,140,.45)}
+    .staff-import{margin:8px 0}.staff-import summary{cursor:pointer;color:var(--text)}.staff-import input[type=file]{margin:6px 0}
     .merchant-catalog{margin:10px 0;overflow-x:auto}.merchant-catalog table{width:100%;border-collapse:collapse;font-size:13px}.merchant-catalog th,.merchant-catalog td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
     .merchant-flags{margin:10px 0;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,217,114,.45);background:rgba(255,217,114,.08);line-height:1.45}.merchant-flags ul{margin:6px 0 4px 18px}
     #manualVerifyDialog{max-width:560px;width:calc(100% - 32px);border:1px solid var(--line);border-radius:18px;background:#0b1530;color:inherit;padding:18px}#manualVerifyDialog::backdrop{background:rgba(0,0,0,.6)}#manualVerifyDialog label{display:flex;gap:8px;align-items:flex-start;margin:8px 0;line-height:1.4}#manualVerifyDialog textarea,#manualVerifyDialog input[type=password]{width:100%;box-sizing:border-box;margin-top:6px;padding:10px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:inherit}
@@ -423,6 +424,13 @@ async function loadMerchants(){
       ${m.reviewed_at ? `<div class="item-sub">Reviewed by ${esc(m.reviewed_by)} ${esc(new Date(m.reviewed_at).toLocaleString())}${m.review_reason ? ": " + esc(m.review_reason) : ""}</div>` : ""}
       ${m.status === "approved" ? `<div class="item-sub merchant-signin"><strong>Store sign-in:</strong> ${(m.sign_in_users || []).filter(u => u.status === "active").map(u => `${esc(u.name)} (${esc(u.phone)}) <button class="danger" type="button" data-merchant-user-remove="${esc(u.id)}">Remove</button>`).join(" ") || "nobody yet"} <button class="neutral" type="button" data-merchant-signin-add="${esc(m.id)}" data-default-phone="${esc(m.contact_phone)}" data-default-name="${esc(m.contact_name)}">Give sign-in access</button></div>` : ""}
       ${["approved", "suspended"].includes(m.status) ? `<div class="item-sub"><button class="neutral" type="button" data-merchant-catalog="${esc(m.id)}" aria-expanded="false">View catalog</button></div><div class="merchant-catalog" data-catalog-for="${esc(m.id)}" hidden></div>` : ""}
+      ${m.status === "approved" ? `<details class="staff-import" data-import-for="${esc(m.id)}"><summary>Import a CSV for this store</summary>
+        <div class="item-sub">For a spreadsheet the store sent in. Same format as the store's own import (<a href="/merchant-catalog-template.csv" download>template</a>, <a href="/merchant-catalog-example.csv" download>example</a>). Possibly-excluded items are still held for review. Audited.</div>
+        <input type="file" accept=".csv,text/csv" class="staff-import-file" aria-label="CSV file for ${esc(m.business_name)}" />
+        <button class="neutral" type="button" data-staff-import="preview">Preview</button>
+        <button class="success" type="button" data-staff-import="run" hidden>Import</button>
+        <div class="item-sub staff-import-status" role="status" aria-live="polite"></div>
+      </details>` : ""}
       <div class="actions">${(MERCHANT_ACTIONS[m.status] || []).map(d => `<button class="${d === "approve" ? "success" : "danger"}" type="button" data-merchant-id="${esc(m.id)}" data-merchant-decision="${d}">${d[0].toUpperCase() + d.slice(1)}</button>`).join("")}</div>
     </div>`).join("") : `<div class="empty">No merchant applications yet.</div>`;
 }
@@ -493,6 +501,43 @@ document.getElementById("merchantsList").addEventListener("click", async (event)
       return `<tr data-catalog-item="${esc(i.id)}"><td><strong>${esc(i.name)}</strong>${i.description ? `<div class="item-sub">${esc(i.description)}</div>` : ""}</td><td>${esc(i.section || "")}</td><td>$${(i.price_cents / 100).toFixed(2)}</td><td>${i.available ? "yes" : "no"}</td><td>${i.substitutable ? "yes" : "no"}</td><td><span class="badge ${cls}">${esc(label)}</span>${detail ? `<div class="item-sub">${detail}</div>` : ""}</td></tr>`;
     }).join("")}
     </tbody></table>`;
+});
+// Staff-assisted CSV import for one store. Preview first; Import sends the
+// file that was previewed. Held items still go to review; nothing is
+// allowed automatically.
+const staffImportFiles = new WeakMap();
+document.getElementById("merchantsList").addEventListener("click", async (event) => {
+  const btn = event.target.closest("button[data-staff-import]");
+  if (!btn) return;
+  const box = btn.closest(".staff-import");
+  const status = box.querySelector(".staff-import-status");
+  const runBtn = box.querySelector('button[data-staff-import="run"]');
+  const dryRun = btn.dataset.staffImport === "preview";
+  let csv;
+  if (dryRun) {
+    const f = box.querySelector(".staff-import-file").files[0];
+    if (!f) { status.textContent = "Choose a CSV file first."; return; }
+    csv = await f.text();
+    staffImportFiles.set(box, csv);
+  } else {
+    csv = staffImportFiles.get(box);
+    if (!csv) { status.textContent = "Preview the file first."; runBtn.hidden = true; return; }
+    if (!window.confirm("Import these items into this store's catalog?")) return;
+  }
+  btn.disabled = true;
+  try {
+    const d = await api(`/api/admin/merchants/${encodeURIComponent(box.dataset.importFor)}/catalog/import`, { method: "POST", body: JSON.stringify({ csv, dry_run: dryRun }) });
+    const parts = [`${dryRun ? "Will add" : "Added"} ${d.create}, ${dryRun ? "update" : "updated"} ${d.update}.`];
+    if (d.held.length) parts.push(`${d.held.length} will be held for review: ${d.held.slice(0, 5).join(", ")}${d.held.length > 5 ? "…" : ""}.`);
+    if (d.errors.length) parts.push(`${d.errors.length} line(s) skipped: ${d.errors.slice(0, 3).map(e => `line ${e.line}: ${e.error}`).join("; ")}${d.errors.length > 3 ? "…" : ""}`);
+    status.textContent = parts.join(" ");
+    runBtn.hidden = !dryRun || (d.create + d.update === 0);
+    if (!dryRun) { staffImportFiles.delete(box); showResult("Items imported."); loadHeldItems(); }
+  } catch (e) {
+    status.textContent = e.message;
+    runBtn.hidden = true;
+  }
+  btn.disabled = false;
 });
 // Store sign-in access (merchant portal phase 1b). Giving access lets that
 // phone sign in to /merchant-portal.html with a texted code; removing it

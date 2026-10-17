@@ -177,4 +177,40 @@ describeWithBrowser("Admin dashboard: merchant applications", () => {
     expect(mockClient._state.audit_logs.length).toBe(auditBefore);
     await context.close();
   });
+
+  test("staff import a store's CSV: preview first, then import; flagged items held", async () => {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 1600 } });
+    await context.addCookies([{ name: "htaf_admin_session", value: session("owner@harvey.example"), url: base }]);
+    await context.route(/^https?:\/\/(?!127\.0\.0\.1)/, (route) => route.abort());
+    const page = await context.newPage();
+    await page.goto(`${base}/admin-dashboard.html`, { waitUntil: "load" });
+
+    const box = page.locator('.staff-import[data-import-for="M-SYN-1"]');
+    await box.waitFor();
+    expect(await page.locator('.staff-import[data-import-for="M-SYN-2"]').count()).toBe(0);
+    await box.locator("summary").click();
+    // Import before preview is refused in the page.
+    expect(await box.locator('button[data-staff-import="run"]').isHidden()).toBe(true);
+    await box.locator(".staff-import-file").setInputFiles({ name: "store.csv", mimeType: "text/csv", buffer: Buffer.from("name,price,section\nRye bread,4.25,Bakery\nWhole milk,4.79,Dairy\nCigarettes,12,\nOops,,\n") });
+    const before = mockClient._state.catalog_items.length;
+    await box.locator('button[data-staff-import="preview"]').click();
+    await box.locator('button[data-staff-import="run"]').waitFor();
+    const preview = await box.locator(".staff-import-status").innerText();
+    expect(preview).toMatch(/Will add 2, update 1\./);
+    expect(preview).toMatch(/1 will be held for review: Cigarettes/);
+    expect(preview).toMatch(/line 5/);
+    expect(mockClient._state.catalog_items.length).toBe(before);
+
+    page.once("dialog", (d) => d.accept());
+    await box.locator('button[data-staff-import="run"]').click();
+    await page.waitForFunction(() => /^Added 2, updated 1\./.test(document.querySelector('.staff-import[data-import-for="M-SYN-1"] .staff-import-status').textContent));
+    const live = mockClient._state.catalog_items.filter((i) => i.merchant_id === "M-SYN-1" && !i.archived_at);
+    expect(live.find((i) => i.name === "Rye bread")).toMatchObject({ price_cents: 425, review_status: "listed", created_by: null });
+    expect(live.find((i) => i.name === "Cigarettes")).toMatchObject({ review_status: "held", review_flags: ["tobacco_vape"] });
+    expect(live.find((i) => i.name === "Whole milk").price_cents).toBe(479);
+    expect(mockClient._state.audit_logs.filter((a) => a.action === "catalog_imported_by_staff")).toHaveLength(1);
+    // The held list refreshes with the new item.
+    await page.locator("#heldItemsList").locator("text=Cigarettes").waitFor();
+    await context.close();
+  });
 });
