@@ -2,7 +2,7 @@
 
 **Prepared:** 2026-10-17 (UTC).
 
-**[Owner decision 2026-10-17]** Delivery must work end to end for merchants, riders and drivers, through a **merchant portal**: stores sign up, receive orders, mark them ready and get paid through Harvey Taxi. Delivery booking is **paused** until this is built and tested (PR `claude/delivery-pause`).
+**[Owner decision 2026-10-17]** Delivery must work end to end for merchants, riders and drivers, through a **merchant portal**: stores sign up, receive orders, mark them ready and get paid through Harvey Taxi. Delivery booking is **paused** until this is built and tested (#260, live since 2026-10-17).
 
 Labels: **[Verified]** = checked in the code or the production database on the date shown. **[Decision]** = needed from the owner. **[To confirm]** = needs an accountant, counsel or the provider.
 
@@ -42,14 +42,23 @@ Labels: **[Verified]** = checked in the code or the production database on the d
 
 **[Recommendation]** Build phases 1–4 in **test mode** (Stripe test keys, synthetic stores) and show you the full flow before phase 5 touches real money.
 
-## 4. Decisions needed from you
+## 4. Merchant terms
 
-1. **[Decision] Commission:** what percentage of item sales Harvey Taxi keeps, and whether there is a monthly merchant fee.
-2. **[Decision] Prices:** whether stores may charge more on Harvey Taxi than in store. It is common; it must be disclosed.
-3. **[Decision] What is excluded:** recommended alcohol, tobacco, cannabis or hemp products, prescriptions and weapons. Each would need licences and age checks.
-4. **[Decision] Missing items:** who pays for a refund when the store left an item out (the store, Harvey Taxi, or split).
-5. **[Decision] Grocery substitutions:** allowed, with the rider's approval in the app, or not at all.
-6. **[Decision] Pilot stores:** which Nashville restaurants or stores you can sign first.
+**[Owner decision 2026-10-17]** "Approve the recommended versions" (items 1–6).
+
+1. **Commission:** 12% of the item subtotal (before tax; excluding tip and delivery fee), charged only on completed orders, so a cancelled or fully refunded order pays nothing. Card processing fees come out of Harvey Taxi's 12% (real margin about 9%, an estimate).
+2. **Prices:** merchants set their own prices. If a store's Harvey Taxi prices differ from in store, its page shows "Prices may be higher than in store". The application records this.
+3. **Excluded items:** alcohol, tobacco and vape; cannabis, hemp and CBD; prescription medicines; weapons and ammunition; gift cards, prepaid cards and lottery tickets; live animals; hazardous materials; oversized, highly fragile or refrigerated/specialized-transport items. Applicants must confirm they won't list them.
+4. **Missing items:** automatic customer credit, deducted from the merchant's payout, with a 48-hour dispute window backed by photos. The customer is refunded straight away and never waits for the dispute. If the merchant wins a dispute, Harvey Taxi absorbs that refund. Claims above a set number per customer per month go to manual review (number to be set before phase 6). The deduction must be written into the merchant agreement (counsel).
+5. **Substitutions:** the customer chooses per item at checkout: "contact me", "store's best match" or "refund if out of stock". Merchants only mark which items can be substituted. With no answer within 7 minutes, the item is refunded. Grocery orders are authorized with a 15% buffer; only the final amount is captured.
+6. **Pilot:** 5 midtown/downtown Nashville stores (3 restaurants, 2 grocery or convenience). Each signs the merchant agreement before going live. Precondition: at least 5 drivers fully verified and able to go online (0 of 19 on 2026-10-17).
+
+**[Unresolved: assumptions to confirm before phase 5]** Weekly merchant payouts; no monthly merchant fee.
+
+**Phase 1a** (PR `claude/merchant-portal-phase1`): public application page, admin review, `merchants` table. Its migration needs separate approval.
+
+## 4a. Still to confirm
+
 7. **[To confirm with an accountant]** Tennessee sales tax on marketplace sales. Tennessee has marketplace-facilitator rules that may require Harvey Taxi to collect and remit sales tax on the stores' sales. Confirm the threshold and how it applies before phase 3 handles real money.
 8. **[To confirm with counsel]**
     - a merchant agreement covering food safety, liability for what the store prepares, payouts and data;
@@ -61,8 +70,6 @@ Labels: **[Verified]** = checked in the code or the production database on the d
 
 ## 5. What happens now
 
-- PR `claude/delivery-pause` (this change) pauses delivery booking until the portal is ready. It covers:
-  - the server refuses delivery quotes and orders;
-  - the rider Delivery Center shows a "Delivery is paused" notice with a waitlist email;
-  - deliveries already in progress are unaffected.
-- After your decisions above, phase 1 is the next PR. Its migration needs your separate approval before it is applied.
+- Delivery booking is paused (#260, verified live 2026-10-17).
+- Phase 1a (applications and admin review) is PR `claude/merchant-portal-phase1`. Its `merchants` migration needs the owner's separate approval before it is applied.
+- Phase 1b (merchant sign-in, store hours) follows after phase 1a is merged.

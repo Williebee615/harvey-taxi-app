@@ -294,6 +294,11 @@
         <div class="list" id="htafList"><div class="empty">Loading HTAF applications...</div></div>
       </section>
 
+      <section class="card" id="merchantsCard">
+        <div class="card-head"><div><div class="title">Merchant Applications</div><div class="sub">Delivery pilot stores. Approve, or reject or suspend with a reason. Delivery booking stays paused.</div></div><span class="item-sub" id="merchantsCount">0</span></div>
+        <div class="list" id="merchantsList"><div class="empty">Loading merchant applications...</div></div>
+      </section>
+
       <section class="card">
         <div class="card-head"><div><div class="title">Financial Overview</div><div class="sub">Revenue and driver payout readiness.</div></div></div>
         <div class="list" id="financialList"><div class="empty">No financial data loaded.</div></div>
@@ -386,6 +391,52 @@ document.getElementById("mvSave").addEventListener("click", async () => {
   showResult("Manual verification recorded (" + esc(done.join(", ")) + ") in the audit log.");
   loadDashboard();
 });
+</script>
+<script>
+// Merchant applications (merchant portal phase 1a). Each decision is a
+// conditional update on the server and is written to the audit log.
+const MERCHANT_ACTIONS = { pending: ["approve", "reject"], approved: ["suspend"], suspended: ["approve"], rejected: [] };
+async function loadMerchants(){
+  const list = document.getElementById("merchantsList");
+  let data;
+  try { data = await api("/api/admin/merchants"); }
+  catch (e) { list.innerHTML = `<div class="empty">Merchant applications could not be loaded: ${esc(e.message)}</div>`; return; }
+  const items = data.merchants || [];
+  document.getElementById("merchantsCount").textContent = items.length;
+  if (data.not_set_up) { list.innerHTML = `<div class="empty">Merchant applications aren't set up yet (database migration not applied).</div>`; return; }
+  list.innerHTML = items.length ? items.map(m => `
+    <div class="item">
+      <div class="item-top">
+        <div><div class="item-title">${esc(m.business_name)}</div><div class="item-sub">${esc(m.category)} • ${esc(m.address_line)}, ${esc(m.city)} ${esc(m.postal_code || "")}</div></div>
+        <span class="badge ${statusClass(m.status)}">${esc(m.status)}</span>
+      </div>
+      <div class="item-sub">${esc(m.contact_name)} • ${esc(m.contact_email)} • ${esc(m.contact_phone)}${m.website ? " • " + esc(m.website) : ""}</div>
+      <div class="item-sub">Prices may differ from in store: ${m.prices_differ_from_store ? "yes" : "no"} • Applied ${esc(new Date(m.created_at).toLocaleString())}</div>
+      ${m.reviewed_at ? `<div class="item-sub">Reviewed by ${esc(m.reviewed_by)} ${esc(new Date(m.reviewed_at).toLocaleString())}${m.review_reason ? ": " + esc(m.review_reason) : ""}</div>` : ""}
+      <div class="actions">${(MERCHANT_ACTIONS[m.status] || []).map(d => `<button class="${d === "approve" ? "success" : "danger"}" type="button" data-merchant-id="${esc(m.id)}" data-merchant-decision="${d}">${d[0].toUpperCase() + d.slice(1)}</button>`).join("")}</div>
+    </div>`).join("") : `<div class="empty">No merchant applications yet.</div>`;
+}
+document.getElementById("merchantsList").addEventListener("click", async (event) => {
+  const btn = event.target.closest("button[data-merchant-decision]");
+  if (!btn) return;
+  const decision = btn.dataset.merchantDecision;
+  let reason = "";
+  if (decision !== "approve") {
+    reason = (window.prompt(`Reason to ${decision} this merchant (at least 10 characters):`) || "").trim();
+    if (reason.length < 10) { showError("A reason of at least 10 characters is required."); return; }
+  } else if (!window.confirm("Approve this merchant for the delivery pilot? Delivery booking stays paused.")) {
+    return;
+  }
+  btn.disabled = true;
+  try {
+    await api(`/api/admin/merchants/${encodeURIComponent(btn.dataset.merchantId)}/review`, { method: "PATCH", body: JSON.stringify({ decision, reason }) });
+    showResult(`Merchant ${esc(decision === "approve" ? "approved" : decision === "reject" ? "rejected" : "suspended")}. Recorded in the audit log.`);
+  } catch (e) {
+    showError(e.message);
+  }
+  loadMerchants();
+});
+</script>
 </script>
 <script>
 const API_BASE = window.HARVEY_API_BASE || window.location.origin;
@@ -567,6 +618,7 @@ async function loadDashboard(){
     // Load the new admin panels (non-blocking).
     refreshSystemStatus();
     loadDeletionRequests();
+    loadMerchants();
   }catch(err){
     showError(err.message);
   }

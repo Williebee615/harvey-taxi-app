@@ -747,7 +747,9 @@ const FOUNDATION_REDIRECTS = new Map([
   // domain ownership might specifically look for.
   ["/app-review.html", "/contact.html"],
   // Harvey Taxi's approved assistant answers (docs/ai-knowledge.md).
-  ["/policies.html", "/contact.html"]
+  ["/policies.html", "/contact.html"],
+  // Harvey Taxi's merchant (delivery pilot) application.
+  ["/merchant-apply.html", "/"]
 ]);
 
 app.use((req, res, next) => {
@@ -20587,6 +20589,94 @@ app.patch(
 
   })
 
+);
+
+/* =========================================================
+   MERCHANT PORTAL, PHASE 1A: APPLICATIONS AND ADMIN REVIEW
+   Owner decision 2026-10-17 (merchant portal; terms locked in
+   docs/merchant-portal-plan.md section 4). Stores apply publicly; staff
+   approve, reject (with a reason) or suspend (with a reason). Each review
+   is audited. No merchant sign-in, catalog, orders or payouts yet, and
+   delivery booking stays paused (rejectUnavailableRideType).
+========================================================= */
+const merchantRules = require("./lib/merchants");
+
+app.post(
+  "/api/merchants/apply",
+  rateLimit({ windowMs: 60 * 60_000, max: 5, keyPrefix: "merchant_apply" }),
+  asyncRoute(async (req, res) => {
+    const checked = merchantRules.validateMerchantApplication(req.body || {});
+    if (!checked.ok) return fail(res, checked.error, 400);
+    const { data, error } = await supabase.from("merchants").insert(checked.row).select("id,status").single();
+    if (error) {
+      if (error.code === "23505") return fail(res, "An application for this contact email is already open. We'll be in touch.", 409);
+      if (error.code === "42P01") return fail(res, "Merchant applications aren't open yet.", 503);
+      console.warn("⚠️ Merchant application not saved:", { code: error.code || "unknown" });
+      return fail(res, "We couldn't save your application. Please try again later.", 502);
+    }
+    auditLog({
+      actor_type: "merchant_applicant",
+      action: "merchant_application_submitted",
+      entity_type: "merchant",
+      entity_id: data.id,
+      metadata: { category: checked.row.category, prices_differ_from_store: checked.row.prices_differ_from_store }
+    }).catch(() => {});
+    return ok(res, { application: { id: data.id, status: data.status } }, 201);
+  })
+);
+
+app.get(
+  "/api/admin/merchants",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const { data, error } = await supabase
+      .from("merchants")
+      .select(merchantRules.ADMIN_MERCHANT_FIELDS.join(","))
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error) {
+      if (error.code === "42P01") return ok(res, { merchants: [], not_set_up: true });
+      return fail(res, "Merchants could not be loaded.", 502);
+    }
+    return ok(res, { merchants: data || [] });
+  })
+);
+
+app.patch(
+  "/api/admin/merchants/:id/review",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const id = cleanString(req.params.id, 64);
+    const { data: merchant, error: readError } = await supabase.from("merchants").select("id,status").eq("id", id).maybeSingle();
+    if (readError) return fail(res, "Merchant could not be loaded.", 502);
+    const plan = merchantRules.planMerchantReview({
+      merchant,
+      decision: cleanString(req.body && req.body.decision, 20).toLowerCase(),
+      reason: req.body && req.body.reason,
+      reviewer: req.admin.email
+    });
+    if (!plan.ok) return fail(res, plan.error, plan.statusCode);
+    // Conditional on the status just read, so two staff reviewing at once
+    // can't both apply a decision.
+    const { data: updated, error } = await supabase
+      .from("merchants")
+      .update(plan.update)
+      .eq("id", id)
+      .eq("status", merchant.status)
+      .select(merchantRules.ADMIN_MERCHANT_FIELDS.join(","))
+      .maybeSingle();
+    if (error) return fail(res, "The review could not be saved.", 502);
+    if (!updated) return fail(res, "This merchant was changed by someone else. Reload and try again.", 409);
+    auditLog({
+      actor_type: "admin",
+      actor_id: req.admin.email,
+      action: `merchant_${plan.update.status}`,
+      entity_type: "merchant",
+      entity_id: id,
+      metadata: { from: merchant.status, to: plan.update.status, reason: plan.update.review_reason }
+    }).catch(() => {});
+    return ok(res, { merchant: updated });
+  })
 );
 
 /* =========================================================

@@ -18,6 +18,7 @@ const LIVE_PAGES = [
   "public/driver-dashboard.html",
   "public/driver-signup.html",
   "public/support.html",
+  "public/merchant-apply.html",
   "public/settings.html",
   "public/admin-dashboard.html",
   "public/admin-htaf.html",

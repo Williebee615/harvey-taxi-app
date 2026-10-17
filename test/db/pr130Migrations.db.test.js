@@ -58,7 +58,9 @@ const EXPECTED_ORDER = [
   // Covered by test/db/paymentRefunds.db.test.js.
   "20261015010000_payment_refunds.sql",
   // Covered by test/db/assistantPassageEmbeddings.db.test.js.
-  "20261015020000_assistant_passage_embeddings.sql"
+  "20261015020000_assistant_passage_embeddings.sql",
+  // Covered by test/db/merchants.db.test.js.
+  "20261017010000_merchants.sql"
 ];
 
 // Synthetic pre-existing row (no production data), inserted after the
