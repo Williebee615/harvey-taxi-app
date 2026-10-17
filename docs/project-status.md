@@ -1371,7 +1371,7 @@ The earlier §26 [Unresolved] item is resolved.
 **Handoff:**
 - **Next authorized action:** none. Merging needs the owner's approval.
 
-## 34. Update 2026-10-17 (UTC): merchant portal phase 1b, store sign-in and hours (PR `claude/merchant-portal-phase1b`, not merged)
+## 34. Update 2026-10-17 (UTC): merchant portal phase 1b, store sign-in and hours (#272, merged as `5438101`)
 
 **[Owner decision 2026-10-17]** Phase 1b approved: merchant sign-in and store hours.
 
@@ -1413,3 +1413,35 @@ The earlier §26 [Unresolved] item is resolved.
 
 **Handoff:**
 - **Next authorized action:** none. Merging needs the owner's approval; the migration needs separate approval.
+
+**[Owner decision 2026-10-17]**
+- "Approved to merge #271 and #272". #271 merged as `c521524`; #272 merged as `5438101` after a status-record merge conflict was resolved. All six CI checks were green on each.
+- The owner reports `MERCHANT_SESSION_SECRET` set on Render. The value is not recorded.
+
+**[Verified 2026-10-17 20:52 UTC, production]**
+- `/api/health` reports `5438101`, healthy.
+- `/merchant-portal.html` returns 200.
+- `GET /api/merchant/me` with the portal header returns 401 "Please sign in" (not 503), so the session secret is configured.
+- Without the header it returns 403; the admin sign-in-access route without admin returns 401.
+
+**[Owner decision 2026-10-17]** "Approved to apply the phase 1b migration".
+
+**[Verified 2026-10-17 20:55 UTC, production]** Migration `merchant_users_hours` applied to `orgahzncmzptljapqffj`, identical to the merged file.
+- RLS is on for both tables, with 0 policies. `anon` and `authenticated` have no access; `service_role` can insert.
+- `bump_merchant_user_session_version` can be run by `service_role` only.
+- Indexes: `merchant_users_pkey`, `merchant_users_active_phone_idx`, `merchant_users_merchant_idx`, `merchant_hours_pkey`.
+- 0 rows in each table.
+- `POST /api/merchant/session/start` with a phone that isn't set up returns 200 `{sent: true}` and sends no text.
+
+**Store sign-in is now live:** approve a store, then use "Give sign-in access" on the admin dashboard; the store signs in at `/merchant-portal.html`.
+
+**[Unresolved]** No real store has signed in yet. The first real sign-in will be the first end-to-end check of the Twilio Verify text for stores.
+
+**Handoff:**
+- **Done:** phases 1a and 1b live.
+- **Remaining:**
+  - the first pilot store;
+  - the accountant's sales-tax guidance;
+  - counsel's merchant agreement;
+  - phase 2 (catalog).
+- **Next authorized action:** none pending.
