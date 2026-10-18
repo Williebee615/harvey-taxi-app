@@ -185,9 +185,14 @@ Checks in the database: amounts never negative; `captured_cents ≤ authorized_c
 - One store per cart. Adding from a second store asks the rider to keep the cart or clear it. The cart is kept on the device (it lasts through a reload); the server re-reads every price and stock level at checkout. Items that stop being available are removed from a saved cart, with a note.
 - Term 5 choice per item the store marks substitutable: "Refund this item" (default), "Store picks a similar item", or "Contact me first". Other items are refunded if out of stock.
 - Markets: `lib/markets.js` (Nashville only). Migration `20261018030000_markets.sql` adds `market` to stores and orders (default `nashville`); orders copy their store's market. Approvals (refund proposals) arrive with step 3c and will carry the order's market.
-- "Continue to checkout" is disabled until part 2.
+- "Continue to checkout" was disabled until part 2.
 
-**Part 2 (next PR): checkout.** **[Verified 2026-10-18, code]** The existing `POST /api/rides/estimate` refuses food and grocery while the legacy delivery booking is paused, so checkout can't use it. Part 2 adds an orders-only estimate whose pickup is the store's confirmed pin (set by the server, not the rider) and whose drop-off is the rider's address, then the checkout screen (items, tax placeholder, delivery fee, the grocery hold, optional tip) and the Stripe test-mode card step.
+**Part 2 (PR `claude/phase3b-checkout`): checkout.** **[Verified 2026-10-18, code]** The existing `POST /api/rides/estimate` refuses food and grocery while the legacy delivery booking is paused, so checkout can't use it.
+- `POST /api/orders/estimate` (signed-in riders; 30 per 10 minutes each): the pickup is the store's confirmed pin, read on the server and never sent to the rider; the drop-off is the rider's address (Tennessee only); the road distance comes from the routing service (Mapbox, server-side), never from the device. It uses the same pricing as food and grocery deliveries and the same signed, single-use, 15-minute quote, bound to the rider. Closed stores, stores without a pin, no route or a routing outage give no quote.
+- **[Recommendation]** A delivery limit of 15 road miles from the store (`MAX_DELIVERY_MILES` in `lib/orders.js`) until the owner sets the delivery area.
+- Checkout fills in the pin itself when the device sends no pickup, so the rider's screens never hold the store's exact coordinates.
+- `/store-menu.html` checkout: address, delivery fee, tip (none, $2, $3, $5 or $8; 100% to the driver), a note for the store. "Review and pay" starts the order; the pay screen then shows the server's figures (items, tax at the test-mode placeholder, fee, tip, total, and the grocery hold amount) before the card form. The card form is Stripe's (Stripe.js with the orders `pk_test_` key); after authorization the server checks the PaymentIntent with Stripe before the order goes to the store. The order screen shows its status, refreshes every 15 seconds and offers Cancel until the store marks it ready (D2).
+- The Delivery Center shows "Order from a partner store (test mode)" only while `GET /api/orders/config` reports ordering on. The legacy booking buttons stay paused.
 
 ## 12. Build plan (each a separate PR; each merge, the migration and turning on the switch need the owner's approval)
 

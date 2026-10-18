@@ -28,6 +28,11 @@
     button.secondary { background: transparent; color: var(--text); border: 1px solid var(--line); }
     button:disabled { opacity: 0.55; cursor: not-allowed; }
     button:focus-visible, a:focus-visible, select:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+    input[type="text"], textarea { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: #0b1a33; color: var(--text); font-size: 16px; font-family: inherit; }
+    input:focus-visible, textarea:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+    label.field { display: grid; gap: 6px; margin-top: 12px; font-size: 14px; color: var(--muted); }
+    .totals .total { font-weight: 700; color: var(--text); border-top: 1px solid var(--line); padding-top: 6px; margin-top: 4px; }
+    #paymentElement { margin-top: 12px; padding: 12px; border-radius: 12px; background: #f5f8ff; }
     select { padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: #0b1a33; color: var(--text); font-size: 15px; max-width: 100%; }
     .notice { border-left: 4px solid var(--gold); padding: 10px 12px; background: rgba(255, 217, 114, 0.08); border-radius: 8px; margin-top: 12px; color: var(--text); }
     .stores { display: grid; gap: 12px; margin-top: 12px; }
@@ -101,11 +106,67 @@
       <p id="groceryNote" class="muted" style="margin-top:8px" hidden>For grocery orders your card is held for up to 15% more than the items, to cover weights and substitutions. You pay only the final amount.</p>
       <p class="muted" style="margin-top:8px">Delivery fee, tax and an optional tip (100% to your driver) are added at checkout.</p>
       <div class="row">
-        <button type="button" id="checkout" disabled>Continue to checkout</button>
+        <button type="button" id="checkout">Continue to checkout</button>
         <button type="button" class="secondary" id="clearCart">Empty cart</button>
       </div>
-      <p class="muted" id="checkoutNote" style="margin-top:8px">Checkout is being finished. Your cart is saved on this device.</p>
       <div class="status" id="cartStatus" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="card" id="checkoutCard" hidden aria-labelledby="checkoutTitle">
+      <button type="button" class="secondary" id="backToCart">← Back to cart</button>
+      <h2 id="checkoutTitle" style="margin-top:12px">Checkout</h2>
+      <p class="muted">Test mode: no real card is charged.</p>
+      <label class="field" for="addrInput">Deliver to
+        <input type="text" id="addrInput" autocomplete="street-address" maxlength="200" placeholder="Street address, city" />
+      </label>
+      <div class="row"><button type="button" id="addrFind">Get delivery fee</button></div>
+      <p id="addrLabel" style="margin-top:8px" hidden></p>
+      <label class="field" for="tipSelect">Tip for your driver (100% goes to them)
+        <select id="tipSelect">
+          <option value="0">No tip</option>
+          <option value="200">$2.00</option>
+          <option value="300" selected>$3.00</option>
+          <option value="500">$5.00</option>
+          <option value="800">$8.00</option>
+        </select>
+      </label>
+      <label class="field" for="notesInput">Note for the store (optional)
+        <textarea id="notesInput" rows="2" maxlength="300"></textarea>
+      </label>
+      <div class="totals" id="previewTotals">
+        <div><span>Items</span><span class="price" id="pvItems">$0.00</span></div>
+        <div><span>Delivery fee</span><span class="price" id="pvFee">—</span></div>
+        <div><span>Tip</span><span class="price" id="pvTip">$0.00</span></div>
+      </div>
+      <p class="muted" style="margin-top:8px">Tax is added when you place the order and shown before you pay.</p>
+      <div class="row"><button type="button" id="placeOrder" disabled>Review and pay</button></div>
+      <div class="status" id="checkoutStatus" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="card" id="payCard" hidden aria-labelledby="payTitle">
+      <h2 id="payTitle">Pay for order <span id="payNumber"></span></h2>
+      <div class="totals">
+        <div><span>Items</span><span class="price" id="payItems"></span></div>
+        <div><span>Tax</span><span class="price" id="payTax"></span></div>
+        <div><span>Delivery fee</span><span class="price" id="payFee"></span></div>
+        <div><span>Tip</span><span class="price" id="payTip"></span></div>
+        <div class="total"><span>Total</span><span class="price" id="payTotal"></span></div>
+      </div>
+      <p class="muted" id="payHoldNote" style="margin-top:8px" hidden></p>
+      <p class="muted" style="margin-top:8px">Your card is authorized now and charged only when the order is delivered. If the store doesn't accept within 8 minutes, the hold is released.</p>
+      <div id="paymentElement"></div>
+      <div class="row"><button type="button" id="payButton" disabled>Authorize test payment</button></div>
+      <div class="status" id="payStatus" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="card" id="placedCard" hidden aria-labelledby="placedTitle">
+      <h2 id="placedTitle">Order <span id="placedNumber"></span></h2>
+      <p id="placedStatus"></p>
+      <div class="row">
+        <button type="button" class="secondary" id="placedRefresh">Refresh</button>
+        <button type="button" class="secondary" id="placedCancel" hidden>Cancel order</button>
+      </div>
+      <div class="status" id="placedNote" role="status" aria-live="polite"></div>
     </section>
   </div>
 
@@ -139,6 +200,11 @@
       let memCart = readCart();
       const cart = () => memCart;
 
+      async function post(path, body) {
+        const res = await fetch(path, { method: "POST", credentials: "same-origin", headers: { Accept: "application/json", "Content-Type": "application/json", "X-Requested-With": "harvey-rider-app" }, body: JSON.stringify(body || {}) });
+        const data = await res.json().catch(function () { return {}; });
+        return { ok: res.ok, status: res.status, data: data };
+      }
       async function get(path) {
         const res = await fetch(path, { credentials: "same-origin", headers: { Accept: "application/json" } });
         const data = await res.json().catch(function () { return {}; });
@@ -367,10 +433,211 @@
         loadStores();
       });
 
+      // Checkout (step 3b part 2). The server sets every amount: the fee from
+      // a signed estimate that starts at the store, prices from the catalog.
+      let quote = null;
+      let orderKey = null;
+      let currentOrder = null;
+      let stripe = null;
+      let elements = null;
+      let pollTimer = null;
+      const STATUS_TEXT = {
+        pending_payment: "Waiting for payment.",
+        placed: "Sent to the store. Waiting for them to accept (up to 8 minutes).",
+        accepted: "The store accepted your order and is preparing it.",
+        ready: "Ready for pickup. A driver will bring it to you.",
+        rejected: "The store couldn't take this order. Your card hold was released.",
+        expired: "The store didn't respond in time. Your card hold was released.",
+        cancelled_by_rider: "You cancelled this order. Your card hold was released.",
+        cancelled_by_staff: "Harvey Taxi cancelled this order. Your card hold was released.",
+        payment_abandoned: "Payment wasn't completed, so the order wasn't sent."
+      };
+      const newKey = () => (window.crypto && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2));
+      function cartItems(c) { return c.lines.map(function (l) { return { catalog_item_id: l.id, quantity: l.quantity, substitution_choice: l.substitutable ? l.choice : "refund" }; }); }
+      function subtotalOf(c) { return c.lines.reduce(function (s, l) { return s + l.price_cents * l.quantity; }, 0); }
+      function setStatus(id, text, isError) { const el = $(id); el.textContent = text || ""; el.classList.toggle("error", Boolean(isError)); }
+      function renderPreview() {
+        const c = cart();
+        if (!c) return;
+        const tip = Number($("tipSelect").value);
+        $("pvItems").textContent = money(subtotalOf(c));
+        $("pvFee").textContent = quote ? money(quote.delivery_fee_cents) : "—";
+        $("pvTip").textContent = money(tip);
+        $("placeOrder").disabled = !quote;
+      }
+      function showOnly(id) {
+        ["storesCard", "menuCard", "switchCard", "cartCard", "checkoutCard", "payCard", "placedCard"].forEach(function (x) { $(x).hidden = x !== id; });
+      }
+      function openCheckout() {
+        if (!cart()) return;
+        quote = null;
+        orderKey = newKey();
+        $("addrLabel").hidden = true;
+        setStatus("checkoutStatus", "");
+        showOnly("checkoutCard");
+        renderPreview();
+        $("addrInput").focus();
+      }
+      async function findAddress() {
+        const c = cart();
+        const q = $("addrInput").value.trim();
+        if (!c) return;
+        if (q.length < 3) { setStatus("checkoutStatus", "Enter your street address.", true); return; }
+        $("addrFind").disabled = true;
+        quote = null;
+        renderPreview();
+        setStatus("checkoutStatus", "Finding your address…");
+        try {
+          const place = await post("/api/geo/resolve", { query: q });
+          if (!place.ok || !place.data.place) { setStatus("checkoutStatus", place.status === 404 ? "We couldn't find that address. Check it and try again." : (place.data.error || "Address search isn't available right now."), true); return; }
+          const p = place.data.place;
+          const est = await post("/api/orders/estimate", { merchant_id: c.merchant_id, destination_lat: p.lat, destination_lng: p.lng });
+          if (!est.ok) { setStatus("checkoutStatus", est.data.error || "The delivery fee couldn't be worked out.", true); return; }
+          quote = Object.assign({}, est.data, { label: p.label || q });
+          orderKey = newKey();
+          $("addrLabel").textContent = "Delivering to " + quote.label + " · about " + est.data.miles + " miles from the store.";
+          $("addrLabel").hidden = false;
+          setStatus("checkoutStatus", "");
+          renderPreview();
+        } finally {
+          $("addrFind").disabled = false;
+        }
+      }
+      async function placeOrder() {
+        const c = cart();
+        if (!c || !quote) return;
+        $("placeOrder").disabled = true;
+        setStatus("checkoutStatus", "Starting your order…");
+        const r = await post("/api/orders/checkout", {
+          merchant_id: c.merchant_id,
+          items: cartItems(c),
+          tip_cents: Number($("tipSelect").value),
+          rider_notes: $("notesInput").value.trim(),
+          client_order_key: orderKey,
+          estimate_token: quote.estimate_token,
+          ride_type: quote.ride_type,
+          destination_lat: quote.destination.lat,
+          destination_lng: quote.destination.lng
+        });
+        if (!r.ok) {
+          // A used or expired estimate needs a fresh one; anything else may be retried as is.
+          if (/estimate/i.test(r.data.error || "")) { quote = null; $("addrLabel").hidden = true; }
+          setStatus("checkoutStatus", r.data.error || "Your order couldn't be started. Please try again.", true);
+          renderPreview();
+          return;
+        }
+        currentOrder = r.data.order;
+        if (currentOrder.status !== "pending_payment" || !r.data.client_secret) { showPlaced(currentOrder); return; }
+        await showPayment(currentOrder, r.data.client_secret);
+      }
+      function loadStripe(key) {
+        if (window.Stripe) return Promise.resolve(window.Stripe(key));
+        return new Promise(function (resolve, reject) {
+          const s = document.createElement("script");
+          s.src = "https://js.stripe.com/v3/";
+          s.onload = function () { window.Stripe ? resolve(window.Stripe(key)) : reject(new Error("stripe")); };
+          s.onerror = function () { reject(new Error("stripe")); };
+          document.head.appendChild(s);
+        });
+      }
+      async function showPayment(order, clientSecret) {
+        showOnly("payCard");
+        $("payNumber").textContent = order.order_number;
+        $("payItems").textContent = money(order.items_subtotal_cents);
+        $("payTax").textContent = money(order.tax_cents);
+        $("payFee").textContent = money(order.delivery_fee_cents);
+        $("payTip").textContent = money(order.tip_cents);
+        $("payTotal").textContent = money(order.total_cents);
+        const hold = order.authorized_cents > order.total_cents;
+        $("payHoldNote").hidden = !hold;
+        if (hold) $("payHoldNote").textContent = "Your card will be held for up to " + money(order.authorized_cents) + " to cover grocery weights and substitutions. You pay only the final amount.";
+        setStatus("payStatus", "Loading the secure card form…");
+        $("payButton").disabled = true;
+        const cfg = await get("/api/orders/config");
+        if (!cfg.ok || !cfg.data.publishable_key) { setStatus("payStatus", "Card payments aren't set up yet. Nothing has been charged.", true); return; }
+        try {
+          stripe = await loadStripe(cfg.data.publishable_key);
+          elements = stripe.elements({ clientSecret: clientSecret });
+          elements.create("payment").mount("#paymentElement");
+          setStatus("payStatus", "Test card: 4242 4242 4242 4242, any future date, any CVC.");
+          $("payButton").disabled = false;
+        } catch (e) {
+          setStatus("payStatus", "The card form couldn't load. Check your connection and try again. Nothing has been charged.", true);
+        }
+      }
+      async function pay() {
+        if (!stripe || !elements || !currentOrder) return;
+        $("payButton").disabled = true;
+        setStatus("payStatus", "Authorizing…");
+        const result = await stripe.confirmPayment({ elements: elements, redirect: "if_required", confirmParams: { return_url: location.origin + "/store-menu.html?order=" + encodeURIComponent(currentOrder.id) } });
+        if (result && result.error) {
+          setStatus("payStatus", result.error.message || "Your card couldn't be authorized.", true);
+          $("payButton").disabled = false;
+          return;
+        }
+        await confirmOrder(currentOrder.id);
+      }
+      async function confirmOrder(id) {
+        const r = await post("/api/orders/" + encodeURIComponent(id) + "/confirm-payment");
+        if (!r.ok) {
+          setStatus("payStatus", r.data.error || "Your payment couldn't be confirmed yet.", true);
+          $("payButton").disabled = false;
+          return;
+        }
+        writeCart(null);
+        showPlaced(r.data.order);
+      }
+      function showPlaced(order) {
+        currentOrder = order;
+        showOnly("placedCard");
+        $("placedNumber").textContent = order.order_number + " · " + (order.store_name || "");
+        $("placedStatus").textContent = STATUS_TEXT[order.status] || order.status;
+        $("placedCancel").hidden = !order.can_cancel;
+        try { history.replaceState(null, "", "?order=" + encodeURIComponent(order.id)); } catch (e) { /* not essential */ }
+        clearInterval(pollTimer);
+        if (["pending_payment", "placed", "accepted", "ready"].indexOf(order.status) >= 0) pollTimer = setInterval(refreshOrder, 15000);
+      }
+      async function refreshOrder() {
+        if (!currentOrder) return;
+        const r = await get("/api/orders/" + encodeURIComponent(currentOrder.id));
+        if (r.ok && r.data.order) showPlaced(r.data.order);
+      }
+
+      $("checkout").addEventListener("click", openCheckout);
+      $("backToCart").addEventListener("click", function () {
+        showOnly(null);
+        renderCart();
+        if (currentMenu) $("menuCard").hidden = false; else loadStores();
+      });
+      $("addrFind").addEventListener("click", findAddress);
+      $("addrInput").addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); findAddress(); } });
+      $("addrInput").addEventListener("input", function () { if (quote) { quote = null; $("addrLabel").hidden = true; renderPreview(); } });
+      $("tipSelect").addEventListener("change", function () { orderKey = newKey(); renderPreview(); });
+      $("notesInput").addEventListener("change", function () { orderKey = newKey(); });
+      $("placeOrder").addEventListener("click", placeOrder);
+      $("payButton").addEventListener("click", pay);
+      $("placedRefresh").addEventListener("click", refreshOrder);
+      $("placedCancel").addEventListener("click", async function () {
+        if (!currentOrder || !window.confirm("Cancel this order? Your card hold will be released.")) return;
+        const r = await post("/api/orders/" + encodeURIComponent(currentOrder.id) + "/cancel");
+        if (r.ok) showPlaced(r.data.order); else setStatus("placedNote", r.data.error || "The order couldn't be cancelled.", true);
+      });
+
       renderCart();
-      const wanted = new URLSearchParams(location.search).get("store");
-      if (wanted) openMenu(wanted).then(function () { if ($("menuCard").hidden) loadStores(); });
-      else loadStores();
+      const params = new URLSearchParams(location.search);
+      const returning = params.get("order");
+      // Back from a card check that needed a redirect: confirm with the server.
+      if (returning) {
+        get("/api/orders/" + encodeURIComponent(returning)).then(function (r) {
+          if (!r.ok || !r.data.order) { loadStores(); return; }
+          if (r.data.order.status === "pending_payment" && params.get("redirect_status") === "succeeded") confirmOrder(returning).then(function () { if ($("placedCard").hidden) showPlaced(r.data.order); });
+          else showPlaced(r.data.order);
+        });
+      } else {
+        const wanted = params.get("store");
+        if (wanted) openMenu(wanted).then(function () { if ($("menuCard").hidden) loadStores(); });
+        else loadStores();
+      }
     })();
   </script>
 </body>

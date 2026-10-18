@@ -1867,3 +1867,35 @@ The demo can then run in production with test money while rides keep their keys 
   - 3b part 2 (orders-only estimate, checkout screen, Stripe test card step);
   - 3c.
 - **Next authorized action:** building 3b part 2 (Step 3b is authorized). Merging and the migration need the owner's approval.
+
+## 44. Update 2026-10-18 (UTC): step 3b part 2, checkout (PR `claude/phase3b-checkout`, stacked on #284, not merged)
+
+**[Owner decision 2026-10-18]**
+1. "Approved. Proceed to merge PR #284 into the main branch once CI is green."
+2. The markets migration is approved; the owner will run it in the production SQL editor.
+3. The owner is adding `ORDERS_STRIPE_SECRET_KEY` (sk_test), `ORDERS_STRIPE_PUBLISHABLE_KEY` (pk_test) and `ENABLE_MERCHANT_ORDERS=true` on Render (names only recorded).
+4. "Once the database migration is confirmed, you are approved to proceed with Step 3b Part 2." Merging this PR needs its own approval.
+
+**[Verified 2026-10-18 01:43 UTC]** All six CI checks were green on `e1edced`; #284 merged as `59e7ca7`. `/api/health` reports `59e7ca7`, healthy, database connected; `/store-menu.html` returns 200. `/api/orders/config` still reports `enabled: false` (the Render settings had not taken effect at that time).
+
+**Markets migration:** the owner ran the SQL file (copied unchanged from `main`) in the project labelled PRODUCTION; the owner's screenshot (8:45 PM local, 17 Oct) shows the check returning `2 | 2`.
+- **[Verified 2026-10-18 ~01:46 UTC, read-only]** `market` exists on `merchants` and `orders`: `not null`, default `'nashville'`, with the checks `merchants_market_check` and `orders_market_check` and the indexes `merchants_market_status_idx` and `orders_market_status_idx`. No store has a market other than `nashville`.
+- **[Verified 2026-10-18 01:46 UTC]** `/api/orders/config` still reports `enabled: false`: the Render settings had not taken effect.
+
+**Step 3b part 2 (this PR) [Verified 2026-10-18, local]:** details are in `docs/merchant-portal-phase3-orders.md` §11b.
+- `POST /api/orders/estimate`: the delivery fee from the store's pin to the rider's address by road, signed and single use. The pin never leaves the server.
+- Checkout, pay and order-status screens on `/store-menu.html`; a Stripe test card authorizes the order, then the server checks Stripe before the store sees it.
+- The Delivery Center links to store ordering only while ordering is on. Production still reports it off, so nothing changes for riders until the owner adds the demo settings.
+- **[Recommendation]** A 15-road-mile delivery limit until the owner sets the delivery area.
+- **[Unresolved]** Tax is still the test-mode placeholder (`ORDERS_TEST_TAX_RATE_BPS`, default 0) pending the accountant's advice.
+- Full suite: 2,795 passed, 0 failed (226 skipped). Tests: `test/server.orders.test.js` (4 new, 7 cases: pin used and not sent, fee carried into checkout, single use, Tennessee only, no pin, closed, no route, outage, 15-mile limit, another rider's quote refused); `test/store-menu.browser.test.js` (2 new, Chromium at 390 px: full checkout with a stand-in for Stripe.js, totals with tax and grocery hold, test-card authorization, order placed, cart cleared, reload, cancel releases the hold; no-route message).
+
+**Handoff:**
+- **Done:** 3b part 2 built and tested locally.
+- **Remaining:**
+  - merge approval for this PR;
+  - confirming the demo settings on Render (`ORDERS_STRIPE_SECRET_KEY`, `ORDERS_STRIPE_PUBLISHABLE_KEY`, `ENABLE_MERCHANT_ORDERS=true`; names only);
+  - the owner's choice of delivery area (or confirming 15 miles);
+  - 3c.
+- **Next authorized action:** none. Merging this PR waits for the owner's approval; once the Render settings are saved, check that `/api/orders/config` reports ordering on.
+
