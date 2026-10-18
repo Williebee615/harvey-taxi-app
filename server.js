@@ -15973,11 +15973,10 @@ app.post(
     }
 
     const ownerType = cleanString(req.body.owner_type, 20);
-    const ownerId = cleanString(req.body.owner_id, 100);
     const subscription = req.body.subscription;
 
-    if (!["rider", "driver"].includes(ownerType) || !ownerId) {
-      return fail(res, "A valid owner_type (rider or driver) and owner_id are required.", 400);
+    if (!["rider", "driver"].includes(ownerType)) {
+      return fail(res, "A valid owner_type (rider or driver) is required.", 400);
     }
 
     const endpoint = cleanString(subscription?.endpoint, 500);
@@ -15988,27 +15987,44 @@ app.post(
       return fail(res, "A valid push subscription is required.", 400);
     }
 
-    const { error } = await supabase
-      .from("push_subscriptions")
-      .upsert(
-        {
-          id: makeId("PUSH"),
-          owner_type: ownerType,
-          owner_id: ownerId,
-          endpoint,
-          p256dh,
-          auth,
-          user_agent: cleanString(req.headers["user-agent"], 300) || null,
-          last_used_at: nowIso()
-        },
-        { onConflict: "endpoint" }
-      );
+    // Security fix (owner decision 2026-10-18): the subscription is tied
+    // to the signed-in rider or driver, never to a client-supplied
+    // owner_id, so nobody can subscribe a browser to someone else's ride
+    // or offer notifications.
+    const save = async (ownerId) => {
+      const { error } = await supabase
+        .from("push_subscriptions")
+        .upsert(
+          {
+            id: makeId("PUSH"),
+            owner_type: ownerType,
+            owner_id: ownerId,
+            endpoint,
+            p256dh,
+            auth,
+            user_agent: cleanString(req.headers["user-agent"], 300) || null,
+            last_used_at: nowIso()
+          },
+          { onConflict: "endpoint" }
+        );
 
-    if (error) {
-      throw error;
+      if (error) {
+        throw error;
+      }
+
+      return ok(res, { subscribed: true });
+    };
+
+    if (ownerType === "rider") {
+      const rider = (await resolveAuthenticatedReviewRider(req)) || (await resolveVerifiedRiderSession(req));
+      if (!rider?.id) {
+        return fail(res, "Please sign in to turn on ride notifications.", 401);
+      }
+      return save(rider.id);
     }
 
-    return ok(res, { subscribed: true });
+    // Drivers: the signed-in driver only (no admin override).
+    return requireDriverSelf(req, res, () => save(req.driver.id));
   })
 );
 
