@@ -6,6 +6,8 @@
 
 **Never put review-account passwords in this file.** Enter them only in the store consoles' sign-in fields.
 
+**Updated 2026-10-18 (UTC):** the home-screen "App Review Access" panel was removed. Only a small "App Review Sign-In" link remains, in the footer, shown while signed out ([Owner decision] 2026-10-18: hide the panel, keep the sign-in link). The rider text below says where to find it.
+
 **[Owner decision]** Before submitting, the owner confirms that each statement below matches what is live.
 
 ---
@@ -17,7 +19,7 @@
 > **Autonomous rides are not available.** The "Autonomous rides" card in the Ride Center is labelled "Coming soon" and only opens an email to join a waitlist. No autonomous ride can be requested; the server refuses that ride type.
 >
 > **Server-controlled settings.** Some features are switched on or off on our server without an app update. None of them adds functionality that isn't described here:
-> - App Review sign-in. The "App Review Access" panel lets reviewers sign in with the demo account supplied in these notes. Review rides, payments and earnings are simulated.
+> - App Review sign-in. While signed out, scroll to the bottom of the rider home screen and tap the small "App Review Sign-In" link in the footer, then sign in with the demo account supplied in these notes. Review rides, payments and earnings are simulated.
 > - Ride history (on).
 > - Help assistant. It answers by quoting Harvey Taxi's published policy and support pages and citing them. An AI writing model is used only for designated test accounts. Off-topic questions get "not covered".
 > - Food and grocery delivery: shown only where enabled, and clearly labelled.

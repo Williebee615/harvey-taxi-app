@@ -151,12 +151,16 @@ describeWithBrowser("App Review mode stays separate from the ordinary rider flow
     await page.waitForTimeout(800);
   }
 
-  test("signed-out visitor: App Review Access is its own card; booking flow has no reviewer UI", async () => {
+  test("signed-out visitor: App Review Sign-In is a small footer link; booking flow has no reviewer UI", async () => {
     const page = await newPage();
     await openRiderDashboard(page);
 
     expect(await visible(page, "#appReviewAccess")).toBe(true);
-    expect(await page.textContent("#appReviewAccess")).toContain(EXPLANATION);
+    expect(await page.textContent("#appReviewAccess")).toMatch(/App Review Sign-In/);
+    expect(await page.textContent("#appReviewAccess")).not.toContain(EXPLANATION);
+    expect(await page.evaluate(() => !!document.getElementById("appReviewAccess").closest("footer"))).toBe(true);
+    // With no rider session the hero button leads to setup, not booking.
+    expect((await page.textContent("#heroRequestRideBtn")).trim()).toBe("Complete Rider Setup");
     expect(await visible(page, "#appReviewPanel")).toBe(false);
     expect(await visible(page, ".app-review-banner")).toBe(false);
 
@@ -232,6 +236,10 @@ describeWithBrowser("App Review mode stays separate from the ordinary rider flow
     expect(await visible(page, "#appReviewPanel")).toBe(false);
     expect(await visible(page, "#appReviewAccess")).toBe(false);
     expect(await page.textContent("#appReviewBanner")).toMatch(/App Review mode/);
+    // The banner shows before the signed-in boot finishes; the hero
+    // button switches back once the rider status has loaded.
+    await page.waitForFunction(() => document.getElementById("heroRequestRideBtn").textContent.trim() === "Request a Ride", null, { timeout: 5000 });
+    expect(await page.getAttribute("#heroRequestRideBtn", "data-action")).toBe("ride");
 
     // The demonstration guide: simulated, no payment, the rider steps, how
     // it works with the driver review account, and the next step.
@@ -251,10 +259,11 @@ describeWithBrowser("App Review mode stays separate from the ordinary rider flow
     expect(page.errors).toEqual([]);
   });
 
-  test("ordinary signed-in rider: no banner, no App Review card, no simulated labels", async () => {
+  test("ordinary signed-in rider: no banner, no App Review link, no simulated labels", async () => {
     const page = await newPage({ riderId: "RIDER_REAL" });
     await openRiderDashboard(page);
     await page.waitForTimeout(800);
+    expect((await page.textContent("#heroRequestRideBtn")).trim()).toBe("Request a Ride");
     expect(await visible(page, ".app-review-banner")).toBe(false);
     expect(await visible(page, "#appReviewAccess")).toBe(false);
     expect(await page.$(".sim-tag")).toBeNull();

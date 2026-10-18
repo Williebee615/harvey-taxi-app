@@ -37,14 +37,19 @@ describe("rider-dashboard App Review separation (markup)", () => {
   const wizard = divRegion('<div id="rideWizardOverlay" hidden>');
   const panel = divRegion('<div id="appReviewPanel"');
 
-  test("the App Review Access card exists, is hidden by default and carries the agreed text", () => {
-    const card = html.match(/<section class="app-review-access" id="appReviewAccess"[^>]*>([\s\S]*?)<\/section>/);
-    expect(card).not.toBeNull();
-    expect(card[0]).toMatch(/\bhidden\b/);
-    expect(card[1]).toContain(">App Review Access<");
-    expect(card[1]).toContain(EXPLANATION);
-    expect(card[1]).toContain('id="appReviewSignInBtn"');
-    expect(card[1]).toContain(">App Review Sign-In<");
+  test("the App Review entry is a small footer link, hidden by default, with no explanatory card", () => {
+    // Owner decision 2026-10-18: no App Review panel on the home screen;
+    // only a small sign-in link remains, in the footer.
+    const link = html.match(/<p class="app-review-access" id="appReviewAccess"[^>]*>([\s\S]*?)<\/p>/);
+    expect(link).not.toBeNull();
+    expect(link[0]).toMatch(/\bhidden\b/);
+    expect(link[1]).toContain('id="appReviewSignInBtn"');
+    expect(link[1]).toContain(">App Review Sign-In<");
+    expect(link[1]).not.toContain(EXPLANATION);
+    const footer = html.indexOf('<footer class="footer">');
+    expect(footer).toBeGreaterThan(-1);
+    expect(html.indexOf('id="appReviewAccess"')).toBeGreaterThan(footer);
+    expect(html).not.toMatch(/<section[^>]*id="appReviewAccess"/);
   });
 
   test("the reviewer form lives only in the dedicated panel", () => {
