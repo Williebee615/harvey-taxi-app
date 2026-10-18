@@ -1817,3 +1817,53 @@ The demo can then run in production with test money while rides keep their keys 
   - the demo environment settings above;
   - step 3b.
 - **Next authorized action:** verifying the migrations after the owner runs them. Merging this PR needs the owner's approval (the approval covered building it).
+
+## 43. Update 2026-10-18 (UTC): #283 merged; orders and pin migrations live; step 3b part 1, menu, cart and markets (PR `claude/phase3b-menu-cart`, not merged)
+
+**[Owner decision 2026-10-18]**
+1. "Approved. Proceed to merge PR #283".
+2. "Add the 'market' field to stores, orders, and approvals now ... fold this into the upcoming step".
+3. The staged, gated expansion plan is approved; "the strict arm's-length legal separation between Harvey Taxi Service LLC and HTAF is understood and will be maintained".
+4. Write the expansion-readiness document for investors and counsel.
+5. "We are cleared to proceed with Step 3b".
+
+**[Verified 2026-10-18 01:00 UTC]** All six CI checks were green on `d848c56`; #283 merged as `822e40b`.
+- `/api/health` reports `822e40b`, healthy.
+- `GET /api/orders/config` returns `enabled: false, publishable_key: null`.
+- The legacy delivery booking still answers "Delivery is paused".
+
+**Migrations:**
+- The owner's first two SQL-editor runs didn't take effect: no tables at ~00:47 and ~00:59 UTC; the migration history ended at `catalog_items`.
+- The owner then ran the combined script (orders, then pickup pin, copied unchanged from `main`) in the project labelled PRODUCTION. The owner's screenshot (8:12 PM local, 17 Oct) shows the check returning `orders`, `order_items`, `order_events`, `4`.
+- **[Verified 2026-10-18 ~01:13 UTC, read-only]**
+  - RLS is on for all three tables, with 0 policies; `anon` and `authenticated` have no access; `service_role` can insert; 0 rows each.
+  - `orders` has 38 columns; there are 12 indexes, including `orders_quote_jti_key` and `orders_rider_key_idx`.
+  - The trigger `order_events_no_update` exists; its function has `search_path=public` and `anon` can't execute it.
+  - All four `merchants.pickup_*` columns and `merchants_pickup_pin_check` exist; 0 stores are pinned.
+
+**[Verified 2026-10-18 ~01:20 UTC]** The demo settings are **not** live: `/api/orders/config` still reports `enabled: false`. To turn them on, add `ORDERS_STRIPE_SECRET_KEY` (a `sk_test_` key), `ORDERS_STRIPE_PUBLISHABLE_KEY` (its `pk_test_` key) and `ENABLE_MERCHANT_ORDERS=true` on Render. Names only are recorded here.
+
+**Expansion-readiness brief:** published as a private page, https://claude.ai/artifact/6MrGEV3WqnHqntnwv7LbRr. Others can open it only once the owner shares it.
+- It covers the four gated stages, HTAF arm's-length rules, example state and city requirements, costs, technology order and open questions.
+- Each figure is verified with a source, or marked "to confirm" or "estimate". The Tennessee TNC limits ($50k/$100k/$25k logged on; $1M during a trip) are "to confirm" in § 55-12-141.
+
+**Step 3b part 1 (this PR) [Verified 2026-10-18, local]:** details are in `docs/merchant-portal-phase3-orders.md` §11b.
+- `GET /api/stores` and `GET /api/stores/:id/menu`: signed-in riders only; empty or 503 while ordering is off.
+- `/store-menu.html`: one-store cart and the term 5 choice. It redirects on the HTAF domain and is disallowed in `robots.txt`.
+- Migration `20261018030000_markets.sql` (not applied; needs separate approval). Until it is applied, the store list reports "not set up".
+- Tests:
+  - `lib/markets.test.js` (2);
+  - `test/server.orders.test.js` (3 new: listing rules, no held or hidden items, no internal fields; market filter; orders carry the market);
+  - `test/db/markets.db.test.js` (1);
+  - `test/store-menu.browser.test.js` (3, Chromium at 390 px).
+- Database suite: 173 passed, 4 skipped. Full suite: 2,785 passed, 1 failed, on each of two runs, a different pre-existing browser test each time (`rider-navigation` on the first run, `htaf-languages` on the second). Neither page is touched by this PR, each passes when run alone (14/14 and 18/18), and CI does not run browser tests. `htaf-languages` captured the page before its totals had loaded: a timing race under load, not fixed here.
+
+**Handoff:**
+- **Done:** #283 live; orders and pin migrations verified; expansion brief published; 3b part 1 built.
+- **Remaining:**
+  - merge approval for this PR;
+  - separate approval for the markets migration (likely via the SQL editor);
+  - the demo settings on Render;
+  - 3b part 2 (orders-only estimate, checkout screen, Stripe test card step);
+  - 3c.
+- **Next authorized action:** building 3b part 2 (Step 3b is authorized). Merging and the migration need the owner's approval.
