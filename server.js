@@ -3654,6 +3654,17 @@ const {
   isRiderPersonaVerified,
   buildRiderSignupRecord
 } = require("./lib/riderVerification");
+const {
+  JIT_BOOKING_FLAG,
+  AUTO_APPROVAL_RULE: RIDER_AUTO_APPROVAL_RULE,
+  isRiderSuspended,
+  cleanFirstName: cleanRiderFirstName,
+  planRiderAutoApproval,
+  buildQuickRiderRecord,
+  buildSuspensionUpdate: buildRiderSuspensionUpdate,
+  buildReinstatementUpdate: buildRiderReinstatementUpdate,
+  cleanStaffReason
+} = require("./lib/riderJit");
 
 // Saved payment method helpers — see lib/riderPayments.js for why the
 // Stripe Customer/PaymentMethod payload building lives outside server.js.
@@ -7236,6 +7247,12 @@ app.post(
       }
     }
 
+    // Option A (owner decision 2026-10-18): with Just-in-Time booking on,
+    // a proven phone number approves the rider under the owner's rule.
+    if (verifiedChannel === "phone" && (await isJitBookingEnabled())) {
+      rider = await applyRiderAutoApproval(rider, req);
+    }
+
     const sessionVersion = Number.isInteger(rider.session_version) ? rider.session_version : 0;
 
     const token = signRiderSession({
@@ -7355,6 +7372,233 @@ app.get(
     const enabled = (await getSystemFlag("rider_auth_ui_enabled", "false")) === "true";
 
     return ok(res, buildAuthUiConfigResponse({ enabled }));
+  })
+);
+
+/* =========================================================
+   JUST-IN-TIME RIDER BOOKING (owner decision 2026-10-18)
+   Map and fare estimate first; sign-up at "Confirm Ride" with a first
+   name, a phone number and a texted code (Twilio Verify). Option A: a
+   verified phone number approves the rider automatically, under the
+   owner's rule (lib/riderJit.js AUTO_APPROVAL_RULE), with an audit
+   record each time. Staff can suspend and reinstate riders (admin
+   routes further down). Off unless the jit_booking_enabled system flag
+   is "true"; switching it on is the owner's decision. Independent of
+   rider_auth_ui_enabled and rider_auth_enforced, which stay as they are.
+========================================================= */
+
+async function isJitBookingEnabled() {
+  return (await getSystemFlag(JIT_BOOKING_FLAG, "false")) === "true";
+}
+
+app.get(
+  "/api/rider/jit-config",
+  asyncRoute(async (req, res) => {
+    return ok(res, { enabled: (await isJitBookingEnabled()) === true });
+  })
+);
+
+function auditRiderAutoApproval(riderId, previous, req) {
+  auditLog({
+    actor_type: "system",
+    actor_id: "rider_auto_approval",
+    action: "rider_auto_approved",
+    entity_type: "rider",
+    entity_id: riderId,
+    metadata: {
+      ...RIDER_AUTO_APPROVAL_RULE,
+      previous_status: previous.status || null,
+      previous_approval_status: previous.approval_status || null
+    },
+    req
+  }).catch(() => {});
+}
+
+// Applies the owner's auto-approval rule after a successful phone code
+// check. Non-blocking for sign-in: a failed write is logged and the
+// rider simply isn't approved yet (booking then refuses, as today).
+async function applyRiderAutoApproval(rider, req) {
+  const plan = planRiderAutoApproval(rider, nowIso());
+  if (!plan) return rider;
+
+  const previous = { status: rider.status, approval_status: rider.approval_status };
+  const { error } = await supabase.from("riders").update(plan).eq("id", rider.id);
+  if (error) {
+    console.error("❌ Rider auto-approval write failed:", error.message);
+    return rider;
+  }
+
+  auditRiderAutoApproval(rider.id, previous, req);
+  return { ...rider, ...plan };
+}
+
+// Sends a code to any valid US number (the visitor may not have an
+// account yet). Same response whatever the number; the same two rate
+// limits as /api/rider/session/start.
+app.post(
+  "/api/rider/quick/start",
+  rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "rider_quick_start_ip" }),
+  rateLimit({
+    windowMs: 10 * 60_000,
+    max: 3,
+    keyPrefix: "rider_quick_start_dest",
+    keyFn: riderLoginDestinationKey
+  }),
+  asyncRoute(async (req, res) => {
+    if (!(await isJitBookingEnabled())) {
+      return fail(res, "This sign-up option is not available.", 404);
+    }
+    if (!RIDER_SESSION_SECRET) {
+      console.error("❌ Rider quick start: RIDER_SESSION_SECRET is not configured.");
+      return fail(res, "Rider sign-in is not available right now. Please try again later.", 503);
+    }
+    if (!hasRiderClientHeader(req)) {
+      return fail(res, "This request could not be verified.", 403);
+    }
+    const e164 = riderPhoneToE164(cleanString(req.body.phone, 32));
+    if (!e164) {
+      return fail(res, "Enter a 10-digit US mobile number.", 400);
+    }
+    if (!twilioClient || !TWILIO_VERIFY_SERVICE_SID) {
+      console.error("❌ Rider quick start: Twilio Verify is not configured.");
+      return fail(res, "Rider sign-in is not available right now. Please try again later.", 503);
+    }
+    try {
+      await twilioClient.verify
+        .services(TWILIO_VERIFY_SERVICE_SID)
+        .verifications.create({ to: e164, channel: "sms" });
+    } catch (err) {
+      console.error("❌ Rider quick start: Twilio Verify send failed:", describeTwilioError(err));
+    }
+    auditLog({
+      actor_type: "rider",
+      actor_id: hashIdentifier(riderPhoneLast10(e164)),
+      action: "rider_login_started",
+      metadata: { channel: "sms", flow: "jit_booking" },
+      req
+    }).catch(() => {});
+    return ok(res, RIDER_SESSION_START_RESPONSE);
+  })
+);
+
+// Checks the code, then signs in the one active rider with this number
+// or, when there is none, creates one (first name + phone). Two or more
+// active riders sharing the number is never guessed at.
+app.post(
+  "/api/rider/quick/verify",
+  rateLimit({ windowMs: 60_000, max: 15, keyPrefix: "rider_quick_verify_ip" }),
+  rateLimit({
+    windowMs: 10 * 60_000,
+    max: 10,
+    keyPrefix: "rider_quick_verify_dest",
+    keyFn: riderLoginDestinationKey
+  }),
+  asyncRoute(async (req, res) => {
+    if (!(await isJitBookingEnabled())) {
+      return fail(res, "This sign-up option is not available.", 404);
+    }
+    if (!RIDER_SESSION_SECRET) {
+      return fail(res, "Rider sign-in is not available right now. Please try again later.", 503);
+    }
+    if (!hasRiderClientHeader(req)) {
+      return fail(res, "This request could not be verified.", 403);
+    }
+    const e164 = riderPhoneToE164(cleanString(req.body.phone, 32));
+    const code = cleanString(req.body.code, 12);
+    if (!e164 || !code) {
+      return fail(res, "phone and code are required.", 400);
+    }
+    const invalidCode = () => fail(res, "Invalid or expired code.", 400);
+    if (!twilioClient || !TWILIO_VERIFY_SERVICE_SID) {
+      return invalidCode();
+    }
+    let check;
+    try {
+      check = await twilioClient.verify
+        .services(TWILIO_VERIFY_SERVICE_SID)
+        .verificationChecks.create({ to: e164, code });
+    } catch (err) {
+      console.error("❌ Rider quick verify: Twilio Verify check failed:", describeTwilioError(err));
+      return invalidCode();
+    }
+    if (check.status !== "approved") {
+      return invalidCode();
+    }
+
+    const { rider: existing, matchCount } = await findExactlyOneActiveRiderByPhone(e164);
+    let rider = existing;
+    let created = false;
+
+    if (!rider && matchCount > 1) {
+      auditLog({
+        actor_type: "rider",
+        actor_id: hashIdentifier(riderPhoneLast10(e164)),
+        action: "rider_quick_signin_ambiguous",
+        metadata: { match_count: matchCount },
+        req
+      }).catch(() => {});
+      return fail(res, "We couldn't sign you in with this number. Please contact Harvey Taxi support.", 409);
+    }
+
+    if (!rider) {
+      const firstName = cleanRiderFirstName(req.body.first_name);
+      if (!firstName) {
+        return fail(res, "Enter your first name so your driver knows who to look for.", 400);
+      }
+      const record = buildQuickRiderRecord({
+        id: makeId("RIDER"),
+        firstName,
+        phone: riderPhoneLast10(e164),
+        now: nowIso()
+      });
+      const { data, error } = await supabase.from("riders").insert(record).select().single();
+      if (error || !data) {
+        const requestId = makeId("SIGNUPERR");
+        console.error(`⚠️ Rider quick signup failed [${requestId}]:`, error?.message);
+        return fail(res, "RIDER_SIGNUP_FAILED", 500, {
+          message: "We could not create your rider account. Please try again.",
+          request_id: requestId
+        });
+      }
+      rider = data;
+      created = true;
+      auditLog({
+        actor_type: "rider",
+        actor_id: rider.id,
+        action: "rider_signup_created",
+        entity_type: "rider",
+        entity_id: rider.id,
+        metadata: { flow: "jit_booking" },
+        req
+      }).catch(() => {});
+      auditRiderAutoApproval(rider.id, {}, req);
+    } else {
+      if (!cleanString(rider.first_name, 120)) {
+        const firstName = cleanRiderFirstName(req.body.first_name);
+        if (firstName) {
+          const { error } = await supabase.from("riders").update({ first_name: firstName }).eq("id", rider.id);
+          if (!error) rider = { ...rider, first_name: firstName };
+        }
+      }
+      rider = await applyRiderAutoApproval(rider, req);
+    }
+
+    const sessionVersion = Number.isInteger(rider.session_version) ? rider.session_version : 0;
+    const token = signRiderSession({
+      riderId: rider.id,
+      sessionVersion,
+      secret: RIDER_SESSION_SECRET,
+      ttlHours: RIDER_SESSION_TTL_HOURS
+    });
+    setRiderSessionCookie(res, token);
+    auditLog({
+      actor_type: "rider",
+      actor_id: rider.id,
+      action: "rider_login_succeeded",
+      metadata: { flow: "jit_booking", created },
+      req
+    }).catch(() => {});
+    return ok(res, { rider_id: rider.id, created, suspended: isRiderSuspended(rider) });
   })
 );
 
@@ -10499,6 +10743,17 @@ async function getRiderReadiness(riderId) {
 
   }
 
+  // Staff suspension (admin routes) blocks booking whatever the other
+  // checks say. The rider can still sign in and see their history.
+  if (isRiderSuspended(rider)) {
+    return {
+      ready: false,
+      reason: "This account is suspended. Please contact Harvey Taxi support.",
+      rider,
+      checks: { suspended: true }
+    };
+  }
+
   if (!ENABLE_RIDER_APPROVAL_GATE) {
 
     return {
@@ -10511,11 +10766,15 @@ async function getRiderReadiness(riderId) {
 
   }
 
+  // Option A (owner decision 2026-10-18): with Just-in-Time booking on,
+  // a verified phone is enough; email is optional and can come later.
+  const jitBooking = await isJitBookingEnabled();
+
   const checks = {
 
     email_verified:
 
-      Boolean(rider.email_verified),
+      jitBooking || Boolean(rider.email_verified),
 
     // rider.phone_verified / rider.persona_verified never exist on a
     // real riders row (those columns are drivers-only) -- reading them
@@ -13190,6 +13449,11 @@ app.post(
       ["active", "approved"].includes(String(readiness.rider?.status || "").toLowerCase()) ||
       String(readiness.rider?.approval_status || "").toLowerCase() === "approved";
 
+    // The rider row: the fallback for the driver-facing name and phone
+    // when the booking screen didn't send them (Just-in-Time booking
+    // collects the phone at sign-up instead).
+    const readinessRider = readiness.rider || null;
+
     if (!readiness.ready || !riderStatusOk) {
       return fail(
         res,
@@ -13268,22 +13532,12 @@ app.post(
         : {}),
 
       rider_name:
-
-        cleanString(
-
-          req.body.rider_name,
-
-          180
-
-        ),
+        cleanString(req.body.rider_name, 180) ||
+        cleanString([readinessRider?.first_name, readinessRider?.last_name].filter(Boolean).join(" "), 180),
 
       rider_phone:
-
-        cleanPhone(
-
-          req.body.rider_phone
-
-        ),
+        cleanPhone(req.body.rider_phone) ||
+        cleanPhone(readinessRider?.phone),
 
       // NOTE: the rides table has no "pickup"/"destination" columns —
       // only pickup_address/dropoff_address. Writing to the old names
@@ -22928,6 +23182,78 @@ app.patch(
 );
 
 /* =========================================================
+   ADMIN SUSPEND / REINSTATE RIDER (owner decision 2026-10-18)
+   The staff control that goes with automatic approval on phone
+   verification (Option A). A person decides; the route records who,
+   when and why. A suspended rider can sign in but cannot book
+   (getRiderReadiness), and the auto-approval rule never re-approves
+   them. Reinstating restores approval if their phone is verified.
+========================================================= */
+
+async function changeRiderSuspension(req, res, action) {
+  const riderId = cleanString(req.params.id, 100);
+  const reason = cleanStaffReason(req.body?.reason);
+  if (!riderId) {
+    return fail(res, "Rider ID is required.", 400);
+  }
+  if (!reason) {
+    return fail(res, "Give a reason of 3 to 500 characters.", 400);
+  }
+
+  const { data: rider, error: lookupError } = await supabase
+    .from("riders")
+    .select("id, status, approval_status, sms_verified, is_blocked, is_review_account")
+    .eq("id", riderId)
+    .maybeSingle();
+  if (lookupError) throw lookupError;
+  if (!rider) {
+    return fail(res, "Rider not found.", 404);
+  }
+
+  const previous = { status: rider.status, approval_status: rider.approval_status };
+  const now = nowIso();
+  const update = action === "suspend"
+    ? buildRiderSuspensionUpdate({ reason, now })
+    : buildRiderReinstatementUpdate({ rider, reason, now });
+
+  const { data, error } = await supabase
+    .from("riders")
+    .update(update)
+    .eq("id", riderId)
+    .select(ADMIN_RIDER_MUTATION_FIELDS.join(","))
+    .single();
+  if (error) throw error;
+
+  auditLog({
+    actor_type: "admin",
+    actor_id: req.admin.email,
+    action: action === "suspend" ? "rider_suspended" : "rider_reinstated",
+    entity_type: "rider",
+    entity_id: riderId,
+    metadata: {
+      reason,
+      previous_status: previous.status || null,
+      previous_approval_status: previous.approval_status || null
+    },
+    req
+  }).catch(() => {});
+
+  return ok(res, { rider: data });
+}
+
+app.post(
+  "/api/admin/riders/:id/suspend",
+  requireAdmin,
+  asyncRoute((req, res) => changeRiderSuspension(req, res, "suspend"))
+);
+
+app.post(
+  "/api/admin/riders/:id/reinstate",
+  requireAdmin,
+  asyncRoute((req, res) => changeRiderSuspension(req, res, "reinstate"))
+);
+
+/* =========================================================
 
    ADMIN AUDIT LOGS
 
@@ -23574,6 +23900,55 @@ app.post(
     }).catch(() => {});
 
     return ok(res, { rider_auth_ui_enabled: false });
+  })
+);
+
+/* =========================================================
+   JUST-IN-TIME BOOKING — ENABLE / DISABLE
+   Turning this on is a feature activation and needs the owner's
+   explicit approval (CLAUDE.md standing rules). Off by default.
+========================================================= */
+app.post(
+  "/api/admin/system/enable-jit-booking",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    await supabase
+      .from("system_flags")
+      .upsert({
+        key: JIT_BOOKING_FLAG,
+        value: "true",
+        reason: cleanString(req.body.reason, 1000),
+        updated_at: nowIso()
+      });
+    auditLog({
+      actor_type: "admin",
+      actor_id: req.admin.email,
+      action: "jit_booking_enabled",
+      req
+    }).catch(() => {});
+    return ok(res, { jit_booking_enabled: true });
+  })
+);
+
+app.post(
+  "/api/admin/system/disable-jit-booking",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    await supabase
+      .from("system_flags")
+      .upsert({
+        key: JIT_BOOKING_FLAG,
+        value: "false",
+        reason: null,
+        updated_at: nowIso()
+      });
+    auditLog({
+      actor_type: "admin",
+      actor_id: req.admin.email,
+      action: "jit_booking_disabled",
+      req
+    }).catch(() => {});
+    return ok(res, { jit_booking_enabled: false });
   })
 );
 

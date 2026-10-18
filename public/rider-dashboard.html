@@ -2959,6 +2959,110 @@
       cursor: pointer;
     }
 
+    /* Just-in-Time booking (off unless the jit_booking_enabled flag is on):
+       rider detail fields move to the phone sheet; on phones the map stays
+       pinned at the top and the booking steps slide over it as a sheet. */
+    body.jit-booking [data-jit-hide] { display: none !important; }
+
+    @media (max-width: 760px) {
+      body.jit-booking #rideWizardOverlay .hero-card { display: none; }
+      body.jit-booking #rideWizardOverlay .hero > div:first-child {
+        position: sticky;
+        top: 0;
+        z-index: 0;
+        align-self: start;
+      }
+      body.jit-booking #rideWizardOverlay .ride-card {
+        position: relative;
+        z-index: 1;
+        margin-top: -28px;
+        border-radius: 22px 22px 0 0;
+        box-shadow: 0 -12px 30px rgba(0, 0, 0, 0.45);
+      }
+      body.jit-booking #rideWizardOverlay .ride-card::before {
+        content: "";
+        display: block;
+        width: 44px;
+        height: 5px;
+        margin: 0 auto 12px;
+        border-radius: 999px;
+        background: rgba(170, 184, 222, 0.6);
+      }
+    }
+
+    .jit-sheet {
+      position: fixed;
+      inset: 0;
+      z-index: 10050;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      background: rgba(3, 7, 18, 0.55);
+    }
+    .jit-sheet[hidden] { display: none; }
+    .jit-sheet-panel {
+      position: relative;
+      width: 100%;
+      max-width: 520px;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 14px 20px calc(20px + env(safe-area-inset-bottom, 0px));
+      border-radius: 22px 22px 0 0;
+      background: #0d1630;
+      color: var(--text);
+      box-shadow: 0 -16px 40px rgba(0, 0, 0, 0.5);
+    }
+    .jit-sheet-handle {
+      width: 44px;
+      height: 5px;
+      margin: 0 auto 14px;
+      border-radius: 999px;
+      background: rgba(170, 184, 222, 0.6);
+    }
+    .jit-sheet h2 { margin: 0 32px 12px 0; font-size: 1.15rem; line-height: 1.35; }
+    .jit-sheet label { display: block; margin: 10px 0 4px; font-weight: 700; font-size: 0.9rem; }
+    .jit-sheet input {
+      width: 100%;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(122, 162, 255, 0.35);
+      background: #0a1228;
+      color: var(--text);
+      font-size: 16px;
+    }
+    .jit-sheet .jit-note { margin: 10px 0; color: var(--muted); font-size: 0.85rem; line-height: 1.45; }
+    .jit-sheet .jit-note a { color: #9cc3ff; }
+    .jit-sheet .jit-error { margin: 8px 0; color: #ffb4b4; font-weight: 700; }
+    .jit-sheet .jit-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+    .jit-sheet .jit-actions button { min-height: 46px; }
+    .jit-sheet-close {
+      position: absolute;
+      top: 10px;
+      right: 12px;
+      width: 40px;
+      height: 40px;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      color: var(--text);
+      font-size: 24px;
+      cursor: pointer;
+    }
+
+    .jit-banner { margin: 0 0 14px; }
+    .jit-banner[hidden] { display: none; }
+    .jit-banner button {
+      width: 100%;
+      padding: 12px 16px;
+      border: 0;
+      border-radius: 14px;
+      background: #ffd27a;
+      color: #06101f;
+      font-weight: 800;
+      font-size: 0.95rem;
+      cursor: pointer;
+    }
+
     /* Ride status badge: dark text on solid colour (contrast above 7:1). */
     .ride-status-badge {
       display: inline-block;
@@ -3497,6 +3601,13 @@
           payment readiness, active orders, trip history, tipping, and support
           from one futuristic dashboard.
         </p>
+
+        <!-- Just-in-Time booking only: shown to a signed-out visitor who
+             started a booking but didn't finish the phone step (owner-
+             approved wording 2026-10-18; no credit or reward offered). -->
+        <div class="jit-banner" id="jitResumeBanner" hidden>
+          <button type="button" data-action="ride">Finish setup to book in one tap</button>
+        </div>
 
         <!-- The booking screen opens only from explicit actions like this. -->
         <button class="btn primary hero-request-btn" type="button" id="heroRequestRideBtn" data-action="ride" data-center="ride">
@@ -4606,8 +4717,9 @@
             <!-- STAGE: PICKUP / MERCHANT -->
             <div class="wizard-step" data-stage="pickup" id="wizardStagePickup">
 
-            <!-- RIDER -->
-            <div class="two-col">
+            <!-- RIDER (hidden with Just-in-Time booking: the phone and first
+                 name are collected at "Confirm Ride" instead) -->
+            <div class="two-col" data-jit-hide>
 
               <div class="field">
 
@@ -4647,7 +4759,7 @@
             </div>
 
             <!-- EMAIL -->
-            <div class="field">
+            <div class="field" data-jit-hide>
 
               <label for="riderEmail">
                 Email Address
@@ -5529,6 +5641,45 @@
   <!-- GOOGLE MAPS -->
   </div>
 
+
+  <!-- Just-in-Time booking: the phone step at "Confirm Ride". One thing
+       per sheet: first name and number, then the texted code. Off unless
+       the jit_booking_enabled flag is on. -->
+  <div class="jit-sheet" id="jitSheet" role="dialog" aria-modal="true" aria-labelledby="jitSheetTitle" hidden>
+    <div class="jit-sheet-panel">
+      <div class="jit-sheet-handle" aria-hidden="true"></div>
+      <button type="button" class="jit-sheet-close" id="jitSheetCloseBtn" aria-label="Close">×</button>
+
+      <form id="jitPhoneForm" novalidate>
+        <h2 id="jitSheetTitle">What's your number so your driver can reach you?</h2>
+        <label for="jitFirstName">First name</label>
+        <input id="jitFirstName" type="text" autocomplete="given-name" maxlength="60" />
+        <label for="jitPhone">Mobile number</label>
+        <input id="jitPhone" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="(615) 555-0123" />
+        <p class="jit-note">
+          We'll text you a code to confirm this number. Message and data rates may apply.
+          By continuing you agree to the <a href="terms.html" target="_blank" rel="noopener">Terms of Service</a>
+          and <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.
+        </p>
+        <p class="jit-error" id="jitPhoneError" role="alert" hidden></p>
+        <div class="jit-actions">
+          <button type="submit" class="primary-btn" id="jitSendCodeBtn">Text me a code</button>
+        </div>
+      </form>
+
+      <form id="jitCodeForm" novalidate hidden>
+        <h2>Enter the code we texted to <span id="jitPhoneEcho"></span></h2>
+        <label for="jitCode">Code</label>
+        <input id="jitCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8" />
+        <p class="jit-error" id="jitCodeError" role="alert" hidden></p>
+        <div class="jit-actions">
+          <button type="submit" class="primary-btn" id="jitVerifyBtn">Verify and continue</button>
+          <button type="button" class="ghost-btn" id="jitResendBtn">Text me a new code</button>
+          <button type="button" class="ghost-btn" id="jitChangeNumberBtn">Use a different number</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <script>
     // Ride tracking tokens (server: lib/rideAccess.js). The server hands a
@@ -7622,7 +7773,32 @@
           scheduled_time: aiScheduledTime
         });
       }
-    }    function validateRiderFields() {
+    }    // Just-in-Time booking (window.HarveyJitBooking, set by the dashboard
+    // script from GET /api/rider/jit-config): no rider details are asked
+    // before "Confirm Ride"; the phone sheet collects them, and the server
+    // fills the driver-facing name and phone from the rider's account.
+    function jitBookingOn() {
+      return window.HarveyJitBooking === true;
+    }
+
+    function applyJitSession() {
+      const session = window.HarveyRiderSession;
+      if (!session || !session.id) return false;
+      state.rider.id = session.id;
+      if (session.first_name) {
+        state.rider.name = [session.first_name, session.last_name].filter(Boolean).join(" ");
+      }
+      if (session.phone) state.rider.phone = session.phone;
+      writeStorage(CONFIG.STORAGE_KEYS.riderId, session.id);
+      return true;
+    }
+
+    function validateRiderFields() {
+      if (jitBookingOn()) {
+        applyJitSession();
+        return "";
+      }
+
       syncRiderFromForm();
 
       if (!state.rider.name || state.rider.name.length < 2) {
@@ -9993,14 +10169,34 @@
         goToStage("details");
       });
 
-      els.stageReviewContinueBtn?.addEventListener("click", () => {
+      els.stageReviewContinueBtn?.addEventListener("click", async () => {
         if (!state.estimate.ready) {
           showNotice("Please get a fare estimate before continuing.", "warning");
           return;
         }
 
         clearNotice();
-        goToStage("payment");
+
+        if (!jitBookingOn()) {
+          goToStage("payment");
+          return;
+        }
+
+        // "Confirm Ride": sign up or sign in only now, then confirm the
+        // account can book (the owner's auto-approval rule has run on the
+        // server), then the card step.
+        const continueAfterSignIn = async () => {
+          applyJitSession();
+          if (await checkRiderApproval()) {
+            goToStage("payment");
+          }
+        };
+
+        if (applyJitSession()) {
+          await continueAfterSignIn();
+        } else if (window.HarveyJitSheet) {
+          window.HarveyJitSheet.open(continueAfterSignIn);
+        }
       });
 
       // Route-failure recovery actions (shown next to "Get Fare Estimate"
@@ -10811,8 +11007,201 @@
       window.dispatchEvent(new CustomEvent("harvey:signed-out"));
     }
 
+    /* ---------------------------------------------------------
+       Just-in-Time booking (owner decision 2026-10-18). Off unless
+       GET /api/rider/jit-config says the jit_booking_enabled flag is
+       on. When on, the booking screen asks for no rider details up
+       front; "Confirm Ride" opens this sheet (first name and number,
+       then the texted code), which signs the rider up or in.
+    --------------------------------------------------------- */
+    const JIT_STARTED_KEY = "harvey_jit_booking_started";
+
+    async function loadJitBookingConfig() {
+      let enabled = false;
+      try {
+        const response = await fetchWithTimeout(`${apiBase()}/api/rider/jit-config`, { credentials: "include" });
+        const data = response.ok ? await response.json() : null;
+        enabled = data?.enabled === true;
+      } catch {
+        enabled = false;
+      }
+      window.HarveyJitBooking = enabled;
+      document.body.classList.toggle("jit-booking", enabled);
+      const confirmBtn = document.getElementById("stageReviewContinueBtn");
+      if (confirmBtn && enabled) confirmBtn.textContent = "Confirm Ride";
+      return enabled;
+    }
+
+    function hasStartedJitBooking() {
+      try {
+        return localStorage.getItem(JIT_STARTED_KEY) === "1";
+      } catch {
+        return false;
+      }
+    }
+
+    function markJitBookingStarted(started) {
+      try {
+        if (started) localStorage.setItem(JIT_STARTED_KEY, "1");
+        else localStorage.removeItem(JIT_STARTED_KEY);
+      } catch {
+        // Storage can be unavailable (private mode); the banner is optional.
+      }
+    }
+
+    function showJitResumeBanner(visible) {
+      const banner = document.getElementById("jitResumeBanner");
+      if (banner) banner.hidden = !(visible && window.HarveyJitBooking === true);
+    }
+
+    const jitSheet = (() => {
+      const sheet = document.getElementById("jitSheet");
+      const phoneForm = document.getElementById("jitPhoneForm");
+      const codeForm = document.getElementById("jitCodeForm");
+      const firstName = document.getElementById("jitFirstName");
+      const phone = document.getElementById("jitPhone");
+      const code = document.getElementById("jitCode");
+      const phoneError = document.getElementById("jitPhoneError");
+      const codeError = document.getElementById("jitCodeError");
+      const sendBtn = document.getElementById("jitSendCodeBtn");
+      const verifyBtn = document.getElementById("jitVerifyBtn");
+      let onDone = null;
+      let lastFocus = null;
+
+      function showError(el, message) {
+        el.textContent = message || "";
+        el.hidden = !message;
+      }
+
+      function digits(value) {
+        return String(value || "").replace(/\D/g, "");
+      }
+
+      function tenDigits(value) {
+        const d = digits(value);
+        if (d.length === 10) return d;
+        if (d.length === 11 && d[0] === "1") return d.slice(1);
+        return "";
+      }
+
+      function pretty(ten) {
+        return `(${ten.slice(0, 3)}) ${ten.slice(3, 6)}-${ten.slice(6)}`;
+      }
+
+      function showStep(step) {
+        phoneForm.hidden = step !== "phone";
+        codeForm.hidden = step !== "code";
+        (step === "phone" ? firstName : code).focus();
+      }
+
+      function open(callback) {
+        if (!sheet) return;
+        onDone = typeof callback === "function" ? callback : null;
+        lastFocus = document.activeElement;
+        markJitBookingStarted(true);
+        showError(phoneError, "");
+        showError(codeError, "");
+        code.value = "";
+        sheet.hidden = false;
+        showStep("phone");
+      }
+
+      function close() {
+        if (!sheet) return;
+        sheet.hidden = true;
+        onDone = null;
+        if (lastFocus && typeof lastFocus.focus === "function") lastFocus.focus();
+      }
+
+      async function sendCode() {
+        const ten = tenDigits(phone.value);
+        const name = String(firstName.value || "").trim();
+        if (!name) {
+          showError(phoneError, "Enter your first name so your driver knows who to look for.");
+          return;
+        }
+        if (!ten) {
+          showError(phoneError, "Enter a 10-digit US mobile number.");
+          return;
+        }
+        showError(phoneError, "");
+        sendBtn.disabled = true;
+        const { httpOk, data } = await authRequest("/api/rider/quick/start", { phone: ten });
+        sendBtn.disabled = false;
+        if (!httpOk) {
+          showError(phoneError, data?.error || data?.message || "We couldn't send a code. Please try again.");
+          return;
+        }
+        document.getElementById("jitPhoneEcho").textContent = pretty(ten);
+        showStep("code");
+      }
+
+      async function verify() {
+        const ten = tenDigits(phone.value);
+        const value = digits(code.value);
+        if (value.length < 4) {
+          showError(codeError, "Enter the code from the text message.");
+          return;
+        }
+        showError(codeError, "");
+        verifyBtn.disabled = true;
+        const { httpOk, data } = await authRequest("/api/rider/quick/verify", {
+          phone: ten,
+          code: value,
+          first_name: String(firstName.value || "").trim()
+        });
+        if (!httpOk) {
+          verifyBtn.disabled = false;
+          showError(codeError, data?.error || data?.message || "That code didn't work. Please try again.");
+          return;
+        }
+
+        const bootstrap = await bootstrapRiderSession();
+        verifyBtn.disabled = false;
+        if (!bootstrap.ok) {
+          showError(codeError, "Signed in, but we couldn't load your account. Please try again.");
+          return;
+        }
+        window.HarveyRiderSession = { ...window.HarveyRiderSession, phone: ten };
+        markJitBookingStarted(false);
+        setSignedOutReviewEntry(false);
+        loadRiderStatus().catch(() => {});
+
+        const callback = onDone;
+        close();
+        if (data?.suspended) {
+          showSystemNotice("This account is suspended. Please contact Harvey Taxi support.", "danger");
+          return;
+        }
+        if (callback) await callback();
+      }
+
+      phoneForm?.addEventListener("submit", (event) => {
+        event.preventDefault();
+        sendCode();
+      });
+      codeForm?.addEventListener("submit", (event) => {
+        event.preventDefault();
+        verify();
+      });
+      document.getElementById("jitResendBtn")?.addEventListener("click", () => {
+        code.value = "";
+        sendCode();
+      });
+      document.getElementById("jitChangeNumberBtn")?.addEventListener("click", () => showStep("phone"));
+      document.getElementById("jitSheetCloseBtn")?.addEventListener("click", close);
+      sheet?.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") close();
+      });
+
+      return { open, close };
+    })();
+
+    window.HarveyJitSheet = jitSheet;
+
     function clearRiderSession() {
       clearAssistantMemory();
+      window.HarveyRiderSession = null;
       [
         CONFIG.STORAGE_KEYS.riderId,
         CONFIG.STORAGE_KEYS.riderEmail,
@@ -11208,6 +11597,12 @@
       }
 
       state.riderId = data.rider_id;
+      window.HarveyRiderSession = {
+        id: data.rider_id,
+        first_name: data.first_name || "",
+        last_name: data.last_name || "",
+        phone: window.HarveyRiderSession?.id === data.rider_id ? window.HarveyRiderSession.phone || "" : ""
+      };
       announceAssistantAccount(data.rider_id);
       state.riderProfile = {
         id: data.rider_id,
@@ -11729,11 +12124,14 @@
 
     // The hero button matches the screen's message: with no rider session
     // it leads to setup instead of a booking screen the rider can't use.
-    function setHeroCta(needsSetup) {
+    // With Just-in-Time booking on ("jit"), a signed-out visitor books
+    // straight away and signs up at "Confirm Ride", so it reads "Where to?".
+    function setHeroCta(mode) {
       const button = document.getElementById("heroRequestRideBtn");
       if (!button) return;
-      button.dataset.action = needsSetup ? "setup" : "ride";
-      button.textContent = needsSetup ? "Complete Rider Setup" : "Request a Ride";
+      const setup = mode === true || mode === "setup";
+      button.dataset.action = setup ? "setup" : "ride";
+      button.textContent = setup ? "Complete Rider Setup" : mode === "jit" ? "Where to?" : "Request a Ride";
     }
 
     async function loadRiderStatus() {
@@ -11748,6 +12146,22 @@
 
       if (state.riderProfile) {
         renderRider();
+      }
+
+      if (
+        !state.riderId &&
+        !state.riderProfile?.email &&
+        window.HarveyJitBooking === true
+      ) {
+        // Just-in-Time booking: no setup warning before the rider has
+        // even seen a price. A visitor who started a booking and left
+        // before the phone step gets the owner-approved prompt instead.
+        rememberDefaultHeroCopy();
+        restoreDefaultHeroCopy();
+        setHeroCta("jit");
+        showJitResumeBanner(hasStartedJitBooking());
+        renderRider();
+        return;
       }
 
       if (
@@ -11771,6 +12185,7 @@
       // Signing in without a page reload (e.g. App Review Sign-In) must
       // replace the signed-out "Finish rider setup" copy shown above.
       restoreDefaultHeroCopy();
+      showJitResumeBanner(false);
 
       // Refresh approval status from the readiness route (the only rider
       // status route the server has). Needs the rider ID; there is no
@@ -13135,6 +13550,7 @@
       // rider too after clearing site data or switching devices --
       // "Finish rider setup to continue" shown despite a valid,
       // server-confirmed session.
+      await loadJitBookingConfig();
       await resolveRiderAccess();
     }
 

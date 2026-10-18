@@ -953,7 +953,9 @@ function renderRiders(items){
         <div><div class="item-title">${esc(r.first_name)} ${esc(r.last_name)}</div><div class="item-sub">${esc(r.email)} • ${esc(r.phone)}</div></div>
         <span class="badge ${statusClass(r.status)}">${esc(r.status || "pending")}</span>
       </div>
-      <div class="actions"><button class="success" onclick="approveRider('${esc(r.id)}')">Approve Rider</button></div>
+      <div class="actions">${riderIsSuspended(r)
+        ? `<button class="success" onclick="reinstateRider('${esc(r.id)}')">Reinstate Rider</button>`
+        : `<button class="success" onclick="approveRider('${esc(r.id)}')">Approve Rider</button> <button class="danger" onclick="suspendRider('${esc(r.id)}')">Suspend</button>`}</div>
     </div>`).join("") : `<div class="empty">No pending riders.</div>`;
 }
 
@@ -1029,6 +1031,7 @@ function renderActiveRiders(items){
         <div><div class="item-title">${esc(r.first_name)} ${esc(r.last_name)}</div><div class="item-sub">${esc(r.email)} • ${esc(r.phone)}</div></div>
         <span class="badge ${statusClass(r.status)}">${esc(r.status || r.approval_status || "active")}</span>
       </div>
+      <div class="actions"><button class="danger" onclick="suspendRider('${esc(r.id)}')">Suspend</button></div>
     </div>`).join("") : `<div class="empty">No active riders yet.</div>`;
 }
 
@@ -1081,6 +1084,21 @@ function renderHTAF(items){
     </div>`).join("") : `<div class="empty">No HTAF applications found yet.</div>`;
 }
 
+// Staff suspension (owner decision 2026-10-18, with automatic approval on
+// phone verification). A person decides and gives a reason; the server
+// records who, when and why. A suspended rider can't book.
+function riderIsSuspended(r){return String(r.status||"").toLowerCase()==="suspended"||String(r.approval_status||"").toLowerCase()==="suspended";}
+async function changeRiderSuspension(id, action){
+  const reason = window.prompt(action==="suspend" ? "Reason for suspending this rider (recorded in the audit log):" : "Reason for reinstating this rider (recorded in the audit log):");
+  if(reason===null) return;
+  try{
+    await api(`/api/admin/riders/${encodeURIComponent(id)}/${action}`,{method:"POST",body:JSON.stringify({reason})});
+    showResult(action==="suspend" ? "Rider suspended. They can't book until reinstated." : "Rider reinstated.");
+    loadDashboard();
+  }catch(e){showError(e.message);}
+}
+function suspendRider(id){return changeRiderSuspension(id,"suspend");}
+function reinstateRider(id){return changeRiderSuspension(id,"reinstate");}
 async function approveRider(id){await api(`/api/admin/riders/${id}/approve`,{method:"PATCH",body:"{}"});showResult("Rider approved.");loadDashboard();}
 async function approveDriver(id){await api(`/api/admin/drivers/${id}/approve`,{method:"PATCH",body:"{}"});showResult("Driver approved.");loadDashboard();}
 async function setRideStatus(id,status){await api(`/api/admin/rides/${id}/status`,{method:"PATCH",body:JSON.stringify({status})});showResult("Ride updated.");loadDashboard();}
