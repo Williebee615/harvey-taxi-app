@@ -873,7 +873,10 @@ async function loadDashboard(){
     state.htaf = htaf.applications || [];
 
     const riderIsActive = r=>["active","approved"].includes(String(r.status||r.approval_status).toLowerCase());
-    const driverIsActive = d=>["active","approved"].includes(String(d.status).toLowerCase()) && d.approval_status === "approved";
+    // Active means approved AND every readiness check passes (server's
+    // setup state). Approved rows still missing verification stay in the
+    // pending list, labelled "Unverified" or "Pending Setup".
+    const driverIsActive = d=>["active","approved"].includes(String(d.status).toLowerCase()) && d.approval_status === "approved" && (!d.setup || d.setup.state === "verified");
     const pendingRiders = state.riders.filter(r=>!riderIsActive(r));
     const pendingDrivers = state.drivers.filter(d=>!driverIsActive(d));
     const activeRiders = state.riders.filter(riderIsActive);
@@ -967,6 +970,20 @@ function driverVerifyRow(d){
   const chip = (ok, label) => `<span class="verify-chip ${ok ? "ok" : "no"}">${ok ? "✓" : "✗"} ${label}</span>`;
   return `<div class="verify-row">${chip(d.email_verified === true, "Email")}${chip(d.phone_verified === true, "Phone")}${chip(d.persona_verified === true, "ID")}${chip(CHECKR_CLEAR.includes(String(d.checkr_status || "").toLowerCase()), "Background")}</div>`;
 }
+// Setup state from the server (owner decision 2026-10-18): "Unverified"
+// (email or phone not verified), "Pending Setup" (other steps open) or
+// "Verified". Shown instead of approval_status, which can read "approved"
+// while every verification step is still open.
+const DRIVER_SETUP_CLASS = { verified:"ok", pending_setup:"warn", unverified:"bad" };
+function driverSetupBadge(d){
+  const setup = d.setup;
+  if(!setup) return `<span class="badge ${statusClass(d.approval_status)}">${esc(d.approval_status || d.status || "pending")}</span>`;
+  return `<span class="badge ${DRIVER_SETUP_CLASS[setup.state] || "blue"}" title="Administrative approval: ${esc(d.approval_status || "none")}">${esc(setup.label)}</span>`;
+}
+function driverSetupMissing(d){
+  const missing = d.setup && Array.isArray(d.setup.missing) ? d.setup.missing : [];
+  return missing.length ? `<div class="item-sub">Still needed: ${missing.map(esc).join(", ")}</div>` : "";
+}
 function driverVerifyButton(d){
   return `<button onclick="openManualVerify('${esc(d.id)}', '${esc(((d.first_name || "") + " " + (d.last_name || "")).trim() || d.id)}')">Manual verification</button>`;
 }
@@ -976,9 +993,10 @@ function renderDrivers(items){
     <div class="item">
       <div class="item-top">
         <div><div class="item-title">${esc(d.first_name)} ${esc(d.last_name)}</div><div class="item-sub">${esc(d.email)} • Checkr: ${esc(d.checkr_status || "not started")}</div></div>
-        <span class="badge ${statusClass(d.approval_status)}">${esc(d.approval_status || d.status || "pending")}</span>
+        ${driverSetupBadge(d)}
       </div>
       ${driverVerifyRow(d)}
+      ${driverSetupMissing(d)}
       <div class="actions"><button class="success" onclick="approveDriver('${esc(d.id)}')">Approve Driver</button><button onclick="runDriverReview('${esc(d.id)}')">Review Assistant</button>${driverVerifyButton(d)}</div>
       <div class="driver-review" id="driverReview-${esc(d.id)}"></div>
     </div>`).join("") : `<div class="empty">No pending drivers.</div>`;
@@ -1040,7 +1058,7 @@ function renderActiveDrivers(items){
     <div class="item">
       <div class="item-top">
         <div><div class="item-title">${esc(d.first_name)} ${esc(d.last_name)}</div><div class="item-sub">${esc(d.email)} • Checkr: ${esc(d.checkr_status || "not started")}</div></div>
-        <span class="badge ${d.online ? "ok" : "blue"}">${d.online ? "Online" : "Offline"}</span>
+        <span>${driverSetupBadge(d)} <span class="badge ${d.online ? "ok" : "blue"}">${d.online ? "Online" : "Offline"}</span></span>
       </div>
       ${driverVerifyRow(d)}
       <div class="actions">${driverVerifyButton(d)}</div>

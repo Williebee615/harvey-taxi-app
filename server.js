@@ -3687,6 +3687,7 @@ const { HARVEY_AI_SYSTEM_PROMPT } = require("./lib/harveyAiSystemPrompt");
 // separately-authorized actions.
 const {
   computeDriverReadiness,
+  driverSetupState,
   parseDriverOnlineRequest,
   evaluateDriverStatusChange,
   buildOrdinaryApprovalUpdate,
@@ -20523,6 +20524,18 @@ app.post(
 
 ========================================================= */
 
+// Extra driver columns read only to work out the admin setup state
+// (lib/driverCompliance.js driverSetupState); never sent to the client.
+const DRIVER_SETUP_FIELDS = ["persona_status", "vehicle_make", "vehicle_model", "vehicle_year"];
+
+function pickFields(row, fields) {
+  const out = {};
+  for (const field of fields) {
+    if (Object.prototype.hasOwnProperty.call(row, field)) out[field] = row[field];
+  }
+  return out;
+}
+
 app.get(
 
   "/api/admin/drivers",
@@ -20563,7 +20576,9 @@ app.get(
 
         .from("drivers")
 
-        .select(ADMIN_DRIVERS_LIST_FIELDS.join(","))
+        // The setup fields are read only to work out each driver's setup
+        // state below; they are not returned.
+        .select([...ADMIN_DRIVERS_LIST_FIELDS, ...DRIVER_SETUP_FIELDS].join(","))
 
         .order("created_at", {
 
@@ -20605,7 +20620,10 @@ app.get(
 
     }
 
-    const rows = data || [];
+    const rows = (data || []).map((driver) => ({
+      ...pickFields(driver, ADMIN_DRIVERS_LIST_FIELDS),
+      setup: driverSetupState(driver, { enablePersona: ENABLE_PERSONA, enableCheckr: ENABLE_CHECKR })
+    }));
 
     const next_cursor =
 

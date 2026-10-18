@@ -102,6 +102,14 @@ describeWithBrowser("Admin dashboard: manual driver verification", () => {
     await row.waitFor();
     expect(await row.innerText()).toMatch(/✗ Email[\s\S]*✗ Phone[\s\S]*✗ ID[\s\S]*✗ Background/);
 
+    // The row says "approved", but nothing is verified: staff see the real
+    // setup state, and the driver isn't counted as active (2026-10-18).
+    const card = page.locator("#pendingDriversList .item").first();
+    expect(await card.locator(".badge").first().textContent()).toBe("Unverified");
+    expect(await card.innerText()).toMatch(/Still needed: email, phone, identity, background check/);
+    expect(await page.locator("#pendingDriversList").innerText()).not.toMatch(/\bapproved\b/i);
+    expect(await page.textContent("#activeDriversCount")).toBe("0");
+
     // Email + phone: ordinary admin sign-in, no token needed.
     await page.locator('button:has-text("Manual verification")').first().click();
     const dialog = page.locator("#manualVerifyDialog");
@@ -115,6 +123,7 @@ describeWithBrowser("Admin dashboard: manual driver verification", () => {
     expect(calls.at(-1)).toMatchObject({ kind: "contact", args: { p_driver_id: "DRV-SYN-1", p_email_verified: true, p_phone_verified: true, p_action: "driver_contact_verification_override" } });
     expect(calls.at(-1).args.p_metadata.reason).toContain("Called the driver");
     await page.waitForFunction(() => /✓ Email[\s\S]*✓ Phone/.test(document.querySelector(".verify-row").innerText));
+    await page.waitForFunction(() => document.querySelector("#pendingDriversList .item .badge").textContent === "Pending Setup");
 
     // ID + background: refused without the documentation confirmation and token.
     await page.locator('button:has-text("Manual verification")').first().click();

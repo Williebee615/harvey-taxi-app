@@ -2165,3 +2165,29 @@ The demo can then run in production with test money while rides keep their keys 
 - **Done:** #294 live and switched off; notes drafted.
 - **Remaining:** owner review of the notes; they ride the next code PR (owner preference: no standalone docs PRs). Test deletion for a phone-only account before any switch-on.
 - **Next authorized action:** none. Switching on waits for the owner.
+
+## 55. Update 2026-10-18 (UTC): #296 merged; admin driver setup labels (PR `claude/admin-driver-status-label`, not merged)
+
+**[Owner decision 2026-10-18]**
+- "Proceed with the Admin driver-status label … Correcting the false 'Approved' status to 'Unverified' or 'Pending Setup'."
+- Push-notification sign-up fix: "I also formally approve the Push-notification sign-up fix. Please add it to the active development queue."
+- #296: merge when green.
+- Driver email: the owner adds the mailing address and sends it to the 8 applicants (not sent by an agent).
+
+**[Verified 2026-10-18]** #296 (docs only): all six CI checks green on `c36f1e2`; merged as `b626384`.
+
+**This PR [Verified 2026-10-18, local]:**
+- `GET /api/admin/drivers` adds a `setup` state to each driver, from the same checks that decide whether a driver can go online (`computeDriverReadiness`):
+  - **Unverified:** email or phone not verified.
+  - **Pending Setup:** identity, background check or vehicle still open.
+  - **Verified:** every check passes.
+- The extra columns read to work this out (`persona_status`, vehicle make, model and year) aren't returned; the response is otherwise unchanged.
+- Admin dashboard: the driver badge shows that label and "Still needed: …". A driver counts as active only when approved **and** Verified, so the 19 applicant rows marked "approved" now show as Unverified pending drivers and the active count no longer includes them.
+- The label changes nothing about who can go online; that is still decided by the server readiness check.
+- Tests: `lib/driverCompliance.test.js` (6 new); `test/server.admin-driver-setup.test.js` (2, new); `test/manual-driver-verification.browser.test.js` (labels before and after a manual contact check).
+- Full suite: 2,901 passed, 2 failed (`booking-flow.browser` Mapbox App Review case, `rider-navigation.browser`). Both pass alone (19/19); they were load-related.
+
+**Handoff:**
+- **Done:** #296 merged; label change built and tested.
+- **Remaining:** merge approval for this PR; then the push sign-up fix (approved, next in the queue); driver app emergency button (needs a build); phone-only account deletion test.
+- **Next authorized action:** build the push sign-up fix. Merging this PR waits for the owner.
