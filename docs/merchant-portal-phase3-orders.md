@@ -170,7 +170,11 @@ Checks in the database: amounts never negative; `captured_cents ≤ authorized_c
    - A store takes orders only once it has a pin, and a fee quote must start within 150 m of it. No geocoding service is used.
 4. **Store hours** are checked at checkout. A store that has saved no hours for today counts as closed.
 5. **Separate Stripe tag.** Order authorizations carry `app: harvey_taxi_orders`, so the ride payment reconciliation, which releases unattached `harvey_taxi` holds, never touches an order. Orders release their own holds.
-6. **Test mode is enforced in code:** checkout refuses unless `ENABLE_MERCHANT_ORDERS` is on and Stripe uses test keys (`sk_test_` / `rk_test_`), and refuses any live-mode authorization.
+6. **Test mode is enforced in code:** checkout refuses unless `ENABLE_MERCHANT_ORDERS` is on and the orders Stripe key is a test key, and refuses any live-mode authorization.
+7. **Isolated from rides and the legacy delivery booking.** **[Owner decision 2026-10-18]** "Proceed with the recommended small PR to decouple the new orders from the legacy delivery settings and implement a separate ORDERS_STRIPE_SECRET_KEY (enforcing the sk_test_ prefix). It is critical that real ride payments are completely unaffected and legacy delivery remains paused."
+   - Orders build their own Stripe client from `ORDERS_STRIPE_SECRET_KEY`, and only if it starts with `sk_test_` or `rk_test_`. The ride key (`STRIPE_SECRET_KEY`) is never used for orders.
+   - Orders depend only on `ENABLE_MERCHANT_ORDERS`. `ENABLE_DELIVERY` and its siblings stay off, so the free-text delivery booking stays paused (#260).
+   - The rider screens (3b) will read `ORDERS_STRIPE_PUBLISHABLE_KEY` (shown only if it starts with `pk_test_`) from `GET /api/orders/config`.
 
 ## 12. Build plan (each a separate PR; each merge, the migration and turning on the switch need the owner's approval)
 

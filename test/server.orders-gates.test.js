@@ -35,9 +35,9 @@ beforeEach(() => {
 });
 
 test.each([
-  ["the switch is off (the default)", { ENABLE_MERCHANT_ORDERS: "false", STRIPE_SECRET_KEY: "sk_test_x" }, /isn't available yet/],
-  ["Stripe has live keys", { ENABLE_MERCHANT_ORDERS: "true", STRIPE_SECRET_KEY: "sk_live_x" }, /test mode/],
-  ["Stripe isn't configured", { ENABLE_MERCHANT_ORDERS: "true", STRIPE_SECRET_KEY: "" }, /test mode/]
+  ["the switch is off (the default)", { ENABLE_MERCHANT_ORDERS: "false", ORDERS_STRIPE_SECRET_KEY: "sk_test_x" }, /isn't available yet/],
+  ["the orders key is a live key", { ENABLE_MERCHANT_ORDERS: "true", ORDERS_STRIPE_SECRET_KEY: "sk_live_x" }, /own Stripe test key/],
+  ["there is no orders key, even with a test ride key", { ENABLE_MERCHANT_ORDERS: "true", ORDERS_STRIPE_SECRET_KEY: "", STRIPE_SECRET_KEY: "sk_test_rides" }, /own Stripe test key/]
 ])("checkout refuses when %s, before touching Stripe or the database", async (_label, env, message) => {
   const app = loadApp(env);
   const r = await request(app).post("/api/orders/checkout").set("x-requested-with", "harvey-rider-app").set("Cookie", cookie).send({ client_order_key: "gate-key-123", merchant_id: "M1", items: [] });

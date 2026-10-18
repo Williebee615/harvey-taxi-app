@@ -1772,3 +1772,48 @@ The demo can then run in production with test money while rides keep their keys 
   - the owner's go-ahead on the separate-test-key recommendation before any demo switch-on;
   - step 3b.
 - **Next authorized action:** none until the migration confirmation and the activation decision.
+
+## 42. Update 2026-10-18 (UTC): #282 merged; orders tables not found after the owner's SQL-editor run; orders isolated from rides (PR `claude/orders-stripe-isolation`, not merged)
+
+**[Owner decision 2026-10-18]** The owner reported running `20261018010000_orders.sql` in the production SQL editor. They also approved:
+- the pin migration, to be run by the owner via the SQL editor after merge;
+- merging #282;
+- "the recommended small PR to decouple the new orders from the legacy delivery settings and implement a separate ORDERS_STRIPE_SECRET_KEY (enforcing the sk_test_ prefix). It is critical that real ride payments are completely unaffected and legacy delivery remains paused."
+
+**[Unresolved] Orders tables not found [Verified 2026-10-18 ~00:47 UTC, read-only queries]:**
+- `orders`, `order_items`, `order_events` and the trigger function don't exist in production (`orgahzncmzptljapqffj`, any schema).
+- They aren't in the staging project (`yryfdobxhvklanmbotfu`) either.
+- The script runs as one transaction, so an error, or a cancelled "destructive statement" confirmation in the SQL editor (the script contains `drop trigger if exists`), leaves nothing behind.
+- Next: the owner reruns it and shares the editor's result message; then the session verifies.
+
+**[Verified 2026-10-18 00:48 UTC]** All six CI checks were green on `b1edf8b`; #282 merged as `e0474be`; `/api/health` reports `e0474be`, healthy; `POST /api/admin/merchants/:id/pickup-pin` without admin returns 401.
+
+**Pin migration [Unresolved]:** `supabase/migrations/20261018020000_merchant_pickup_pin.sql` (SHA-256 on `main` `cffba0ed…`) not applied; the owner will run it in the SQL editor.
+
+**Orders isolation (this PR) [Verified 2026-10-18, local]:**
+- Orders build their own Stripe client, only from `ORDERS_STRIPE_SECRET_KEY` and only if it is a test key. The ride key is never used for orders.
+- Orders no longer depend on `ENABLE_DELIVERY` / `ENABLE_FOOD_DELIVERY` / `ENABLE_GROCERY_DELIVERY`; the fee quote is checked by a copy of the ride check without the delivery switches.
+- `GET /api/orders/config` tells the rider screens whether ordering is on and gives the publishable key only if it is a `pk_test_` key.
+- Tests run with the ride key set to a live-looking value and the delivery switches off:
+  - a full order cycle works, and any use of the ride Stripe client would fail the test;
+  - `POST /api/rides/payment-intent` for food still answers "Delivery is paused";
+  - gates: switch off, a live orders key, and no orders key (even with a test ride key) all refuse.
+- Full suite: 2,776 passed.
+
+**Owner setup for the demo, after this PR merges and both migrations are applied:**
+1. On Render (web service environment), add:
+   - `ORDERS_STRIPE_SECRET_KEY`: a Stripe **test** secret key (`sk_test_…`);
+   - `ORDERS_STRIPE_PUBLISHABLE_KEY`: its `pk_test_…` pair;
+   - `ENABLE_MERCHANT_ORDERS=true`.
+
+   Names only are recorded here.
+2. Leave `STRIPE_SECRET_KEY` and the delivery switches unchanged.
+
+**Handoff:**
+- **Done:** #282 live (pin code, migration pending); isolation built.
+- **Remaining:**
+  - the orders migration rerun and the pin migration (owner, SQL editor);
+  - merge approval for this PR;
+  - the demo environment settings above;
+  - step 3b.
+- **Next authorized action:** verifying the migrations after the owner runs them. Merging this PR needs the owner's approval (the approval covered building it).

@@ -21184,12 +21184,21 @@ app.post(
    ready or cancels; staff can cancel. Every ending other than completion
    releases the authorization in full. Driver pickup, delivery, capture
    and refunds come later (3c / phase 4).
-   Test mode only: off unless ENABLE_MERCHANT_ORDERS is on AND Stripe uses
-   test keys. Order PaymentIntents carry their own app tag so the ride
-   payment reconciliation never acts on them.
+   Test mode only, isolated from rides and the legacy delivery booking
+   (owner decision 2026-10-18): orders use their own Stripe client, built
+   only from ORDERS_STRIPE_SECRET_KEY and only if it is a test key
+   (sk_test_ / rk_test_); the ride key (STRIPE_SECRET_KEY) is never used
+   for orders, and orders never touch ride payments. Orders depend only on
+   ENABLE_MERCHANT_ORDERS, not on ENABLE_DELIVERY and its siblings, so the
+   paused free-text delivery booking (#260) stays paused. Order
+   PaymentIntents also carry their own app tag.
 ========================================================= */
 const orderRules = require("./lib/orders");
 const ENABLE_MERCHANT_ORDERS = envBool("ENABLE_MERCHANT_ORDERS", false);
+const ORDERS_STRIPE_SECRET_KEY = env("ORDERS_STRIPE_SECRET_KEY");
+// Not secret: Stripe.js needs it in the rider's browser (step 3b).
+const ORDERS_STRIPE_PUBLISHABLE_KEY = env("ORDERS_STRIPE_PUBLISHABLE_KEY");
+const ordersStripe = Stripe && /^(sk|rk)_test_/.test(ORDERS_STRIPE_SECRET_KEY) ? new Stripe(ORDERS_STRIPE_SECRET_KEY) : null;
 // Placeholder until the accountant's advice (design §8). Test mode only.
 const ORDERS_TEST_TAX_RATE_BPS = (() => {
   const n = Number(env("ORDERS_TEST_TAX_RATE_BPS", "0"));
@@ -21200,22 +21209,42 @@ const ORDER_FIELDS = "id, order_number, merchant_id, rider_id, ride_id, status, 
 const ORDER_ITEM_FIELDS = "id, order_id, catalog_item_id, name, unit_price_cents, quantity, tax_cents, substitution_choice, fulfilment";
 const ORDER_EVENT_ACTOR = { rider: "rider", merchant: "merchant_user", admin: "admin", system: "system" };
 
-const ordersStripeTestMode = () => Boolean(stripe) && /^(sk|rk)_test_/.test(String(STRIPE_SECRET_KEY || ""));
-// Writes need the switch and Stripe test keys; returns true if it replied.
+const ordersStripeTestMode = () => Boolean(ordersStripe);
+// Writes need the switch and the orders test key; returns true if it replied.
 function ordersUnavailable(res) {
   if (!ENABLE_MERCHANT_ORDERS) return fail(res, "Ordering from stores isn't available yet.", 503) || true;
-  if (!ordersStripeTestMode()) return fail(res, "Ordering is in test mode and needs Stripe test keys.", 503) || true;
+  if (!ordersStripeTestMode()) return fail(res, "Ordering is in test mode and needs its own Stripe test key.", 503) || true;
   return false;
+}
+
+// The signed delivery-fee quote, checked like rides check theirs, but
+// without the legacy delivery switches: orders have their own.
+function verifyOrderQuote(req, res) {
+  if (!RIDE_QUOTE_SECRET) {
+    fail(res, "Delivery estimates are not configured.", 503);
+    return null;
+  }
+  const token = cleanString(req.body.estimate_token, 4000);
+  if (!token) {
+    fail(res, "Please get a delivery estimate before checking out.", 400);
+    return null;
+  }
+  const result = resolveRideQuote({ token, secret: RIDE_QUOTE_SECRET, rideType: normalizeRideType(req.body.ride_type), riderId: cleanString(req.body.rider_id, 100) || null, ...extractTripCoords(req.body) });
+  if (!result.ok) {
+    fail(res, QUOTE_TOKEN_INVALID_REASONS.has(result.reason) ? "Your delivery estimate has expired. Please get a fresh estimate." : "This order no longer matches your delivery estimate. Please get a fresh estimate.", 400);
+    return null;
+  }
+  return result.quote;
 }
 const ordersNotSetUp = (error) => error && error.code === "42P01";
 
 async function releaseOrderAuthorization(order) {
-  if (!order.payment_intent_id || !stripe) return;
+  if (!order.payment_intent_id || !ordersStripe) return;
   try {
-    const intent = await stripe.paymentIntents.retrieve(order.payment_intent_id);
+    const intent = await ordersStripe.paymentIntents.retrieve(order.payment_intent_id);
     if (intent.metadata?.order_id !== order.id) throw new Error("payment intent does not belong to this order");
     if (RELEASABLE_INTENT_STATUSES.includes(intent.status)) {
-      await stripe.paymentIntents.cancel(intent.id, {}, { idempotencyKey: `harvey-order-release-${order.id}` });
+      await ordersStripe.paymentIntents.cancel(intent.id, {}, { idempotencyKey: `harvey-order-release-${order.id}` });
     }
   } catch (err) {
     console.error("❌ order authorization release failed:", order.id, err.message);
@@ -21306,6 +21335,13 @@ async function storeName(merchantId) {
   return data ? data.business_name : null;
 }
 
+// What the rider screens need to know. The publishable key is shown only
+// when it is a test key.
+app.get(
+  "/api/orders/config",
+  (req, res) => ok(res, { enabled: ENABLE_MERCHANT_ORDERS && ordersStripeTestMode(), test_mode: true, publishable_key: /^pk_test_/.test(ORDERS_STRIPE_PUBLISHABLE_KEY) ? ORDERS_STRIPE_PUBLISHABLE_KEY : null })
+);
+
 // Checkout. Prices, availability and names come from the catalog; the
 // delivery fee from the signed, single-use fare quote (as for rides); the
 // tax rate from the test-mode placeholder. Safe to retry with the same
@@ -21324,7 +21360,7 @@ app.post(
     const { data: existing, error: existingError } = await supabase.from("orders").select(ORDER_FIELDS).eq("rider_id", riderId).eq("client_order_key", clientKey).maybeSingle();
     if (ordersNotSetUp(existingError)) return fail(res, "Ordering isn't set up yet.", 503);
     if (existing) {
-      const intent = existing.payment_intent_id ? await stripe.paymentIntents.retrieve(existing.payment_intent_id) : null;
+      const intent = existing.payment_intent_id ? await ordersStripe.paymentIntents.retrieve(existing.payment_intent_id) : null;
       const items = (await loadOrderItems([existing.id]))[existing.id];
       return ok(res, { order: riderOrderView(existing, items, await storeName(existing.merchant_id)), client_secret: existing.status === "pending_payment" && intent ? intent.client_secret : null, repeated: true });
     }
@@ -21347,7 +21383,7 @@ app.post(
     if (!Number.isInteger(tipCents) || tipCents < 0 || tipCents > orderRules.MAX_TIP_CENTS) return fail(res, "Choose a tip from $0 to $500.", 400);
     // The fare quote is bound to this rider and route; it can't be reused.
     req.body.rider_id = riderId;
-    const quote = verifyAndConsumeRideQuote(req, res);
+    const quote = verifyOrderQuote(req, res);
     if (!quote) return;
     // The fee must be for a trip that starts at this store.
     if (!quote.pickup || orderRules.distanceMeters(quote.pickup, { lat: pinRow.pickup_lat, lng: pinRow.pickup_lng }) > orderRules.PICKUP_TOLERANCE_M) {
@@ -21405,7 +21441,7 @@ app.post(
 
     let intent;
     try {
-      intent = await stripe.paymentIntents.create(
+      intent = await ordersStripe.paymentIntents.create(
         {
           amount: order.authorized_cents,
           currency: "usd",
@@ -21423,7 +21459,7 @@ app.post(
     }
     if (intent.livemode) {
       // Defence in depth: test mode was checked above; never keep a live hold.
-      await stripe.paymentIntents.cancel(intent.id).catch(() => {});
+      await ordersStripe.paymentIntents.cancel(intent.id).catch(() => {});
       await moveOrder(order, "payment_abandoned", { kind: "system", id: "checkout" }, { reason: "Live payments aren't enabled for orders." });
       return fail(res, "Ordering is in test mode only.", 503);
     }
@@ -21443,7 +21479,7 @@ app.post(
     const order = await loadRiderOrder(req, req.params.id);
     if (!order) return fail(res, "Order not found.", 404);
     if (order.status !== "pending_payment") return ok(res, { order: riderOrderView(order, (await loadOrderItems([order.id]))[order.id], await storeName(order.merchant_id)) });
-    const intent = order.payment_intent_id ? await stripe.paymentIntents.retrieve(order.payment_intent_id) : null;
+    const intent = order.payment_intent_id ? await ordersStripe.paymentIntents.retrieve(order.payment_intent_id) : null;
     if (!intent || intent.metadata?.order_id !== order.id || intent.amount !== order.authorized_cents || intent.livemode) return fail(res, "This payment could not be verified.", 409);
     if (intent.status !== "requires_capture") return fail(res, "Your card hasn't been authorized yet.", 409);
     const moved = await moveOrder(order, "placed", { kind: "system", id: "payment_confirmed" }, { req });
