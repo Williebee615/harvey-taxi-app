@@ -1920,7 +1920,7 @@ The demo can then run in production with test money while rides keep their keys 
 - **Remaining:** merge approval for this PR; pilot store pins; 3c (outline sent to the owner); the demo walkthrough.
 - **Next authorized action:** none. Merging this PR and building 3c wait for the owner's approval.
 
-## 46. Update 2026-10-18 (UTC): #286 merged; step 3c-1 schema (PR `claude/phase3c-1-ledger-schema`, not merged; migration not applied)
+## 46. Update 2026-10-18 (UTC): #286 merged; step 3c-1 schema (PR #287, not merged; migration applied and verified)
 
 **[Owner decision 2026-10-18]**
 1. Driver pay on orders: "Revert to the standard 70% of the delivery fee (DRIVER_PAYOUT_PERCENT) plus 100% of the tip."
@@ -1939,8 +1939,15 @@ The demo can then run in production with test money while rides keep their keys 
 - **[Recommendation]** The proposals table is named `order_refund_proposals` (not `refund_proposals`) to keep it separate from ride refunds (`payment_refunds`).
 - Tests: `test/db/orderLedger.db.test.js` (4: contact-me-first fields; proposal amounts and outcome records; ledger commission on items only, one credit per order, Monday weeks, append-only, balance by sum; server-only access). `test/db/orders.db.test.js` now clears the new tables with `orders`. Database suite: 177 passed, 4 skipped.
 
+**Migration:** the owner ran the SQL file (copied unchanged from this PR at `4b3a74c`) in the project labelled PRODUCTION; the owner's screenshot (9:18 PM local, 17 Oct) shows the check returning `5 | 2 | 1 | 2`.
+- **[Verified 2026-10-18 ~02:20 UTC, read-only]**
+  - `order_items` has the 5 new columns (`refunded_quantity` not null, default 0) and the 4 new checks.
+  - `order_refund_proposals` (23 checks) and `store_ledger_entries` (9 checks) exist with all 12 expected indexes, including `store_ledger_one_credit_per_order` and `store_ledger_one_deduction_per_proposal`.
+  - RLS on, 0 policies, no `anon` or `authenticated` grants; `store_ledger_append_only` has `search_path=public` and `anon` can't execute it.
+  - 0 rows in both new tables.
+
 **Handoff:**
-- **Done:** #286 live; 3c-1 written and tested; SQL file sent to the owner.
-- **Remaining:** merge approval for this PR; the owner runs the migration, then a read-only check; 3c-2 to 3c-4; the demo.
-- **Next authorized action:** after the owner confirms the migration ran, verify it read-only. Merging this PR waits for the owner's approval.
+- **Done:** #286 live; 3c-1 written and tested; migration applied by the owner and verified.
+- **Remaining:** merge approval for this PR; 3c-2 to 3c-4; the demo.
+- **Next authorized action:** none. Merging this PR and starting 3c-2 wait for the owner's approval.
 
