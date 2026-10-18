@@ -193,11 +193,31 @@ describe("driver transition routes -- unauthorized access", () => {
 });
 
 describe("driver-missions.html retirement", () => {
-  test("redirects to driver-dashboard.html instead of serving the old page", async () => {
+  test("redirects to driver.html instead of serving the old page", async () => {
     const res = await request(app).get("/driver-missions.html");
 
     expect(res.status).toBe(301);
-    expect(res.headers.location).toBe("/driver-dashboard.html");
+    expect(res.headers.location).toBe("/driver.html");
+  });
+});
+
+// Owner decision 2026-10-18: "Moving everything to driver.html".
+describe("driver page move", () => {
+  test("the old dashboard address redirects permanently to driver.html, keeping its query", async () => {
+    for (const [from, to] of [["/driver-dashboard.html", "/driver.html"], ["/driver-dashboard", "/driver.html"], ["/driver-dashboard.html?tab=earnings&ride=R1", "/driver.html?tab=earnings&ride=R1"]]) {
+      const res = await request(app).get(from);
+      expect(res.status).toBe(301);
+      expect(res.headers.location).toBe(to);
+    }
+  });
+  test("driver.html is the real driver page (sign-in with a code), not the old test console", async () => {
+    for (const path of ["/driver.html", "/driver"]) {
+      const res = await request(app).get(path);
+      expect(res.status).toBe(200);
+      expect(res.text).toContain('id="verifyCodeBtn"');
+      expect(res.text).not.toContain("Driver Console");
+      expect(res.text).not.toContain("/api/rides/open");
+    }
   });
 });
 

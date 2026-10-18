@@ -239,7 +239,7 @@ describe("every HTAF page -- no advertising tags, no Harvey Taxi AI widget", () 
   });
 
   test("Harvey Taxi pages never load the HTAF assistant", () => {
-    for (const page of ["index.html", "rider-dashboard.html", "driver-dashboard.html", "support.html"]) {
+    for (const page of ["index.html", "rider-dashboard.html", "driver.html", "support.html"]) {
       expect(readPage(page)).not.toContain("htaf-assist.js");
     }
   });
