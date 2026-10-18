@@ -42,7 +42,7 @@
     .hts-logo-mark { overflow: hidden; padding: 0 !important; background: #0b1a3a !important; display: block !important; flex: 0 0 auto; position: relative; }
     .hts-logo-mark > img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: inherit; }
         details#importGuide{margin:8px 0 12px}details#importGuide summary{cursor:pointer;font-weight:600}table.guide td,table.guide th{vertical-align:top}
-          .order{border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:12px;margin:10px 0}.order.new{border-color:var(--gold)}.order h3{margin:0 0 4px;font-size:16px}.order ul{margin:6px 0 8px 18px;padding:0}.order .meta{font-size:13px;color:var(--muted)}.order .actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.order select{width:auto}.badge{display:inline-block;min-width:22px;padding:2px 8px;border-radius:999px;background:var(--gold);color:#111;font-size:13px;text-align:center}
+          .order{border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:12px;margin:10px 0}.order.new{border-color:var(--gold)}.order h3{margin:0 0 4px;font-size:16px}.order ul{margin:6px 0 8px 18px;padding:0}.order .meta{font-size:13px;color:var(--muted)}.order .actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.order li{margin:6px 0}.order .item-actions{margin-top:4px}.order .item-actions button{padding:6px 10px;font-size:14px}.order select{width:auto}.badge{display:inline-block;min-width:22px;padding:2px 8px;border-radius:999px;background:var(--gold);color:#111;font-size:13px;text-align:center}
     </style>
 </head>
 <body>
@@ -72,7 +72,7 @@
 
     <section class="card" id="ordersCard" hidden>
       <h2>Orders <span id="ordersBadge" class="badge" hidden></span></h2>
-      <p id="ordersNote">Accept each new order within 8 minutes, or it expires and the customer's card hold is released. You see the customer's first name and their items only.</p>
+      <p id="ordersNote">Accept each new order within 8 minutes, or it expires and the customer's card hold is released. While preparing, mark each item packed, out of stock or substituted; the order can be marked ready once every item is settled. You see the customer's first name and their items only.</p>
       <div id="ordersList" aria-live="polite"></div>
       <p id="ordersEmpty">No orders in the last 24 hours.</p>
       <div class="status" id="ordersStatus" role="status" aria-live="polite"></div>
@@ -255,6 +255,8 @@
       // new order plays a short tone and shows a count in the tab title (D6).
       const STATUS_TEXT = { placed: "New: waiting for you", accepted: "Accepted: preparing", ready: "Ready for pickup", picked_up: "Picked up", delivered: "Delivered", completed: "Completed", rejected: "Rejected", expired: "Expired (not accepted in time)", cancelled_by_rider: "Cancelled by the customer", cancelled_by_store: "Cancelled by your store", cancelled_by_staff: "Cancelled by Harvey Taxi" };
       const CHOICE_TEXT = { contact: "contact customer if out of stock", best_match: "your best match if out of stock", refund: "refund if out of stock" };
+      // Step 3c-2: each item is settled while preparing; "refunded" items aren't charged.
+      const ITEM_TEXT = { packed: "Packed", refunded: "Out of stock: not charged", substituted: "Substituted", out_of_stock: "Waiting for the customer's answer" };
       const baseTitle = document.title;
       let ordersTimer = null;
       let seenNew = new Set();
@@ -285,6 +287,11 @@
         show($("ordersStatus"), r.ok ? "Order " + o.order_number + ": " + (STATUS_TEXT[r.data.order.status] || r.data.order.status) + "." : (r.data.error || "Could not update the order."), r.ok ? "success" : "error");
         loadOrders();
       }
+      async function itemAction(o, i, body) {
+        const r = await call("/api/merchant/orders/" + encodeURIComponent(o.id) + "/items/" + encodeURIComponent(i.id), { method: "POST", body: body });
+        show($("ordersStatus"), r.ok ? "Order " + o.order_number + ": " + i.name + " updated." : (r.data.error || "Could not update the item."), r.ok ? "success" : "error");
+        loadOrders();
+      }
       function renderOrder(o) {
         const div = document.createElement("div");
         div.className = "order" + (o.status === "placed" ? " new" : "");
@@ -300,7 +307,35 @@
         const ul = document.createElement("ul");
         (o.items || []).forEach(function (i) {
           const li = document.createElement("li");
-          li.textContent = i.quantity + " × " + i.name + " (" + CHOICE_TEXT[i.substitution_choice] + ")";
+          li.dataset.item = i.id;
+          const text = document.createElement("span");
+          text.textContent = i.quantity + " × " + i.name + " (" + CHOICE_TEXT[i.substitution_choice] + ")";
+          li.appendChild(text);
+          if (i.fulfilment && i.fulfilment !== "pending") {
+            const st = document.createElement("div");
+            st.className = "meta item-state";
+            let label = ITEM_TEXT[i.fulfilment] || i.fulfilment;
+            if (i.substitute_name) label += ": " + i.substitute_name + " at " + money(i.substitute_price_cents) + " each";
+            if (i.fulfilment === "out_of_stock" && i.answer_by) label += " (until " + new Date(i.answer_by).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + ")";
+            st.textContent = label;
+            li.appendChild(st);
+          } else if (o.status === "accepted") {
+            const row = document.createElement("div");
+            row.className = "actions item-actions";
+            function itemButton(label, cls, fn) { const b = document.createElement("button"); b.type = "button"; b.className = "secondary " + cls; b.textContent = label; b.setAttribute("aria-label", label + ": " + i.name); b.addEventListener("click", fn); row.appendChild(b); }
+            itemButton("Packed", "pack", function () { itemAction(o, i, { action: "packed" }); });
+            itemButton("Out of stock", "oos", function () { itemAction(o, i, { action: "out_of_stock" }); });
+            if (i.substitution_choice !== "refund") {
+              itemButton(i.substitution_choice === "contact" ? "Offer a substitute" : "Substitute", "sub", function () {
+                const name = (window.prompt("Substitute for " + i.name + " (name):") || "").trim();
+                if (!name) return;
+                const price = Math.round(Number(String(window.prompt("Price of " + name + ", each, in dollars:") || "").replace(/[$,\s]/g, "")) * 100);
+                if (!Number.isInteger(price) || price < 1) { show($("ordersStatus"), "Enter the substitute's price, for example 4.29.", "error"); return; }
+                itemAction(o, i, { action: "substitute", substitute_name: name, substitute_price_cents: price });
+              });
+            }
+            li.appendChild(row);
+          }
           ul.appendChild(li);
         });
         div.appendChild(h); div.appendChild(meta); div.appendChild(ul);

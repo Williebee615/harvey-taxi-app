@@ -1951,3 +1951,25 @@ The demo can then run in production with test money while rides keep their keys 
 - **Remaining:** merge approval for this PR; 3c-2 to 3c-4; the demo.
 - **Next authorized action:** none. Merging this PR and starting 3c-2 wait for the owner's approval.
 
+## 47. Update 2026-10-18 (UTC): #287 merged; step 3c-2, settling items while preparing (PR `claude/phase3c-2-substitutions`, not merged)
+
+**[Owner decision 2026-10-18]**
+1. "Approved. Proceed to merge PR #287 into the main branch once the restarted CI checks are green."
+2. "You are cleared to begin building Step 3c-2": store item marking (packed, out of stock, substituted), the in-app "Contact me first" prompt, the 7-minute auto-refund, and blocking "ready" until every item is resolved.
+
+**[Verified 2026-10-18 02:23 UTC]** All six CI checks were green on `168e6f7`; #287 merged as `c6aa8d2`. `/api/health` reports `c6aa8d2`, healthy; `/api/orders/config` reports `enabled: true, test_mode: true`.
+
+**3c-2 (this PR) [Verified 2026-10-18, local]:** details are in `docs/merchant-portal-phase3-orders.md` §11c.
+- Server: `POST /api/merchant/orders/:id/items/:itemId` (packed / out of stock / substitute); `POST /api/orders/:id/items/:itemId/answer` (rider: substitute or refund); "Contact me first" questions expire after 7 minutes (sweep and on read); "Mark ready" refused until every item is settled.
+- Rules in `lib/orders.js`: `planItemAction`, `settleQuestion` (uses `substitutionOutcome` from `lib/refundEngine.js`), `readyBlockers`, `finalTotals` (also for 3c-3 capture).
+- Store portal: per-item buttons and states. Rider order screen: the question with Accept substitute / Refund it, refreshed every 10 seconds while the store prepares.
+- No migration (uses the 3c-1 columns). Nothing is charged; capture is 3c-3.
+- Tests: `lib/orders.test.js` (6 new); `test/server.orders.test.js` (5 new, and the ready test now settles items first; 79/79 three runs in a row with `lib/orders`); `test/merchant-orders.browser.test.js` (ready refused, then substitute and out of stock, then ready); `test/store-menu.browser.test.js` (1 new: the rider accepts a substitute at 390 px). Browser suites: 8/8.
+
+**Production supply [Verified 2026-10-18 ~02:00 UTC, read-only]:** 0 approved stores, 0 pinned, 0 listed items, 0 orders; 0 of 19 drivers fully verified (last recorded 2026-10-17). Nothing in 3c can be exercised in production until a pilot store is approved, pinned and stocked, and a test driver exists for the demo.
+
+**Handoff:**
+- **Done:** #287 live; 3c-2 built and tested.
+- **Remaining:** merge approval for this PR; 3c-3 (driver trip and capture at delivery); 3c-4 (missing-item refunds); pilot store onboarding; a test driver for the demo; the accountant's tax advice and counsel's merchant agreement before any real order.
+- **Next authorized action:** none. Merging this PR and starting 3c-3 wait for the owner's approval.
+

@@ -1,4 +1,5 @@
-// Phase 3a orders in Chromium: the store inbox (accept, ready, reject) and
+// Phase 3a orders in Chromium: the store inbox (accept, settle items
+// (step 3c-2), ready, reject) and
 // the staff orders list (history, cancel). Fixture data; Stripe and the
 // database are fakes (test mode only).
 //   NODE_PATH="$(npm root -g)" npx jest test/merchant-orders.browser
@@ -120,6 +121,22 @@ describeWithBrowser("Store orders inbox and staff orders list", () => {
     await first.locator("button.accept").click();
     await page.waitForFunction(() => /HT-AAAAAA: Accepted/.test(document.getElementById("ordersStatus").textContent));
     expect(mockClient._state.orders.find((o) => o.id === "o1")).toMatchObject({ status: "accepted", prep_minutes: 20 });
+    // Step 3c-2: ready is refused until every item is settled.
+    await page.locator('.order[data-id="o1"] button.ready').click();
+    await page.waitForFunction(() => /Still to do: Whole milk, Bread/.test(document.getElementById("ordersStatus").textContent));
+    // Milk (best match): the store substitutes, entering name and price.
+    const answers = ["2% milk", "4.29"];
+    const onDialog = (d) => d.accept(answers.shift());
+    page.on("dialog", onDialog);
+    await page.locator('.order[data-id="o1"] li[data-item="i1"] button.sub').click();
+    await page.waitForFunction(() => /Substituted: 2% milk at \$4\.29 each/.test(document.querySelector('.order[data-id="o1"] li[data-item="i1"]').textContent));
+    page.off("dialog", onDialog);
+    // Bread (refund if out of stock) can't be substituted.
+    expect(await page.locator('.order[data-id="o1"] li[data-item="i2"] button.sub').count()).toBe(0);
+    await page.locator('.order[data-id="o1"] li[data-item="i2"] button.oos').click();
+    await page.waitForFunction(() => /Out of stock: not charged/.test(document.querySelector('.order[data-id="o1"] li[data-item="i2"]').textContent));
+    expect(mockClient._state.order_items.find((i) => i.id === "i1")).toMatchObject({ fulfilment: "substituted", substitute_name: "2% milk", substitute_price_cents: 429 });
+    expect(mockClient._state.order_items.find((i) => i.id === "i2").fulfilment).toBe("refunded");
     await page.locator('.order[data-id="o1"] button.ready').click();
     await page.waitForFunction(() => /HT-AAAAAA: Ready for pickup/.test(document.getElementById("ordersStatus").textContent));
 
