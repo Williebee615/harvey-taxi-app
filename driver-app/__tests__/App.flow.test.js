@@ -423,3 +423,46 @@ test('no-show, when the owner turns it on: the button follows the server\'s elig
   expect(noShowText({ enabled: true, eligible: true, missing: [] })).toMatch(/no charge to the rider/);
   expect(noShowText({ enabled: false })).not.toMatch(/fee|charge/i);
 });
+
+test('emergency button: pinned above the bottom menu while online or on a trip, on every tab; asks before dialling 911', async () => {
+  server.driver.online = false;
+  server.offers = [];
+  server.ride = null;
+  let tree;
+  await act(async () => {
+    tree = renderer.create(<App />);
+  });
+  await flush();
+  // Signed in from the earlier test's saved session; offline: no bar.
+  expect(has(tree, 'go-online')).toBe(true);
+  expect(has(tree, 'emergency-911')).toBe(false);
+
+  await press(tree, 'go-online');
+  expect(has(tree, 'emergency-911')).toBe(true);
+
+  // Still there on the other tabs (it sits outside the screens).
+  for (const tab of ['earnings', 'trips', 'account']) {
+    // eslint-disable-next-line no-await-in-loop
+    await press(tree, `tab-${tab}`);
+    expect(has(tree, 'emergency-911')).toBe(true);
+  }
+  await press(tree, 'tab-home');
+
+  const { Alert, Linking } = require('react-native');
+  const open = jest.spyOn(Linking, 'openURL').mockImplementation(async () => true);
+  // Cancel first: nothing is dialled.
+  let alert = jest.spyOn(Alert, 'alert').mockImplementation((t, m, buttons) => buttons[0].onPress && buttons[0].onPress());
+  await press(tree, 'emergency-911');
+  expect(open).not.toHaveBeenCalled();
+  alert.mockRestore();
+  // Confirm: the dialler opens on 911.
+  alert = jest.spyOn(Alert, 'alert').mockImplementation((t, m, buttons) => buttons[1].onPress());
+  await press(tree, 'emergency-911');
+  expect(alert.mock.calls[0][0]).toBe('Call 911?');
+  expect(open).toHaveBeenCalledWith('tel:911');
+  alert.mockRestore();
+  open.mockRestore();
+
+  await press(tree, 'go-offline');
+  expect(has(tree, 'emergency-911')).toBe(false);
+});
