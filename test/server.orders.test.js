@@ -9,11 +9,15 @@ process.env.ADMIN_API_TOKEN = "test-admin-token";
 process.env.MERCHANT_SESSION_SECRET = "test-merchant-session-secret";
 process.env.RIDER_SESSION_SECRET = "test-rider-session-secret";
 process.env.RIDE_QUOTE_SECRET = "test-ride-quote-secret";
-process.env.STRIPE_SECRET_KEY = "sk_test_orders";
+// Orders have their own Stripe test key and switch; the ride key and the
+// legacy delivery switches stay as production has them (owner decision
+// 2026-10-18: real ride payments unaffected, legacy delivery paused).
+process.env.ORDERS_STRIPE_SECRET_KEY = "sk_test_orders";
+process.env.STRIPE_SECRET_KEY = "sk_live_rides_must_not_be_used";
 process.env.ENABLE_MERCHANT_ORDERS = "true";
-process.env.ENABLE_DELIVERY = "true";
-process.env.ENABLE_FOOD_DELIVERY = "true";
-process.env.ENABLE_GROCERY_DELIVERY = "true";
+process.env.ENABLE_DELIVERY = "false";
+process.env.ENABLE_FOOD_DELIVERY = "false";
+process.env.ENABLE_GROCERY_DELIVERY = "false";
 process.env.ORDERS_TEST_TAX_RATE_BPS = "1000";
 
 const request = require("supertest");
@@ -25,12 +29,16 @@ const { signRideQuote } = require("../lib/rideQuote");
 let mockClient;
 jest.mock("@supabase/supabase-js", () => ({ createClient: () => new Proxy({}, { get: (_t, k) => mockClient && mockClient[k] }) }));
 const mockIntents = new Map();
-const mockCalls = { create: [], cancel: [] };
+const mockCalls = { create: [], cancel: [], keys: [] };
 jest.mock("stripe", () =>
-  function MockStripe() {
+  function MockStripe(key) {
+    mockCalls.keys.push(key);
+    const forRides = key !== "sk_test_orders";
     return {
+      _key: key,
       paymentIntents: {
         create: async (params, opts) => {
+          if (forRides) throw new Error("the ride Stripe key was used for an order");
           mockCalls.create.push({ params, opts });
           const existing = [...mockIntents.values()].find((i) => i.idem === opts.idempotencyKey);
           if (existing) return existing;
@@ -39,11 +47,13 @@ jest.mock("stripe", () =>
           return intent;
         },
         retrieve: async (id) => {
+          if (forRides) throw new Error("the ride Stripe key was used for an order");
           const i = mockIntents.get(id);
           if (!i) throw new Error("No such payment_intent");
           return i;
         },
         cancel: async (id) => {
+          if (forRides) throw new Error("the ride Stripe key was used for an order");
           mockCalls.cancel.push(id);
           const i = mockIntents.get(id);
           i.status = "canceled";
@@ -318,5 +328,25 @@ describe("store pickup pin (staff)", () => {
   test("pins are for approved or paused stores only", async () => {
     mockClient._state.merchants.find((m) => m.id === "M4").status = "pending";
     expect((await pin("M4", { pin: "36.1627, -86.7816" })).status).toBe(409);
+  });
+});
+
+describe("isolation from rides and the legacy delivery booking (owner decision 2026-10-18)", () => {
+  test("orders build their own Stripe client from the orders test key; the ride key client is never used for orders", async () => {
+    expect(mockCalls.keys).toEqual(expect.arrayContaining(["sk_test_orders", "sk_live_rides_must_not_be_used"]));
+    // A full order cycle runs with the delivery switches off; any use of the
+    // ride client would throw.
+    const id = await placedOrder();
+    expect((await asStore().post(`/api/merchant/orders/${id}/reject`, { reason: "Closing early" })).status).toBe(200);
+    expect(mockCalls.cancel).toHaveLength(1);
+  });
+  test("the legacy free-text delivery booking stays paused while orders are on", async () => {
+    const r = await request(app).post("/api/rides/payment-intent").set(RH).send({ ride_type: "food" });
+    expect(r.status).toBe(400);
+    expect(r.body.error).toMatch(/Delivery is paused/);
+  });
+  test("the rider screens get the publishable key only when it is a test key", async () => {
+    const r = await request(app).get("/api/orders/config");
+    expect(r.body).toMatchObject({ enabled: true, test_mode: true, publishable_key: null });
   });
 });

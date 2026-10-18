@@ -454,7 +454,7 @@ async function loadOrdersAdmin(){
   const orders = data.orders || [];
   document.getElementById("ordersAdminCount").textContent = orders.length;
   if (data.not_set_up) { list.innerHTML = `<div class="empty">Orders aren't set up yet (database migration not applied).</div>`; return; }
-  const state = data.enabled ? (data.test_mode_keys ? "Ordering is on (Stripe test keys)." : "Ordering is on but Stripe isn't using test keys, so checkout is refused.") : "Ordering is off (ENABLE_MERCHANT_ORDERS).";
+  const state = data.enabled ? (data.test_mode_keys ? "Ordering is on (Stripe test key for orders)." : "Ordering is on but ORDERS_STRIPE_SECRET_KEY isn't a Stripe test key, so checkout is refused.") : "Ordering is off (ENABLE_MERCHANT_ORDERS).";
   document.getElementById("ordersAdminSub").textContent = `${state} Staff can cancel an order before pickup; the customer's card hold is released.`;
   list.innerHTML = orders.length ? orders.map(o => `
     <div class="item" data-order-id="${esc(o.id)}">

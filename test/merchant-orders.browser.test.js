@@ -12,7 +12,7 @@ process.env.RIDE_QUOTE_SECRET = "test-ride-quote-secret";
 process.env.ADMIN_API_TOKEN = "test-admin-token";
 process.env.ADMIN_SESSION_SECRET = "test-admin-session-secret";
 process.env.ADMIN_EMAIL = "owner@harvey.example";
-process.env.STRIPE_SECRET_KEY = "sk_test_orders";
+process.env.ORDERS_STRIPE_SECRET_KEY = "sk_test_orders";
 process.env.ENABLE_MERCHANT_ORDERS = "true";
 
 const crypto = require("crypto");
@@ -143,7 +143,7 @@ describeWithBrowser("Store orders inbox and staff orders list", () => {
 
     const list = page.locator("#ordersAdminList");
     await list.locator("text=HT-CCCCCC").waitFor();
-    expect(await page.locator("#ordersAdminSub").innerText()).toMatch(/Ordering is on \(Stripe test keys\)/);
+    expect(await page.locator("#ordersAdminSub").innerText()).toMatch(/Ordering is on \(Stripe test key for orders\)/);
     // Open orders only by default: o1 (ready) and o3 (accepted); o2 was rejected.
     expect(await list.innerText()).not.toMatch(/HT-BBBBBB/);
     expect(await list.locator('.item[data-order-id="o3"]').innerText()).toMatch(/Past its preparation time/);
