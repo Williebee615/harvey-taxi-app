@@ -1613,3 +1613,45 @@ The earlier §26 [Unresolved] item is resolved.
   - after merge, confirm on a phone that the badge is readable;
   - the three open items above.
 - **Next authorized action:** none. Merging needs the owner's approval.
+
+## 39. Update 2026-10-18 (UTC): phase 3 orders design for owner review (PR `claude/phase3-orders-design`, not merged; documentation only)
+
+**[Owner decision 2026-10-18]** "Start the Phase 3 orders design document."
+
+**Added:** `docs/merchant-portal-phase3-orders.md`. It covers:
+- the order lifecycle and who can move it;
+- the rider, store and staff experience;
+- payment (one manual-capture authorization per order; capture at delivery, bounded by the authorization; refunds only through staff-approved proposals);
+- sales-tax handling kept in one function until the accountant answers;
+- the data model for one future migration (`orders`, `order_items`, `order_events`; not written, not applied);
+- safety and privacy (stores see riders' first names only);
+- a build plan in three PRs plus a test-mode demo.
+
+No code, migration or Stripe change.
+
+**[Verified 2026-10-18, code]** The design's starting points: rides authorize with manual capture and capture at completion; ride tips are added in full to the driver's earning; delivery switches are enforced and off; `lib/refundEngine.js` exports the money rules the design calls.
+
+**[Decision] Seven owner decisions with recommendations (design §11):**
+- D1: store response window (8 minutes);
+- D2: rider cancellation after acceptance (free until ready, then through support);
+- D3: tip (optional, 100% to the driver);
+- D4: one charge for the whole order;
+- D5: no minimum order in the pilot;
+- D6: store alerts (portal sound and badge; SMS optional);
+- D7: capture at delivery.
+
+**[Blocked] Before real orders:**
+- the accountant's sales-tax advice;
+- counsel's merchant agreement and rider-terms update;
+- Stripe Connect details (phase 5);
+- at least 5 verified drivers;
+- signed pilot stores with catalogs;
+- the owner turning on `ENABLE_MERCHANT_ORDERS` and the delivery switches.
+
+**Handoff:**
+- **Done:** design drafted.
+- **Remaining:**
+  - owner review of the design and decisions D1–D7;
+  - merge approval for this documentation PR;
+  - building step 3a after approval.
+- **Next authorized action:** none. Building phase 3 needs the owner's go-ahead on the design.

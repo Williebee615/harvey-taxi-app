@@ -157,4 +157,4 @@ Labels: **[Verified]** = checked in the code or the production database on the d
 **[Verified 2026-10-17, production]** Phases 1a and 1b are live (applications, admin review, store sign-in, store hours). Delivery booking stays paused (#260).
 
 - Phase 2 (catalog) is PR `claude/merchant-catalog-phase2`. Merging it and applying its migration each need the owner's approval.
-- Phase 3 (orders) needs the accountant's sales-tax guidance and counsel's merchant agreement first.
+- Phase 3 (orders) needs the accountant's sales-tax guidance and counsel's merchant agreement before real orders. Its design is in `docs/merchant-portal-phase3-orders.md` (2026-10-18, for owner review; test mode only until then).
