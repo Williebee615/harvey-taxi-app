@@ -163,7 +163,7 @@ describe("compatibility and access", () => {
     for (const client of [null, "something_else"]) {
       const res = await ask("what's next on my current trip", { client });
       expect(res.body.reply).toMatch(/tap "Arrived"/);
-      expect(res.body.actions).toEqual([{ type: "open_dashboard", label: "Open driver dashboard", href: "/driver-dashboard.html" }]);
+      expect(res.body.actions).toEqual([{ type: "open_dashboard", label: "Open driver dashboard", href: "/driver.html" }]);
     }
   });
 

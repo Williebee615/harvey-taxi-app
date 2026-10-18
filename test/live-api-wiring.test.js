@@ -15,7 +15,7 @@ const LIVE_PAGES = [
   "public/index.html",
   "public/rider-dashboard.html",
   "public/rider-signup.html",
-  "public/driver-dashboard.html",
+  "public/driver.html",
   "public/driver-signup.html",
   "public/support.html",
   "public/merchant-apply.html",

@@ -16,7 +16,7 @@ export const LINKS = Object.freeze({
   // Onboarding (application, identity and background checks) stays on the
   // website, where Persona and Checkr run today.
   driverSignup: `${API_BASE}/driver-signup.html`,
-  onboarding: `${API_BASE}/driver-dashboard.html`,
+  onboarding: `${API_BASE}/driver.html`,
   support: `${API_BASE}/support.html`,
   privacy: `${API_BASE}/privacy-policy.html`,
   terms: `${API_BASE}/terms.html`,

@@ -1060,14 +1060,14 @@ app.use(
 // (GET /api/rides/:id, POST /api/driver/accept, POST /api/driver/reject,
 // POST /api/rides/:id/cancel before this phase) -- a second, broken
 // driver workflow competing with the one real, live client
-// (driver-dashboard.html, which correctly uses /api/driver/offers/:id/
+// (driver.html, formerly driver-dashboard.html, which uses /api/driver/offers/:id/
 // accept|decline and /api/driver/rides/:id/enroute|arrived|start|
 // complete|withdraw). Not linked from any live page (confirmed), so this
 // redirect exists only to send an old bookmark or direct hit somewhere
 // useful rather than a dead page. Must run before express.static, which
 // would otherwise serve the file directly if it still existed on disk.
 app.get("/driver-missions.html", (req, res) => {
-  res.redirect(301, "/driver-dashboard.html");
+  res.redirect(301, "/driver.html");
 });
 
 // admin.html retired: it called API routes that don't exist
@@ -10722,7 +10722,7 @@ async function runDriverHoursSweep(nowMs = Date.now()) {
       ownerId: id,
       title: "You've reached your hours limit",
       body: driverHours.restMessage(shift) + " You've been taken offline.",
-      url: "/driver-dashboard.html"
+      url: "/driver.html"
     }).catch(() => {});
   }
   return takenOffline;
@@ -11660,7 +11660,7 @@ async function dispatchRide(ride) {
           ownerId: candidate.id,
           title: offerPushTitle(ride),
           body: `Pickup: ${ride.pickup_address || "See app for details"}`,
-          url: "/driver-dashboard.html"
+          url: "/driver.html"
         }).catch(() => {});
 
         // Fire-and-forget: never delays the dispatch response, and
@@ -11887,7 +11887,7 @@ async function dispatchRide(ride) {
     ownerId: firstDriver.id,
     title: offerPushTitle(ride),
     body: `Pickup: ${ride.pickup_address || "See app for details"}`,
-    url: "/driver-dashboard.html"
+    url: "/driver.html"
   }).catch(() => {});
 
   persistPickupEtaBestEffort({
@@ -14808,7 +14808,7 @@ async function handleRideCancellation({
       ownerId: cancelledRide.driver_id,
       title: "Ride Cancelled",
       body: "This ride was cancelled and is no longer assigned to you.",
-      url: "/driver-dashboard.html"
+      url: "/driver.html"
     }).catch(() => {});
   }
 
@@ -19987,7 +19987,7 @@ app.post(
         ownerId: claim.ride.driver_id,
         title: "Ride Cancelled",
         body: "This ride was cancelled by an administrator and is no longer assigned to you.",
-        url: "/driver-dashboard.html"
+        url: "/driver.html"
       }).catch(() => {});
     }
 
@@ -20191,7 +20191,7 @@ app.post(
       ownerId: driver.id,
       title: "Ride Assigned",
       body: `You've been assigned a ride. Pickup: ${data.pickup_address || "See app for details"}`,
-      url: "/driver-dashboard.html"
+      url: "/driver.html"
     }).catch(() => {});
 
     broadcastRideSse(rideId, "stage", {
@@ -21389,7 +21389,7 @@ async function cancelOrderTrip(order, reasonStatus) {
   });
   if (!claim.ok) return;
   if (hasAssignedDriver(ride.status) && ride.driver_id) {
-    sendPushNotification({ ownerType: "driver", ownerId: ride.driver_id, title: "Delivery cancelled", body: "This delivery was cancelled and is no longer assigned to you.", url: "/driver-dashboard.html" }).catch(() => {});
+    sendPushNotification({ ownerType: "driver", ownerId: ride.driver_id, title: "Delivery cancelled", body: "This delivery was cancelled and is no longer assigned to you.", url: "/driver.html" }).catch(() => {});
   }
   broadcastRideSse(ride.id, "stage", { status: RIDE_STATUS.CANCELLED });
   auditLog({ actor_type: "system", actor_id: "orders", action: "order_trip_cancelled", entity_type: "ride", entity_id: ride.id, metadata: { order_id: order.id, order_status: reasonStatus } }).catch(() => {});
@@ -26164,37 +26164,17 @@ app.get(
 
 );
 
-app.get(
-
-  "/driver-dashboard",
-
-  (req, res) =>
-
-    sendStaticPage(
-
-      res,
-
-      "driver-dashboard.html"
-
-    )
-
-);
-
-app.get(
-
-  "/driver-dashboard.html",
-
-  (req, res) =>
-
-    sendStaticPage(
-
-      res,
-
-      "driver-dashboard.html"
-
-    )
-
-);
+// The driver web page is /driver.html (owner decision 2026-10-18: "Moving
+// everything to driver.html"). The old address redirects permanently,
+// keeping its query string, so older driver app builds, sent emails, push
+// notifications and bookmarks still land on it.
+function redirectToDriverPage(req, res) {
+  const q = req.originalUrl.indexOf("?");
+  res.redirect(301, "/driver.html" + (q >= 0 ? req.originalUrl.slice(q) : ""));
+}
+app.get("/driver-dashboard", redirectToDriverPage);
+app.get("/driver-dashboard.html", redirectToDriverPage);
+app.get("/driver", (req, res) => sendStaticPage(res, "driver.html"));
 
 app.get(
 

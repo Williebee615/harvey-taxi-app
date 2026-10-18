@@ -343,7 +343,7 @@ describeWithBrowser("AI Agent Manager UI", () => {
 
   test("driver assistant answers from the driver's own data", async () => {
     const page = await newPage({ mobile: true, driverId: "DRIVER_1" });
-    await page.goto(`${base}/driver-dashboard.html`);
+    await page.goto(`${base}/driver.html`);
     await page.waitForSelector(".hta-btn");
     await page.click(".hta-btn");
     await page.fill(".hta-form input", "how much have I earned?");

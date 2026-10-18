@@ -23,7 +23,7 @@ test.each(pages.filter((p) => !HTAF_PAGES.has(p)))("%s has no placeholder brand 
   expect(html).not.toMatch(/class="(?:logo|logo-mark|brand-mark|logo-dot)"[^>]*>\s*<\/div>/);
 });
 
-test.each(["index", "rider-dashboard", "rider-signup", "driver-signup", "driver-dashboard", "support", "privacy", "privacy-policy", "settings", "admin-dashboard"])(
+test.each(["index", "rider-dashboard", "rider-signup", "driver-signup", "driver", "support", "privacy", "privacy-policy", "settings", "admin-dashboard"])(
   "%s shows the HTS logo in its header",
   (page) => {
     expect(read(page)).toContain('src="/hts-logo-192.png"');

@@ -5,6 +5,7 @@ Disallow: /merchant-portal.html
 Disallow: /merchant-catalog-template.csv
 Disallow: /merchant-catalog-example.csv
 Disallow: /store-menu.html
+Disallow: /driver.html
 Disallow: /driver-dashboard.html
 Disallow: /driver-missions.html
 Disallow: /driver-wallet.html

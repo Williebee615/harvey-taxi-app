@@ -145,3 +145,15 @@ Still unverified on devices: push notifications and locked-screen tracking. Thes
   - the grant table is applied with 0 grants.
 - **[Unresolved]** Document expiration dates with source and verification status (#243) are not merged, and the migration is not applied.
 - **Next authorized action:** a supervised synthetic-driver smoke test with the owner signed in (`docs/review-assistant-smoke-tests.md`). No app build, upload or release is authorized.
+
+## Update 2026-10-18 (UTC): the driver web page moves to /driver.html (PR `claude/driver-page-move`, not merged)
+- **[Owner decision 2026-10-18]** "I think we should get rid of driver-dashboard.html completely", then "Moving everything to driver.html".
+- **[Verified 2026-10-18, code]** Before this change, `/driver.html` was an old test console: it hardcoded `driver_1`, called `/api/rides/open` (no such route) and wasn't part of any flow. The real driver web page (sign-in with a texted code, verification, documents, offers, trips) was `/driver-dashboard.html`, and the Driver app's "Open web dashboard" button (`driver-app/src/config.js`, `onboarding`) opens it.
+- **This PR:**
+  - The real page now lives at `public/driver.html`; the old console is deleted.
+  - `/driver-dashboard.html` and `/driver-dashboard` redirect permanently (301) to `/driver.html`, keeping the query string, so the Driver app builds already submitted, sent emails, push notifications and bookmarks still work. `/driver-missions.html` now redirects to `/driver.html`.
+  - Updated to `/driver.html`: 7 server push links, the assistant's "Open driver dashboard" action, driver sign-up, the Driver app's onboarding link, `robots.txt`, and the tests.
+  - The rider app already treats both addresses as driver pages and hands off to the Driver app (unchanged).
+- **App build:** not needed now. Older builds reach the page through the redirect; the next build picks up the new link. No build, upload or release is authorized.
+- **Tests [Verified 2026-10-18, local]:** the affected server and browser suites 328/328 (new: the redirects keep the query; `/driver.html` and `/driver` serve the real page, not the old console); Driver app 84/84; rider app 117/117. (One Driver app run showed 6 failures that didn't recur on two further runs.)
+- **Next authorized action:** none. Merging waits for the owner.

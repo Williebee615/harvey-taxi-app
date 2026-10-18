@@ -82,7 +82,7 @@ describe("rider pages have no driver dashboard entry", () => {
 
   test.each([
     "/driver-signup.html",
-    "/driver-dashboard.html",
+    "/driver.html",
     "/support.html",
     "/privacy-policy.html",
     "/terms.html",

@@ -290,13 +290,13 @@ describeWithBrowser("App Review mode stays separate from the ordinary rider flow
 
   test("review driver: banner and simulated earnings; ordinary driver: neither", async () => {
     const reviewPage = await newPage({ driverId: "DRIVER_REVIEW" });
-    await reviewPage.goto(`${base}/driver-dashboard.html`, { waitUntil: "load" });
+    await reviewPage.goto(`${base}/driver.html`, { waitUntil: "load" });
     await reviewPage.waitForSelector("#appReviewBanner:not([hidden])", { timeout: 10000 });
     expect(await reviewPage.textContent("#appReviewBanner")).toMatch(/App Review mode/);
     await reviewPage.waitForFunction(() => /\(simulated\)/.test(document.body.innerText));
 
     const realPage = await newPage({ driverId: "DRIVER_REAL" });
-    await realPage.goto(`${base}/driver-dashboard.html`, { waitUntil: "load" });
+    await realPage.goto(`${base}/driver.html`, { waitUntil: "load" });
     await realPage.waitForTimeout(1500);
     expect(await realPage.isVisible("#appReviewBanner")).toBe(false);
     expect(await realPage.evaluate(() => /\(simulated\)/.test(document.body.innerText))).toBe(false);
