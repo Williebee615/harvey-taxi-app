@@ -176,6 +176,19 @@ Checks in the database: amounts never negative; `captured_cents ≤ authorized_c
    - Orders depend only on `ENABLE_MERCHANT_ORDERS`. `ENABLE_DELIVERY` and its siblings stay off, so the free-text delivery booking stays paused (#260).
    - The rider screens (3b) will read `ORDERS_STRIPE_PUBLISHABLE_KEY` (shown only if it starts with `pk_test_`) from `GET /api/orders/config`.
 
+## 11b. Step 3b (2026-10-18)
+
+**[Owner decision 2026-10-18]** "We are cleared to proceed with Step 3b", building the rider menu, cart, out-of-stock choices and checkout; and "Add the 'market' field to stores, orders, and approvals now ... fold this into the upcoming step." Built in two PRs.
+
+**Part 1 (PR `claude/phase3b-menu-cart`): menu, cart, markets.**
+- `/store-menu.html` (signed-in riders): approved stores in the rider's market that have a pickup pin and at least one item for sale, open-now first; a store's menu by section. Held or staff-hidden items are never sent; out-of-stock items show but can't be added.
+- One store per cart. Adding from a second store asks the rider to keep the cart or clear it. The cart is kept on the device (it lasts through a reload); the server re-reads every price and stock level at checkout. Items that stop being available are removed from a saved cart, with a note.
+- Term 5 choice per item the store marks substitutable: "Refund this item" (default), "Store picks a similar item", or "Contact me first". Other items are refunded if out of stock.
+- Markets: `lib/markets.js` (Nashville only). Migration `20261018030000_markets.sql` adds `market` to stores and orders (default `nashville`); orders copy their store's market. Approvals (refund proposals) arrive with step 3c and will carry the order's market.
+- "Continue to checkout" is disabled until part 2.
+
+**Part 2 (next PR): checkout.** **[Verified 2026-10-18, code]** The existing `POST /api/rides/estimate` refuses food and grocery while the legacy delivery booking is paused, so checkout can't use it. Part 2 adds an orders-only estimate whose pickup is the store's confirmed pin (set by the server, not the rider) and whose drop-off is the rider's address, then the checkout screen (items, tax placeholder, delivery fee, the grocery hold, optional tip) and the Stripe test-mode card step.
+
 ## 12. Build plan (each a separate PR; each merge, the migration and turning on the switch need the owner's approval)
 
 | Step | Delivers |

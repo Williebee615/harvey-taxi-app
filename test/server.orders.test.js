@@ -72,7 +72,7 @@ const RIDER2 = { ...BASE_RIDER, id: "RIDER_2", first_name: "Ben", email: "ben@ex
 let RIDER = BASE_RIDER;
 let riderN = 0;
 const allDay = (merchantId) => [0, 1, 2, 3, 4, 5, 6].map((d) => ({ merchant_id: merchantId, day_of_week: d, closed: false, opens_at: "00:00:00", closes_at: "24:00:00" }));
-const store = (id, category, pin = PICKUP) => ({ id, business_name: `TEST Store ${id}`, category, pickup_lat: pin ? pin.lat : null, pickup_lng: pin ? pin.lng : null, pickup_pin_confirmed_by: pin ? "staff@example.test" : null, pickup_pin_confirmed_at: pin ? "2026-10-18T00:00:00Z" : null, address_line: "1 Test St", city: "Nashville", postal_code: "37203", contact_name: "O", contact_phone: "+16155550100", contact_email: `${id}@example.test`, status: "approved", created_at: "2026-10-17T00:00:00Z" });
+const store = (id, category, pin = PICKUP) => ({ id, business_name: `TEST Store ${id}`, category, market: "nashville", pickup_lat: pin ? pin.lat : null, pickup_lng: pin ? pin.lng : null, pickup_pin_confirmed_by: pin ? "staff@example.test" : null, pickup_pin_confirmed_at: pin ? "2026-10-18T00:00:00Z" : null, address_line: "1 Test St", city: "Nashville", postal_code: "37203", contact_name: "O", contact_phone: "+16155550100", contact_email: `${id}@example.test`, status: "approved", created_at: "2026-10-17T00:00:00Z" });
 const item = (id, merchantId, extra = {}) => ({ id, merchant_id: merchantId, name: id, price_cents: 500, available: true, substitutable: false, review_status: "listed", review_flags: [], archived_at: null, ...extra });
 
 let app;
@@ -348,5 +348,39 @@ describe("isolation from rides and the legacy delivery booking (owner decision 2
   test("the rider screens get the publishable key only when it is a test key", async () => {
     const r = await request(app).get("/api/orders/config");
     expect(r.body).toMatchObject({ enabled: true, test_mode: true, publishable_key: null });
+  });
+});
+
+describe("rider store list and menu (step 3b)", () => {
+  test("signed-in riders only; approved, pinned stores with items for sale; held or hidden items never sent", async () => {
+    expect((await request(app).get("/api/stores")).status).toBe(401);
+    mockClient._state.catalog_items.push(item("vodka", "M1", { name: "Vodka", review_status: "blocked" }), item("gone", "M1", { name: "Gone", archived_at: "2026-10-01T00:00:00Z" }), item("eggs", "M1", { name: "Eggs", available: false }));
+    const list = await asRider().get("/api/stores");
+    expect(list.body).toMatchObject({ enabled: true, market: { id: "nashville" } });
+    // M1 grocery and M2 restaurant are pinned and have items; M3 has none; M4 has no pin.
+    expect(list.body.stores.map((s) => [s.business_name, s.order_type, s.open_now, s.item_count])).toEqual([
+      ["TEST Store M1", "grocery", true, 2],
+      ["TEST Store M2", "food", true, 1]
+    ]);
+    expect(list.body.stores[0]).toMatchObject({ market: "nashville", address: "1 Test St, Nashville" });
+    expect(JSON.stringify(list.body)).not.toMatch(/pickup_lat|contact_phone|contact_email|@example/);
+
+    const menu = await asRider().get("/api/stores/M1/menu");
+    expect(menu.body.store).toMatchObject({ business_name: "TEST Store M1", item_count: 2 });
+    expect(menu.body.items.map((i) => [i.name, i.available]).sort()).toEqual([["Bread", true], ["Eggs", false], ["Whole milk", true]]);
+    expect(JSON.stringify(menu.body)).not.toMatch(/Vodka|Gone|Craft beer|review_status|merchant_id/);
+    expect((await asRider().get("/api/stores/M4/menu")).status).toBe(404);
+    expect((await asRider().get("/api/stores/NOPE/menu")).status).toBe(404);
+  });
+  test("only the rider's market is listed; an unknown market falls back to Nashville", async () => {
+    mockClient._state.merchants.find((m) => m.id === "M2").market = "memphis";
+    for (const m of mockClient._state.merchants) if (!m.market) m.market = "nashville";
+    const names = (await asRider().get("/api/stores?market=memphis")).body.stores.map((s) => s.business_name);
+    expect(names).toEqual(["TEST Store M1"]);
+  });
+  test("an order carries its store's market", async () => {
+    mockClient._state.merchants.find((m) => m.id === "M1").market = "nashville";
+    const r = await asRider().post("/api/orders/checkout", checkoutBody());
+    expect(orders().find((o) => o.id === r.body.order.id).market).toBe("nashville");
   });
 });

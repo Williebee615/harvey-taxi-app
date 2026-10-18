@@ -753,7 +753,8 @@ const FOUNDATION_REDIRECTS = new Map([
   ["/merchant-apply.html", "/"],
   ["/merchant-portal.html", "/"],
   ["/merchant-catalog-template.csv", "/"],
-  ["/merchant-catalog-example.csv", "/"]
+  ["/merchant-catalog-example.csv", "/"],
+  ["/store-menu.html", "/"]
 ]);
 
 app.use((req, res, next) => {
@@ -21335,6 +21336,79 @@ async function storeName(merchantId) {
   return data ? data.business_name : null;
 }
 
+// Rider browsing (step 3b). Signed-in riders see approved stores in their
+// market that have a confirmed pickup pin and at least one item for sale,
+// and a store's menu. Held or staff-hidden items are never sent. Empty
+// while ordering is off. Store addresses are public business information.
+const marketRules = require("./lib/markets");
+const STORE_FIELDS_FOR_RIDERS = "id, business_name, category, address_line, city, market, pickup_lat, pickup_lng";
+const MENU_ITEM_FIELDS = "id, name, section, description, price_cents, available, substitutable";
+const dbNotReady = (error) => error && (error.code === "42P01" || error.code === "42703");
+function hoursToday(hours, at = new Date()) {
+  const day = WEEKDAY_INDEX[new Intl.DateTimeFormat("en-US", { timeZone: "America/Chicago", weekday: "short" }).format(at)];
+  const h = (hours || []).find((x) => Number(x.day_of_week) === day);
+  if (!h || h.closed || !h.opens_at || !h.closes_at) return null;
+  return { opens_at: String(h.opens_at).slice(0, 5), closes_at: String(h.closes_at).slice(0, 5) };
+}
+const WEEKDAY_INDEX = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+function riderStoreView(store, hours, itemCount) {
+  return {
+    id: store.id,
+    business_name: store.business_name,
+    category: store.category,
+    order_type: orderRules.orderTypeFor(store.category),
+    address: [store.address_line, store.city].filter(Boolean).join(", "),
+    market: store.market,
+    open_now: orderRules.isOpenAt(hours),
+    hours_today: hoursToday(hours),
+    item_count: itemCount
+  };
+}
+
+app.get(
+  "/api/stores",
+  requireRider,
+  asyncRoute(async (req, res) => {
+    if (!ENABLE_MERCHANT_ORDERS || !ordersStripeTestMode()) return ok(res, { enabled: false, stores: [] });
+    const market = marketRules.marketFromQuery(req.query.market);
+    const { data: stores, error } = await supabase.from("merchants").select(STORE_FIELDS_FOR_RIDERS).eq("status", "approved").eq("market", market).limit(200);
+    if (dbNotReady(error)) return ok(res, { enabled: false, stores: [], not_set_up: true });
+    if (error) return fail(res, "Stores could not be loaded.", 502);
+    const pinned = (stores || []).filter((s) => s.pickup_lat != null && s.pickup_lng != null);
+    const ids = pinned.map((s) => s.id);
+    const counts = {};
+    const hoursBy = {};
+    if (ids.length) {
+      const { data: items } = await supabase.from("catalog_items").select("merchant_id").in("merchant_id", ids).eq("review_status", "listed").eq("available", true).is("archived_at", null);
+      for (const i of items || []) counts[i.merchant_id] = (counts[i.merchant_id] || 0) + 1;
+      const { data: hours } = await supabase.from("merchant_hours").select("merchant_id, day_of_week, closed, opens_at, closes_at").in("merchant_id", ids);
+      for (const h of hours || []) (hoursBy[h.merchant_id] = hoursBy[h.merchant_id] || []).push(h);
+    }
+    const list = pinned
+      .filter((s) => counts[s.id])
+      .map((s) => riderStoreView(s, hoursBy[s.id], counts[s.id]))
+      .sort((a, b) => Number(b.open_now) - Number(a.open_now) || a.business_name.localeCompare(b.business_name));
+    return ok(res, { enabled: true, market: marketRules.getMarket(market), stores: list });
+  })
+);
+
+app.get(
+  "/api/stores/:id/menu",
+  requireRider,
+  asyncRoute(async (req, res) => {
+    if (!ENABLE_MERCHANT_ORDERS || !ordersStripeTestMode()) return fail(res, "Ordering from stores isn't available yet.", 503);
+    const { data: store, error } = await supabase.from("merchants").select(STORE_FIELDS_FOR_RIDERS + ", status").eq("id", cleanString(req.params.id, 64)).maybeSingle();
+    if (dbNotReady(error)) return fail(res, "Ordering isn't set up yet.", 503);
+    if (!store || store.status !== "approved" || store.pickup_lat == null || store.pickup_lng == null) return fail(res, "This store isn't taking orders.", 404);
+    const { data: items } = await supabase.from("catalog_items").select(MENU_ITEM_FIELDS).eq("merchant_id", store.id).eq("review_status", "listed").is("archived_at", null).order("section", { ascending: true }).order("name", { ascending: true }).limit(catalogRules.MAX_ITEMS_PER_STORE);
+    const { data: hours } = await supabase.from("merchant_hours").select("day_of_week, closed, opens_at, closes_at").eq("merchant_id", store.id);
+    const forSale = (items || []).filter((i) => i.available).length;
+    // Only these fields leave the server, whatever the query returned.
+    const menuItems = (items || []).map((i) => ({ id: i.id, name: i.name, section: i.section || null, description: i.description || null, price_cents: i.price_cents, available: Boolean(i.available), substitutable: Boolean(i.substitutable) }));
+    return ok(res, { store: riderStoreView(store, hours, forSale), items: menuItems });
+  })
+);
+
 // What the rider screens need to know. The publishable key is shown only
 // when it is a test key.
 app.get(
@@ -21365,7 +21439,7 @@ app.post(
       return ok(res, { order: riderOrderView(existing, items, await storeName(existing.merchant_id)), client_secret: existing.status === "pending_payment" && intent ? intent.client_secret : null, repeated: true });
     }
 
-    const { data: store } = await supabase.from("merchants").select("id, business_name, category, status").eq("id", cleanString(body.merchant_id, 64)).maybeSingle();
+    const { data: store } = await supabase.from("merchants").select("id, business_name, category, status, market").eq("id", cleanString(body.merchant_id, 64)).maybeSingle();
     if (!store || store.status !== "approved") return fail(res, "This store isn't taking orders.", 404);
     // A store takes orders only once staff have confirmed its pickup pin.
     const { data: pinRow } = await supabase.from("merchants").select("pickup_lat, pickup_lng").eq("id", store.id).maybeSingle();
@@ -21401,6 +21475,7 @@ app.post(
           id: crypto.randomUUID(),
           order_number: orderRules.orderNumber(crypto.randomBytes(6)),
           merchant_id: store.id,
+          market: store.market || marketRules.DEFAULT_MARKET,
           rider_id: riderId,
           status: "pending_payment",
           order_type: orderType,

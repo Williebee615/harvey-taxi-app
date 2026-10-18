@@ -20,6 +20,7 @@ const LIVE_PAGES = [
   "public/support.html",
   "public/merchant-apply.html",
   "public/merchant-portal.html",
+  "public/store-menu.html",
   "public/settings.html",
   "public/admin-dashboard.html",
   "public/admin-htaf.html",

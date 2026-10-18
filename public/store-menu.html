@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harvey Taxi — Order from a Store</title>
+  <meta name="description" content="Order from Harvey Taxi partner stores." />
+  <meta name="robots" content="noindex" />
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+  <link rel="apple-touch-icon" href="/icon-192.png" />
+  <style>
+    :root { --bg-1: #06101f; --bg-2: #0a1830; --panel: rgba(10, 20, 40, 0.88); --line: rgba(126, 174, 255, 0.16); --text: #f5f8ff; --muted: #b4c0df; --blue: #6aa8ff; --green: #74f5b2; --gold: #ffd972; --danger: #ff8aa0; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { min-height: 100vh; font-family: Arial, Helvetica, sans-serif; color: var(--text); background: linear-gradient(180deg, var(--bg-1), var(--bg-2)); line-height: 1.5; }
+    a { color: var(--blue); }
+    .shell { width: min(100%, 720px); margin: 0 auto; padding: 18px 16px 48px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 18px; background: rgba(7, 15, 31, 0.82); }
+    .brand-wrap { display: flex; align-items: center; gap: 12px; }
+    .brand-mark { width: 44px; height: 44px; border-radius: 12px; }
+    .brand h1 { font-size: 18px; letter-spacing: 0.06em; }
+    .brand p { font-size: 13px; color: var(--muted); }
+    .card { margin-top: 18px; padding: 18px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); }
+    h2 { font-size: 20px; margin-bottom: 6px; }
+    h3 { font-size: 16px; }
+    p, .muted { color: var(--muted); font-size: 15px; }
+    button { padding: 10px 14px; border: 0; border-radius: 12px; background: var(--blue); color: #06101f; font-weight: 700; font-size: 15px; cursor: pointer; }
+    button.secondary { background: transparent; color: var(--text); border: 1px solid var(--line); }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
+    button:focus-visible, a:focus-visible, select:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+    select { padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: #0b1a33; color: var(--text); font-size: 15px; max-width: 100%; }
+    .notice { border-left: 4px solid var(--gold); padding: 10px 12px; background: rgba(255, 217, 114, 0.08); border-radius: 8px; margin-top: 12px; color: var(--text); }
+    .stores { display: grid; gap: 12px; margin-top: 12px; }
+    .store { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; }
+    .store > div { min-width: 0; }
+    .pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12.5px; font-weight: 700; }
+    .pill.open { background: rgba(116, 245, 178, 0.14); color: var(--green); }
+    .pill.closed { background: rgba(255, 138, 160, 0.14); color: var(--danger); }
+    .pill.out { background: rgba(255, 255, 255, 0.08); color: var(--muted); }
+    .section-title { margin-top: 18px; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+    .item { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+    .item > div { min-width: 0; }
+    .item .desc { font-size: 14px; color: var(--muted); }
+    .price { font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .line { display: grid; gap: 6px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+    .line-top { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+    .qty { display: inline-flex; align-items: center; gap: 6px; }
+    .qty button { padding: 4px 11px; }
+    .totals { display: grid; gap: 4px; margin-top: 12px; font-variant-numeric: tabular-nums; }
+    .totals div { display: flex; justify-content: space-between; }
+    .row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+    .status { min-height: 22px; margin-top: 10px; font-size: 15px; }
+    .status.error { color: var(--danger); }
+    .hts-logo-mark { overflow: hidden; padding: 0 !important; background: #0b1a3a !important; display: block !important; flex: 0 0 auto; position: relative; }
+    .hts-logo-mark > img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: inherit; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand-wrap">
+        <div class="brand-mark hts-logo-mark" role="img" aria-label="Harvey Taxi Service logo"><img src="/hts-logo-192.png" alt="" width="48" height="48" decoding="async" /></div>
+        <div class="brand"><h1>HARVEY TAXI</h1><p>Order from a store</p></div>
+      </div>
+      <a href="/rider-dashboard.html">Delivery Center</a>
+    </header>
+
+    <div class="notice" id="notice" role="status" hidden></div>
+
+    <section class="card" id="storesCard" hidden>
+      <h2>Stores</h2>
+      <p>Partner stores near you. Prices are set by each store and confirmed at checkout.</p>
+      <div class="stores" id="storeList"></div>
+      <p id="storesEmpty" hidden>No stores are taking orders right now.</p>
+    </section>
+
+    <section class="card" id="menuCard" hidden>
+      <button type="button" class="secondary" id="backToStores">← All stores</button>
+      <h2 id="menuStoreName" style="margin-top:12px"></h2>
+      <p id="menuStoreMeta"></p>
+      <div id="menuItems"></div>
+    </section>
+
+    <section class="card" id="switchCard" hidden aria-labelledby="switchTitle">
+      <h2 id="switchTitle">Start a new cart?</h2>
+      <p id="switchText"></p>
+      <div class="row">
+        <button type="button" id="switchConfirm">Clear cart and add this item</button>
+        <button type="button" class="secondary" id="switchCancel">Keep my cart</button>
+      </div>
+    </section>
+
+    <section class="card" id="cartCard" hidden aria-labelledby="cartTitle">
+      <h2 id="cartTitle">Your cart</h2>
+      <p id="cartStore"></p>
+      <div id="cartLines"></div>
+      <div class="totals">
+        <div><span>Items</span><span class="price" id="cartSubtotal">$0.00</span></div>
+      </div>
+      <p id="groceryNote" class="muted" style="margin-top:8px" hidden>For grocery orders your card is held for up to 15% more than the items, to cover weights and substitutions. You pay only the final amount.</p>
+      <p class="muted" style="margin-top:8px">Delivery fee, tax and an optional tip (100% to your driver) are added at checkout.</p>
+      <div class="row">
+        <button type="button" id="checkout" disabled>Continue to checkout</button>
+        <button type="button" class="secondary" id="clearCart">Empty cart</button>
+      </div>
+      <p class="muted" id="checkoutNote" style="margin-top:8px">Checkout is being finished. Your cart is saved on this device.</p>
+      <div class="status" id="cartStatus" role="status" aria-live="polite"></div>
+    </section>
+  </div>
+
+  <script>
+    (function () {
+      const $ = (id) => document.getElementById(id);
+      const money = (c) => "$" + (c / 100).toFixed(2);
+      const CART_KEY = "harvey_store_cart_v1";
+      const MAX_QTY = 20;
+      const MAX_LINES = 50;
+      const CHOICES = [["refund", "Refund this item"], ["best_match", "Store picks a similar item"], ["contact", "Contact me first"]];
+      let currentMenu = null;
+      let pendingAdd = null;
+
+      // The cart lives on this device only. The server re-reads every price
+      // and availability at checkout; nothing here is trusted.
+      function readCart() {
+        try {
+          const c = JSON.parse(localStorage.getItem(CART_KEY) || "null");
+          return c && c.merchant_id && Array.isArray(c.lines) ? c : null;
+        } catch (e) { return null; }
+      }
+      function writeCart(cart) {
+        try {
+          if (cart && cart.lines.length) localStorage.setItem(CART_KEY, JSON.stringify(cart));
+          else localStorage.removeItem(CART_KEY);
+        } catch (e) { /* storage blocked: the cart lasts for this visit */ }
+        memCart = cart && cart.lines.length ? cart : null;
+        renderCart();
+      }
+      let memCart = readCart();
+      const cart = () => memCart;
+
+      async function get(path) {
+        const res = await fetch(path, { credentials: "same-origin", headers: { Accept: "application/json" } });
+        const data = await res.json().catch(function () { return {}; });
+        return { ok: res.ok, status: res.status, data: data };
+      }
+      function notice(text, linkText, href) {
+        const n = $("notice");
+        n.textContent = text + (linkText ? " " : "");
+        if (linkText) { const a = document.createElement("a"); a.href = href; a.textContent = linkText; n.appendChild(a); }
+        n.hidden = false;
+      }
+
+      function storeMeta(s) {
+        const bits = [s.category === "restaurant" ? "Restaurant" : s.category === "grocery" ? "Grocery" : "Convenience store", s.address];
+        bits.push(s.open_now ? (s.hours_today ? "Open until " + s.hours_today.closes_at : "Open") : (s.hours_today ? "Opens " + s.hours_today.opens_at : "Closed today"));
+        return bits.filter(Boolean).join(" · ");
+      }
+      function pill(open) { const p = document.createElement("span"); p.className = "pill " + (open ? "open" : "closed"); p.textContent = open ? "Open" : "Closed"; return p; }
+
+      async function loadStores() {
+        const r = await get("/api/stores");
+        if (r.status === 401) { notice("Sign in to order from stores.", "Sign in", "/rider-dashboard.html"); return; }
+        if (!r.ok) { notice(r.data.error || "Stores could not be loaded. Please try again."); return; }
+        if (!r.data.enabled) { notice("Ordering from stores isn't available yet. We'll show partner stores here when it opens."); return; }
+        const list = $("storeList");
+        list.innerHTML = "";
+        (r.data.stores || []).forEach(function (s) {
+          const row = document.createElement("div");
+          row.className = "store";
+          row.dataset.store = s.id;
+          const info = document.createElement("div");
+          const h = document.createElement("h3");
+          h.textContent = s.business_name + " ";
+          h.appendChild(pill(s.open_now));
+          const meta = document.createElement("p");
+          meta.textContent = storeMeta(s);
+          info.appendChild(h); info.appendChild(meta);
+          const b = document.createElement("button");
+          b.type = "button";
+          b.textContent = "View menu";
+          b.addEventListener("click", function () { openMenu(s.id); });
+          row.appendChild(info); row.appendChild(b);
+          list.appendChild(row);
+        });
+        $("storesEmpty").hidden = (r.data.stores || []).length > 0;
+        $("storesCard").hidden = false;
+      }
+
+      async function openMenu(storeId) {
+        const r = await get("/api/stores/" + encodeURIComponent(storeId) + "/menu");
+        if (!r.ok) { notice(r.data.error || "This menu could not be loaded."); return; }
+        currentMenu = r.data;
+        $("storesCard").hidden = true;
+        $("menuCard").hidden = false;
+        $("menuStoreName").textContent = r.data.store.business_name;
+        $("menuStoreMeta").textContent = storeMeta(r.data.store);
+        const box = $("menuItems");
+        box.innerHTML = "";
+        let section = null;
+        r.data.items.forEach(function (i) {
+          const sec = i.section || "Other items";
+          if (sec !== section) {
+            section = sec;
+            const t = document.createElement("div");
+            t.className = "section-title";
+            t.textContent = sec;
+            box.appendChild(t);
+          }
+          const row = document.createElement("div");
+          row.className = "item";
+          row.dataset.item = i.id;
+          const info = document.createElement("div");
+          const n = document.createElement("div");
+          n.textContent = i.name;
+          info.appendChild(n);
+          if (i.description) { const d = document.createElement("div"); d.className = "desc"; d.textContent = i.description; info.appendChild(d); }
+          const right = document.createElement("div");
+          right.style.cssText = "display:flex;align-items:center;gap:10px";
+          const price = document.createElement("span");
+          price.className = "price";
+          price.textContent = money(i.price_cents);
+          right.appendChild(price);
+          if (i.available) {
+            const add = document.createElement("button");
+            add.type = "button";
+            add.className = "add";
+            add.textContent = "Add";
+            add.setAttribute("aria-label", "Add " + i.name);
+            add.addEventListener("click", function () { addItem(r.data.store, i); });
+            right.appendChild(add);
+          } else {
+            const out = document.createElement("span");
+            out.className = "pill out";
+            out.textContent = "Out of stock";
+            right.appendChild(out);
+          }
+          row.appendChild(info); row.appendChild(right);
+          box.appendChild(row);
+        });
+        refreshCartFromMenu(r.data);
+        try { history.replaceState(null, "", "?store=" + encodeURIComponent(storeId)); } catch (e) { /* not essential */ }
+      }
+
+      // A cart from this store picks up current names, prices and stock.
+      function refreshCartFromMenu(menu) {
+        const c = cart();
+        if (!c || c.merchant_id !== menu.store.id) return;
+        const byId = {};
+        menu.items.forEach(function (i) { byId[i.id] = i; });
+        const removed = [];
+        const lines = c.lines.filter(function (l) {
+          const i = byId[l.id];
+          if (!i || !i.available) { removed.push(l.name); return false; }
+          l.name = i.name; l.price_cents = i.price_cents; l.substitutable = i.substitutable;
+          if (!i.substitutable) l.choice = "refund";
+          return true;
+        });
+        writeCart({ merchant_id: c.merchant_id, store_name: menu.store.business_name, order_type: menu.store.order_type, lines: lines });
+        if (removed.length) $("cartStatus").textContent = "No longer available, removed from your cart: " + removed.join(", ") + ".";
+      }
+
+      function addItem(store, item) {
+        const c = cart();
+        if (c && c.merchant_id !== store.id) {
+          pendingAdd = { store: store, item: item };
+          $("switchText").textContent = "Your cart has items from " + c.store_name + ". An order can come from one store. Clear it to start a new cart at " + store.business_name + "?";
+          $("switchCard").hidden = false;
+          $("switchConfirm").focus();
+          return;
+        }
+        const next = c || { merchant_id: store.id, store_name: store.business_name, order_type: store.order_type, lines: [] };
+        const line = next.lines.find(function (l) { return l.id === item.id; });
+        if (line) {
+          if (line.quantity >= MAX_QTY) { $("cartStatus").textContent = "Up to " + MAX_QTY + " of each item."; return; }
+          line.quantity += 1;
+        } else {
+          if (next.lines.length >= MAX_LINES) { $("cartStatus").textContent = "An order can have up to " + MAX_LINES + " different items."; return; }
+          next.lines.push({ id: item.id, name: item.name, price_cents: item.price_cents, quantity: 1, substitutable: item.substitutable, choice: "refund" });
+        }
+        $("cartStatus").textContent = item.name + " added.";
+        writeCart(next);
+      }
+
+      function renderCart() {
+        const c = cart();
+        $("cartCard").hidden = !c;
+        if (!c) return;
+        $("cartStore").textContent = "From " + c.store_name;
+        const box = $("cartLines");
+        box.innerHTML = "";
+        let subtotal = 0;
+        c.lines.forEach(function (l) {
+          subtotal += l.price_cents * l.quantity;
+          const row = document.createElement("div");
+          row.className = "line";
+          row.dataset.line = l.id;
+          const top = document.createElement("div");
+          top.className = "line-top";
+          const name = document.createElement("span");
+          name.textContent = l.name;
+          const qty = document.createElement("span");
+          qty.className = "qty";
+          const minus = document.createElement("button");
+          minus.type = "button"; minus.className = "secondary minus"; minus.textContent = "−"; minus.setAttribute("aria-label", "One fewer " + l.name);
+          const count = document.createElement("span");
+          count.className = "count"; count.textContent = String(l.quantity);
+          const plus = document.createElement("button");
+          plus.type = "button"; plus.className = "secondary plus"; plus.textContent = "+"; plus.setAttribute("aria-label", "One more " + l.name);
+          const price = document.createElement("span");
+          price.className = "price"; price.textContent = money(l.price_cents * l.quantity);
+          minus.addEventListener("click", function () { changeQty(l.id, -1); });
+          plus.addEventListener("click", function () { changeQty(l.id, 1); });
+          plus.disabled = l.quantity >= MAX_QTY;
+          qty.appendChild(minus); qty.appendChild(count); qty.appendChild(plus); qty.appendChild(price);
+          top.appendChild(name); top.appendChild(qty);
+          row.appendChild(top);
+          // Term 5: the customer chooses per item, for items the store allows.
+          if (l.substitutable) {
+            const label = document.createElement("label");
+            label.className = "muted";
+            label.style.cssText = "display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:14px";
+            label.textContent = "If it's out of stock:";
+            const sel = document.createElement("select");
+            sel.className = "choice";
+            sel.setAttribute("aria-label", "If " + l.name + " is out of stock");
+            CHOICES.forEach(function (c2) { const o = document.createElement("option"); o.value = c2[0]; o.textContent = c2[1]; if (c2[0] === l.choice) o.selected = true; sel.appendChild(o); });
+            sel.addEventListener("change", function () { setChoice(l.id, sel.value); });
+            label.appendChild(sel);
+            row.appendChild(label);
+          } else {
+            const note = document.createElement("div");
+            note.className = "muted";
+            note.style.fontSize = "14px";
+            note.textContent = "Refunded if out of stock.";
+            row.appendChild(note);
+          }
+          box.appendChild(row);
+        });
+        $("cartSubtotal").textContent = money(subtotal);
+        $("groceryNote").hidden = c.order_type !== "grocery";
+      }
+      function changeQty(id, delta) {
+        const c = cart();
+        if (!c) return;
+        c.lines = c.lines.map(function (l) { return l.id === id ? Object.assign({}, l, { quantity: Math.min(MAX_QTY, l.quantity + delta) }) : l; }).filter(function (l) { return l.quantity > 0; });
+        writeCart(c);
+      }
+      function setChoice(id, choice) {
+        const c = cart();
+        if (!c) return;
+        c.lines.forEach(function (l) { if (l.id === id) l.choice = choice; });
+        writeCart(c);
+      }
+
+      $("switchConfirm").addEventListener("click", function () {
+        $("switchCard").hidden = true;
+        writeCart(null);
+        if (pendingAdd) addItem(pendingAdd.store, pendingAdd.item);
+        pendingAdd = null;
+      });
+      $("switchCancel").addEventListener("click", function () { $("switchCard").hidden = true; pendingAdd = null; });
+      $("clearCart").addEventListener("click", function () { writeCart(null); $("cartStatus").textContent = ""; });
+      $("backToStores").addEventListener("click", function () {
+        $("menuCard").hidden = true;
+        try { history.replaceState(null, "", location.pathname); } catch (e) { /* not essential */ }
+        loadStores();
+      });
+
+      renderCart();
+      const wanted = new URLSearchParams(location.search).get("store");
+      if (wanted) openMenu(wanted).then(function () { if ($("menuCard").hidden) loadStores(); });
+      else loadStores();
+    })();
+  </script>
+</body>
+</html>
