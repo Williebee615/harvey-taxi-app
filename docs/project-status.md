@@ -2142,3 +2142,26 @@ The demo can then run in production with test money while rides keep their keys 
 - **Done:** fix merged and live; #294 rebased on it (tree identical to the tested version).
 - **Remaining:** ordinary riders can book again only once rider sign-in or Just-in-Time booking is switched on (owner decision).
 - **Next authorized action:** merge #294 when its CI is green (owner approval above).
+
+## 54. Update 2026-10-18 (UTC): #294 live with the switch off; App Review notes drafted (branch `claude/app-review-notes-jit`, no PR yet)
+
+**[Owner decision 2026-10-18]** "Keep JIT Booking OFF. Do not send the POST /api/admin/system/enable-jit-booking command yet": no verified drivers on the road yet, avoid SMS costs from bots or early discovery, and update the App Review notes first.
+
+**[Verified 2026-10-18]**
+- #294: all six CI checks green on `c098a15`; merged as `d4b66ef`.
+- Production at 12:51 UTC:
+  - `/api/health` reports `d4b66ef`, healthy.
+  - `GET /api/rider/jit-config` returns `enabled: false`.
+  - `POST /api/rider/quick/start` answers 404, so no text is sent.
+  - The live rider page carries the phone sheet `hidden`; it only opens when the switch is on.
+
+**App Review notes (draft, not merged):** `docs/app-review/review-notes-2026-10.md`:
+- The sign-in requirement for booking (#295).
+- Phone sign-up listed as a server setting that is currently off (Guideline 2.5.19 asks for dormant features to be described).
+- An alternative paragraph to use only if it is on for a submission.
+- Pre-submission checks: the switch state on the day; account deletion for a phone-only account (not yet tested); Sign in with Apple not triggered (first-party phone codes); the demo account stays the review path.
+
+**Handoff:**
+- **Done:** #294 live and switched off; notes drafted.
+- **Remaining:** owner review of the notes; they ride the next code PR (owner preference: no standalone docs PRs). Test deletion for a phone-only account before any switch-on.
+- **Next authorized action:** none. Switching on waits for the owner.
