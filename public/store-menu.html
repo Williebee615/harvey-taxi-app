@@ -166,6 +166,7 @@
     <section class="card" id="placedCard" hidden aria-labelledby="placedTitle">
       <h2 id="placedTitle">Order <span id="placedNumber"></span></h2>
       <p id="placedStatus"></p>
+      <p class="notice" id="deliveryPin" hidden></p>
       <div id="questions"></div>
       <p class="muted" id="placedTotal" hidden></p>
       <div class="row">
@@ -452,6 +453,9 @@
         placed: "Sent to the store. Waiting for them to accept (up to 8 minutes).",
         accepted: "The store accepted your order and is preparing it.",
         ready: "Ready for pickup. A driver will bring it to you.",
+        picked_up: "Your driver has your order and is on the way.",
+        delivered: "Delivered.",
+        completed: "Delivered. Your card was charged for what was delivered.",
         rejected: "The store couldn't take this order. Your card hold was released.",
         expired: "The store didn't respond in time. Your card hold was released.",
         cancelled_by_rider: "You cancelled this order. Your card hold was released.",
@@ -534,7 +538,8 @@
           estimate_token: quote.estimate_token,
           ride_type: quote.ride_type,
           destination_lat: quote.destination.lat,
-          destination_lng: quote.destination.lng
+          destination_lng: quote.destination.lng,
+          dropoff_address: quote.label
         });
         if (!r.ok) {
           // A used or expired estimate needs a fresh one; anything else may be retried as is.
@@ -646,10 +651,13 @@
         $("placedStatus").textContent = STATUS_TEXT[order.status] || order.status;
         $("placedCancel").hidden = !order.can_cancel;
         renderQuestions(order);
+        const pin = order.delivery && order.delivery.pin;
+        $("deliveryPin").hidden = !pin;
+        if (pin) $("deliveryPin").textContent = "Your delivery PIN is " + pin + ". Give it to your driver at handoff." + (order.delivery.driver_assigned ? "" : " We're finding a driver.");
         try { history.replaceState(null, "", "?order=" + encodeURIComponent(order.id)); } catch (e) { /* not essential */ }
         clearInterval(pollTimer);
         // Faster while the store may ask a question (7 minutes to answer).
-        if (["pending_payment", "placed", "accepted", "ready"].indexOf(order.status) >= 0) pollTimer = setInterval(refreshOrder, order.status === "accepted" ? 10000 : 15000);
+        if (["pending_payment", "placed", "accepted", "ready", "picked_up", "delivered"].indexOf(order.status) >= 0) pollTimer = setInterval(refreshOrder, order.status === "accepted" ? 10000 : 15000);
       }
       async function refreshOrder() {
         if (!currentOrder) return;

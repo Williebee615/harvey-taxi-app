@@ -1974,3 +1974,27 @@ The demo can then run in production with test money while rides keep their keys 
 - **Remaining:** merge approval for this PR; 3c-3 (driver trip and capture at delivery); 3c-4 (missing-item refunds); pilot store onboarding; a test driver for the demo; the accountant's tax advice and counsel's merchant agreement before any real order.
 - **Next authorized action:** none. Merging this PR and starting 3c-3 wait for the owner's approval.
 
+## 48. Update 2026-10-18 (UTC): #288 merged; step 3c-3, delivery trip and capture at handoff (PR `claude/phase3c-3-trip-capture`, not merged; migration not applied)
+
+**[Owner decision 2026-10-18]**
+1. "Approved. Proceed to merge PR #288 ... The known local browser test flake (rider-navigation) is noted and accepted since it is unrelated to these changes and passed in isolation."
+2. "You are authorized to begin building Step 3c-3": the delivery trip when the store accepts, and the final capture (delivered items, tax, fee and tip, never above the hold) at the driver's PIN or photo handoff.
+
+**[Verified 2026-10-18 05:06 UTC]** All six CI checks were green on `36ce84b`; #288 merged as `1f3c7dc`. `/api/health` reports `1f3c7dc`, healthy; `/api/orders/config` reports `enabled: true, test_mode: true`.
+
+**3c-3 (this PR) [Verified 2026-10-18, local]:** details are in `docs/merchant-portal-phase3-orders.md` §11c.
+- Accepting creates one delivery trip (no payment of its own; 70% of the fee plus the tip to the driver); the sweep retries a failed start.
+- The driver can't mark pickup until the store marks the order ready.
+- The PIN or photo handoff delivers the order and captures, with the orders test key, what was delivered, capped at the hold; then the order is completed with commission, store share, payout week and one store-ledger credit. A failed charge leaves it delivered for staff; nothing retries on its own.
+- Cancelling before pickup cancels the trip.
+- **Migration `20261018050000_order_trip.sql` (not applied):** `orders.dropoff_address` and a unique index on `orders.ride_id`. **[Recommendation]** Run it before merging; the server reads the new column, so merging first would break order screens until it runs.
+- Tests: `test/db/orderTrip.db.test.js` (2); `test/server.orders.test.js` (7 new: one trip with the right pay and no payment of its own; sweep retry; pickup gate; capture of the delivered amount with the ledger credit and no double charge; declined charge; cancel takes the trip; address saved); `test/store-menu.browser.test.js` (address saved; PIN shown). Orders server suite 50/50; browser suites 8/8; DB tests for orders 39/39 (including a real `rides` insert of the trip row).
+- Full suite, two runs: 2,809 and 2,810 passed; 5 then 4 failed, all in browser suites this PR doesn't touch (`rider-navigation`, `rider-mobile-layout`, and once `htaf-languages`). Run alone, `rider-navigation` and `rider-mobile-layout` pass 20/20. CI doesn't run browser tests. **[Unresolved]** These rider-page browser tests fail more often under full-suite load; worth making robust in a separate PR.
+
+**Before the demo:** a test driver account that can go online in the driver app, a staff-approved test store with a pin and listed items, and a Stripe test card.
+
+**Handoff:**
+- **Done:** #288 live; 3c-3 built and tested locally.
+- **Remaining:** the owner runs the 3c-3 migration (then a read-only check); merge approval; 3c-4 (missing-item refunds); the demo walkthrough.
+- **Next authorized action:** none. The migration and the merge wait for the owner.
+

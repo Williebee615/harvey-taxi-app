@@ -72,7 +72,9 @@ const EXPECTED_ORDER = [
   // Covered by test/db/markets.db.test.js.
   "20261018030000_markets.sql",
   // Covered by test/db/orderLedger.db.test.js.
-  "20261018040000_order_ledger.sql"
+  "20261018040000_order_ledger.sql",
+  // Covered by test/db/orderTrip.db.test.js.
+  "20261018050000_order_trip.sql"
 ];
 
 // Synthetic pre-existing row (no production data), inserted after the
