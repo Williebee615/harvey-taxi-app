@@ -2116,7 +2116,11 @@ The demo can then run in production with test money while rides keep their keys 
 - **Done:** #293 live; Just-in-Time booking built and tested locally, switch off.
 - **Remaining:** merge approval for this PR; the owner's decision to switch it on (`POST /api/admin/system/enable-jit-booking`); a phone check with the switch on; the two security fixes; driver app emergency button; admin driver-status label.
 - **Next authorized action:** none. Merging and switching on wait for the owner.
-## 53. Update 2026-10-18 (UTC): security fix, ride requests require a signed-in, approved rider (PR `claude/ride-request-auth`, not merged)
+## 53. Update 2026-10-18 (UTC): security fix, ride requests require a signed-in, approved rider (#295, merged and live)
+
+**[Owner decision 2026-10-18]** "Approved merge after all test return successfully" (covers #295 and #294).
+
+**[Verified 2026-10-18]** #295: all six CI checks green on `2acfa92`; merged as `91e2dac`. `/api/health` reported `91e2dac`, healthy, at 12:42 UTC. A production `POST /api/rides/request` with no session returned **401** (probe with placeholder addresses; nothing created).
 
 **[Owner decision 2026-10-18]** "Approved. You are explicitly authorized to build the server-side fix to close this gap immediately … enforce a strict requirement that all /api/rides/request payloads must contain a valid, authenticated rider ID that resolves to an 'approved' or 'active' status, returning a hard 401/403 otherwise." Built as a separate patch PR so it can merge ahead of #294.
 
@@ -2135,6 +2139,6 @@ The demo can then run in production with test money while rides keep their keys 
 - Card authorization (`/api/rides/payment-intent`) is unchanged. A hold made without a session can't become a ride and is released as today.
 
 **Handoff:**
-- **Done:** fix built and tested locally.
-- **Remaining:** merge approval; then #294 is rebased on it.
-- **Next authorized action:** none. Merging waits for the owner.
+- **Done:** fix merged and live; #294 rebased on it (tree identical to the tested version).
+- **Remaining:** ordinary riders can book again only once rider sign-in or Just-in-Time booking is switched on (owner decision).
+- **Next authorized action:** merge #294 when its CI is green (owner approval above).
