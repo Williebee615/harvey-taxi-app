@@ -97,7 +97,11 @@
     ".hta-btn-icon{display:block;width:26px;height:26px}" +
     ".hta-btn.hta-desktop-only{display:none}" +
     "}" +
-    ".hta-btn.hta-no-launcher{display:none!important}";
+    ".hta-btn.hta-no-launcher{display:none!important}" +
+    // Empty space after the page's last element, as tall as the launcher
+    // and its margin, so the bottom of the page can scroll clear of it.
+    ".hta-spacer{height:calc(var(--hta-bottom,16px) + 60px)}" +
+    "@media (max-width:599px){.hta-spacer.hta-desktop-only{display:none}}";
 
   // Look shared with the rider pages and the driver app's assistant: the
   // site font, cyan accents, bordered answer bubbles, a title with a
@@ -215,6 +219,9 @@
     var chips = el("div", { class: "hta-chips", role: "group", "aria-label": "Quick questions", "data-testid": "hta-chips" });
     panel.appendChild(chips);
     panel.appendChild(form);
+    if (!noLauncher) {
+      document.body.appendChild(el("div", { class: desktopLauncherOnly ? "hta-spacer hta-desktop-only" : "hta-spacer", "aria-hidden": "true" }));
+    }
     document.body.appendChild(panel);
     document.body.appendChild(btn);
     var root = document.documentElement;

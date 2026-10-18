@@ -2942,38 +2942,36 @@
     .app-review-guide p { margin: 6px 0; }
     .app-review-guide .app-review-next { font-weight: 700; color: #ffe59a; }
 
-    /* "App Review Access": its own card, visibly apart from the rider
-       booking flow, shown only while signed out. */
+    /* "App Review Access": a small footer link, shown only while signed
+       out (owner decision 2026-10-18: no panel on the home screen). */
     .app-review-access {
-      margin: 0 0 18px;
-      padding: 16px 18px;
-      border-radius: 18px;
-      border: 1px dashed rgba(255, 196, 0, 0.6);
-      background: rgba(255, 196, 0, 0.06);
-    }
-
-    .app-review-access h2 {
-      margin: 0 0 6px;
-      font-size: 1rem;
-      color: #ffe59a;
-      letter-spacing: 0.02em;
-    }
-
-    .app-review-access p {
       margin: 0 0 12px;
-      color: var(--muted);
-      line-height: 1.5;
+      flex-basis: 100%;
     }
 
     .app-review-entry {
-      padding: 10px 16px;
-      border-radius: 999px;
-      border: 1px solid rgba(255, 196, 0, 0.6);
-      background: rgba(255, 196, 0, 0.12);
-      color: #ffe59a;
-      font-weight: 800;
+      padding: 0;
+      border: 0;
+      background: none;
+      color: var(--muted);
+      font-size: 0.8rem;
+      text-decoration: underline;
       cursor: pointer;
     }
+
+    /* Ride status badge: dark text on solid colour (contrast above 7:1). */
+    .ride-status-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: 0.9rem;
+      line-height: 1.4;
+      color: #06101f;
+      background: #7ee7ff;
+    }
+    .ride-status-badge.ride-status-done { background: #8df0b0; }
+    .ride-status-badge.ride-status-stopped { background: #ffd27a; }
 
     /* Dedicated reviewer sign-in panel: separate from the rider
        sign-in overlay and the booking wizard. */
@@ -3273,15 +3271,6 @@
       </div>
     </header>
 
-    <!-- APP REVIEW ACCESS: shown only while signed out. Opens the
-         dedicated reviewer panel below, which signs in through
-         POST /api/review/rider/login -- the server accepts only accounts
-         flagged is_review_account in the database. -->
-    <section class="app-review-access" id="appReviewAccess" aria-labelledby="appReviewAccessTitle" hidden>
-      <h2 id="appReviewAccessTitle">App Review Access</h2>
-      <p>For authorized Apple App Store and Google Play reviewers only. Review rides, payments, and earnings are simulated.</p>
-      <button type="button" class="app-review-entry" id="appReviewSignInBtn">App Review Sign-In</button>
-    </section>
 
     <!-- Dashboard-wide notices (e.g. "booking not completed"). -->
     <div
@@ -4113,6 +4102,15 @@
 
     <!-- FOOTER -->
     <footer class="footer">
+
+      <!-- APP REVIEW ACCESS (owner decision 2026-10-18: no panel on the
+           home screen; keep a small sign-in link). Shown only while signed
+           out. Opens the dedicated reviewer panel, which explains itself
+           and signs in through POST /api/review/rider/login -- the server
+           accepts only accounts flagged is_review_account. -->
+      <p class="app-review-access" id="appReviewAccess" hidden>
+        <button type="button" class="app-review-entry" id="appReviewSignInBtn">App Review Sign-In</button>
+      </p>
 
       <div>
         <strong style="display:block;margin-bottom:8px;">
@@ -6150,6 +6148,52 @@
       if (els.liveStatusText) {
         els.liveStatusText.textContent = message;
       }
+    }
+
+    // Plain wording for raw ride statuses ("driver_enroute" -> "Driver on
+    // the way"). Unknown values fall back to the raw text, spaced out.
+    const RIDE_STATUS_TEXT = {
+      draft: "Not submitted",
+      pending_payment: "Waiting for payment",
+      payment_required: "Waiting for payment",
+      payment_authorized: "Finding a driver",
+      awaiting_driver_acceptance: "Finding a driver",
+      dispatching: "Finding a driver",
+      redispatching: "Finding another driver",
+      ready_to_dispatch: "Finding a driver",
+      driver_assigned: "Driver assigned",
+      driver_enroute: "Driver on the way",
+      arrived: "Driver has arrived",
+      in_progress: "Trip in progress",
+      completed: "Trip completed",
+      cancelled: "Cancelled",
+      canceled: "Cancelled",
+      failed: "No driver available",
+      expired: "Request expired"
+    };
+
+    function rideStatusText(status) {
+      const key = safeTrim(status).toLowerCase();
+      if (!key) return "Unknown";
+      if (RIDE_STATUS_TEXT[key]) return RIDE_STATUS_TEXT[key];
+      const spaced = key.replace(/_/g, " ");
+      return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+    }
+
+    function rideStatusTone(status) {
+      if (status === "completed") return "done";
+      if (["cancelled", "canceled", "failed", "expired"].includes(status)) return "stopped";
+      return "active";
+    }
+
+    // High-contrast badge in the Live Request Status panel.
+    function setLiveStatusBadge(status) {
+      if (!els.liveStatusText) return;
+      els.liveStatusText.textContent = "Current ride status: ";
+      const badge = document.createElement("span");
+      badge.className = `ride-status-badge ride-status-${rideStatusTone(status)}`;
+      badge.textContent = rideStatusText(status);
+      els.liveStatusText.appendChild(badge);
     }
 
     function setBadge(message) {
@@ -9557,12 +9601,10 @@
 
         setTimeline(
           "dispatch",
-          `Current ride status: ${state.ride.status || "unknown"}`
+          `Current ride status: ${rideStatusText(state.ride.status)}`
         );
 
-        setLiveStatus(
-          `Current ride status: ${state.ride.status || "unknown"}`
-        );
+        setLiveStatusBadge(state.ride.status);
 
         // A ride ends as "failed" when no driver could be found (or every
         // dispatch attempt went unanswered). The server releases the card
@@ -11585,15 +11627,30 @@
       window.HarveyRideWizard.open({ mode: "driver", ride_type: "scheduled" });
     }
 
+    // Display-only name capitalization ("jane doe" -> "Jane Doe"). Names
+    // typed in mixed case ("McDonald", "de la Cruz") are left as entered;
+    // the stored value is never changed.
+    function formatPersonName(value) {
+      const name = String(value || "").trim().replace(/\s+/g, " ");
+      if (!name || (name !== name.toLowerCase() && name !== name.toUpperCase())) {
+        return name;
+      }
+      return name
+        .toLowerCase()
+        .replace(/(^|[\s'\-])(\p{L})/gu, (match, sep, letter) => sep + letter.toUpperCase());
+    }
+
     function renderRider() {
       const rider = state.riderProfile || {};
       const approved = approvalReady(rider);
 
       const name =
-        rider.full_name ||
-        [rider.first_name, rider.last_name]
-          .filter(Boolean)
-          .join(" ") ||
+        formatPersonName(
+          rider.full_name ||
+          [rider.first_name, rider.last_name]
+            .filter(Boolean)
+            .join(" ")
+        ) ||
         rider.email ||
         "Rider";
 
@@ -11667,6 +11724,16 @@
         els.heroTitle.textContent = els.heroTitle.dataset.defaultTitle;
         els.heroText.textContent = els.heroText.dataset.defaultText;
       }
+      setHeroCta(false);
+    }
+
+    // The hero button matches the screen's message: with no rider session
+    // it leads to setup instead of a booking screen the rider can't use.
+    function setHeroCta(needsSetup) {
+      const button = document.getElementById("heroRequestRideBtn");
+      if (!button) return;
+      button.dataset.action = needsSetup ? "setup" : "ride";
+      button.textContent = needsSetup ? "Complete Rider Setup" : "Request a Ride";
     }
 
     async function loadRiderStatus() {
@@ -11694,6 +11761,8 @@
 
         els.heroText.textContent =
           "Your rider session was not found. Sign up or restore your rider profile before requesting rides or delivery.";
+
+        setHeroCta(true);
 
         renderRider();
         return;
@@ -12777,6 +12846,10 @@
           goRide("driver");
           break;
 
+        case "setup":
+          window.location.href = "rider-signup.html";
+          break;
+
         case "autonomous":
           window.location.href = "mailto:support@harveytaxiservice.com?subject=Waitlist%3A%20autonomous%20rides&body=Please%20add%20me%20to%20the%20autonomous%20rides%20waitlist.%20My%20city%3A%20";
           break;
@@ -13134,6 +13207,6 @@
   </script>
   <!-- Harvey Assistant (AI Agent Manager); renders nothing unless agent_assist_enabled is on. -->
   <script src="/ride-cancel.js" defer></script>
-  <script src="/agent-assist.js?v=20261012-shared" data-role="rider" defer></script>
+  <script src="/agent-assist.js?v=20261018-shared" data-role="rider" defer></script>
 </body>
 </html>

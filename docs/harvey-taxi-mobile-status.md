@@ -109,3 +109,12 @@ These supersede the older lines above about the old OpenAI widget. #223 (merged 
 - iPad matrix and N1–N12.
 
 **Next authorized action:** the 1 November rider iOS build check (build only; no upload or submission).
+
+## 9. Update 2026-10-18 (UTC): rider-screen fixes (PR `claude/rider-screen-fixes`, not merged)
+
+Website only; the rider app loads the same pages, so no rider build is needed. Details in `docs/project-status.md` §51.
+- **[Verified 2026-10-18, local]** Home button switches between "Complete Rider Setup" and "Request a Ride"; plain-language status badge; rider names capitalized on screen; the assistant button no longer covers the bottom of the page; the App Review card replaced by a small footer link (review notes updated).
+- **[Unresolved]** Not yet checked on a phone or in the rider app.
+- **[Recommendation, not approved]** Just-in-Time booking (map and estimate first, sign-in at Confirm Ride). Waiting on the owner's decisions listed in §51.
+
+**Handoff:** done: the PR above. Remaining: merge approval, a device check after merge, the Just-in-Time decisions. Next authorized action: none.
