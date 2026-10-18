@@ -8,6 +8,10 @@ process.env.RIDER_SESSION_SECRET = "test-rider-session-secret";
 process.env.RIDE_QUOTE_SECRET = "test-ride-quote-secret";
 
 const request = require("supertest");
+
+// Each case loads a fresh copy of server.js (isolateModules); on a cold Jest
+// cache that alone can pass the 5-second default.
+jest.setTimeout(30_000);
 const { createFakeSupabase } = require("./fakeSupabase");
 const { signRiderSession } = require("../lib/riderAuth");
 

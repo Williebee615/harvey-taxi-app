@@ -11,6 +11,8 @@ process.env.RIDER_SESSION_SECRET = "test-rider-session-secret";
 process.env.RIDE_QUOTE_SECRET = "test-ride-quote-secret";
 process.env.DRIVER_SESSION_SECRET = "test-driver-session-secret";
 process.env.VAPID_PUBLIC_KEY = "test-vapid-public";
+process.env.ADMIN_EMAIL = "owner@harvey.example";
+process.env.ADMIN_SESSION_SECRET = "test-admin-session-secret";
 process.env.VAPID_PRIVATE_KEY = "test-vapid-private";
 // Orders have their own Stripe test key and switch; the ride key and the
 // legacy delivery switches stay as production has them (owner decision
@@ -37,7 +39,7 @@ jest.mock("web-push", () => ({ setVapidDetails: () => {}, sendNotification: asyn
 let mockClient;
 jest.mock("@supabase/supabase-js", () => ({ createClient: () => new Proxy({}, { get: (_t, k) => mockClient && mockClient[k] }) }));
 const mockIntents = new Map();
-const mockCalls = { create: [], cancel: [], capture: [], keys: [], failCapture: false };
+const mockCalls = { create: [], cancel: [], capture: [], refunds: [], keys: [], failCapture: false, failRefund: false };
 jest.mock("stripe", () =>
   function MockStripe(key) {
     mockCalls.keys.push(key);
@@ -76,6 +78,14 @@ jest.mock("stripe", () =>
           Object.assign(i, { status: "succeeded", amount_received: params.amount_to_capture });
           return i;
         }
+      },
+      refunds: {
+        create: async (params, opts) => {
+          if (forRides) throw new Error("the ride Stripe key was used for an order");
+          mockCalls.refunds.push({ params, opts });
+          if (mockCalls.failRefund) throw new Error("charge_already_refunded");
+          return { id: `re_3Test${mockCalls.refunds.length}`, object: "refund", status: "succeeded", amount: params.amount, livemode: false };
+        }
       }
     };
   }
@@ -107,6 +117,8 @@ beforeEach(() => {
   mockCalls.capture.length = 0;
   mockPushes.length = 0;
   mockCalls.failCapture = false;
+  mockCalls.refunds.length = 0;
+  mockCalls.failRefund = false;
   mockClient = createFakeSupabase({
     riders: [{ ...RIDER }, { ...RIDER2 }],
     merchants: [store("M1", "grocery"), store("M2", "restaurant"), store("M3", "restaurant"), store("M4", "restaurant", null)],
@@ -130,8 +142,10 @@ beforeEach(() => {
     drivers: [makeDriver({ id: "DRIVER_1" })],
     driver_earnings: [],
     store_ledger_entries: [],
+    order_refund_proposals: [],
+    admin_roles: [{ email: "dispatch@harvey.example", role: "dispatcher" }],
     push_subscriptions: [{ id: "PUSH-1", owner_type: "rider", owner_id: RIDER.id, endpoint: "https://push.example.test/rider", p256dh: "k", auth: "a" }]
-  }, { uniqueColumns: { orders: ["quote_jti", "order_number"] } });
+  }, { uniqueColumns: { orders: ["quote_jti", "order_number"], order_refund_proposals: ["idempotency_key"] } });
 });
 
 const RH = { "x-requested-with": "harvey-rider-app" };
@@ -723,3 +737,135 @@ describe("dispatch timing and the substitution alert (owner decision 2026-10-18)
   });
 });
 
+
+describe("missing-item refunds (step 3c-4)", () => {
+  const nodeCrypto = require("crypto");
+  const adminCookie = (email) => {
+    const now = Date.now();
+    const encoded = Buffer.from(JSON.stringify({ sub: "htaf-admin", email, iat: now, exp: now + 3600000 })).toString("base64url");
+    return `htaf_admin_session=${encoded}.${nodeCrypto.createHmac("sha256", process.env.ADMIN_SESSION_SECRET).update(encoded).digest("hex")}`;
+  };
+  const asOwner = { get: (p) => admin(request(app).get(p)), post: (p, b = {}) => admin(request(app).post(p)).send(b) };
+  const asDispatcher = { post: (p, b = {}) => request(app).post(p).set("Cookie", adminCookie("dispatch@harvey.example")).send(b) };
+  const DH = () => driverAuthHeaders(signTestDriverToken("DRIVER_1"));
+  const proposals = () => mockClient._state.order_refund_proposals;
+  const ledger = () => mockClient._state.store_ledger_entries;
+
+  // A delivered, charged order: milk (2 x $4.49) and bread ($3.25), 10% tax.
+  async function deliveredOrder(opts) {
+    const id = await placedOrder(opts);
+    await asStore().post(`/api/merchant/orders/${id}/accept`, { prep_minutes: 10 });
+    await packAll(id);
+    await asStore().post(`/api/merchant/orders/${id}/ready`);
+    const order = orders().find((o) => o.id === id);
+    const ride = mockClient._state.rides.find((r) => r.id === order.ride_id);
+    Object.assign(ride, { driver_id: "DRIVER_1", status: "arrived" });
+    await request(app).post(`/api/driver/rides/${ride.id}/start`).set(DH());
+    const done = await request(app).post(`/api/driver/rides/${ride.id}/complete`).set(DH()).send({ delivery_pin: ride.delivery_pin });
+    expect(done.body.order.order_status).toBe("completed");
+    const milk = itemsOf(id).find((i) => i.name === "Whole milk");
+    const bread = itemsOf(id).find((i) => i.name === "Bread");
+    return { id, order, milk, bread };
+  }
+  const claim = (id, items, rider) => asRider(rider).post(`/api/orders/${id}/claims`, { items });
+
+  test("the rider reports within 48 hours; the claim becomes a proposal for review, and the store is told", async () => {
+    const { id, milk } = await deliveredOrder();
+    const seen = await asRider().get(`/api/orders/${id}`);
+    expect(seen.body.order.report_until).toEqual(expect.any(String));
+    expect(seen.body.order.reportable_items.map((i) => [i.name, i.quantity])).toEqual(expect.arrayContaining([["Whole milk", 2], ["Bread", 1]]));
+    expect((await claim(id, [{ order_item_id: milk.id, quantity: 1 }], RIDER2)).status).toBe(404);
+    const r = await claim(id, [{ order_item_id: milk.id, quantity: 1 }]);
+    expect(r.status).toBe(201);
+    expect(r.body.claim).toMatchObject({ status: "pending_review", refund_cents: 494 });
+    expect(proposals()[0]).toMatchObject({ order_id: id, status: "pending_review", review_priority: "routine", item_cents: 449, tax_cents: 45, merchant_deduction_cents: 395, commission_reversed_cents: 54, market: "nashville", livemode: false });
+    // The same items can't be reported twice, and no money has moved.
+    expect((await claim(id, [{ order_item_id: milk.id, quantity: 1 }])).status).toBe(409);
+    expect(mockCalls.refunds).toEqual([]);
+    const store = await asStore().get("/api/merchant/claims");
+    expect(store.body.claims[0]).toMatchObject({ status: "pending_review", items: [{ name: "Whole milk", quantity: 1 }], deduction_cents: 395, can_dispute: true });
+    expect(JSON.stringify(store.body)).not.toMatch(/RIDER_|ana@example|Lopez/);
+  });
+
+  test("refused: after 48 hours, more than were charged, or an item that was never charged", async () => {
+    const { id, milk, bread } = await deliveredOrder();
+    expect((await claim(id, [{ order_item_id: milk.id, quantity: 3 }])).body.error).toMatch(/more than were charged/);
+    itemsOf(id).find((i) => i.id === bread.id).fulfilment = "refunded";
+    expect((await claim(id, [{ order_item_id: bread.id, quantity: 1 }])).body.error).toMatch(/delivered and charged/);
+    orders().find((o) => o.id === id).delivered_at = new Date(Date.now() - 49 * 3600000).toISOString();
+    const late = await claim(id, [{ order_item_id: milk.id, quantity: 1 }]);
+    expect(late.status).toBe(409);
+    expect(late.body.error).toMatch(/within 48 hours/);
+    expect(proposals()).toEqual([]);
+  });
+
+  test("more than 3 claims in a month is marked high risk for review", async () => {
+    const { id, milk } = await deliveredOrder();
+    for (let n = 0; n < 3; n += 1) proposals().push({ id: `old-${n}`, order_id: "x", rider_id: RIDER.id, claimed_at: new Date().toISOString(), status: "declined" });
+    await claim(id, [{ order_item_id: milk.id, quantity: 1 }]);
+    expect(proposals().find((p) => p.order_id === id)).toMatchObject({ review_priority: "high_risk_review", reasons: expect.arrayContaining(["over_monthly_claim_limit"]) });
+  });
+
+  test("only the owner decides; approving refunds through the orders test key and records it", async () => {
+    const { id, order, milk } = await deliveredOrder();
+    await claim(id, [{ order_item_id: milk.id, quantity: 1 }]);
+    const pid = proposals()[0].id;
+    expect((await asDispatcher.post(`/api/admin/refund-proposals/${pid}/approve`)).status).toBe(403);
+    const list = await asOwner.get("/api/admin/refund-proposals");
+    expect(list.body.proposals[0]).toMatchObject({ order_number: order.order_number, store_name: "TEST Store M1", items: [{ name: "Whole milk", quantity: 1, item_cents: 449 }] });
+    expect(list.body.proposals[0].rider_id).toBeUndefined();
+    const r = await asOwner.post(`/api/admin/refund-proposals/${pid}/approve`);
+    expect(r.status).toBe(200);
+    expect(r.body.proposal).toMatchObject({ status: "refunded", stripe_refund_id: "re_3Test1", reviewed_by: "owner@harvey.example" });
+    expect(mockCalls.refunds).toEqual([{ params: expect.objectContaining({ payment_intent: order.payment_intent_id, amount: 494 }), opts: { idempotencyKey: `harvey-order-refund-${pid}` } }]);
+    expect(orders().find((o) => o.id === id).refunded_cents).toBe(494);
+    expect(itemsOf(id).find((i) => i.id === milk.id).refunded_quantity).toBe(1);
+    expect((await asOwner.post(`/api/admin/refund-proposals/${pid}/approve`)).status).toBe(409);
+    expect(mockCalls.refunds.length).toBe(1);
+    const rider = await asRider().get(`/api/orders/${id}`);
+    expect(rider.body.order.claims[0]).toMatchObject({ status: "refunded", refund_cents: 494 });
+  });
+
+  test("a decline needs a reason and moves no money; a failed refund can be retried", async () => {
+    const { id, milk, bread } = await deliveredOrder();
+    await claim(id, [{ order_item_id: milk.id, quantity: 1 }]);
+    await claim(id, [{ order_item_id: bread.id, quantity: 1 }]);
+    const [p1, p2] = proposals();
+    expect((await asOwner.post(`/api/admin/refund-proposals/${p1.id}/decline`, { reason: "no" })).status).toBe(400);
+    const d = await asOwner.post(`/api/admin/refund-proposals/${p1.id}/decline`, { reason: "The store's photo shows it packed." });
+    expect(d.body.proposal).toMatchObject({ status: "declined", decision_reason: "The store's photo shows it packed." });
+    mockCalls.failRefund = true;
+    const failed = await asOwner.post(`/api/admin/refund-proposals/${p2.id}/approve`);
+    expect(failed.status).toBe(502);
+    expect(proposals().find((p) => p.id === p2.id)).toMatchObject({ status: "refund_failed", failure_reason: expect.stringMatching(/charge_already_refunded/) });
+    expect(orders().find((o) => o.id === id).refunded_cents).toBe(0);
+    mockCalls.failRefund = false;
+    expect((await asOwner.post(`/api/admin/refund-proposals/${p2.id}/retry`)).body.proposal.status).toBe("refunded");
+    expect(mockCalls.refunds.map((x) => x.opts.idempotencyKey)).toEqual([`harvey-order-refund-${p2.id}`, `harvey-order-refund-${p2.id}`]);
+  });
+
+  test("the store's share comes back through the ledger after its 48-hour window, unless it wins a dispute", async () => {
+    const { id, milk, bread } = await deliveredOrder();
+    await claim(id, [{ order_item_id: milk.id, quantity: 1 }]);
+    await claim(id, [{ order_item_id: bread.id, quantity: 1 }]);
+    const [p1, p2] = proposals();
+    expect((await asStore().post(`/api/merchant/claims/${p2.id}/dispute`, { reason: "short" })).status).toBe(400);
+    expect((await asStore("U0000002", "M2").post(`/api/merchant/claims/${p2.id}/dispute`, { reason: "We packed the bread, see photo." })).status).toBe(404);
+    expect((await asStore().post(`/api/merchant/claims/${p2.id}/dispute`, { reason: "We packed the bread, see photo." })).body.claim.dispute).toMatchObject({ outcome: "pending" });
+    await asOwner.post(`/api/admin/refund-proposals/${p1.id}/approve`);
+    await asOwner.post(`/api/admin/refund-proposals/${p2.id}/approve`);
+    // Inside the store's window: no deduction yet.
+    await asOwner.get("/api/admin/refund-proposals");
+    expect(ledger().filter((e) => e.entry_type === "refund_deduction")).toEqual([]);
+    // After 48 hours the milk deduction is confirmed; the disputed bread waits.
+    // (Both reports were sent to the store 49 hours ago; the bread dispute came within its window.)
+    for (const p of proposals()) p.merchant_notified_at = new Date(Date.now() - 49 * 3600000).toISOString();
+    proposals().find((p) => p.id === p2.id).dispute_filed_at = new Date(Date.now() - 2 * 3600000).toISOString();
+    await asOwner.get("/api/admin/refund-proposals");
+    expect(ledger().filter((e) => e.entry_type === "refund_deduction")).toEqual([expect.objectContaining({ refund_proposal_id: p1.id, items_cents: 449, commission_cents: -54, store_amount_cents: -395, created_by: "system:refund_deduction" })]);
+    // The store wins the bread dispute: Harvey Taxi absorbs it; no second deduction, ever.
+    expect((await asOwner.post(`/api/admin/refund-proposals/${p2.id}/dispute-outcome`, { outcome: "merchant_wins" })).status).toBe(200);
+    await asOwner.get("/api/admin/refund-proposals");
+    expect(ledger().filter((e) => e.entry_type === "refund_deduction").length).toBe(1);
+  });
+});

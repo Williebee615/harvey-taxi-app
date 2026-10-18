@@ -308,6 +308,12 @@
         <div class="list" id="ordersAdminList"><div class="empty">Loading orders...</div></div>
       </section>
 
+      <section class="card" id="refundProposalsCard">
+        <div class="card-head"><div><div class="title">Missing-Item Refunds <span class="badge warn">test mode</span></div><div class="sub">Customers' missing-item reports (48 hours after delivery). Only the owner account can approve or decline; approving refunds the customer with the orders Stripe test key. The store's share comes back after its 48-hour dispute window.</div></div><span class="item-sub" id="refundProposalsCount">0</span></div>
+        <div class="actions"><label class="item-sub"><input type="checkbox" id="refundProposalsShowAll" /> Include refunded and declined</label></div>
+        <div class="list" id="refundProposalsList"><div class="empty">Loading refund proposals...</div></div>
+      </section>
+
       <section class="card" id="heldItemsCard">
         <div class="card-head"><div><div class="title">Catalog Items Held for Review</div><div class="sub">Store items that may be on the excluded list. Allow them, or keep them hidden with a reason.</div></div><span class="item-sub" id="heldItemsCount">0</span></div>
         <div class="list" id="heldItemsList"><div class="empty">Loading held items...</div></div>
@@ -496,6 +502,60 @@ document.getElementById("ordersAdminList").addEventListener("click", async (even
     } catch (e) { showError(e.message); }
     loadOrdersAdmin();
   }
+});
+// Missing-item refund proposals (step 3c-4; agent rule 8: a person
+// approves every refund). Only the owner account can decide; the server
+// refuses anyone else.
+const PROPOSAL_STATUS_TEXT = { pending_review: "waiting for review", approved: "approved, refunding", declined: "declined", refunded: "refunded", refund_failed: "refund failed" };
+async function loadRefundProposals(){
+  const list = document.getElementById("refundProposalsList");
+  let data;
+  try { data = await api(`/api/admin/refund-proposals${document.getElementById("refundProposalsShowAll").checked ? "?view=all" : ""}`); }
+  catch (e) { list.innerHTML = `<div class="empty">Refund proposals could not be loaded: ${esc(e.message)}</div>`; return; }
+  const items = data.proposals || [];
+  document.getElementById("refundProposalsCount").textContent = items.length;
+  if (data.not_set_up) { list.innerHTML = `<div class="empty">Refunds aren't set up yet (database migration not applied).</div>`; return; }
+  list.innerHTML = items.length ? items.map(p => `
+    <div class="item" data-proposal-id="${esc(p.id)}">
+      <div class="item-top">
+        <div><div class="item-title">${esc(p.order_number || "")} · ${esc(p.store_name || "")} · refund ${usd(p.customer_refund_cents)}</div><div class="item-sub">Reported ${esc(new Date(p.claimed_at).toLocaleString())} • items ${usd(p.item_cents)} + tax ${usd(p.tax_cents)} • store gives back ${usd(p.merchant_deduction_cents)}, commission reversed ${usd(p.commission_reversed_cents)}</div></div>
+        <span class="badge ${p.status === "refunded" ? "ok" : p.status === "declined" || p.status === "refund_failed" ? "bad" : "warn"}">${esc(PROPOSAL_STATUS_TEXT[p.status] || p.status)}</span>
+      </div>
+      <ul>${(p.items || []).map(i => `<li>${esc(i.quantity)} × ${esc(i.name)} (${usd(i.item_cents)})</li>`).join("")}</ul>
+      ${p.review_priority === "high_risk_review" ? `<div class="merchant-flags" role="note"><strong>⚠ High risk: this customer has reported more than 3 orders this month.</strong></div>` : ""}
+      ${(p.reasons || []).includes("no_checklist_photo") ? `<div class="item-sub">No store packing photo to check against (not captured yet).</div>` : ""}
+      ${p.dispute_outcome === "pending" ? `<div class="merchant-flags" role="note"><strong>The store disputes this report.</strong></div>` : p.dispute_outcome ? `<div class="item-sub">Store dispute: ${p.dispute_outcome === "merchant_wins" ? "store won (Harvey Taxi absorbs the refund)" : "store lost"}</div>` : ""}
+      ${p.failure_reason ? `<div class="item-sub">Stripe: ${esc(p.failure_reason)}</div>` : ""}
+      ${p.decision_reason ? `<div class="item-sub">Decline reason: ${esc(p.decision_reason)}</div>` : ""}
+      <div class="actions">
+        ${p.status === "pending_review" ? `<button class="success" type="button" data-proposal-decision="approve" data-proposal="${esc(p.id)}">Approve refund</button><button class="danger" type="button" data-proposal-decision="decline" data-proposal="${esc(p.id)}">Decline</button>` : ""}
+        ${p.status === "refund_failed" ? `<button class="success" type="button" data-proposal-decision="retry" data-proposal="${esc(p.id)}">Retry refund</button>` : ""}
+        ${p.dispute_outcome === "pending" ? `<button class="neutral" type="button" data-proposal-decision="merchant_wins" data-proposal="${esc(p.id)}">Store wins dispute</button><button class="neutral" type="button" data-proposal-decision="merchant_loses" data-proposal="${esc(p.id)}">Store loses dispute</button>` : ""}
+      </div>
+    </div>`).join("") : `<div class="empty">No ${document.getElementById("refundProposalsShowAll").checked ? "" : "open "}refund proposals.</div>`;
+}
+document.getElementById("refundProposalsShowAll").addEventListener("change", loadRefundProposals);
+document.getElementById("refundProposalsList").addEventListener("click", async (event) => {
+  const btn = event.target.closest("button[data-proposal-decision]");
+  if (!btn) return;
+  const id = encodeURIComponent(btn.dataset.proposal);
+  const d = btn.dataset.proposalDecision;
+  try {
+    if (d === "decline") {
+      const reason = (window.prompt("Reason for the customer (at least 10 characters):") || "").trim();
+      if (reason.length < 10) { showError("A reason of at least 10 characters is required."); return; }
+      await api(`/api/admin/refund-proposals/${id}/decline`, { method: "POST", body: JSON.stringify({ reason }) });
+      showResult("Declined. No money moved.");
+    } else if (d === "merchant_wins" || d === "merchant_loses") {
+      await api(`/api/admin/refund-proposals/${id}/dispute-outcome`, { method: "POST", body: JSON.stringify({ outcome: d }) });
+      showResult("Dispute decided.");
+    } else {
+      if (!window.confirm("Refund the customer now with the orders Stripe test key?")) return;
+      await api(`/api/admin/refund-proposals/${id}/${d}`, { method: "POST", body: "{}" });
+      showResult("Refunded.");
+    }
+  } catch (e) { showError(e.message); }
+  loadRefundProposals();
 });
 // Catalog items held for review (merchant portal phase 2, term 3). Staff
 // decide; nothing is rejected automatically. Each decision is audited.
@@ -846,6 +906,7 @@ async function loadDashboard(){
     loadMerchants();
     loadHeldItems();
     loadOrdersAdmin();
+    loadRefundProposals();
   }catch(err){
     showError(err.message);
   }

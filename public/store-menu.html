@@ -169,6 +169,15 @@
       <p class="notice" id="deliveryPin" hidden></p>
       <div id="questions"></div>
       <p class="muted" id="placedTotal" hidden></p>
+      <div id="claimsBox" hidden>
+        <h3 style="margin-top:14px">Missing items</h3>
+        <div id="claimsList"></div>
+        <div id="reportForm" hidden>
+          <p class="muted" id="reportUntil"></p>
+          <div id="reportItems"></div>
+          <div class="row"><button type="button" class="secondary" id="reportSend">Report missing items</button></div>
+        </div>
+      </div>
       <div class="row">
         <button type="button" class="secondary" id="placedRefresh">Refresh</button>
         <button type="button" class="secondary" id="placedCancel" hidden>Cancel order</button>
@@ -644,6 +653,47 @@
         setStatus("placedNote", r.data.note || (answer === "substitute" ? item.name + ": substitute accepted." : item.name + ": it will be refunded."));
         showPlaced(r.data.order);
       }
+      // Step 3c-4: report missing items within 48 hours of delivery. A person
+      // at Harvey Taxi reviews every report before any refund.
+      const CLAIM_STATUS = { pending_review: "Being reviewed", approved: "Approved, refunding", refund_failed: "Being reviewed", refunded: "Refunded", declined: "Not refunded" };
+      function renderClaims(order) {
+        const show = order.status === "completed" && (order.report_until || (order.claims && order.claims.length));
+        $("claimsBox").hidden = !show;
+        if (!show) return;
+        const list = $("claimsList");
+        list.innerHTML = "";
+        (order.claims || []).forEach(function (c) {
+          const p = document.createElement("p");
+          p.className = "muted claim";
+          p.textContent = "Report from " + new Date(c.claimed_at).toLocaleString() + ": " + money(c.refund_cents) + " · " + (CLAIM_STATUS[c.status] || c.status) + (c.decision_reason ? " (" + c.decision_reason + ")" : "");
+          list.appendChild(p);
+        });
+        const items = order.reportable_items || [];
+        $("reportForm").hidden = !order.report_until || !items.length;
+        if ($("reportForm").hidden) return;
+        $("reportUntil").textContent = "Something missing? Tell us by " + new Date(order.report_until).toLocaleString() + ". Harvey Taxi reviews every report before refunding the item and its tax.";
+        const box = $("reportItems");
+        box.innerHTML = "";
+        items.forEach(function (i) {
+          const label = document.createElement("label");
+          label.className = "field report-item";
+          label.dataset.item = i.id;
+          label.textContent = i.name;
+          const sel = document.createElement("select");
+          sel.setAttribute("aria-label", "How many " + i.name + " were missing");
+          for (let n = 0; n <= i.quantity; n += 1) { const o = document.createElement("option"); o.value = String(n); o.textContent = n === 0 ? "None missing" : n + " missing"; sel.appendChild(o); }
+          label.appendChild(sel);
+          box.appendChild(label);
+        });
+      }
+      async function sendReport() {
+        if (!currentOrder) return;
+        const items = Array.prototype.map.call(document.querySelectorAll("#reportItems .report-item"), function (l) { return { order_item_id: l.dataset.item, quantity: Number(l.querySelector("select").value) }; }).filter(function (x) { return x.quantity > 0; });
+        if (!items.length) { setStatus("placedNote", "Choose what was missing.", true); return; }
+        const r = await post("/api/orders/" + encodeURIComponent(currentOrder.id) + "/claims", { items: items });
+        setStatus("placedNote", r.ok ? "Thanks. We'll review your report and let you know." : (r.data.error || "Your report couldn't be sent."), !r.ok);
+        refreshOrder();
+      }
       function showPlaced(order) {
         currentOrder = order;
         showOnly("placedCard");
@@ -651,6 +701,7 @@
         $("placedStatus").textContent = STATUS_TEXT[order.status] || order.status;
         $("placedCancel").hidden = !order.can_cancel;
         renderQuestions(order);
+        renderClaims(order);
         const pin = order.delivery && order.delivery.pin;
         $("deliveryPin").hidden = !pin;
         if (pin) $("deliveryPin").textContent = "Your delivery PIN is " + pin + ". Give it to your driver at handoff." + (order.delivery.driver_assigned ? "" : " We're finding a driver.");
@@ -685,6 +736,7 @@
       $("placeOrder").addEventListener("click", placeOrder);
       $("payButton").addEventListener("click", pay);
       $("placedRefresh").addEventListener("click", refreshOrder);
+      $("reportSend").addEventListener("click", sendReport);
       $("placedCancel").addEventListener("click", async function () {
         if (!currentOrder || !window.confirm("Cancel this order? Your card hold will be released.")) return;
         const r = await post("/api/orders/" + encodeURIComponent(currentOrder.id) + "/cancel");
