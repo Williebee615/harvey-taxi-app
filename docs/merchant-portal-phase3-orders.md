@@ -221,6 +221,15 @@ Checks in the database: amounts never negative; `captured_cents ≤ authorized_c
 - **Ready gate:** "Mark ready" is refused while any item is unmarked or waiting on the rider, naming them.
 - The rider's order screen shows the order's current total once the store has changed anything. Every mark and answer is audited. Nothing is charged yet; capture at delivery is 3c-3.
 
+**3c-3 (PR `claude/phase3c-3-trip-capture`): the delivery trip and the charge at handoff.** **[Owner decision 2026-10-18]** "You are authorized to begin building Step 3c-3": the trip created when the store accepts, and the final capture (delivered items, tax, fee and tip, never more than the hold) at the driver's PIN or photo handoff.
+- **Trip at accept:** a delivery ride (`food` or `grocery`) from the store's pin to the rider's drop-off, through the normal dispatch to drivers. It has no payment of its own (`payment_id` null, `payment_status` `not_required`), so ride capture skips it and the ride Stripe key is never used. Driver pay: 70% of the delivery fee (`DRIVER_PAYOUT_PERCENT`) plus the whole tip, through the existing earnings record. The legacy delivery pause applies only to riders booking deliveries, not to dispatch, so these trips are offered to drivers. One trip per order (claimed on the order first, and a unique index); a trip that fails to start is retried by the minute sweep, and staff see "No delivery trip yet" after 2 minutes.
+- **Pickup:** the driver's "start" (picked up) is refused until the store has marked the order ready; then the order becomes `picked_up`.
+- **Handoff:** the existing PIN (or photo, for leave-at-door) completion marks the order `delivered` and captures, with the orders Stripe key, the delivered items + their tax + fee + tip, capped at the authorization; Stripe releases the rest of the hold. On success the order is `completed` with its commission (12% of items), store share and payout week, and one store-ledger credit is written. A repeated completion doesn't charge or credit twice (Stripe idempotency key per order; one credit per order).
+- **A failed charge:** the order stays `delivered`, the failure is audited, and staff see "Delivered, but the card charge didn't go through". Nothing retries on its own. The driver's completion and earnings are unaffected.
+- **Cancelling before pickup** (rider, store or staff) also cancels the trip and tells an assigned driver.
+- **Rider:** the address chosen at checkout is saved for the driver (display only; coordinates come from the signed estimate). The order screen shows the delivery PIN once the trip exists and the new statuses.
+- **Migration `20261018050000_order_trip.sql`:** `orders.dropoff_address` and a unique index on `orders.ride_id`. It must be run in production **before** this PR merges, because the server reads the new column.
+
 ## 12. Build plan (each a separate PR; each merge, the migration and turning on the switch need the owner's approval)
 
 | Step | Delivers |

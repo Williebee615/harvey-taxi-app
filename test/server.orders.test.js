@@ -9,6 +9,7 @@ process.env.ADMIN_API_TOKEN = "test-admin-token";
 process.env.MERCHANT_SESSION_SECRET = "test-merchant-session-secret";
 process.env.RIDER_SESSION_SECRET = "test-rider-session-secret";
 process.env.RIDE_QUOTE_SECRET = "test-ride-quote-secret";
+process.env.DRIVER_SESSION_SECRET = "test-driver-session-secret";
 // Orders have their own Stripe test key and switch; the ride key and the
 // legacy delivery switches stay as production has them (owner decision
 // 2026-10-18: real ride payments unaffected, legacy delivery paused).
@@ -26,11 +27,12 @@ const { createFakeSupabase } = require("./fakeSupabase");
 const { signMerchantSession } = require("../lib/merchantAuth");
 const { signRiderSession } = require("../lib/riderAuth");
 const { signRideQuote } = require("../lib/rideQuote");
+const { makeDriver, signTestDriverToken, driverAuthHeaders } = require("./rideTestHelpers");
 
 let mockClient;
 jest.mock("@supabase/supabase-js", () => ({ createClient: () => new Proxy({}, { get: (_t, k) => mockClient && mockClient[k] }) }));
 const mockIntents = new Map();
-const mockCalls = { create: [], cancel: [], keys: [] };
+const mockCalls = { create: [], cancel: [], capture: [], keys: [], failCapture: false };
 jest.mock("stripe", () =>
   function MockStripe(key) {
     mockCalls.keys.push(key);
@@ -58,6 +60,15 @@ jest.mock("stripe", () =>
           mockCalls.cancel.push(id);
           const i = mockIntents.get(id);
           i.status = "canceled";
+          return i;
+        },
+        capture: async (id, params, opts) => {
+          if (forRides) throw new Error("the ride Stripe key was used for an order");
+          mockCalls.capture.push({ id, params, opts });
+          if (mockCalls.failCapture) throw new Error("card_declined");
+          const i = mockIntents.get(id);
+          if (params.amount_to_capture > i.amount) throw new Error("amount_to_capture exceeds the authorization");
+          Object.assign(i, { status: "succeeded", amount_received: params.amount_to_capture });
           return i;
         }
       }
@@ -88,6 +99,8 @@ beforeEach(() => {
   mockIntents.clear();
   mockCalls.create.length = 0;
   mockCalls.cancel.length = 0;
+  mockCalls.capture.length = 0;
+  mockCalls.failCapture = false;
   mockClient = createFakeSupabase({
     riders: [{ ...RIDER }, { ...RIDER2 }],
     merchants: [store("M1", "grocery"), store("M2", "restaurant"), store("M3", "restaurant"), store("M4", "restaurant", null)],
@@ -106,7 +119,11 @@ beforeEach(() => {
     orders: [],
     order_items: [],
     order_events: [],
-    audit_logs: []
+    audit_logs: [],
+    rides: [],
+    drivers: [makeDriver({ id: "DRIVER_1" })],
+    driver_earnings: [],
+    store_ledger_entries: []
   }, { uniqueColumns: { orders: ["quote_jti", "order_number"] } });
 });
 
@@ -536,3 +553,119 @@ describe("settling items while preparing (step 3c-2)", () => {
     expect(mockClient._state.audit_logs.map((a) => a.action)).toContain("order_item_question_expired");
   });
 });
+
+describe("delivery trip and capture at the handoff (step 3c-3)", () => {
+  const DH = () => driverAuthHeaders(signTestDriverToken("DRIVER_1"));
+  const asDriver = { post: (p, b = {}) => request(app).post(p).set(DH()).send(b) };
+  const rides = () => mockClient._state.rides;
+  async function acceptedWithTrip(opts) {
+    const id = await placedOrder(opts);
+    expect((await asStore().post(`/api/merchant/orders/${id}/accept`, { prep_minutes: 15 })).status).toBe(200);
+    const order = orders().find((o) => o.id === id);
+    const ride = rides().find((r) => r.id === order.ride_id);
+    return { id, order, ride };
+  }
+  // The driver has accepted the trip and is at the store.
+  const atStore = (ride) => Object.assign(ride, { driver_id: "DRIVER_1", status: "arrived" });
+
+  test("accepting starts one delivery trip: pickup at the pin, no payment of its own, 70% of the fee plus the tip", async () => {
+    const { id, order, ride } = await acceptedWithTrip();
+    expect(ride).toMatchObject({
+      ride_type: "grocery", rider_id: RIDER.id, payment_id: null, payment_status: "not_required",
+      pickup_lat: PICKUP.lat, pickup_lng: PICKUP.lng, dropoff_lat: DROPOFF.lat, dropoff_lng: DROPOFF.lng,
+      estimated_fare: 11.5, driver_payout: 8.05, tip_amount: 2, merchant_name: "TEST Store M1", item_count: 3,
+      delivery_handoff: "hand_to_customer", delivery_stage: "order_accepted"
+    });
+    expect(ride.delivery_pin).toMatch(/^\d{4}$/);
+    expect(ride.pickup_instructions).toMatch(new RegExp(order.order_number));
+    expect(mockClient._state.audit_logs.map((a) => a.action)).toContain("order_trip_created");
+    // The sweep (store list) and a repeated accept never add a second trip.
+    await asStore().get("/api/merchant/orders");
+    expect((await asStore().post(`/api/merchant/orders/${id}/accept`, { prep_minutes: 15 })).status).toBe(409);
+    expect(rides().length).toBe(1);
+  });
+
+  test("a trip that couldn't start is retried by the sweep", async () => {
+    const id = await placedOrder();
+    const realFrom = mockClient.from.bind(mockClient);
+    let failRides = true;
+    mockClient.from = (t) => (t === "rides" && failRides ? { insert: () => ({ select: () => ({ single: async () => ({ data: null, error: { message: "boom" } }) }) }) } : realFrom(t));
+    await asStore().post(`/api/merchant/orders/${id}/accept`, { prep_minutes: 15 });
+    expect(orders().find((o) => o.id === id).ride_id ?? null).toBeNull();
+    failRides = false;
+    await asStore().get("/api/merchant/orders");
+    expect(orders().find((o) => o.id === id).ride_id).toBe(rides()[0].id);
+  });
+
+  test("the driver can't start until the store marks the order ready; then the order is picked up", async () => {
+    const { id, ride } = await acceptedWithTrip();
+    atStore(ride);
+    const early = await asDriver.post(`/api/driver/rides/${ride.id}/start`);
+    expect(early.status).toBe(409);
+    expect(early.body.error).toMatch(/hasn't marked this order ready/);
+    await packAll(id);
+    await asStore().post(`/api/merchant/orders/${id}/ready`);
+    expect((await asDriver.post(`/api/driver/rides/${ride.id}/start`)).status).toBe(200);
+    expect(orders().find((o) => o.id === id)).toMatchObject({ status: "picked_up", picked_up_at: expect.any(String) });
+    expect(ride.status).toBe("in_progress");
+  });
+
+  test("handoff with the PIN charges what was delivered, never more than the hold, and credits the store ledger", async () => {
+    const { id, order, ride } = await acceptedWithTrip();
+    const milk = itemsOf(id).find((i) => i.name === "Whole milk");
+    const bread = itemsOf(id).find((i) => i.name === "Bread");
+    // Milk is substituted (2 x $4.29); bread is out of stock and not charged.
+    await asStore().post(`/api/merchant/orders/${id}/items/${milk.id}`, { action: "substitute", substitute_name: "2% milk", substitute_price_cents: 429 });
+    await asStore().post(`/api/merchant/orders/${id}/items/${bread.id}`, { action: "out_of_stock" });
+    await asStore().post(`/api/merchant/orders/${id}/ready`);
+    atStore(ride);
+    await asDriver.post(`/api/driver/rides/${ride.id}/start`);
+    expect((await asDriver.post(`/api/driver/rides/${ride.id}/complete`, { delivery_pin: "0000" })).status).toBe(400);
+    const done = await asDriver.post(`/api/driver/rides/${ride.id}/complete`, { delivery_pin: ride.delivery_pin });
+    expect(done.status).toBe(200);
+    // Items 858, tax 10% per line 86, fee 1150, tip 200 = 2294.
+    expect(done.body.order).toMatchObject({ order_status: "completed", capture: "captured", captured_cents: 2294 });
+    expect(mockCalls.capture).toEqual([{ id: order.payment_intent_id, params: { amount_to_capture: 2294 }, opts: { idempotencyKey: `harvey-order-capture-${id}` } }]);
+    const final = orders().find((o) => o.id === id);
+    expect(final).toMatchObject({ status: "completed", captured_cents: 2294, commission_cents: 103, merchant_share_cents: 755, delivered_at: expect.any(String), completed_at: expect.any(String) });
+    expect(final.captured_cents).toBeLessThanOrEqual(final.authorized_cents);
+    expect(final.payout_week_start).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(mockClient._state.store_ledger_entries).toEqual([expect.objectContaining({ order_id: id, entry_type: "order_credit", items_cents: 858, tax_cents: 86, delivery_fee_cents: 1150, tip_cents: 200, commission_rate_bps: 1200, commission_cents: 103, store_amount_cents: 755, created_by: "system:order_capture" })]);
+    expect(events(id).slice(-3)).toEqual(["picked_up", "delivered", "completed"]);
+    // A repeated completion doesn't charge or credit twice.
+    expect((await asDriver.post(`/api/driver/rides/${ride.id}/complete`, { delivery_pin: ride.delivery_pin })).status).toBe(200);
+    expect(mockCalls.capture.length).toBe(1);
+    expect(mockClient._state.store_ledger_entries.length).toBe(1);
+  });
+
+  test("a declined charge leaves the order delivered for staff; the driver's completion still succeeds", async () => {
+    const { id, ride } = await acceptedWithTrip();
+    await packAll(id);
+    await asStore().post(`/api/merchant/orders/${id}/ready`);
+    atStore(ride);
+    await asDriver.post(`/api/driver/rides/${ride.id}/start`);
+    mockCalls.failCapture = true;
+    const done = await asDriver.post(`/api/driver/rides/${ride.id}/complete`, { delivery_pin: ride.delivery_pin });
+    expect(done.status).toBe(200);
+    expect(done.body.order).toMatchObject({ order_status: "delivered", capture: "failed" });
+    expect(orders().find((o) => o.id === id)).toMatchObject({ status: "delivered", captured_cents: 0 });
+    expect(mockClient._state.store_ledger_entries).toEqual([]);
+    expect(mockClient._state.audit_logs.map((a) => a.action)).toContain("order_capture_failed");
+    const staff = await admin(request(app).get("/api/admin/orders"));
+    expect(staff.body.orders.find((o) => o.id === id).attention).toMatch(/card charge didn't go through/);
+  });
+
+  test("cancelling the order before pickup cancels its trip and releases the hold", async () => {
+    const { id, ride } = await acceptedWithTrip();
+    const r = await asRider().post(`/api/orders/${id}/cancel`);
+    expect(r.body.order.status).toBe("cancelled_by_rider");
+    expect(ride).toMatchObject({ status: "cancelled", cancelled_by_type: "system" });
+    expect(mockClient._state.audit_logs.map((a) => a.action)).toContain("order_trip_cancelled");
+  });
+
+  test("the address the rider chose is saved for the driver", async () => {
+    const id = (await asRider().post("/api/orders/checkout", { ...checkoutBody(), dropoff_address: "501 Broadway, Nashville, Tennessee 37203" })).body.order.id;
+    expect(orders().find((o) => o.id === id).dropoff_address).toBe("501 Broadway, Nashville, Tennessee 37203");
+  });
+});
+

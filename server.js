@@ -16947,6 +16947,30 @@ app.post(
 
     const driverId = req.driver.id;
 
+    // Step 3c-3: an order's trip starts only once the store has it ready.
+    const order = await orderForRide(rideId);
+    if (order && order.status !== "ready" && order.status !== "picked_up") {
+      return fail(res, "The store hasn't marked this order ready yet. Wait at the store until they do.", 409, { order_status: order.status });
+    }
+
+    if (order && order.status === "ready") {
+      await performDriverRideTransition({
+        req,
+        res,
+        rideId,
+        driverId,
+        fromStatus: RIDE_STATUS.ARRIVED,
+        toStatus: RIDE_STATUS.IN_PROGRESS,
+        timestampField: "trip_started_at",
+        deliveryStage: DELIVERY_STAGE.PICKED_UP,
+        notifyStageKey: "ride_started",
+        notifyStageKeyDelivery: "picked_up",
+        auditAction: "ride_started"
+      });
+      if (res.statusCode < 300) await moveOrder(order, "picked_up", { kind: "system", id: "driver_pickup" }, { req });
+      return res;
+    }
+
     return performDriverRideTransition({
       req,
       res,
@@ -17730,6 +17754,17 @@ app.post(
 
     const completeIsDelivery = isDeliveryRideType(ride.ride_type);
 
+    // Step 3c-3: an order's handoff delivers it and charges the card.
+    // Never fails the driver's completion.
+    let orderResult = null;
+    if (completeIsDelivery) {
+      try {
+        orderResult = await completeOrderForRide(captureResult.ride || completedRide, req);
+      } catch (err) {
+        console.error("❌ order completion failed:", rideId, err.message);
+      }
+    }
+
     notifyRideStage(
 
       ride,
@@ -17800,7 +17835,9 @@ app.post(
 
       payment_captured:
 
-        captureResult.outcome === CAPTURE_STATUS.CAPTURED
+        captureResult.outcome === CAPTURE_STATUS.CAPTURED,
+
+      ...(orderResult ? { order: orderResult } : {})
 
     });
 
@@ -21206,7 +21243,7 @@ const ORDERS_TEST_TAX_RATE_BPS = (() => {
   return Number.isInteger(n) && n >= 0 && n <= 2000 ? n : 0;
 })();
 const ORDER_INTENT_APP_TAG = "harvey_taxi_orders";
-const ORDER_FIELDS = "id, order_number, merchant_id, rider_id, ride_id, status, order_type, prep_minutes, placed_at, accepted_at, ready_at, cancelled_at, cancel_reason, items_subtotal_cents, tax_cents, tax_rate_bps, delivery_fee_cents, tip_cents, authorized_cents, captured_cents, refunded_cents, payment_intent_id, livemode, client_order_key, rider_notes, created_at, updated_at";
+const ORDER_FIELDS = "id, order_number, merchant_id, rider_id, ride_id, status, order_type, prep_minutes, placed_at, accepted_at, ready_at, cancelled_at, cancel_reason, items_subtotal_cents, tax_cents, tax_rate_bps, delivery_fee_cents, tip_cents, authorized_cents, captured_cents, refunded_cents, payment_intent_id, livemode, client_order_key, rider_notes, created_at, updated_at, market, dropoff_lat, dropoff_lng, dropoff_address, picked_up_at, delivered_at, completed_at, commission_cents, merchant_share_cents, payout_week_start";
 const ORDER_ITEM_FIELDS = "id, order_id, catalog_item_id, name, unit_price_cents, quantity, tax_cents, substitution_choice, fulfilment, substitute_name, substitute_price_cents, substitution_asked_at, substitution_expires_at, substitution_answer, substitution_answered_at, refunded_quantity";
 const ORDER_EVENT_ACTOR = { rider: "rider", merchant: "merchant_user", admin: "admin", system: "system" };
 
@@ -21261,14 +21298,17 @@ async function moveOrder(order, to, actor, { reason = null, patch = {}, req = nu
   if (!orderRules.canTransition(actor.kind, from, to)) return { ok: false, status: 409, error: "This order can't be changed that way now." };
   if (orderRules.NEEDS_REASON.includes(to) && String(reason || "").trim().length < 3) return { ok: false, status: 400, error: "Give a reason." };
   const now = nowIso();
-  const stamp = { placed: "placed_at", accepted: "accepted_at", ready: "ready_at" }[to];
+  const stamp = { placed: "placed_at", accepted: "accepted_at", ready: "ready_at", picked_up: "picked_up_at", delivered: "delivered_at", completed: "completed_at" }[to];
   const ending = orderRules.RELEASES_AUTHORIZATION.includes(to);
   const fullPatch = { ...patch, status: to, updated_at: now, ...(stamp ? { [stamp]: now } : {}), ...(ending ? { cancelled_at: now, cancel_reason: reason || to } : {}) };
   const { data, error } = await supabase.from("orders").update(fullPatch).eq("id", order.id).eq("status", from).select(ORDER_FIELDS).maybeSingle();
   if (error) return { ok: false, status: 502, error: "The order could not be updated." };
   if (!data) return { ok: false, status: 409, error: "This order changed. Reload and try again." };
   await supabase.from("order_events").insert({ id: crypto.randomUUID(), order_id: order.id, from_status: from, to_status: to, actor_type: ORDER_EVENT_ACTOR[actor.kind], actor_id: actor.id || null, reason: reason || null, created_at: now });
-  if (ending) await releaseOrderAuthorization(data);
+  if (ending) {
+    await releaseOrderAuthorization(data);
+    await cancelOrderTrip(data, to);
+  }
   auditLog({ actor_type: ORDER_EVENT_ACTOR[actor.kind], actor_id: actor.id || null, action: `order_${to}`, entity_type: "order", entity_id: order.id, metadata: { merchant_id: order.merchant_id, from, reason: reason || null }, req }).catch(() => {});
   return { ok: true, order: data };
 }
@@ -21284,6 +21324,127 @@ async function sweepOrders({ merchantId = null } = {}) {
     if (action) await moveOrder(order, action, { kind: "system", id: "order_sweep" }, { reason: action === "expired" ? "The store didn't respond in time." : "Payment wasn't completed." });
   }
   await settleExpiredQuestions(merchantId ? { merchantId } : {});
+  // A trip that failed to start when the store accepted is retried here.
+  let tripless = supabase.from("orders").select(ORDER_FIELDS).in("status", ["accepted", "ready"]).is("ride_id", null).limit(50);
+  if (merchantId) tripless = tripless.eq("merchant_id", merchantId);
+  const { data: noTrip } = await tripless;
+  for (const order of noTrip || []) await createOrderTrip(order);
+}
+
+// Step 3c-3: the delivery trip, created when the store accepts. It goes
+// through the normal dispatch to drivers; the order keeps the only card
+// authorization. Safe to call again: one trip per order.
+async function createOrderTrip(order) {
+  if (!order || order.ride_id || !["accepted", "ready"].includes(order.status)) return null;
+  const { data: store } = await supabase.from("merchants").select("id, business_name, address_line, city, pickup_lat, pickup_lng").eq("id", order.merchant_id).maybeSingle();
+  if (!store || store.pickup_lat == null) return null;
+  const { data: rider } = await supabase.from("riders").select("id, first_name, full_name, phone").eq("id", order.rider_id).maybeSingle();
+  const items = (await loadOrderItems([order.id]))[order.id] || [];
+  const ride = {
+    id: makeId("RIDE"),
+    ...orderRules.orderTripFields({
+      order,
+      store,
+      riderName: rider ? rider.first_name || String(rider.full_name || "").trim().split(/\s+/)[0] || null : null,
+      riderPhone: rider ? rider.phone : null,
+      items,
+      driverPayoutPercent: DRIVER_PAYOUT_PERCENT,
+      deliveryPin: String(crypto.randomInt(1000, 10000))
+    }),
+    status: RIDE_STATUS.PAYMENT_AUTHORIZED,
+    dispatch_status: "ready_to_dispatch"
+  };
+  // Claim the order first, so two callers can't each start a trip.
+  const { data: claimed } = await supabase.from("orders").update({ ride_id: ride.id, updated_at: nowIso() }).eq("id", order.id).is("ride_id", null).select("id").maybeSingle();
+  if (!claimed) return null;
+  const { data: created, error } = await supabase.from("rides").insert(ride).select().single();
+  if (error || !created) {
+    await supabase.from("orders").update({ ride_id: null, updated_at: nowIso() }).eq("id", order.id).eq("ride_id", ride.id);
+    console.error("❌ order trip insert failed:", order.id, error && error.message);
+    auditLog({ actor_type: "system", actor_id: "orders", action: "order_trip_failed", entity_type: "order", entity_id: order.id, metadata: { error: String((error && error.message) || "insert failed").slice(0, 200) } }).catch(() => {});
+    return null;
+  }
+  auditLog({ actor_type: "system", actor_id: "orders", action: "order_trip_created", entity_type: "order", entity_id: order.id, metadata: { ride_id: created.id, merchant_id: order.merchant_id } }).catch(() => {});
+  if (shouldDispatchRideNow(created)) {
+    try {
+      await dispatchRide(created);
+    } catch (err) {
+      console.error("❌ order trip dispatch failed:", created.id, err.message);
+    }
+  }
+  return created;
+}
+
+// An order that ends before pickup takes its trip with it.
+async function cancelOrderTrip(order, reasonStatus) {
+  if (!order || !order.ride_id) return;
+  const { data: ride } = await supabase.from("rides").select("*").eq("id", order.ride_id).maybeSingle();
+  if (!ride || !isCancellable(ride.status)) return;
+  const claim = await claimRideTransition({
+    supabase,
+    rideId: ride.id,
+    fromStatuses: [ride.status],
+    toStatus: RIDE_STATUS.CANCELLED,
+    patch: { cancelled_at: nowIso(), cancellation_reason: `Order ${order.order_number} ${String(reasonStatus).replace(/_/g, " ")}`, cancelled_by_type: "system", cancelled_by_id: "orders", cancellation_payment_status: "not_required", updated_at: nowIso() }
+  });
+  if (!claim.ok) return;
+  if (hasAssignedDriver(ride.status) && ride.driver_id) {
+    sendPushNotification({ ownerType: "driver", ownerId: ride.driver_id, title: "Delivery cancelled", body: "This delivery was cancelled and is no longer assigned to you.", url: "/driver-dashboard.html" }).catch(() => {});
+  }
+  broadcastRideSse(ride.id, "stage", { status: RIDE_STATUS.CANCELLED });
+  auditLog({ actor_type: "system", actor_id: "orders", action: "order_trip_cancelled", entity_type: "ride", entity_id: ride.id, metadata: { order_id: order.id, order_status: reasonStatus } }).catch(() => {});
+}
+
+async function orderForRide(rideId) {
+  if (!rideId) return null;
+  const { data } = await supabase.from("orders").select(ORDER_FIELDS).eq("ride_id", rideId).maybeSingle();
+  return data || null;
+}
+
+// Step 3c-3 (D7): the driver's PIN or photo handoff delivers the order and
+// charges the card for what was delivered, never more than the hold. A
+// failed charge leaves the order "delivered" for staff; nothing retries on
+// its own. Safe to call again after a crash or a repeated completion.
+async function completeOrderForRide(ride, req = null) {
+  let order = await orderForRide(ride.id);
+  if (!order) return null;
+  const system = { kind: "system", id: "order_delivery" };
+  if (order.status === "ready") {
+    const moved = await moveOrder(order, "picked_up", system, { req });
+    if (moved.ok) order = moved.order;
+  }
+  if (order.status === "picked_up") {
+    const moved = await moveOrder(order, "delivered", system, { req });
+    if (moved.ok) order = moved.order;
+  }
+  if (order.status !== "delivered") return { order_status: order.status };
+  const items = (await loadOrderItems([order.id]))[order.id] || [];
+  const amount = orderRules.captureAmountCents(order, items);
+  let captured = null;
+  try {
+    if (!ordersStripe) throw new Error("orders Stripe key not configured");
+    const intent = await ordersStripe.paymentIntents.retrieve(order.payment_intent_id);
+    if (!intent || intent.metadata?.order_id !== order.id || intent.livemode) throw new Error("payment intent does not match this order");
+    if (intent.status === "succeeded") captured = intent.amount_received;
+    else if (intent.status === "requires_capture") {
+      const done = await ordersStripe.paymentIntents.capture(intent.id, { amount_to_capture: amount }, { idempotencyKey: `harvey-order-capture-${order.id}` });
+      if (done.status !== "succeeded") throw new Error(`capture status ${done.status}`);
+      captured = done.amount_received;
+    } else throw new Error(`payment intent status ${intent.status}`);
+  } catch (err) {
+    console.error("❌ order capture failed:", order.id, err.message);
+    auditLog({ actor_type: "system", actor_id: "order_delivery", action: "order_capture_failed", entity_type: "order", entity_id: order.id, metadata: { amount_cents: amount, error: String(err.message).slice(0, 200) }, req }).catch(() => {});
+    return { order_status: "delivered", capture: "failed" };
+  }
+  const split = orderRules.completionSplit(order, items);
+  const moved = await moveOrder(order, "completed", system, { req, patch: { captured_cents: captured, commission_cents: split.commission_cents, merchant_share_cents: split.merchant_share_cents, payout_week_start: split.payout_week_start } });
+  const { error: ledgerError } = await supabase.from("store_ledger_entries").insert({ id: crypto.randomUUID(), ...split.ledger, created_at: nowIso() });
+  if (ledgerError && ledgerError.code !== "23505") {
+    console.error("❌ store ledger credit failed:", order.id, ledgerError.message);
+    auditLog({ actor_type: "system", actor_id: "order_delivery", action: "store_ledger_failed", entity_type: "order", entity_id: order.id, metadata: { error: String(ledgerError.message).slice(0, 200) } }).catch(() => {});
+  }
+  auditLog({ actor_type: "system", actor_id: "order_delivery", action: "order_captured", entity_type: "order", entity_id: order.id, metadata: { captured_cents: captured, authorized_cents: order.authorized_cents, commission_cents: split.commission_cents }, req }).catch(() => {});
+  return { order_status: moved.ok ? "completed" : order.status, capture: "captured", captured_cents: captured };
 }
 
 // "Contact me first" questions with no answer after 7 minutes refund the
@@ -21577,6 +21738,8 @@ app.post(
           pickup_lng: quote.pickup ? quote.pickup.lng : null,
           dropoff_lat: quote.destination ? quote.destination.lat : null,
           dropoff_lng: quote.destination ? quote.destination.lng : null,
+          // Display only, for the driver; the coordinates come from the quote.
+          dropoff_address: (() => { const a = cleanString(body.dropoff_address, 300); return a.length >= 3 ? a : null; })(),
           rider_notes: notes,
           created_at: nowIso(),
           updated_at: nowIso()
@@ -21668,7 +21831,13 @@ app.get(
     const order = await loadRiderOrder(req, req.params.id);
     if (!order) return fail(res, "Order not found.", 404);
     await settleExpiredQuestions({ orderIds: [order.id] });
-    return ok(res, { order: riderOrderView(order, (await loadOrderItems([order.id]))[order.id], await storeName(order.merchant_id)) });
+    const view = riderOrderView(order, (await loadOrderItems([order.id]))[order.id], await storeName(order.merchant_id));
+    // Step 3c-3: the rider's own delivery PIN and the trip's progress, until handoff.
+    if (order.ride_id && ["accepted", "ready", "picked_up"].includes(order.status)) {
+      const { data: trip } = await supabase.from("rides").select("status, delivery_stage, delivery_pin").eq("id", order.ride_id).maybeSingle();
+      if (trip) view.delivery = { pin: trip.delivery_pin || null, stage: trip.delivery_stage || null, driver_assigned: !["payment_authorized", "awaiting_driver_acceptance", "cancelled"].includes(trip.status) };
+    }
+    return ok(res, { order: view });
   })
 );
 
@@ -21790,6 +21959,8 @@ app.post(
     }
     const moved = await moveOrder(order, action.to, { kind: "merchant", id: req.merchantUser.id }, { reason: reason || null, patch, req });
     if (!moved.ok) return fail(res, moved.error, moved.status);
+    // Step 3c-3: accepting starts the delivery trip (retried by the sweep if this fails).
+    if (action.to === "accepted") await createOrderTrip(moved.order);
     const names = await riderFirstNames([order.rider_id]);
     return ok(res, { order: orderRules.storeView(moved.order, (await loadOrderItems([order.id]))[order.id], names[order.rider_id]) });
   })
@@ -21799,6 +21970,8 @@ app.post(
 function orderAttention(o, now = Date.now()) {
   if (o.status === "accepted" && o.accepted_at && now > Date.parse(o.accepted_at) + ((o.prep_minutes || 0) + 20) * 60000) return "Past its preparation time";
   if (o.status === "ready" && o.ready_at && now > Date.parse(o.ready_at) + 30 * 60000) return "Ready for over 30 minutes";
+  if (o.status === "delivered") return "Delivered, but the card charge didn't go through";
+  if (["accepted", "ready"].includes(o.status) && !o.ride_id && o.accepted_at && now > Date.parse(o.accepted_at) + 2 * 60000) return "No delivery trip yet";
   return null;
 }
 app.get(
