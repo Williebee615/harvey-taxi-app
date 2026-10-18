@@ -30,6 +30,10 @@
     button:focus-visible, a:focus-visible, select:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
     input[type="text"], textarea { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: #0b1a33; color: var(--text); font-size: 16px; font-family: inherit; }
     input:focus-visible, textarea:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+    fieldset.tips { border: 0; display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+    fieldset.tips legend { width: 100%; margin-bottom: 4px; }
+    fieldset.tips label { display: inline-flex; gap: 6px; align-items: center; color: var(--text); font-size: 15px; }
+    fieldset.tips #tipCustom { width: 110px; }
     label.field { display: grid; gap: 6px; margin-top: 12px; font-size: 14px; color: var(--muted); }
     .totals .total { font-weight: 700; color: var(--text); border-top: 1px solid var(--line); padding-top: 6px; margin-top: 4px; }
     #paymentElement { margin-top: 12px; padding: 12px; border-radius: 12px; background: #f5f8ff; }
@@ -121,15 +125,15 @@
       </label>
       <div class="row"><button type="button" id="addrFind">Get delivery fee</button></div>
       <p id="addrLabel" style="margin-top:8px" hidden></p>
-      <label class="field" for="tipSelect">Tip for your driver (100% goes to them)
-        <select id="tipSelect">
-          <option value="0">No tip</option>
-          <option value="200">$2.00</option>
-          <option value="300" selected>$3.00</option>
-          <option value="500">$5.00</option>
-          <option value="800">$8.00</option>
-        </select>
-      </label>
+      <fieldset class="field tips" id="tipChoices">
+        <legend>Tip for your driver (optional; 100% goes to them)</legend>
+        <label><input type="radio" name="tip" value="none" /> No tip</label>
+        <label><input type="radio" name="tip" value="10" /> 10%</label>
+        <label><input type="radio" name="tip" value="15" /> 15%</label>
+        <label><input type="radio" name="tip" value="20" /> 20%</label>
+        <label><input type="radio" name="tip" value="custom" /> Other amount</label>
+        <input type="text" id="tipCustom" inputmode="decimal" maxlength="7" placeholder="$0.00" aria-label="Tip amount in dollars" hidden />
+      </fieldset>
       <label class="field" for="notesInput">Note for the store (optional)
         <textarea id="notesInput" rows="2" maxlength="300"></textarea>
       </label>
@@ -456,10 +460,21 @@
       function cartItems(c) { return c.lines.map(function (l) { return { catalog_item_id: l.id, quantity: l.quantity, substitution_choice: l.substitutable ? l.choice : "refund" }; }); }
       function subtotalOf(c) { return c.lines.reduce(function (s, l) { return s + l.price_cents * l.quantity; }, 0); }
       function setStatus(id, text, isError) { const el = $(id); el.textContent = text || ""; el.classList.toggle("error", Boolean(isError)); }
+      // D3: optional, nothing chosen in advance; percentages of the items.
+      function tipCents() {
+        const c = cart();
+        const picked = document.querySelector('input[name="tip"]:checked');
+        if (!c || !picked || picked.value === "none") return 0;
+        if (picked.value === "custom") {
+          const n = Number(String($("tipCustom").value).replace(/[$,\s]/g, ""));
+          return Number.isFinite(n) && n > 0 ? Math.min(50000, Math.round(n * 100)) : 0;
+        }
+        return Math.round(subtotalOf(c) * Number(picked.value) / 100);
+      }
       function renderPreview() {
         const c = cart();
         if (!c) return;
-        const tip = Number($("tipSelect").value);
+        const tip = tipCents();
         $("pvItems").textContent = money(subtotalOf(c));
         $("pvFee").textContent = quote ? money(quote.delivery_fee_cents) : "—";
         $("pvTip").textContent = money(tip);
@@ -511,7 +526,7 @@
         const r = await post("/api/orders/checkout", {
           merchant_id: c.merchant_id,
           items: cartItems(c),
-          tip_cents: Number($("tipSelect").value),
+          tip_cents: tipCents(),
           rider_notes: $("notesInput").value.trim(),
           client_order_key: orderKey,
           estimate_token: quote.estimate_token,
@@ -612,7 +627,13 @@
       $("addrFind").addEventListener("click", findAddress);
       $("addrInput").addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); findAddress(); } });
       $("addrInput").addEventListener("input", function () { if (quote) { quote = null; $("addrLabel").hidden = true; renderPreview(); } });
-      $("tipSelect").addEventListener("change", function () { orderKey = newKey(); renderPreview(); });
+      $("tipChoices").addEventListener("change", function () {
+        const picked = document.querySelector('input[name="tip"]:checked');
+        $("tipCustom").hidden = !picked || picked.value !== "custom";
+        orderKey = newKey();
+        renderPreview();
+      });
+      $("tipCustom").addEventListener("input", function () { orderKey = newKey(); renderPreview(); });
       $("notesInput").addEventListener("change", function () { orderKey = newKey(); });
       $("placeOrder").addEventListener("click", placeOrder);
       $("payButton").addEventListener("click", pay);

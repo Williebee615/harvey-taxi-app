@@ -209,7 +209,13 @@ describeWithBrowser("Store menu and cart (phone width)", () => {
     const fee = await page.locator("#pvFee").innerText();
     expect(fee).toMatch(/^\$\d+\.\d\d$/);
     expect(await page.locator("#pvItems").innerText()).toBe("$7.74");
-    await page.locator("#tipSelect").selectOption("500");
+    // D3: the tip is optional and nothing is chosen in advance.
+    expect(await page.locator('input[name="tip"]:checked').count()).toBe(0);
+    expect(await page.locator("#pvTip").innerText()).toBe("$0.00");
+    await page.locator('input[name="tip"][value="20"]').check();
+    expect(await page.locator("#pvTip").innerText()).toBe("$1.55");
+    await page.locator('input[name="tip"][value="custom"]').check();
+    await page.locator("#tipCustom").fill("5");
     expect(await page.locator("#pvTip").innerText()).toBe("$5.00");
     await page.locator("#notesInput").fill("Leave at the door");
 

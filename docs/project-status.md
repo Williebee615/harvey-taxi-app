@@ -1899,3 +1899,24 @@ The demo can then run in production with test money while rides keep their keys 
   - 3c.
 - **Next authorized action:** none. Merging this PR waits for the owner's approval; once the Render settings are saved, check that `/api/orders/config` reports ordering on.
 
+## 45. Update 2026-10-18 (UTC): #285 merged; ordering on in test mode; tip options corrected to D3 (PR `claude/orders-tip-d3`, not merged)
+
+**[Owner decision 2026-10-18]**
+1. "Approved. Proceed to merge PR #285 into the main branch."
+2. "Keep the 15 road miles limit as the standard for the pilot phase"; to be adjusted from real dispatch data.
+3. The owner restarted the Render service with `ENABLE_MERCHANT_ORDERS=true`, `ORDERS_STRIPE_SECRET_KEY` (sk_test) and `ORDERS_STRIPE_PUBLISHABLE_KEY` (pk_test). Names only are recorded.
+4. Staff will set the pickup pins for pilot stores when onboarding begins.
+
+**[Verified 2026-10-18 01:59 UTC]** All six CI checks were green on `3b73aa1`; #285 merged as `f64512e`.
+- `/api/health` reports `f64512e`, healthy, database connected.
+- `/api/orders/config` reports `enabled: true, test_mode: true` and a `pk_test_` publishable key.
+- The legacy booking (`/api/rides/estimate` with `grocery`) still answers "Delivery is paused".
+- **What riders can see now:** the Delivery Center shows "Order from a partner store (test mode)". The store list is empty because no store has a pickup pin (0 pinned at the last check). No order can be placed until staff pin a store with listed items.
+
+**Correction (this PR):** #285 shipped tip choices of none, $2, $3, $5 or $8 with **$3 pre-selected**. That conflicts with D3 (owner decision 2026-10-18: optional tip, none / 10% / 15% / 20% / custom, **no pre-selection**). The checkout now offers No tip, 10%, 15%, 20% of the items, or another amount, with nothing chosen in advance (an unchosen tip is $0). No rider could have been affected: no store was orderable. The browser test now checks that nothing is pre-selected. **[Verified 2026-10-18, local]** `test/store-menu.browser.test.js` 5/5.
+
+**Handoff:**
+- **Done:** #285 live; ordering on in test mode; tip corrected (this PR).
+- **Remaining:** merge approval for this PR; pilot store pins; 3c (outline sent to the owner); the demo walkthrough.
+- **Next authorized action:** none. Merging this PR and building 3c wait for the owner's approval.
+
