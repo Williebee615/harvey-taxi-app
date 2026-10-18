@@ -1965,6 +1965,7 @@ The demo can then run in production with test money while rides keep their keys 
 - Store portal: per-item buttons and states. Rider order screen: the question with Accept substitute / Refund it, refreshed every 10 seconds while the store prepares.
 - No migration (uses the 3c-1 columns). Nothing is charged; capture is 3c-3.
 - Tests: `lib/orders.test.js` (6 new); `test/server.orders.test.js` (5 new, and the ready test now settles items first; 79/79 three runs in a row with `lib/orders`); `test/merchant-orders.browser.test.js` (ready refused, then substitute and out of stock, then ready); `test/store-menu.browser.test.js` (1 new: the rider accepts a substitute at 390 px). Browser suites: 8/8.
+- Full suite: 2,806 passed, 1 failed (230 skipped). The failure was `rider-navigation` (tracking after refresh), the same pre-existing browser test that failed under load on 2026-10-18 (§43). This PR doesn't touch the rider dashboard, the test passes alone (14/14), and CI doesn't run browser tests.
 
 **Production supply [Verified 2026-10-18 ~02:00 UTC, read-only]:** 0 approved stores, 0 pinned, 0 listed items, 0 orders; 0 of 19 drivers fully verified (last recorded 2026-10-17). Nothing in 3c can be exercised in production until a pilot store is approved, pinned and stocked, and a test driver exists for the demo.
 
