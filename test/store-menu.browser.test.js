@@ -296,4 +296,29 @@ describeWithBrowser("Store menu and cart (phone width)", () => {
     expect(page.errors).toEqual([]);
     await context.close();
   });
+
+  test("after delivery the rider can report a missing item; it goes to review, not straight to a refund (step 3c-4)", async () => {
+    const now = Date.now();
+    mockClient._state.orders.push({
+      id: "oc", order_number: "HT-CCCCCC", merchant_id: "M1", rider_id: "RIDER_1", status: "completed", order_type: "grocery",
+      placed_at: new Date(now - 7200000).toISOString(), delivered_at: new Date(now - 3600000).toISOString(), items_subtotal_cents: 898, tax_cents: 90, tax_rate_bps: 1000,
+      delivery_fee_cents: 1150, tip_cents: 0, authorized_cents: 3000, captured_cents: 2138, refunded_cents: 0, livemode: false, created_at: new Date(now - 7200000).toISOString()
+    });
+    mockClient._state.order_items.push({ id: "c1", order_id: "oc", name: "Whole milk", unit_price_cents: 449, quantity: 2, tax_cents: 90, substitution_choice: "refund", fulfilment: "packed", refunded_quantity: 0 });
+    mockClient._state.order_refund_proposals = mockClient._state.order_refund_proposals || [];
+    const { context, page } = await phone(true);
+    await page.goto(`${base}/store-menu.html?order=oc`, { waitUntil: "load" });
+    await page.locator("#reportForm").waitFor();
+    expect(await page.locator("#reportUntil").innerText()).toMatch(/Tell us by .*reviews every report/);
+    await page.locator('#reportItems .report-item[data-item="c1"] select').selectOption("1");
+    await page.locator("#reportSend").click();
+    await page.waitForFunction(() => /We'll review your report/.test(document.getElementById("placedNote").textContent));
+    await page.locator("#claimsList .claim").waitFor();
+    expect(await page.locator("#claimsList .claim").innerText()).toMatch(/\$4\.94 · Being reviewed/);
+    expect(mockClient._state.order_refund_proposals).toEqual([expect.objectContaining({ order_id: "oc", status: "pending_review", customer_refund_cents: 494 })]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    expect(page.errors).toEqual([]);
+    await context.close();
+  });
 });
+

@@ -78,6 +78,13 @@
       <div class="status" id="ordersStatus" role="status" aria-live="polite"></div>
     </section>
 
+    <section class="card" id="claimsCard" hidden>
+      <h2>Missing-item reports</h2>
+      <p>Customers can report a missing item within 48 hours of delivery. Harvey Taxi reviews each report. If it's refunded, your share of those items comes off your payout unless you dispute it within 48 hours of the report.</p>
+      <div id="claimsList"></div>
+      <div class="status" id="claimsStatus" role="status" aria-live="polite"></div>
+    </section>
+
     <section class="card" id="storeCard" hidden>
       <h2 id="storeName">Your store</h2>
       <p id="storeAddress"></p>
@@ -276,10 +283,53 @@
         seenNew = new Set();
         document.title = baseTitle;
         $("ordersCard").hidden = true;
+        $("claimsCard").hidden = true;
+      }
+      // Step 3c-4: missing-item reports on this store's orders, with a dispute.
+      const CLAIM_TEXT = { pending_review: "Being reviewed by Harvey Taxi", approved: "Approved, refunding", declined: "Declined (no refund)", refunded: "Refunded to the customer", refund_failed: "Being reviewed by Harvey Taxi" };
+      async function loadClaims() {
+        const r = await call("/api/merchant/claims");
+        const claims = r.ok && !r.data.not_set_up ? r.data.claims || [] : [];
+        $("claimsCard").hidden = claims.length === 0;
+        const box = $("claimsList");
+        box.innerHTML = "";
+        claims.forEach(function (c) {
+          const div = document.createElement("div");
+          div.className = "order claim";
+          div.dataset.claim = c.id;
+          const h = document.createElement("h3");
+          h.textContent = (c.order_number || "Order") + " · " + (CLAIM_TEXT[c.status] || c.status);
+          const ul = document.createElement("ul");
+          (c.items || []).forEach(function (i) { const li = document.createElement("li"); li.textContent = i.quantity + " × " + i.name; ul.appendChild(li); });
+          const meta = document.createElement("div");
+          meta.className = "meta";
+          let text = "Reported " + new Date(c.claimed_at).toLocaleString() + " · your share " + money(c.deduction_cents);
+          if (c.dispute) text += c.dispute.outcome === "pending" ? " · You disputed this; Harvey Taxi will decide." : c.dispute.outcome === "merchant_wins" ? " · Dispute decided in your favour: nothing comes off your payout." : " · Dispute decided against you.";
+          else if (c.can_dispute && c.dispute_until) text += " · You can dispute until " + new Date(c.dispute_until).toLocaleString();
+          meta.textContent = text;
+          div.appendChild(h); div.appendChild(ul); div.appendChild(meta);
+          if (c.can_dispute) {
+            const actions = document.createElement("div");
+            actions.className = "actions";
+            const b = document.createElement("button");
+            b.type = "button"; b.className = "secondary dispute"; b.textContent = "Dispute";
+            b.addEventListener("click", async function () {
+              const reason = (window.prompt("Why do you dispute this report? (for example: packed, photo taken)") || "").trim();
+              if (reason.length < 10) { show($("claimsStatus"), "Explain the dispute in at least 10 characters.", "error"); return; }
+              const d = await call("/api/merchant/claims/" + encodeURIComponent(c.id) + "/dispute", { method: "POST", body: { reason: reason } });
+              show($("claimsStatus"), d.ok ? "Dispute sent. Harvey Taxi will decide." : (d.data.error || "Could not send the dispute."), d.ok ? "success" : "error");
+              loadClaims();
+            });
+            actions.appendChild(b);
+            div.appendChild(actions);
+          }
+          box.appendChild(div);
+        });
       }
       function startOrders() {
         if (ordersTimer) return;
         loadOrders();
+        loadClaims();
         ordersTimer = setInterval(loadOrders, 10000);
       }
       async function orderAction(o, action, body) {

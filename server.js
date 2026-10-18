@@ -21329,6 +21329,7 @@ async function sweepOrders({ merchantId = null } = {}) {
   if (merchantId) tripless = tripless.eq("merchant_id", merchantId);
   const { data: noTrip } = await tripless;
   for (const order of noTrip || []) await createOrderTrip(order);
+  if (!merchantId) await settleStoreDeductions();
 }
 
 // Step 3c-3: the delivery trip, created when the store accepts. It goes
@@ -21774,7 +21775,7 @@ app.post(
     }
     if (!order) return fail(res, "Your order could not be started. Please try again.", 502);
 
-    const { error: itemsError } = await supabase.from("order_items").insert(totals.lines.map((l) => ({ id: crypto.randomUUID(), order_id: order.id, catalog_item_id: l.catalog_item_id, name: l.name, unit_price_cents: l.unit_price_cents, quantity: l.quantity, tax_cents: l.tax_cents, substitution_choice: l.substitution_choice, fulfilment: "pending", created_at: nowIso() })));
+    const { error: itemsError } = await supabase.from("order_items").insert(totals.lines.map((l) => ({ id: crypto.randomUUID(), order_id: order.id, catalog_item_id: l.catalog_item_id, name: l.name, unit_price_cents: l.unit_price_cents, quantity: l.quantity, tax_cents: l.tax_cents, substitution_choice: l.substitution_choice, fulfilment: "pending", refunded_quantity: 0, created_at: nowIso() })));
     if (itemsError) {
       await moveOrder(order, "payment_abandoned", { kind: "system", id: "checkout" }, { reason: "Items could not be saved." });
       return fail(res, "Your order could not be started. Please try again.", 502);
@@ -21857,6 +21858,15 @@ app.get(
     if (order.ride_id && ["accepted", "ready", "picked_up"].includes(order.status)) {
       const { data: trip } = await supabase.from("rides").select("status, delivery_stage, delivery_pin").eq("id", order.ride_id).maybeSingle();
       if (trip) view.delivery = { pin: trip.delivery_pin || null, stage: trip.delivery_stage || null, driver_assigned: !["payment_authorized", "awaiting_driver_acceptance", "cancelled"].includes(trip.status) };
+    }
+    // Step 3c-4: missing-item reports, within 48 hours of delivery.
+    if (order.status === "completed") {
+      const deadline = orderRules.claimDeadline(order);
+      view.report_until = deadline && Date.now() <= Date.parse(deadline) ? deadline : null;
+      view.reportable_items = view.report_until ? orderRules.claimableItems((await loadOrderItems([order.id]))[order.id]).filter((i) => i.quantity > i.refunded_quantity).map((i) => ({ id: i.id, name: i.name, quantity: i.quantity - i.refunded_quantity })) : [];
+      const { data: claims } = await supabase.from("order_refund_proposals").select(PROPOSAL_FIELDS).eq("order_id", order.id).order("created_at", { ascending: true });
+      view.claims = (claims || []).map(riderClaimView);
+      view.refunded_cents = order.refunded_cents || 0;
     }
     return ok(res, { order: view });
   })
@@ -22053,6 +22063,226 @@ app.post(
     return ok(res, { order: riderOrderView(moved.order, [], await storeName(order.merchant_id)) });
   })
 );
+
+// Step 3c-4: missing-item refunds (term 4; agent rule 8). The rider reports
+// within 48 hours of delivery; the claim becomes a proposal; only the owner
+// account can approve it, and only then does Stripe refund (orders test key).
+// The store's share comes back through the ledger after its 48-hour dispute
+// window. A declined or failed refund moves no money.
+const PROPOSAL_FIELDS = "id, order_id, merchant_id, rider_id, market, type, status, review_priority, reasons, lines, idempotency_key, claimed_at, customer_refund_cents, item_cents, tax_cents, merchant_deduction_cents, commission_reversed_cents, reviewed_by, reviewed_at, decision_reason, stripe_refund_id, refunded_at, failure_reason, merchant_notified_at, dispute_filed_at, dispute_outcome, dispute_decided_at, livemode, created_at, updated_at";
+const proposalsNotSetUp = (error) => error && (error.code === "42P01" || error.code === "42703");
+function riderClaimView(p) {
+  return { id: p.id, status: p.status, refund_cents: p.customer_refund_cents, claimed_at: p.claimed_at, refunded_at: p.refunded_at || null, decision_reason: p.status === "declined" ? p.decision_reason : null };
+}
+function storeClaimView(p, orderNumber, itemNames) {
+  const windowEnds = p.merchant_notified_at ? new Date(Date.parse(p.merchant_notified_at) + 48 * 3600000).toISOString() : null;
+  return {
+    id: p.id,
+    order_number: orderNumber || null,
+    status: p.status,
+    claimed_at: p.claimed_at,
+    items: (p.lines || []).map((l) => ({ name: itemNames[l.item_id] || "Item", quantity: l.quantity })),
+    deduction_cents: p.merchant_deduction_cents,
+    dispute_until: windowEnds,
+    can_dispute: !p.dispute_filed_at && ["pending_review", "approved", "refunded"].includes(p.status) && windowEnds && Date.now() <= Date.parse(windowEnds),
+    dispute: p.dispute_filed_at ? { filed_at: p.dispute_filed_at, outcome: p.dispute_outcome } : null
+  };
+}
+
+app.post(
+  "/api/orders/:id/claims",
+  requireRider,
+  rateLimit({ windowMs: 60 * 60_000, max: 10, keyPrefix: "order_claims", keyFn: (req) => `r:${req.rider && req.rider.id}` }),
+  asyncRoute(async (req, res) => {
+    const order = await loadRiderOrder(req, req.params.id);
+    if (!order) return fail(res, "Order not found.", 404);
+    const items = (await loadOrderItems([order.id]))[order.id] || [];
+    const since = new Date(Date.now() - 32 * 24 * 3600000).toISOString();
+    const { data: earlier, error: earlierError } = await supabase.from("order_refund_proposals").select("claimed_at").eq("rider_id", String(req.rider.id)).gte("claimed_at", since);
+    if (proposalsNotSetUp(earlierError)) return fail(res, "Missing-item reports aren't set up yet.", 503);
+    const body = req.body || {};
+    const planned = orderRules.planOrderClaim({ order, items, claim: Array.isArray(body.items) ? body.items.slice(0, 50) : [], customerClaimsThisMonth: orderRules.claimsThisMonth((earlier || []).map((e) => e.claimed_at)) });
+    if (!planned.ok) return fail(res, planned.error, planned.reason === "claim_window_closed" || planned.reason === "exceeds_captured" ? 409 : 400);
+    const { data: created, error } = await supabase.from("order_refund_proposals").insert({ id: crypto.randomUUID(), ...planned.row, created_at: nowIso(), updated_at: nowIso() }).select(PROPOSAL_FIELDS).single();
+    if (error && error.code === "23505") return fail(res, "You've already reported these items.", 409);
+    if (error || !created) return fail(res, "Your report couldn't be saved. Please try again.", 502);
+    auditLog({ actor_type: "rider", actor_id: String(req.rider.id), action: "order_claim_reported", entity_type: "order", entity_id: order.id, metadata: { proposal_id: created.id, refund_cents: created.customer_refund_cents, review_priority: created.review_priority }, req }).catch(() => {});
+    return ok(res, { claim: riderClaimView(created) }, 201);
+  })
+);
+
+// The store sees reports on its orders and may dispute within 48 hours.
+app.get(
+  "/api/merchant/claims",
+  requireMerchant,
+  asyncRoute(async (req, res) => {
+    const since = new Date(Date.now() - 14 * 24 * 3600000).toISOString();
+    const { data, error } = await supabase.from("order_refund_proposals").select(PROPOSAL_FIELDS).eq("merchant_id", req.merchant.id).gte("created_at", since).order("created_at", { ascending: false }).limit(50);
+    if (proposalsNotSetUp(error)) return ok(res, { claims: [], not_set_up: true });
+    if (error) return fail(res, "Reports could not be loaded.", 502);
+    const orderIds = [...new Set((data || []).map((p) => p.order_id))];
+    const numbers = {};
+    if (orderIds.length) {
+      const { data: os } = await supabase.from("orders").select("id, order_number").in("id", orderIds);
+      for (const o of os || []) numbers[o.id] = o.order_number;
+    }
+    const names = {};
+    for (const list of Object.values(await loadOrderItems(orderIds))) for (const i of list) names[i.id] = i.fulfilment === "substituted" && i.substitute_name ? i.substitute_name : i.name;
+    return ok(res, { claims: (data || []).map((p) => storeClaimView(p, numbers[p.order_id], names)) });
+  })
+);
+
+app.post(
+  "/api/merchant/claims/:id/dispute",
+  requireMerchant,
+  asyncRoute(async (req, res) => {
+    const reason = cleanString(req.body && req.body.reason, 500);
+    if (reason.length < 10) return fail(res, "Explain the dispute in at least 10 characters.", 400);
+    const { data: p } = await supabase.from("order_refund_proposals").select(PROPOSAL_FIELDS).eq("id", cleanString(req.params.id, 64)).eq("merchant_id", req.merchant.id).maybeSingle();
+    if (!p) return fail(res, "Report not found.", 404);
+    if (!storeClaimView(p, null, {}).can_dispute) return fail(res, "This report can no longer be disputed.", 409);
+    const at = nowIso();
+    const { data: updated } = await supabase.from("order_refund_proposals").update({ dispute_filed_at: at, dispute_outcome: "pending", updated_at: at }).eq("id", p.id).is("dispute_filed_at", null).select(PROPOSAL_FIELDS).maybeSingle();
+    if (!updated) return fail(res, "This report changed. Reload and try again.", 409);
+    auditLog({ actor_type: "merchant_user", actor_id: req.merchantUser.id, action: "order_claim_disputed", entity_type: "order_refund_proposal", entity_id: p.id, metadata: { order_id: p.order_id, reason }, req }).catch(() => {});
+    return ok(res, { claim: storeClaimView(updated, null, {}) });
+  })
+);
+
+// Staff: the review list. Anyone signed in to the admin dashboard can see
+// it; only the owner account can decide.
+app.get(
+  "/api/admin/refund-proposals",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    await settleStoreDeductions();
+    let query = supabase.from("order_refund_proposals").select(PROPOSAL_FIELDS).order("created_at", { ascending: false }).limit(200);
+    if (req.query.view !== "all") query = query.in("status", ["pending_review", "approved", "refund_failed"]);
+    const { data, error } = await query;
+    if (proposalsNotSetUp(error)) return ok(res, { proposals: [], not_set_up: true });
+    if (error) return fail(res, "Refund proposals could not be loaded.", 502);
+    const orderIds = [...new Set((data || []).map((p) => p.order_id))];
+    const orderInfo = {};
+    if (orderIds.length) {
+      const { data: os } = await supabase.from("orders").select("id, order_number, merchant_id, captured_cents, refunded_cents").in("id", orderIds);
+      for (const o of os || []) orderInfo[o.id] = o;
+    }
+    const names = {};
+    for (const list of Object.values(await loadOrderItems(orderIds))) for (const i of list) names[i.id] = i.fulfilment === "substituted" && i.substitute_name ? i.substitute_name : i.name;
+    const storeNames = {};
+    for (const id of new Set((data || []).map((p) => p.merchant_id))) storeNames[id] = await storeName(id);
+    return ok(res, {
+      proposals: (data || []).map((p) => ({
+        ...p,
+        order_number: orderInfo[p.order_id] ? orderInfo[p.order_id].order_number : null,
+        store_name: storeNames[p.merchant_id] || null,
+        items: (p.lines || []).map((l) => ({ name: names[l.item_id] || "Item", quantity: l.quantity, item_cents: l.item_cents })),
+        rider_id: undefined
+      }))
+    });
+  })
+);
+
+async function requireOwnerDecision(req, res) {
+  const { role } = await resolveAdminRoleForRequest(req);
+  if (role !== "super_admin") {
+    fail(res, "Refund decisions require the owner account.", 403);
+    return false;
+  }
+  return true;
+}
+
+async function executeProposalRefund(p, req) {
+  const { data: order } = await supabase.from("orders").select(ORDER_FIELDS).eq("id", p.order_id).maybeSingle();
+  let refund = null;
+  try {
+    if (!ordersStripe) throw new Error("orders Stripe key not configured");
+    if (!order || !order.payment_intent_id || order.livemode || p.livemode) throw new Error("order payment not found or not test mode");
+    if (p.customer_refund_cents > (order.captured_cents || 0) - (order.refunded_cents || 0)) throw new Error("exceeds what is left to refund");
+    refund = await ordersStripe.refunds.create({ payment_intent: order.payment_intent_id, amount: p.customer_refund_cents, metadata: { app: ORDER_INTENT_APP_TAG, order_id: order.id, refund_proposal_id: p.id } }, { idempotencyKey: `harvey-order-refund-${p.id}` });
+    if (!refund || refund.livemode || !["succeeded", "pending"].includes(refund.status)) throw new Error(`refund status ${refund && refund.status}`);
+  } catch (err) {
+    const at = nowIso();
+    const { data: failed } = await supabase.from("order_refund_proposals").update({ status: "refund_failed", failure_reason: String(err.message || "refund failed").slice(0, 300), updated_at: at }).eq("id", p.id).eq("status", "approved").select(PROPOSAL_FIELDS).maybeSingle();
+    auditLog({ actor_type: "admin", actor_id: req.admin.email || req.admin.id, action: "order_refund_failed", entity_type: "order_refund_proposal", entity_id: p.id, metadata: { order_id: p.order_id, error: String(err.message).slice(0, 200) }, req }).catch(() => {});
+    return { ok: false, proposal: failed || p };
+  }
+  const at = nowIso();
+  const { data: done, error: recordError } = await supabase.from("order_refund_proposals").update({ status: "refunded", stripe_refund_id: refund.id, refunded_at: at, failure_reason: null, updated_at: at }).eq("id", p.id).eq("status", "approved").select(PROPOSAL_FIELDS).maybeSingle();
+  if (recordError || !done) {
+    // Stripe refunded but the record didn't save: never retry the refund; staff reconcile by the Stripe id.
+    console.error("❌ order refund not recorded:", p.id, refund.id, recordError && recordError.message);
+    auditLog({ actor_type: "system", actor_id: "order_refund", action: "order_refund_record_failed", entity_type: "order_refund_proposal", entity_id: p.id, metadata: { order_id: p.order_id, stripe_refund_id: refund.id, amount_cents: p.customer_refund_cents, error: String((recordError && recordError.message) || "no row").slice(0, 200) }, req }).catch(() => {});
+  }
+  // Record the refund on the order and its items (read first; never more than captured).
+  await supabase.from("orders").update({ refunded_cents: Math.min(order.captured_cents, (order.refunded_cents || 0) + p.customer_refund_cents), updated_at: at }).eq("id", order.id).eq("refunded_cents", order.refunded_cents || 0);
+  const items = (await loadOrderItems([order.id]))[order.id] || [];
+  for (const l of p.lines || []) {
+    const item = items.find((i) => i.id === l.item_id);
+    if (item) await supabase.from("order_items").update({ refunded_quantity: Math.min(item.quantity, (item.refunded_quantity || 0) + l.quantity) }).eq("id", item.id).eq("refunded_quantity", item.refunded_quantity || 0);
+  }
+  auditLog({ actor_type: "admin", actor_id: req.admin.email || req.admin.id, action: "order_refunded", entity_type: "order_refund_proposal", entity_id: p.id, metadata: { order_id: order.id, amount_cents: p.customer_refund_cents, stripe_refund_id: refund.id }, req }).catch(() => {});
+  return { ok: true, proposal: done || p };
+}
+
+const refundDecisionRoute = (decision) => [
+  requireAdmin,
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "order_refund_decision" }),
+  asyncRoute(async (req, res) => {
+    if (!(await requireOwnerDecision(req, res))) return;
+    const { data: p } = await supabase.from("order_refund_proposals").select(PROPOSAL_FIELDS).eq("id", cleanString(req.params.id, 64)).maybeSingle();
+    if (!p) return fail(res, "Refund proposal not found.", 404);
+    const who = req.admin.email || req.admin.id;
+    const at = nowIso();
+    if (decision === "decline") {
+      const reason = cleanString(req.body && req.body.reason, 500);
+      if (reason.length < 10) return fail(res, "Give the rider a reason of at least 10 characters.", 400);
+      const { data: declined } = await supabase.from("order_refund_proposals").update({ status: "declined", reviewed_by: who, reviewed_at: at, decision_reason: reason, updated_at: at }).eq("id", p.id).eq("status", "pending_review").select(PROPOSAL_FIELDS).maybeSingle();
+      if (!declined) return fail(res, "Only a proposal waiting for review can be declined.", 409);
+      auditLog({ actor_type: "admin", actor_id: who, action: "order_refund_declined", entity_type: "order_refund_proposal", entity_id: p.id, metadata: { order_id: p.order_id, reason }, req }).catch(() => {});
+      return ok(res, { proposal: declined });
+    }
+    if (decision === "dispute-outcome") {
+      const outcome = cleanString(req.body && req.body.outcome, 20);
+      if (!["merchant_wins", "merchant_loses"].includes(outcome)) return fail(res, "Choose who the dispute goes to.", 400);
+      const { data: decided } = await supabase.from("order_refund_proposals").update({ dispute_outcome: outcome, dispute_decided_at: at, updated_at: at }).eq("id", p.id).eq("dispute_outcome", "pending").select(PROPOSAL_FIELDS).maybeSingle();
+      if (!decided) return fail(res, "There's no open dispute on this proposal.", 409);
+      auditLog({ actor_type: "admin", actor_id: who, action: "order_claim_dispute_decided", entity_type: "order_refund_proposal", entity_id: p.id, metadata: { order_id: p.order_id, outcome }, req }).catch(() => {});
+      await settleStoreDeductions();
+      return ok(res, { proposal: decided });
+    }
+    // approve (pending_review) or retry (refund_failed): a person's decision, then the refund.
+    const from = decision === "approve" ? "pending_review" : "refund_failed";
+    const { data: approved } = await supabase.from("order_refund_proposals").update({ status: "approved", reviewed_by: decision === "approve" ? who : p.reviewed_by, reviewed_at: decision === "approve" ? at : p.reviewed_at, updated_at: at }).eq("id", p.id).eq("status", from).select(PROPOSAL_FIELDS).maybeSingle();
+    if (!approved) return fail(res, decision === "approve" ? "Only a proposal waiting for review can be approved." : "Only a failed refund can be retried.", 409);
+    auditLog({ actor_type: "admin", actor_id: who, action: decision === "approve" ? "order_refund_approved" : "order_refund_retried", entity_type: "order_refund_proposal", entity_id: p.id, metadata: { order_id: p.order_id, amount_cents: p.customer_refund_cents, review_priority: p.review_priority }, req }).catch(() => {});
+    const result = await executeProposalRefund(approved, req);
+    if (!result.ok) return res.status(502).json({ ok: false, error: "Stripe didn't complete the refund. Nothing was refunded; you can retry.", proposal: result.proposal });
+    return ok(res, { proposal: result.proposal });
+  })
+];
+app.post("/api/admin/refund-proposals/:id/approve", ...refundDecisionRoute("approve"));
+app.post("/api/admin/refund-proposals/:id/decline", ...refundDecisionRoute("decline"));
+app.post("/api/admin/refund-proposals/:id/retry", ...refundDecisionRoute("retry"));
+app.post("/api/admin/refund-proposals/:id/dispute-outcome", ...refundDecisionRoute("dispute-outcome"));
+
+// The store's share of a refund comes back through the ledger once its
+// 48-hour dispute window has passed (or it lost a dispute). One debit per
+// proposal; runs with the order sweep and when staff open the list.
+async function settleStoreDeductions() {
+  const { data: refunded, error } = await supabase.from("order_refund_proposals").select(PROPOSAL_FIELDS).eq("status", "refunded").gt("merchant_deduction_cents", 0).limit(200);
+  if (error || !refunded || !refunded.length) return;
+  const { data: done } = await supabase.from("store_ledger_entries").select("refund_proposal_id").eq("entry_type", "refund_deduction").in("refund_proposal_id", refunded.map((p) => p.id));
+  const already = new Set((done || []).map((d) => d.refund_proposal_id));
+  for (const p of refunded) {
+    if (already.has(p.id)) continue;
+    const entry = orderRules.deductionEntry(p);
+    if (!entry) continue;
+    const { error: insertError } = await supabase.from("store_ledger_entries").insert({ id: crypto.randomUUID(), ...entry, created_at: nowIso() });
+    if (insertError && insertError.code !== "23505") console.error("❌ store ledger deduction failed:", p.id, insertError.message);
+    else if (!insertError) auditLog({ actor_type: "system", actor_id: "refund_deduction", action: "store_ledger_deduction", entity_type: "order_refund_proposal", entity_id: p.id, metadata: { merchant_id: p.merchant_id, amount_cents: p.merchant_deduction_cents } }).catch(() => {});
+  }
+}
 
 /* =========================================================
 

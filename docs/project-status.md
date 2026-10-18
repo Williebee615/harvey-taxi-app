@@ -2030,3 +2030,24 @@ The demo can then run in production with test money while rides keep their keys 
 - **Remaining:** merge approval for this PR; 3c-4 (next); rider-screens PR (App Review panel, overlap, setup button, status badge, name formatting); driver app emergency button (needs a build); driver email draft; admin driver-status label; push sign-up security fix (needs approval).
 - **Next authorized action:** build 3c-4. Merging this PR waits for the owner.
 
+## 50. Update 2026-10-18 (UTC): step 3c-4, missing-item refunds (PR `claude/phase3c-4-refunds`, stacked on PR #290, not merged)
+
+**[Owner decision 2026-10-18]**
+1. "Approved. You are cleared to build Step 3c-4 to complete the Phase 3 order backend": the 48-hour window from `delivered_at`, the proposal row, the >3 claims/month flag, the staff approval dashboard, the Stripe refund with the test key, and the ledger deduction.
+2. Driver email campaign: "Deduplicate the list by email/phone number. Draft a single, unified email campaign." Admin driver label: show "Unverified" or "Pending Setup" instead of "Approved" (backlog).
+3. Build order: dispatch/push PR (#290), 3c-4, rider screens, driver app.
+
+**This PR [Verified 2026-10-18, local]:** details in `docs/merchant-portal-phase3-orders.md` §11c.
+- Rider report within 48 hours → `pending_review` proposal (routine, or `high_risk_review` over 3 a month). Store sees reports and can dispute within 48 hours.
+- **[Recommendation, applied]** Only the owner account (`super_admin`) can approve or decline, matching ride refunds. Approve refunds with the orders test key; failures are `refund_failed` and retryable; a successful Stripe refund that fails to record is audited (`order_refund_record_failed`) and never refunded again.
+- The store's share comes off through one ledger debit after its 48-hour window or a lost dispute; a won dispute means Harvey Taxi absorbs it.
+- No migration. No live refunds (orders test key only).
+- Tests: `test/server.orders.test.js` (6 new); `test/db/orderClaims.db.test.js` (1: the planned proposal, its refund and the debit are accepted by the real tables; a second debit is refused); `test/store-menu.browser.test.js` (rider reports at 390 px); `test/merchant-orders.browser.test.js` (store disputes; owner sees the high-risk and dispute flags and approves the refund). Orders suites 98/98 on three runs; browser suites 10/10. Database suite 181 passed, 4 skipped. Full suite 2,827 passed, 1 failed: `live-api-wiring` (the refund actions were one parameterised route the guard can't see; now four literal routes, passing).
+- **Intermittent failure found:** `test/server.orders-gates.test.js` loads a fresh server per case and passed Jest's 5-second default on a cold cache (reproduced after `jest --clearCache`). Given a 30-second timeout; the cold-cache run now passes 102/102. This explains the one-off failures noted in §49.
+- **Driver audience [Verified 2026-10-18 ~05:50 UTC, read-only, counts only]:** the 19 applicant rows are **8 distinct people** (8 unique emails, 8 unique phones), correcting the "about 10" estimate in §49. The follow-up email is drafted (not sent) for the owner; the list isn't stored in the repository.
+
+**Handoff:**
+- **Done:** 3c-4 built and tested locally. With #290, this completes the Phase 3 order backend in test mode.
+- **Remaining:** merge approval for #290, then this PR; the test-mode demo (a test store with a pin and items, a test driver that can go online, a Stripe test card); rider-screens PR; driver app emergency button; driver email draft; admin driver-status label; push sign-up security fix.
+- **Next authorized action:** the rider-screens PR. Merges wait for the owner.
+

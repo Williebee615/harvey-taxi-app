@@ -24,6 +24,7 @@ let mockClient;
 jest.mock("@supabase/supabase-js", () => ({ createClient: () => new Proxy({}, { get: (_t, k) => (mockClient && typeof mockClient[k] === "function" ? mockClient[k].bind(mockClient) : mockClient && mockClient[k]) }) }));
 const mockIntents = new Map();
 const mockCancelled = [];
+const mockRefunds = [];
 jest.mock("stripe", () =>
   function MockStripe() {
     return {
@@ -33,6 +34,12 @@ jest.mock("stripe", () =>
           mockCancelled.push(id);
           mockIntents.get(id).status = "canceled";
           return mockIntents.get(id);
+        }
+      },
+      refunds: {
+        create: async (params) => {
+          mockRefunds.push(params);
+          return { id: `re_3Test${mockRefunds.length}`, status: "succeeded", amount: params.amount, livemode: false };
         }
       }
     };
@@ -82,6 +89,7 @@ describeWithBrowser("Store orders inbox and staff orders list", () => {
         { id: "i2", order_id: "o1", catalog_item_id: null, name: "Bread", unit_price_cents: 325, quantity: 1, tax_cents: 0, substitution_choice: "refund", fulfilment: "pending" }
       ],
       order_events: [],
+      order_refund_proposals: [], store_ledger_entries: [], admin_roles: [],
       audit_logs: [], drivers: [], rides: [], htaf_applications: [], system_flags: []
     });
     // eslint-disable-next-line global-require
@@ -184,4 +192,53 @@ describeWithBrowser("Store orders inbox and staff orders list", () => {
     await list.locator("text=HT-BBBBBB").waitFor();
     await context.close();
   });
+
+  test("missing-item report: the store disputes it; the owner approves the refund (step 3c-4)", async () => {
+    const now = Date.now();
+    mockIntents.set("pi_o9", { id: "pi_o9", status: "succeeded", metadata: { order_id: "o9" } });
+    mockClient._state.orders.push(order("o9", "HT-DDDDDD", { status: "completed", captured_cents: 2756, delivered_at: new Date(now - 3600000).toISOString(), payment_intent_id: "pi_o9" }));
+    mockClient._state.order_items.push({ id: "i9", order_id: "o9", catalog_item_id: null, name: "Whole milk", unit_price_cents: 449, quantity: 2, tax_cents: 0, substitution_choice: "refund", fulfilment: "packed", refunded_quantity: 0 });
+    mockClient._state.order_refund_proposals.push({
+      id: "p9", order_id: "o9", merchant_id: "M1", rider_id: "RIDER_1", market: "nashville", type: "missing_item_refund", status: "pending_review", review_priority: "high_risk_review",
+      reasons: ["no_checklist_photo", "over_monthly_claim_limit"], lines: [{ item_id: "i9", quantity: 1, item_cents: 449 }], idempotency_key: "mir_00000000000000000000000000000009",
+      claimed_at: new Date(now - 600000).toISOString(), customer_refund_cents: 494, item_cents: 449, tax_cents: 45, merchant_deduction_cents: 395, commission_reversed_cents: 54,
+      merchant_notified_at: new Date(now - 600000).toISOString(), livemode: false, created_at: new Date(now - 600000).toISOString()
+    });
+
+    // The store sees the report and disputes it (phone width).
+    const store = await browser.newContext({ viewport: { width: 390, height: 900 } });
+    await store.addCookies([{ name: "harvey_merchant_session", value: signMerchantSession({ merchantUserId: "U1", merchantId: "M1", sessionVersion: 0, secret: process.env.MERCHANT_SESSION_SECRET, ttlHours: 1 }), url: base }]);
+    await store.route(/^https?:\/\/(?!127\.0\.0\.1)/, (route) => route.abort());
+    const sp = await store.newPage();
+    await sp.goto(`${base}/merchant-portal.html`, { waitUntil: "load" });
+    const card = sp.locator('#claimsList .claim[data-claim="p9"]');
+    await card.waitFor();
+    expect(await card.innerText()).toMatch(/HT-DDDDDD · Being reviewed by Harvey Taxi[\s\S]*1 × Whole milk[\s\S]*your share \$3\.95/);
+    expect(await card.innerText()).not.toMatch(/Ana|Lopez/);
+    sp.once("dialog", (d) => d.accept("We packed both, photo at the counter."));
+    await card.locator("button.dispute").click();
+    await sp.waitForFunction(() => /Dispute sent/.test(document.getElementById("claimsStatus").textContent));
+    expect(mockClient._state.order_refund_proposals[0]).toMatchObject({ dispute_outcome: "pending" });
+    await store.close();
+
+    // The owner reviews: high-risk and disputed flags shown; approving refunds with the test key.
+    const staff = await browser.newContext({ viewport: { width: 1280, height: 1600 } });
+    await staff.addCookies([{ name: "htaf_admin_session", value: adminSession("owner@harvey.example"), url: base }]);
+    await staff.route(/^https?:\/\/(?!127\.0\.0\.1)/, (route) => route.abort());
+    const ap = await staff.newPage();
+    await ap.goto(`${base}/admin-dashboard.html`, { waitUntil: "load" });
+    const item = ap.locator('#refundProposalsList .item[data-proposal-id="p9"]');
+    await item.waitFor();
+    const text = await item.innerText();
+    expect(text).toMatch(/HT-DDDDDD · TEST Fixture Grocer · refund \$4\.94/);
+    expect(text).toMatch(/High risk/);
+    expect(text).toMatch(/The store disputes this report/);
+    ap.once("dialog", (d) => d.accept());
+    await item.locator('button[data-proposal-decision="approve"]').click();
+    await ap.waitForFunction(() => /refunded/.test(document.querySelector('#refundProposalsList').textContent) || !document.querySelector('[data-proposal-id="p9"] button[data-proposal-decision="approve"]'));
+    expect(mockRefunds).toEqual([expect.objectContaining({ payment_intent: "pi_o9", amount: 494 })]);
+    expect(mockClient._state.order_refund_proposals[0]).toMatchObject({ status: "refunded", stripe_refund_id: "re_3Test1" });
+    await staff.close();
+  });
 });
+
