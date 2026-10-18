@@ -118,3 +118,11 @@ Website only; the rider app loads the same pages, so no rider build is needed. D
 - **[Recommendation, not approved]** Just-in-Time booking (map and estimate first, sign-in at Confirm Ride). Waiting on the owner's decisions listed in §51.
 
 **Handoff:** done: the PR above. Remaining: merge approval, a device check after merge, the Just-in-Time decisions. Next authorized action: none.
+
+## 10. Update 2026-10-18 (UTC): #293 live; Just-in-Time booking (PR `claude/jit-booking`, not merged; switch off)
+
+- **[Verified 2026-10-18]** #293 merged as `eedec41` and live (rider page byte-identical). **[Unresolved]** Phone and in-app check.
+- **[Owner decision 2026-10-18]** Banner "Finish setup to book in one tap"; Option A (approve on phone verification, audited; staff can suspend); build with the switch off.
+- **[Verified 2026-10-18, local]** Map and price first, sign-up at "Confirm Ride" with first name, number and texted code, then card. Website only; no rider build. Details in `docs/project-status.md` §52.
+
+**Handoff:** done: the PR. Remaining: merge approval; the owner's decision to switch it on; a phone check with it on; App Review notes if it is on for a submission. Next authorized action: none.

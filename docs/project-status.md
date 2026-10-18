@@ -2081,6 +2081,41 @@ The demo can then run in production with test money while rides keep their keys 
 - **Remaining:** merge approval for this PR; the owner's decisions on Just-in-Time booking; driver app emergency button (needs a build); admin driver-status label; the two security fixes (need approval); the test-mode order demo.
 - **Next authorized action:** none. Merging this PR waits for the owner.
 
+## 52. Update 2026-10-18 (UTC): #293 merged and live; Just-in-Time booking (PR `claude/jit-booking`, not merged; switch off)
+
+**[Owner decision 2026-10-18]**
+1. Banner wording approved: "Finish setup to book in one tap." No $5 credit (needs a budget, terms and abuse limits first).
+2. Rider approval Option A approved: "Automatic approval upon phone verification … The pre-dispatch card authorization provides sufficient financial security. Please build in the audit record for automatic approvals and the staff suspension capability."
+3. Booking-flow PR approved, "keeping the sign-in enforcement switched off until we explicitly activate it."
+4. "Approved" (12:20 UTC) after "I am standing by to review and merge the rider-screens fixes PR": taken as approval to merge #293.
+
+**#293 [Verified 2026-10-18]:** all six CI checks green on `c7feb4e`; merged as `eedec41`. `/api/health` reported `eedec41`, healthy, at 12:22 UTC. The live `rider-dashboard.html` is byte-identical to the merged file; the live `agent-assist.js?v=20261018-shared` contains the bottom spacer. **[Unresolved]** Not yet checked on a phone or inside the rider app.
+
+**This PR [Verified 2026-10-18, local]:** everything is behind a new system flag, `jit_booking_enabled`, which is **off**. With it off, nothing a rider or reviewer sees changes. `rider_auth_ui_enabled` and `rider_auth_enforced` are untouched.
+- **Server:**
+  - `GET /api/rider/jit-config` (on or off).
+  - `POST /api/rider/quick/start`: texts a Twilio Verify code to any valid US number (rider-app header required; the same rate limits as the existing sign-in).
+  - `POST /api/rider/quick/verify`: checks the code, then signs in the one active rider with that number or creates one (first name and phone only). Two or more active riders sharing a number are refused, never guessed.
+  - **Option A:** a verified phone approves the rider under the owner's rule, recorded each time as `rider_auto_approved` (actor `system`, rule `phone_verified`, set by the owner on 2026-10-18, previous status). While the switch is on, it applies to ordinary phone sign-in too, and email is not required to book.
+  - **Staff:** `POST /api/admin/riders/:id/suspend` and `/reinstate` (admin only, reason of 3–500 characters, audited as `rider_suspended` / `rider_reinstated`). A suspended rider can sign in but cannot book, and the rule never re-approves them. Reinstating restores approval if the phone is verified.
+  - `POST /api/admin/system/enable-jit-booking` and `disable-jit-booking` (admin only, audited).
+  - A ride request falls back to the rider account's name and phone for the driver when the booking screen sends none.
+- **Rider page (switch on):** the hero reads "Where to?" with no setup warning; the booking screen asks for no name, phone or email; "Confirm Ride" opens a bottom sheet (first name and number, then the texted code with one-time-code autofill), then the existing approval check and card step. On phones the map stays pinned and the booking steps slide over it. A visitor who left at the phone step sees "Finish setup to book in one tap".
+- **Admin page:** Suspend on active riders; Reinstate on suspended ones; each asks for a reason.
+- No migration: `status` has no constraint and `email` and `last_name` are optional (read-only check of production, 2026-10-18).
+- **[Verified 2026-10-18, read-only]** Production `/api/config/public` reports `persona_enabled: false`, so a verified phone is enough to book. If Persona is switched on later, riders would need it too (unchanged rule).
+- Tests: `lib/riderJit.test.js` (23); `test/server.jit-booking.test.js` (14: off by default; sign-up, wrong code, missing name, existing and suspended riders, shared number, suspend and reinstate, the switch); `test/jit-booking.browser.test.js` (4: off unchanged; on shows "Where to?" and no rider fields; the sheet signs a new rider up and approves them; the banner).
+
+**Before switching it on [Unresolved]:**
+- SMS cost: each sign-up sends a Twilio Verify text (per-message pricing applies; rate-limited per number and per device).
+- App Review notes describe today's flow; update them if the switch is on for a submission.
+- The §51 server gap (no rider ID skipped the readiness check) is closed separately by the security fix in §53 (#295), which this PR is rebased on. With that fix, ordinary riders need a session to book, which this switch provides.
+- Card authorization (`/api/rides/payment-intent`) doesn't check suspension itself; the ride request does, and an unused hold is released as today.
+
+**Handoff:**
+- **Done:** #293 live; Just-in-Time booking built and tested locally, switch off.
+- **Remaining:** merge approval for this PR; the owner's decision to switch it on (`POST /api/admin/system/enable-jit-booking`); a phone check with the switch on; the two security fixes; driver app emergency button; admin driver-status label.
+- **Next authorized action:** none. Merging and switching on wait for the owner.
 ## 53. Update 2026-10-18 (UTC): security fix, ride requests require a signed-in, approved rider (PR `claude/ride-request-auth`, not merged)
 
 **[Owner decision 2026-10-18]** "Approved. You are explicitly authorized to build the server-side fix to close this gap immediately … enforce a strict requirement that all /api/rides/request payloads must contain a valid, authenticated rider ID that resolves to an 'approved' or 'active' status, returning a hard 401/403 otherwise." Built as a separate patch PR so it can merge ahead of #294.
