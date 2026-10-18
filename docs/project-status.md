@@ -1878,7 +1878,9 @@ The demo can then run in production with test money while rides keep their keys 
 
 **[Verified 2026-10-18 01:43 UTC]** All six CI checks were green on `e1edced`; #284 merged as `59e7ca7`. `/api/health` reports `59e7ca7`, healthy, database connected; `/store-menu.html` returns 200. `/api/orders/config` still reports `enabled: false` (the Render settings had not taken effect at that time).
 
-**[Unresolved]** The markets migration had not been run at 01:43 UTC. The SQL file sent to the owner is copied unchanged from `main` and ends with a check that should return `2 | 2`. Until it runs, the store list reports "not set up" and checkout finds no store (no orders possible; rides unaffected).
+**Markets migration:** the owner ran the SQL file (copied unchanged from `main`) in the project labelled PRODUCTION; the owner's screenshot (8:45 PM local, 17 Oct) shows the check returning `2 | 2`.
+- **[Verified 2026-10-18 ~01:46 UTC, read-only]** `market` exists on `merchants` and `orders`: `not null`, default `'nashville'`, with the checks `merchants_market_check` and `orders_market_check` and the indexes `merchants_market_status_idx` and `orders_market_status_idx`. No store has a market other than `nashville`.
+- **[Verified 2026-10-18 01:46 UTC]** `/api/orders/config` still reports `enabled: false`: the Render settings had not taken effect.
 
 **Step 3b part 2 (this PR) [Verified 2026-10-18, local]:** details are in `docs/merchant-portal-phase3-orders.md` §11b.
 - `POST /api/orders/estimate`: the delivery fee from the store's pin to the rider's address by road, signed and single use. The pin never leaves the server.
@@ -1891,10 +1893,9 @@ The demo can then run in production with test money while rides keep their keys 
 **Handoff:**
 - **Done:** 3b part 2 built and tested locally.
 - **Remaining:**
-  - the owner runs the markets migration; then a read-only check;
   - merge approval for this PR;
   - confirming the demo settings on Render (`ORDERS_STRIPE_SECRET_KEY`, `ORDERS_STRIPE_PUBLISHABLE_KEY`, `ENABLE_MERCHANT_ORDERS=true`; names only);
   - the owner's choice of delivery area (or confirming 15 miles);
   - 3c.
-- **Next authorized action:** after the owner confirms the migration, verify it read-only and open this PR. Merging it waits for the owner's approval.
+- **Next authorized action:** none. Merging this PR waits for the owner's approval; once the Render settings are saved, check that `/api/orders/config` reports ordering on.
 
