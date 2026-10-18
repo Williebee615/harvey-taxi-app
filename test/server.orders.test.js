@@ -134,6 +134,10 @@ function checkoutBody({ rider = RIDER, merchant = "M1", rideType = "grocery", it
   return { merchant_id: merchant, items, tip_cents: tip, client_order_key: key || `order-key-${keyN}`, estimate_token, ride_type: rideType, pickup_lat: pickup.lat, pickup_lng: pickup.lng, destination_lat: DROPOFF.lat, destination_lng: DROPOFF.lng, rider_notes: "Ring the bell" };
 }
 const orders = () => mockClient._state.orders;
+const itemsOf = (orderId) => mockClient._state.order_items.filter((i) => i.order_id === orderId);
+async function packAll(orderId, store = asStore()) {
+  for (const i of itemsOf(orderId)) expect((await store.post(`/api/merchant/orders/${orderId}/items/${i.id}`, { action: "packed" })).status).toBe(200);
+}
 const events = (orderId) => mockClient._state.order_events.filter((e) => e.order_id === orderId).map((e) => e.to_status);
 async function placedOrder(opts = {}) {
   const r = await asRider(opts.rider).post("/api/orders/checkout", checkoutBody(opts));
@@ -234,6 +238,11 @@ describe("store inbox", () => {
     const a = await asStore().post(`/api/merchant/orders/${id}/accept`, { prep_minutes: 15 });
     expect(a.body.order).toMatchObject({ status: "accepted", prep_minutes: 15 });
     expect((await asStore().post(`/api/merchant/orders/${id}/accept`, { prep_minutes: 15 })).status).toBe(409);
+    // Step 3c-2: every item must be settled before the order is ready.
+    const blocked = await asStore().post(`/api/merchant/orders/${id}/ready`);
+    expect(blocked.status).toBe(409);
+    expect(blocked.body.error).toMatch(/Still to do: (Whole milk, Bread|Bread, Whole milk)/);
+    await packAll(id);
     expect((await asStore().post(`/api/merchant/orders/${id}/ready`)).body.order.status).toBe("ready");
     const late = await asRider().post(`/api/orders/${id}/cancel`);
     expect(late.status).toBe(409);
@@ -448,5 +457,82 @@ describe("delivery estimate for an order (step 3b part 2)", () => {
     const r = await estimate({});
     const body = { merchant_id: "M1", items: [{ catalog_item_id: "bread", quantity: 1 }], tip_cents: 0, client_order_key: "estimate-key-3", estimate_token: r.body.estimate_token, ride_type: "grocery", destination_lat: DROPOFF.lat, destination_lng: DROPOFF.lng };
     expect((await asRider(RIDER2).post("/api/orders/checkout", body)).status).toBe(400);
+  });
+});
+
+describe("settling items while preparing (step 3c-2)", () => {
+  async function acceptedOrder(opts) {
+    const id = await placedOrder(opts);
+    expect((await asStore().post(`/api/merchant/orders/${id}/accept`, { prep_minutes: 15 })).status).toBe(200);
+    const items = itemsOf(id);
+    return { id, milk: items.find((i) => i.name === "Whole milk"), bread: items.find((i) => i.name === "Bread") };
+  }
+  const mark = (orderId, itemId, body, store = asStore()) => store.post(`/api/merchant/orders/${orderId}/items/${itemId}`, body);
+
+  test("packed and out of stock; only this store, only while preparing; one mark per item", async () => {
+    const { id, milk, bread } = await acceptedOrder();
+    expect((await mark(id, bread.id, { action: "packed" }, asStore("U0000002", "M2"))).status).toBe(404);
+    const r = await mark(id, bread.id, { action: "out_of_stock" });
+    expect(r.status).toBe(200);
+    expect(r.body.order.items.find((i) => i.name === "Bread")).toMatchObject({ fulfilment: "refunded" });
+    expect((await mark(id, bread.id, { action: "packed" })).status).toBe(409);
+    expect((await mark(id, milk.id, { action: "throw_away" })).status).toBe(400);
+    expect(mockClient._state.audit_logs.map((a) => a.action)).toContain("order_item_marked");
+  });
+
+  test("best match: substituted at once, within the hold; refund-only items can't be substituted", async () => {
+    // milk was ordered as best_match (checkoutBody).
+    const { id, milk, bread } = await acceptedOrder();
+    expect((await mark(id, bread.id, { action: "substitute", substitute_name: "Rolls", substitute_price_cents: 300 })).status).toBe(409);
+    const tooDear = await mark(id, milk.id, { action: "substitute", substitute_name: "Organic milk", substitute_price_cents: 5000 });
+    expect(tooDear.status).toBe(409);
+    expect(tooDear.body.error).toMatch(/card hold/);
+    const ok = await mark(id, milk.id, { action: "substitute", substitute_name: "2% milk", substitute_price_cents: 429 });
+    expect(ok.body.order.items.find((i) => i.name === "Whole milk")).toMatchObject({ fulfilment: "substituted", substitute_name: "2% milk", substitute_price_cents: 429 });
+  });
+
+  test("contact me first: the rider is asked, answers in the app, and the store can then mark the order ready", async () => {
+    const { id, milk, bread } = await acceptedOrder({ items: [{ catalog_item_id: "milk", quantity: 2, substitution_choice: "contact" }, { catalog_item_id: "bread", quantity: 1 }] });
+    expect((await mark(id, milk.id, { action: "substitute", substitute_name: "2% milk", substitute_price_cents: 429 })).status).toBe(200);
+    await mark(id, bread.id, { action: "packed" });
+    // Waiting on the rider blocks ready.
+    expect((await asStore().post(`/api/merchant/orders/${id}/ready`)).body.error).toMatch(/Still to do: Whole milk/);
+
+    const seen = await asRider().get(`/api/orders/${id}`);
+    const q = seen.body.order.items.find((i) => i.name === "Whole milk");
+    expect(q).toMatchObject({ fulfilment: "out_of_stock", substitute_name: "2% milk", substitute_price_cents: 429, answer_by: expect.any(String) });
+    expect(seen.body.order.current_total_cents).toBeGreaterThan(0);
+
+    expect((await asRider(RIDER2).post(`/api/orders/${id}/items/${milk.id}/answer`, { answer: "substitute" })).status).toBe(404);
+    expect((await asRider().post(`/api/orders/${id}/items/${milk.id}/answer`, { answer: "maybe" })).status).toBe(400);
+    const a = await asRider().post(`/api/orders/${id}/items/${milk.id}/answer`, { answer: "substitute" });
+    expect(a.status).toBe(200);
+    expect(a.body.order.items.find((i) => i.name === "Whole milk").fulfilment).toBe("substituted");
+    expect((await asRider().post(`/api/orders/${id}/items/${milk.id}/answer`, { answer: "refund" })).status).toBe(409);
+    expect((await asStore().post(`/api/merchant/orders/${id}/ready`)).body.order.status).toBe("ready");
+  });
+
+  test("no answer in 7 minutes refunds the item; a late yes doesn't overturn it", async () => {
+    const { id, milk } = await acceptedOrder({ items: [{ catalog_item_id: "milk", quantity: 1, substitution_choice: "contact" }] });
+    await mark(id, milk.id, { action: "substitute", substitute_name: "2% milk", substitute_price_cents: 429 });
+    const row = itemsOf(id)[0];
+    row.substitution_asked_at = new Date(Date.now() - 8 * 60000).toISOString();
+    row.substitution_expires_at = new Date(Date.now() - 60000).toISOString();
+    const late = await asRider().post(`/api/orders/${id}/items/${milk.id}/answer`, { answer: "substitute" });
+    expect(late.status).toBe(200);
+    expect(late.body.note).toMatch(/7 minutes had run out/);
+    expect(itemsOf(id)[0].fulfilment).toBe("refunded");
+    expect(itemsOf(id)[0].substitution_answer ?? null).toBeNull();
+  });
+
+  test("the store's list settles expired questions on its own", async () => {
+    const { id, milk } = await acceptedOrder({ items: [{ catalog_item_id: "milk", quantity: 1, substitution_choice: "contact" }] });
+    await mark(id, milk.id, { action: "substitute", substitute_name: "2% milk", substitute_price_cents: 429 });
+    const row = itemsOf(id)[0];
+    row.substitution_asked_at = new Date(Date.now() - 8 * 60000).toISOString();
+    row.substitution_expires_at = new Date(Date.now() - 60000).toISOString();
+    const inbox = await asStore().get("/api/merchant/orders");
+    expect(inbox.body.orders.find((o) => o.id === id).items[0].fulfilment).toBe("refunded");
+    expect(mockClient._state.audit_logs.map((a) => a.action)).toContain("order_item_question_expired");
   });
 });

@@ -21207,7 +21207,7 @@ const ORDERS_TEST_TAX_RATE_BPS = (() => {
 })();
 const ORDER_INTENT_APP_TAG = "harvey_taxi_orders";
 const ORDER_FIELDS = "id, order_number, merchant_id, rider_id, ride_id, status, order_type, prep_minutes, placed_at, accepted_at, ready_at, cancelled_at, cancel_reason, items_subtotal_cents, tax_cents, tax_rate_bps, delivery_fee_cents, tip_cents, authorized_cents, captured_cents, refunded_cents, payment_intent_id, livemode, client_order_key, rider_notes, created_at, updated_at";
-const ORDER_ITEM_FIELDS = "id, order_id, catalog_item_id, name, unit_price_cents, quantity, tax_cents, substitution_choice, fulfilment";
+const ORDER_ITEM_FIELDS = "id, order_id, catalog_item_id, name, unit_price_cents, quantity, tax_cents, substitution_choice, fulfilment, substitute_name, substitute_price_cents, substitution_asked_at, substitution_expires_at, substitution_answer, substitution_answered_at, refunded_quantity";
 const ORDER_EVENT_ACTOR = { rider: "rider", merchant: "merchant_user", admin: "admin", system: "system" };
 
 const ordersStripeTestMode = () => Boolean(ordersStripe);
@@ -21283,6 +21283,31 @@ async function sweepOrders({ merchantId = null } = {}) {
     const action = orderRules.sweepAction(order);
     if (action) await moveOrder(order, action, { kind: "system", id: "order_sweep" }, { reason: action === "expired" ? "The store didn't respond in time." : "Payment wasn't completed." });
   }
+  await settleExpiredQuestions(merchantId ? { merchantId } : {});
+}
+
+// "Contact me first" questions with no answer after 7 minutes refund the
+// item (term 5). Runs with the sweep and before any read that shows items.
+async function settleExpiredQuestions({ orderIds = null, merchantId = null } = {}) {
+  let query = supabase.from("order_items").select(ORDER_ITEM_FIELDS).eq("fulfilment", "out_of_stock").limit(500);
+  if (orderIds) {
+    if (!orderIds.length) return;
+    query = query.in("order_id", orderIds);
+  }
+  const { data, error } = await query;
+  if (error || !data) return;
+  let waiting = data;
+  if (merchantId && !orderIds) {
+    const { data: mine } = await supabase.from("orders").select("id").eq("merchant_id", merchantId).eq("status", "accepted");
+    const ids = new Set((mine || []).map((o) => o.id));
+    waiting = waiting.filter((i) => ids.has(i.order_id));
+  }
+  for (const item of waiting) {
+    const patch = orderRules.settleQuestion(item);
+    if (!patch) continue;
+    const { data: updated } = await supabase.from("order_items").update(patch).eq("id", item.id).eq("fulfilment", "out_of_stock").select("id").maybeSingle();
+    if (updated) auditLog({ actor_type: "system", actor_id: "order_sweep", action: "order_item_question_expired", entity_type: "order", entity_id: item.order_id, metadata: { item_id: item.id } }).catch(() => {});
+  }
 }
 if (ENABLE_MERCHANT_ORDERS && process.env.NODE_ENV !== "test") {
   setInterval(() => sweepOrders().catch((err) => console.error("❌ order sweep:", err.message)), 60_000).unref();
@@ -21324,7 +21349,9 @@ function riderOrderView(order, items, storeName) {
     authorized_cents: order.authorized_cents,
     test_mode: !order.livemode,
     can_cancel: orderRules.canTransition("rider", order.status, "cancelled_by_rider"),
-    items: (items || []).map((i) => ({ name: i.name, quantity: i.quantity, unit_price_cents: i.unit_price_cents, substitution_choice: i.substitution_choice }))
+    // While the store prepares, what the order would cost with items as they stand.
+    current_total_cents: ["accepted", "ready"].includes(order.status) && items && items.length && "fulfilment" in items[0] ? orderRules.finalTotals(order, items).total_cents : null,
+    items: (items || []).map((i) => orderRules.itemView(i))
   };
 }
 async function loadRiderOrder(req, id) {
@@ -21626,6 +21653,7 @@ app.get(
     const { data, error } = await supabase.from("orders").select(ORDER_FIELDS).eq("rider_id", String(req.rider.id)).order("created_at", { ascending: false }).limit(20);
     if (ordersNotSetUp(error)) return ok(res, { orders: [], not_set_up: true });
     if (error) return fail(res, "Your orders could not be loaded.", 502);
+    await settleExpiredQuestions({ orderIds: (data || []).filter((o) => o.status === "accepted").map((o) => o.id) });
     const items = await loadOrderItems((data || []).map((o) => o.id));
     const names = {};
     for (const id of new Set((data || []).map((o) => o.merchant_id))) names[id] = await storeName(id);
@@ -21639,7 +21667,32 @@ app.get(
   asyncRoute(async (req, res) => {
     const order = await loadRiderOrder(req, req.params.id);
     if (!order) return fail(res, "Order not found.", 404);
+    await settleExpiredQuestions({ orderIds: [order.id] });
     return ok(res, { order: riderOrderView(order, (await loadOrderItems([order.id]))[order.id], await storeName(order.merchant_id)) });
+  })
+);
+
+// "Contact me first": the rider accepts the store's substitute or takes a
+// refund, within 7 minutes of being asked (term 5).
+app.post(
+  "/api/orders/:id/items/:itemId/answer",
+  requireRider,
+  asyncRoute(async (req, res) => {
+    const order = await loadRiderOrder(req, req.params.id);
+    if (!order) return fail(res, "Order not found.", 404);
+    const answer = cleanString(req.body && req.body.answer, 20);
+    if (!["substitute", "refund"].includes(answer)) return fail(res, "Choose the substitute or a refund.", 400);
+    const { data: item } = await supabase.from("order_items").select(ORDER_ITEM_FIELDS).eq("id", cleanString(req.params.itemId, 64)).eq("order_id", order.id).maybeSingle();
+    if (!item) return fail(res, "Item not found.", 404);
+    if (order.status !== "accepted") return fail(res, "This order is no longer being prepared.", 409);
+    const patch = orderRules.settleQuestion(item, { answer });
+    if (!patch) return fail(res, "This item has already been settled.", 409);
+    const { data: updated } = await supabase.from("order_items").update(patch).eq("id", item.id).eq("fulfilment", "out_of_stock").select("id").maybeSingle();
+    if (!updated) return fail(res, "This item has already been settled.", 409);
+    auditLog({ actor_type: "rider", actor_id: String(req.rider.id), action: "order_item_answered", entity_type: "order", entity_id: order.id, metadata: { item_id: item.id, answer, result: patch.fulfilment }, req }).catch(() => {});
+    const view = riderOrderView(order, (await loadOrderItems([order.id]))[order.id], await storeName(order.merchant_id));
+    if (answer === "substitute" && patch.fulfilment === "refunded") return ok(res, { order: view, note: "The 7 minutes had run out, so this item was refunded." });
+    return ok(res, { order: view });
   })
 );
 
@@ -21683,6 +21736,32 @@ const STORE_ACTIONS = {
   ready: { to: "ready" },
   cancel: { to: "cancelled_by_store", needsReason: true }
 };
+// Step 3c-2: the store settles each item while preparing.
+app.post(
+  "/api/merchant/orders/:id/items/:itemId",
+  requireMerchant,
+  asyncRoute(async (req, res) => {
+    const order = await loadStoreOrder(req, req.params.id);
+    if (!order) return fail(res, "Order not found.", 404);
+    const items = (await loadOrderItems([order.id]))[order.id] || [];
+    const body = req.body || {};
+    const plan = orderRules.planItemAction({
+      order,
+      items,
+      itemId: cleanString(req.params.itemId, 64),
+      action: cleanString(body.action, 20),
+      substituteName: cleanString(body.substitute_name, 200),
+      substitutePriceCents: body.substitute_price_cents
+    });
+    if (!plan.ok) return fail(res, plan.error, plan.status);
+    const { data: updated } = await supabase.from("order_items").update(plan.patch).eq("id", cleanString(req.params.itemId, 64)).eq("order_id", order.id).eq("fulfilment", "pending").select("id").maybeSingle();
+    if (!updated) return fail(res, "This item changed. Reload and try again.", 409);
+    auditLog({ actor_type: "merchant_user", actor_id: req.merchantUser.id, action: "order_item_marked", entity_type: "order", entity_id: order.id, metadata: { item_id: updated.id, fulfilment: plan.patch.fulfilment, substitute_price_cents: plan.patch.substitute_price_cents || null }, req }).catch(() => {});
+    const names = await riderFirstNames([order.rider_id]);
+    return ok(res, { order: orderRules.storeView(order, (await loadOrderItems([order.id]))[order.id], names[order.rider_id]) });
+  })
+);
+
 app.post(
   "/api/merchant/orders/:id/:action",
   requireMerchant,
@@ -21698,6 +21777,11 @@ app.post(
     }
     const reason = cleanString(req.body && req.body.reason, 500);
     if (action.needsReason && reason.length < 3) return fail(res, "Give the customer a reason.", 400);
+    if (action.to === "ready") {
+      await settleExpiredQuestions({ orderIds: [order.id] });
+      const blockers = orderRules.readyBlockers((await loadOrderItems([order.id]))[order.id]);
+      if (blockers.length) return fail(res, `Mark every item before the order is ready. Still to do: ${blockers.join(", ")}.`, 409);
+    }
     const patch = {};
     if (action.to === "accepted") {
       const prep = orderRules.validPrepMinutes(req.body && req.body.prep_minutes);

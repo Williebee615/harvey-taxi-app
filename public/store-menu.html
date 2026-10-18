@@ -166,6 +166,8 @@
     <section class="card" id="placedCard" hidden aria-labelledby="placedTitle">
       <h2 id="placedTitle">Order <span id="placedNumber"></span></h2>
       <p id="placedStatus"></p>
+      <div id="questions"></div>
+      <p class="muted" id="placedTotal" hidden></p>
       <div class="row">
         <button type="button" class="secondary" id="placedRefresh">Refresh</button>
         <button type="button" class="secondary" id="placedCancel" hidden>Cancel order</button>
@@ -602,15 +604,52 @@
         writeCart(null);
         showPlaced(r.data.order);
       }
+      // "Contact me first" (term 5): the store offers a substitute and the
+      // rider answers here within 7 minutes; no answer refunds the item.
+      function renderQuestions(order) {
+        const box = $("questions");
+        box.innerHTML = "";
+        (order.items || []).filter(function (i) { return i.fulfilment === "out_of_stock" && i.answer_by; }).forEach(function (i) {
+          const q = document.createElement("div");
+          q.className = "notice question";
+          q.dataset.item = i.id;
+          const p = document.createElement("p");
+          p.style.color = "var(--text)";
+          p.textContent = i.name + " is out of stock. The store suggests " + i.substitute_name + " at " + money(i.substitute_price_cents) + " each (× " + i.quantity + "). Answer by " + new Date(i.answer_by).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + ", or it will be refunded.";
+          const row = document.createElement("div");
+          row.className = "row";
+          [["substitute", "Accept substitute", ""], ["refund", "Refund it", "secondary"]].forEach(function (b) {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.textContent = b[1];
+            btn.className = (b[2] + " answer-" + b[0]).trim();
+            btn.addEventListener("click", function () { answerQuestion(order, i, b[0]); });
+            row.appendChild(btn);
+          });
+          q.appendChild(p); q.appendChild(row);
+          box.appendChild(q);
+        });
+        const changed = (order.items || []).some(function (i) { return i.fulfilment === "refunded" || i.fulfilment === "substituted"; });
+        $("placedTotal").hidden = !(order.current_total_cents && changed);
+        if (!$("placedTotal").hidden) $("placedTotal").textContent = "With the store's changes, your order now comes to about " + money(order.current_total_cents) + ". You're charged only for what's delivered.";
+      }
+      async function answerQuestion(order, item, answer) {
+        const r = await post("/api/orders/" + encodeURIComponent(order.id) + "/items/" + encodeURIComponent(item.id) + "/answer", { answer: answer });
+        if (!r.ok) { setStatus("placedNote", r.data.error || "Your answer couldn't be saved.", true); refreshOrder(); return; }
+        setStatus("placedNote", r.data.note || (answer === "substitute" ? item.name + ": substitute accepted." : item.name + ": it will be refunded."));
+        showPlaced(r.data.order);
+      }
       function showPlaced(order) {
         currentOrder = order;
         showOnly("placedCard");
         $("placedNumber").textContent = order.order_number + " · " + (order.store_name || "");
         $("placedStatus").textContent = STATUS_TEXT[order.status] || order.status;
         $("placedCancel").hidden = !order.can_cancel;
+        renderQuestions(order);
         try { history.replaceState(null, "", "?order=" + encodeURIComponent(order.id)); } catch (e) { /* not essential */ }
         clearInterval(pollTimer);
-        if (["pending_payment", "placed", "accepted", "ready"].indexOf(order.status) >= 0) pollTimer = setInterval(refreshOrder, 15000);
+        // Faster while the store may ask a question (7 minutes to answer).
+        if (["pending_payment", "placed", "accepted", "ready"].indexOf(order.status) >= 0) pollTimer = setInterval(refreshOrder, order.status === "accepted" ? 10000 : 15000);
       }
       async function refreshOrder() {
         if (!currentOrder) return;

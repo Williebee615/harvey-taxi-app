@@ -70,7 +70,8 @@ describeWithBrowser("Store menu and cart (phone width)", () => {
         item("beer", "M1", "Craft beer", 1299, { review_status: "held" }),
         item("xss", "M1", "<img src=x onerror=window.__xss=1> Tea", 299, { section: "Drinks" }),
         item("tenders", "M2", "Hot chicken tenders", 1199)
-      ]
+      ],
+      orders: [], order_items: [], order_events: [], audit_logs: []
     });
     // eslint-disable-next-line global-require
     const { app } = require("../server");
@@ -264,6 +265,32 @@ describeWithBrowser("Store menu and cart (phone width)", () => {
     await page.waitForFunction(() => /couldn't find a driving route/.test(document.getElementById("checkoutStatus").textContent));
     expect(await page.locator("#placeOrder").isDisabled()).toBe(true);
     mapbox.reset();
+    await context.close();
+  });
+
+  test("contact me first: the rider sees the store's suggestion on the order screen and accepts it (step 3c-2)", async () => {
+    const now = Date.now();
+    mockClient._state.orders.push({
+      id: "oq", order_number: "HT-QQQQQQ", merchant_id: "M1", rider_id: "RIDER_1", status: "accepted", order_type: "grocery", prep_minutes: 15,
+      placed_at: new Date(now - 300000).toISOString(), accepted_at: new Date(now - 240000).toISOString(), items_subtotal_cents: 898, tax_cents: 90, tax_rate_bps: 1000,
+      delivery_fee_cents: 1150, tip_cents: 0, authorized_cents: 3000, captured_cents: 0, refunded_cents: 0, livemode: false, created_at: new Date(now - 300000).toISOString()
+    });
+    mockClient._state.order_items.push({
+      id: "q1", order_id: "oq", name: "Whole milk", unit_price_cents: 449, quantity: 2, tax_cents: 90, substitution_choice: "contact", fulfilment: "out_of_stock",
+      substitute_name: "2% milk", substitute_price_cents: 429, substitution_asked_at: new Date(now - 60000).toISOString(), substitution_expires_at: new Date(now + 360000).toISOString()
+    });
+    const { context, page } = await phone(true);
+    await page.goto(`${base}/store-menu.html?order=oq`, { waitUntil: "load" });
+    const q = page.locator('.question[data-item="q1"]');
+    await q.waitFor();
+    expect(await q.innerText()).toMatch(/Whole milk is out of stock\. The store suggests 2% milk at \$4\.29 each \(× 2\)\. Answer by/);
+    await q.locator("button.answer-substitute").click();
+    await page.waitForFunction(() => /substitute accepted/.test(document.getElementById("placedNote").textContent));
+    expect(await page.locator(".question").count()).toBe(0);
+    expect(mockClient._state.order_items.find((i) => i.id === "q1")).toMatchObject({ fulfilment: "substituted", substitution_answer: "substitute" });
+    expect(await page.locator("#placedTotal").innerText()).toMatch(/now comes to about \$/);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    expect(page.errors).toEqual([]);
     await context.close();
   });
 });

@@ -212,6 +212,15 @@ Checks in the database: amounts never negative; `captured_cents ≤ authorized_c
 - Server-only: RLS on, no policies, no anon or signed-in access. Nothing writes to these tables until 3c-2 to 3c-4.
 - Note for 3c-4: `planMissingItemRefund` measures the window from `completed_at`; 3c-4 passes `delivered_at`, per decision 6.
 
+**3c-2 (PR `claude/phase3c-2-substitutions`): settling items while preparing.** **[Owner decision 2026-10-18]** "You are cleared to begin building Step 3c-2", covering the store's item marking, the in-app "Contact me first" prompt, the 7-minute default and the ready gate.
+- **Store portal**, while an order is accepted: each item has **Packed** and **Out of stock**. Items where the rider chose "Store picks a similar item" or "Contact me first" also have **Substitute** / **Offer a substitute** (name and price each). Items set to "Refund this item" can't be substituted.
+- **Out of stock** with no substitute: the item is not charged (`fulfilment = refunded`), whatever the rider chose.
+- **Store picks a similar item:** substituted at once.
+- **Contact me first:** the item waits (`out_of_stock`) and the rider sees "X is out of stock. The store suggests Y at $Z each" on the order screen, with **Accept substitute** and **Refund it**. No answer within 7 minutes refunds the item; a late "accept" doesn't overturn that. Expired questions are settled by the minute-by-minute sweep and whenever the store's list or the rider's order is read.
+- **The hold:** a substitute is refused if the order, with every item as it stands (a waiting item counted at its substitute price), would cost more than the card authorization.
+- **Ready gate:** "Mark ready" is refused while any item is unmarked or waiting on the rider, naming them.
+- The rider's order screen shows the order's current total once the store has changed anything. Every mark and answer is audited. Nothing is charged yet; capture at delivery is 3c-3.
+
 ## 12. Build plan (each a separate PR; each merge, the migration and turning on the switch need the owner's approval)
 
 | Step | Delivers |
