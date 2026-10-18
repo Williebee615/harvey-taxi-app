@@ -20,6 +20,11 @@ jest.mock("@supabase/supabase-js", () => ({ createClient: () => mockSupabaseClie
 
 const request = require("supertest");
 
+// Each test loads a fresh server (jest.isolateModules); on a cold cache
+// the first load can pass Jest's 5-second default, as in
+// server.orders-gates.test.js.
+jest.setTimeout(30_000);
+
 function loadApp({ enabled = true } = {}) {
   mockSupabaseClient = createFakeSupabase({
     system_flags: [{ key: "htaf_assist_enabled", value: enabled ? "true" : "false" }],

@@ -2191,3 +2191,27 @@ The demo can then run in production with test money while rides keep their keys 
 - **Done:** #296 merged; label change built and tested.
 - **Remaining:** merge approval for this PR; then the push sign-up fix (approved, next in the queue); driver app emergency button (needs a build); phone-only account deletion test.
 - **Next authorized action:** build the push sign-up fix. Merging this PR waits for the owner.
+
+## 56. Update 2026-10-18 (UTC): #297 merged and live; push sign-up security fix (PR `claude/push-subscribe-auth`)
+
+**[Owner decision 2026-10-18]**
+1. #297 approved to merge.
+2. Push sign-up fix "Pre-Approved. Once your full local test suite finishes and the GitHub CI checks go green, you are authorized to open and merge the PR."
+3. Next: the phone-only account deletion test; the driver app emergency button ("I formally approve the creation of a new driver app build for this once the code changes are ready").
+
+**[Verified 2026-10-18]** #297: all six CI checks green on `86a07da`; merged as `1273d93`. `/api/health` reported `1273d93`, healthy, at 13:29 UTC.
+
+**This PR [Verified 2026-10-18, local]:** closes the §49 finding.
+- `POST /api/push/subscribe` now takes the owner only from the signed-in session:
+  - riders from the verified rider (or App Review) session;
+  - drivers from their own driver session, with no admin override.
+- `owner_id` in the request body is ignored. No session gives 401. A rider session can't register as a driver.
+- The rider and driver pages already send their sign-in on this request, so no page change is needed.
+- Tests: `test/server.push-subscribe-auth.test.js` (6, new).
+- `test/server.htaf-assistant.test.js` given a 30-second timeout: its first test timed out at 5 s on a cold cache, 2 of 3 runs, on this branch and on `main` alike. Now 4/4 with `--no-cache`.
+- Full suite: 2,899 passed, 2 failed (`server.htaf-assistant`, fixed above; `rider-navigation.browser`, load-related, passes alone). An earlier run with 12 scattered failures overlapped with a concurrent driver-app test run (CPU load) and did not recur.
+
+**Handoff:**
+- **Done:** #297 live; push fix built and tested.
+- **Remaining:** this PR's CI, then merge (pre-approved); phone-only deletion test; driver app emergency button and build.
+- **Next authorized action:** merge this PR when CI is green.
