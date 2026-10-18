@@ -2051,3 +2051,32 @@ The demo can then run in production with test money while rides keep their keys 
 - **Remaining:** merge approval for #290, then this PR; the test-mode demo (a test store with a pin and items, a test driver that can go online, a Stripe test card); rider-screens PR; driver app emergency button; driver email draft; admin driver-status label; push sign-up security fix.
 - **Next authorized action:** the rider-screens PR. Merges wait for the owner.
 
+
+## 51. Update 2026-10-18 (UTC): #290, #292 and #291 merged and live; rider-screen fixes (PR `claude/rider-screen-fixes`, not merged)
+
+**[Owner decision 2026-10-18]**
+1. "Approved. Proceed to merge PR #290 … immediately"; #291 pre-approved to merge once its CI was green; #292 approved to merge once CI passed.
+2. "You are cleared to begin the Rider Screen UI Fixes": dynamic CTAs, the assistant button overlap, a high-contrast status badge, rider name formatting, and hiding the App Review panel while keeping the sign-in link (review notes updated in the same PR).
+3. The owner adds the mailing address and sends the driver follow-up email (8 distinct applicants) linking to `/driver.html`. Not sent by an agent.
+
+**Merges [Verified 2026-10-18]:**
+- #290 → `4dc922c`; #292 → `4bb9a48`. `/api/health` reported `4bb9a48` at 06:19 UTC. `/driver.html` and `/driver` return 200; `/driver-dashboard.html` (with its query string) and `/driver-missions.html` return 301 to `/driver.html`.
+- #291: all six CI checks green on `5e009a0`; merged as `7f9cdfe`. `/api/health` reported `7f9cdfe`, healthy, at 06:23 UTC. Unauthenticated calls to `/api/admin/refund-proposals` (401) and `/api/merchant/claims` (403) are refused. No migration. Refunds use the orders test key only.
+
+**This PR [Verified 2026-10-18, local]:**
+- Rider home button: "Complete Rider Setup" (to `rider-signup.html`) with no rider session; "Request a Ride" otherwise, including straight after App Review sign-in.
+- Live status: a high-contrast badge in plain wording ("Driver on the way" instead of `driver_enroute`).
+- Rider names capitalized at display time only; names typed in mixed case are kept; stored values unchanged.
+- Harvey Assistant: a bottom spacer while its button shows, so the page's last controls scroll clear of it (all pages using `agent-assist.js`; cache version bumped).
+- App Review: the home-screen card is removed; a small "App Review Sign-In" link stays in the footer while signed out. `docs/app-review/review-notes-2026-10.md` updated.
+- Found and fixed during testing: the first version of the name formatter called a helper from another script block, which stopped the signed-in boot after App Review sign-in. A test now guards it.
+- Tests: `test/rider-dashboard.display-format.test.js` (19, new); `test/rider-dashboard.app-review-markup.test.js` and `test/app-review.browser.test.js` updated (16/16). Full suite 2,838 passed, 1 failed: `test/rider-navigation.browser.test.js` (a known load-related failure; 14/14 when run alone).
+
+**Just-in-Time booking [Recommendation, not approved]:** proposed to the owner: map and estimate first, sign-in at "Confirm Ride", one step per bottom sheet. **[Verified, code]** `/api/rides/estimate` needs no account; `/api/rides/request` checks rider readiness (email, phone, Persona if on, status) when `ENABLE_RIDER_APPROVAL_GATE` is on (default on; the production value is not confirmed). **[Unresolved]** Owner decisions needed: banner wording "Finish setup to book in one tap" (no $5 credit until budget and terms exist); when riders are approved (A: on phone verification, recommended; B: phone and email; C: staff review); go-ahead for the PR.
+
+**Security finding [Unresolved]:** `/api/rides/request` skips the readiness check when no rider ID is sent, which is possible while rider sign-in enforcement is off. **[Recommendation]** A separate PR, alongside the push sign-up fix (§49).
+
+**Handoff:**
+- **Done:** #290, #291, #292 live; rider-screen fixes built and tested locally.
+- **Remaining:** merge approval for this PR; the owner's decisions on Just-in-Time booking; driver app emergency button (needs a build); admin driver-status label; the two security fixes (need approval); the test-mode order demo.
+- **Next authorized action:** none. Merging this PR waits for the owner.
