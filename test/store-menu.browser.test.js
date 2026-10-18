@@ -1,6 +1,7 @@
-// Step 3b part 1 in Chromium at phone width: store list, menu, one-store
-// cart kept on the device, and the per-item out-of-stock choice (term 5).
-// Fixture data; nothing is ordered.
+// Step 3b in Chromium at phone width: store list, menu, one-store cart
+// kept on the device, the per-item out-of-stock choice (term 5), and
+// checkout through a test-card authorization. Fixture data; Stripe.js,
+// Stripe and the routing service are fakes (test mode only).
 //   NODE_PATH="$(npm root -g)" npx jest test/store-menu.browser
 process.env.NODE_ENV = "test";
 process.env.HARVEY_ISOLATED_TEST = "1";
@@ -9,14 +10,32 @@ process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
 process.env.RIDER_SESSION_SECRET = "test-rider-session-secret";
 process.env.RIDE_QUOTE_SECRET = "test-ride-quote-secret";
 process.env.ORDERS_STRIPE_SECRET_KEY = "sk_test_orders";
+process.env.ORDERS_STRIPE_PUBLISHABLE_KEY = "pk_test_orders";
 process.env.ENABLE_MERCHANT_ORDERS = "true";
+process.env.ORDERS_TEST_TAX_RATE_BPS = "1000";
+process.env.MAPBOX_ACCESS_TOKEN = require("./fixtures/fakeMapbox").TEST_TOKEN;
 
 const { createFakeSupabase } = require("./fakeSupabase");
 const { signRiderSession } = require("../lib/riderAuth");
 
 let mockClient;
 jest.mock("@supabase/supabase-js", () => ({ createClient: () => new Proxy({}, { get: (_t, k) => (mockClient && typeof mockClient[k] === "function" ? mockClient[k].bind(mockClient) : mockClient && mockClient[k]) }) }));
-jest.mock("stripe", () => function MockStripe() { return { paymentIntents: {} }; });
+const mockIntents = new Map();
+jest.mock("stripe", () =>
+  function MockStripe() {
+    return {
+      paymentIntents: {
+        create: async (params) => {
+          const intent = { id: `pi_test_${mockIntents.size + 1}`, amount: params.amount, status: "requires_payment_method", metadata: params.metadata, livemode: false, client_secret: `secret_${mockIntents.size + 1}` };
+          mockIntents.set(intent.id, intent);
+          return intent;
+        },
+        retrieve: async (id) => mockIntents.get(id),
+        cancel: async (id) => Object.assign(mockIntents.get(id), { status: "canceled" })
+      }
+    };
+  }
+);
 
 let chromium = null;
 try {
@@ -36,6 +55,8 @@ describeWithBrowser("Store menu and cart (phone width)", () => {
   let server;
   let browser;
   let base;
+  let realFetch;
+  const mapbox = require("./fixtures/fakeMapbox").createFakeMapbox();
 
   beforeAll(async () => {
     mockClient = createFakeSupabase({
@@ -56,9 +77,13 @@ describeWithBrowser("Store menu and cart (phone width)", () => {
     server = await new Promise((resolve) => { const s = app.listen(0, "127.0.0.1", () => resolve(s)); });
     base = `http://127.0.0.1:${server.address().port}`;
     browser = await chromium.launch();
+    realFetch = globalThis.fetch;
+    // The server's routing calls go to the fake; the browser's are its own.
+    globalThis.fetch = (url, init) => (/api\.mapbox\.com/.test(String(url)) ? mapbox.fetchImpl(url, init) : realFetch(url, init));
   });
 
   afterAll(async () => {
+    globalThis.fetch = realFetch;
     if (browser) await browser.close();
     if (server) {
       if (server.closeAllConnections) server.closeAllConnections();
@@ -108,7 +133,7 @@ describeWithBrowser("Store menu and cart (phone width)", () => {
     expect(await page.locator("#cartSubtotal").innerText()).toBe("$12.23");
     expect(await page.locator("#groceryNote").isVisible()).toBe(true);
     expect(await page.locator('.line[data-line="bread"]').innerText()).toMatch(/Refunded if out of stock/);
-    expect(await page.locator("#checkout").isDisabled()).toBe(true);
+    expect(await page.locator("#checkout").isEnabled()).toBe(true);
 
     // The cart survives a reload, and the menu reopens from the address.
     await page.reload({ waitUntil: "load" });
@@ -150,6 +175,89 @@ describeWithBrowser("Store menu and cart (phone width)", () => {
     await page.reload({ waitUntil: "load" });
     await page.waitForFunction(() => /removed from your cart: Bread/.test(document.getElementById("cartStatus").textContent));
     expect(await page.locator("#cartCard").isHidden()).toBe(true);
+    await context.close();
+  });
+
+  test("checkout: delivery fee from the store, tip, server totals with tax and the grocery hold, test card, order sent to the store", async () => {
+    mockClient._state.catalog_items.find((i) => i.id === "bread").available = true;
+    const { context, page } = await phone(true);
+    // Stand-in for Stripe.js (js.stripe.com is blocked in tests). Confirming
+    // the card marks the fake PaymentIntent authorized, as Stripe would.
+    await page.exposeFunction("__authorize", (secret) => {
+      const intent = [...mockIntents.values()].find((i) => i.client_secret === secret);
+      intent.status = "requires_capture";
+    });
+    await context.addInitScript(() => {
+      window.Stripe = (key) => ({
+        _key: key,
+        elements: ({ clientSecret }) => ({ _secret: clientSecret, create: () => ({ mount: (sel) => { document.querySelector(sel).textContent = "[test card form]"; } }) }),
+        confirmPayment: async ({ elements }) => { await window.__authorize(elements._secret); return { paymentIntent: { status: "requires_capture" } }; }
+      });
+    });
+    await page.goto(`${base}/store-menu.html?store=M1`, { waitUntil: "load" });
+    await page.locator('.item[data-item="milk"] button.add').click();
+    await page.locator('.item[data-item="bread"] button.add').click();
+    await page.locator('.line[data-line="milk"] select.choice').selectOption("contact");
+    await page.locator("#checkout").click();
+    await page.locator("#checkoutCard").waitFor();
+    expect(await page.locator("#placeOrder").isDisabled()).toBe(true);
+
+    await page.locator("#addrInput").fill("501 Broadway, Nashville");
+    await page.locator("#addrFind").click();
+    await page.waitForFunction(() => /Delivering to 501 Broadway/.test(document.getElementById("addrLabel").textContent));
+    expect(await page.locator("#addrLabel").innerText()).toMatch(/about 5\.2 miles/);
+    const fee = await page.locator("#pvFee").innerText();
+    expect(fee).toMatch(/^\$\d+\.\d\d$/);
+    expect(await page.locator("#pvItems").innerText()).toBe("$7.74");
+    await page.locator("#tipSelect").selectOption("500");
+    expect(await page.locator("#pvTip").innerText()).toBe("$5.00");
+    await page.locator("#notesInput").fill("Leave at the door");
+
+    await page.locator("#placeOrder").click();
+    await page.locator("#payCard").waitFor();
+    const order = mockClient._state.orders[0];
+    expect(order).toMatchObject({ status: "pending_payment", items_subtotal_cents: 774, tip_cents: 500, rider_notes: "Leave at the door", order_type: "grocery" });
+    expect(mockClient._state.order_items.find((i) => i.name === "Whole milk").substitution_choice).toBe("contact");
+    // The pay screen shows the server's figures, including tax and the hold.
+    expect(await page.locator("#payItems").innerText()).toBe("$7.74");
+    // Tax is rounded per line: $0.45 + $0.33.
+    expect(await page.locator("#payTax").innerText()).toBe("$0.78");
+    expect(await page.locator("#payFee").innerText()).toBe(fee);
+    expect(await page.locator("#payTotal").innerText()).toBe("$" + ((order.items_subtotal_cents + order.tax_cents + order.delivery_fee_cents + order.tip_cents) / 100).toFixed(2));
+    expect(await page.locator("#payHoldNote").innerText()).toContain("$" + (order.authorized_cents / 100).toFixed(2));
+    await page.waitForFunction(() => !document.getElementById("payButton").disabled);
+
+    await page.locator("#payButton").click();
+    await page.locator("#placedCard").waitFor();
+    expect(await page.locator("#placedStatus").innerText()).toMatch(/Sent to the store/);
+    expect(mockClient._state.orders[0].status).toBe("placed");
+    expect(await page.evaluate(() => localStorage.getItem("harvey_store_cart_v1"))).toBeNull();
+    expect(await page.locator("#placedCancel").isVisible()).toBe(true);
+
+    // The order page survives a reload; the rider can still cancel (D2).
+    await page.reload({ waitUntil: "load" });
+    await page.locator("#placedCard").waitFor();
+    page.once("dialog", (d) => d.accept());
+    await page.locator("#placedCancel").click();
+    await page.waitForFunction(() => /You cancelled this order/.test(document.getElementById("placedStatus").textContent));
+    expect(mockIntents.get(order.payment_intent_id).status).toBe("canceled");
+
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    expect(page.errors).toEqual([]);
+    await context.close();
+  });
+
+  test("checkout: an address the routing service can't reach gives a clear message and no way to pay", async () => {
+    const { context, page } = await phone(true);
+    await page.goto(`${base}/store-menu.html?store=M2`, { waitUntil: "load" });
+    await page.locator('.item[data-item="tenders"] button.add').click();
+    await page.locator("#checkout").click();
+    mapbox.setMode("no_route");
+    await page.locator("#addrInput").fill("2500 West End Ave");
+    await page.locator("#addrFind").click();
+    await page.waitForFunction(() => /couldn't find a driving route/.test(document.getElementById("checkoutStatus").textContent));
+    expect(await page.locator("#placeOrder").isDisabled()).toBe(true);
+    mapbox.reset();
     await context.close();
   });
 });

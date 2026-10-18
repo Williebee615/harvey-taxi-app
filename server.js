@@ -21416,6 +21416,57 @@ app.get(
   (req, res) => ok(res, { enabled: ENABLE_MERCHANT_ORDERS && ordersStripeTestMode(), test_mode: true, publishable_key: /^pk_test_/.test(ORDERS_STRIPE_PUBLISHABLE_KEY) ? ORDERS_STRIPE_PUBLISHABLE_KEY : null })
 );
 
+// The delivery fee for an order (step 3b part 2). The pickup is the
+// store's confirmed pin, read here and never sent to the rider; the road
+// distance comes from the routing service, not the device. The signed
+// quote is the only fee checkout accepts.
+app.post(
+  "/api/orders/estimate",
+  requireRider,
+  rateLimit({ windowMs: 10 * 60_000, max: 30, keyPrefix: "orders_estimate", keyFn: (req) => `r:${req.rider && req.rider.id}` }),
+  asyncRoute(async (req, res) => {
+    if (ordersUnavailable(res)) return;
+    if (!RIDE_QUOTE_SECRET) return fail(res, "Delivery estimates are not configured.", 503);
+    const body = req.body || {};
+    const destination = parseCoordPair(body.destination_lat, body.destination_lng);
+    const tn = merchantRules.TN_BOUNDS;
+    if (!destination || destination.lat < tn.minLat || destination.lat > tn.maxLat || destination.lng < tn.minLng || destination.lng > tn.maxLng) {
+      return fail(res, "Choose a delivery address in Tennessee.", 400);
+    }
+    const { data: store, error } = await supabase.from("merchants").select("id, business_name, category, status, pickup_lat, pickup_lng").eq("id", cleanString(body.merchant_id, 64)).maybeSingle();
+    if (dbNotReady(error)) return fail(res, "Ordering isn't set up yet.", 503);
+    if (!store || store.status !== "approved" || store.pickup_lat == null || store.pickup_lng == null) return fail(res, "This store isn't taking orders.", 404);
+    const { data: hours } = await supabase.from("merchant_hours").select("day_of_week, closed, opens_at, closes_at").eq("merchant_id", store.id);
+    if (!orderRules.isOpenAt(hours)) return fail(res, `${store.business_name} is closed right now.`, 409);
+
+    const pickup = { lat: Number(store.pickup_lat), lng: Number(store.pickup_lng) };
+    const route = await geoClient.route(pickup, destination);
+    if (!route.ok) {
+      if (route.error === GEO_ERROR.NO_ROUTE) return fail(res, "We couldn't find a driving route to that address.", 422);
+      return fail(res, "Delivery estimates aren't available right now. Please try again shortly.", 503);
+    }
+    const miles = Number(route.distance_miles);
+    const minutes = Number(route.duration_minutes);
+    if (!hasValidTripDistance({ miles, minutes })) return fail(res, "We couldn't find a driving route to that address.", 422);
+    if (miles > orderRules.MAX_DELIVERY_MILES) return fail(res, `That address is more than ${orderRules.MAX_DELIVERY_MILES} miles from ${store.business_name}.`, 422);
+
+    const rideType = orderRules.orderTypeFor(store.category);
+    const estimate = calculateRideEstimate({ miles, minutes, ride_type: rideType });
+    const riderId = String(req.rider.id);
+    const estimateToken = signRideQuote({ rideType, miles, minutes, pickup, destination, riderId, estimate, secret: RIDE_QUOTE_SECRET, ttlMinutes: RIDE_QUOTE_TTL_MINUTES });
+    auditLog({ actor_type: "rider", actor_id: riderId, action: "order_estimate_created", entity_type: "merchant", entity_id: store.id, metadata: { ride_type: rideType, miles, total: estimate.total }, req }).catch(() => {});
+    return ok(res, {
+      estimate_token: estimateToken,
+      ride_type: rideType,
+      delivery_fee_cents: Math.round(Number(estimate.total) * 100),
+      miles,
+      minutes,
+      expires_at: new Date(Date.now() + RIDE_QUOTE_TTL_MINUTES * 60 * 1000).toISOString(),
+      destination
+    });
+  })
+);
+
 // Checkout. Prices, availability and names come from the catalog; the
 // delivery fee from the signed, single-use fare quote (as for rides); the
 // tax rate from the test-mode placeholder. Safe to retry with the same
@@ -21456,7 +21507,12 @@ app.post(
     const tipCents = Number(body.tip_cents || 0);
     if (!Number.isInteger(tipCents) || tipCents < 0 || tipCents > orderRules.MAX_TIP_CENTS) return fail(res, "Choose a tip from $0 to $500.", 400);
     // The fare quote is bound to this rider and route; it can't be reused.
+    // Quotes from /api/orders/estimate start at the pin the rider never sees.
     req.body.rider_id = riderId;
+    if (req.body.pickup_lat == null && req.body.pickup_lng == null) {
+      req.body.pickup_lat = pinRow.pickup_lat;
+      req.body.pickup_lng = pinRow.pickup_lng;
+    }
     const quote = verifyOrderQuote(req, res);
     if (!quote) return;
     // The fee must be for a trip that starts at this store.

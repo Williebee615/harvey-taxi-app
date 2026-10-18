@@ -19,6 +19,7 @@ process.env.ENABLE_DELIVERY = "false";
 process.env.ENABLE_FOOD_DELIVERY = "false";
 process.env.ENABLE_GROCERY_DELIVERY = "false";
 process.env.ORDERS_TEST_TAX_RATE_BPS = "1000";
+process.env.MAPBOX_ACCESS_TOKEN = require("./fixtures/fakeMapbox").TEST_TOKEN;
 
 const request = require("supertest");
 const { createFakeSupabase } = require("./fakeSupabase");
@@ -382,5 +383,70 @@ describe("rider store list and menu (step 3b)", () => {
     mockClient._state.merchants.find((m) => m.id === "M1").market = "nashville";
     const r = await asRider().post("/api/orders/checkout", checkoutBody());
     expect(orders().find((o) => o.id === r.body.order.id).market).toBe("nashville");
+  });
+});
+
+describe("delivery estimate for an order (step 3b part 2)", () => {
+  const { createFakeMapbox } = require("./fixtures/fakeMapbox");
+  const fake = createFakeMapbox();
+  const realFetch = globalThis.fetch;
+  beforeAll(() => { globalThis.fetch = fake.fetchImpl; });
+  afterAll(() => { globalThis.fetch = realFetch; });
+  beforeEach(() => fake.reset());
+  const estimate = (body, rider) => asRider(rider).post("/api/orders/estimate", { merchant_id: "M1", destination_lat: DROPOFF.lat, destination_lng: DROPOFF.lng, ...body });
+
+  test("routes from the store's pin by road, signs the fee, and never sends the pin", async () => {
+    expect((await request(app).post("/api/orders/estimate").set(RH).send({ merchant_id: "M1" })).status).toBe(401);
+    const r = await estimate({ pickup_lat: 36.0, pickup_lng: -86.0, miles: 0.1 });
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({ ride_type: "grocery", miles: 5.2, minutes: 14, destination: DROPOFF });
+    expect(r.body.delivery_fee_cents).toBeGreaterThan(0);
+    expect(JSON.stringify(r.body)).not.toMatch(/pickup|36\.1627|-86\.7816/);
+    // The route starts at the pin, not at anything the device sent.
+    expect(fake.calls[0].path).toBe(`/directions/v5/mapbox/driving/${PICKUP.lng},${PICKUP.lat};${DROPOFF.lng},${DROPOFF.lat}`);
+    expect(mockClient._state.audit_logs.map((a) => a.action)).toContain("order_estimate_created");
+
+    // Checkout with that quote, without sending the pin, charges the quoted fee.
+    const body = { merchant_id: "M1", items: [{ catalog_item_id: "bread", quantity: 1 }], tip_cents: 0, client_order_key: "estimate-key-1", estimate_token: r.body.estimate_token, ride_type: r.body.ride_type, destination_lat: DROPOFF.lat, destination_lng: DROPOFF.lng };
+    const c = await asRider().post("/api/orders/checkout", body);
+    expect(c.status).toBe(201);
+    expect(c.body.order.delivery_fee_cents).toBe(r.body.delivery_fee_cents);
+    // Single use.
+    const again = await asRider().post("/api/orders/checkout", { ...body, client_order_key: "estimate-key-2" });
+    expect(again.status).toBe(409);
+  });
+
+  test.each([
+    ["an address outside Tennessee", { destination_lat: 40.7128, destination_lng: -74.006 }, 400, /in Tennessee/],
+    ["no address", { destination_lat: null, destination_lng: null }, 400, /in Tennessee/],
+    ["a store without a pin", { merchant_id: "M4" }, 404, /isn't taking orders/],
+    ["a store with no hours (closed)", { merchant_id: "M3" }, 409, /closed right now/]
+  ])("refuses %s", async (_label, body, status, message) => {
+    const r = await estimate(body);
+    expect(r.status).toBe(status);
+    expect(r.body.error || r.body.message).toMatch(message);
+    expect(fake.calls).toHaveLength(0);
+  });
+
+  test("no route, a routing outage, or a trip past the delivery limit gives no quote", async () => {
+    fake.setMode("no_route");
+    expect((await estimate({})).status).toBe(422);
+    fake.setMode("http_500");
+    const down = await estimate({});
+    expect(down.status).toBe(503);
+    expect(down.body.estimate_token).toBeUndefined();
+    fake.reset();
+    const realImpl = fake.fetchImpl;
+    globalThis.fetch = async () => new Response(JSON.stringify({ code: "Ok", routes: [{ distance: 40000, duration: 2400 }] }), { status: 200, headers: { "Content-Type": "application/json" } });
+    const far = await estimate({});
+    globalThis.fetch = realImpl;
+    expect(far.status).toBe(422);
+    expect(far.body.error || far.body.message).toMatch(/more than 15 miles/);
+  });
+
+  test("a quote for one rider can't be used by another", async () => {
+    const r = await estimate({});
+    const body = { merchant_id: "M1", items: [{ catalog_item_id: "bread", quantity: 1 }], tip_cents: 0, client_order_key: "estimate-key-3", estimate_token: r.body.estimate_token, ride_type: "grocery", destination_lat: DROPOFF.lat, destination_lng: DROPOFF.lng };
+    expect((await asRider(RIDER2).post("/api/orders/checkout", body)).status).toBe(400);
   });
 });

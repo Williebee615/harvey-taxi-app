@@ -1867,3 +1867,28 @@ The demo can then run in production with test money while rides keep their keys 
   - 3b part 2 (orders-only estimate, checkout screen, Stripe test card step);
   - 3c.
 - **Next authorized action:** building 3b part 2 (Step 3b is authorized). Merging and the migration need the owner's approval.
+
+## 44. Update 2026-10-18 (UTC): step 3b part 2, checkout (PR `claude/phase3b-checkout`, stacked on #284, not merged)
+
+**[Verified 2026-10-18 ~01:30 UTC, GitHub]** PR #284 (part 1): all six CI checks green on `e1edced`. Not merged; it needs the owner's approval.
+
+**[Owner decision 2026-10-18]** "We are cleared to proceed with Step 3b" covers this part. Merging, the markets migration and the demo settings each still need their own approval.
+
+**Step 3b part 2 (this PR) [Verified 2026-10-18, local]:** details are in `docs/merchant-portal-phase3-orders.md` §11b.
+- `POST /api/orders/estimate`: the delivery fee from the store's pin to the rider's address by road, signed and single use. The pin never leaves the server.
+- Checkout, pay and order-status screens on `/store-menu.html`; a Stripe test card authorizes the order, then the server checks Stripe before the store sees it.
+- The Delivery Center links to store ordering only while ordering is on. Production still reports it off, so nothing changes for riders until the owner adds the demo settings.
+- **[Recommendation]** A 15-road-mile delivery limit until the owner sets the delivery area.
+- **[Unresolved]** Tax is still the test-mode placeholder (`ORDERS_TEST_TAX_RATE_BPS`, default 0) pending the accountant's advice.
+- Tests: `test/server.orders.test.js` (4 new, 7 cases: pin used and not sent, fee carried into checkout, single use, Tennessee only, no pin, closed, no route, outage, 15-mile limit, another rider's quote refused); `test/store-menu.browser.test.js` (2 new, Chromium at 390 px: full checkout with a stand-in for Stripe.js, totals with tax and grocery hold, test-card authorization, order placed, cart cleared, reload, cancel releases the hold; no-route message).
+
+**Handoff:**
+- **Done:** 3b part 2 built and tested locally.
+- **Remaining:**
+  - merge approval for #284, then for this PR;
+  - approval to run the markets migration;
+  - the demo settings on Render (`ORDERS_STRIPE_SECRET_KEY`, `ORDERS_STRIPE_PUBLISHABLE_KEY`, `ENABLE_MERCHANT_ORDERS=true`; names only);
+  - the owner's choice of delivery area (or confirming 15 miles);
+  - 3c.
+- **Next authorized action:** none beyond reporting. Merges, the migration and turning ordering on wait for the owner's approval.
+

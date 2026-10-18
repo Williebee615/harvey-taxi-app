@@ -3319,6 +3319,10 @@
         <strong>Delivery is paused.</strong> We're finishing ordering with local restaurants and stores, so new deliveries can't be requested yet. Any delivery already in progress still shows below.
         <a href="mailto:support@harveytaxiservice.com?subject=Waitlist%3A%20food%20delivery&amp;body=Please%20add%20me%20to%20the%20delivery%20waitlist.%20My%20city%3A%20" data-intent="waitlist_delivery">Join the delivery waitlist by email</a>.
       </p>
+      <p class="delivery-paused-note hidden" id="storeOrderingNote">
+        <strong>Order from a partner store (test mode).</strong> Browse a store's menu, choose what happens if an item is out of stock, and check out with a test card.
+        <a href="/store-menu.html" id="storeOrderingLink">Open store ordering</a>.
+      </p>
       <div class="services-grid">
         <button class="service-card" type="button" data-action="food" data-center="delivery" id="requestFoodDeliveryBtn">
           <div class="service-icon">🍔</div>
@@ -11550,6 +11554,16 @@
       }
     }
     loadDeliveryAvailability();
+
+    // Ordering from partner stores (step 3b) is separate from the paused
+    // booking above; the link shows only while the server has it on.
+    fetch("/api/orders/config", { credentials: "same-origin", cache: "no-store" })
+      .then((res) => res.json())
+      .then((data) => {
+        const note = document.getElementById("storeOrderingNote");
+        if (note) note.classList.toggle("hidden", !(data && data.enabled));
+      })
+      .catch(() => {});
 
     function goDelivery(type) {
       const kind = type === "grocery" ? "grocery" : "food";
