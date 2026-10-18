@@ -163,8 +163,11 @@ Checks in the database: amounts never negative; `captured_cents ≤ authorized_c
 **[Verified 2026-10-18, code and tests]** These change details of §3–§10, not the approved decisions:
 
 1. **Two more states.** Stripe authorizes the card on the rider's device, so an order starts as `pending_payment`. It becomes `placed` only after the server checks with Stripe that the card is authorized for exactly the order's amount. An unpaid checkout closes as `payment_abandoned` after 15 minutes, releasing any hold.
-2. **The delivery trip is not created at acceptance yet.** Store locations (map coordinates) aren't stored today, so a trip created now would rely on the rider's route. Trip creation moves to a later step, together with store coordinates (**[Unresolved]**: geocode store addresses at approval, or have staff confirm the pin). The pickup and drop-off coordinates from the fare quote are kept on the order.
-3. **Delivery fee** comes from the existing signed fare quote, bound to the rider and route and usable once, as for rides. Until store coordinates exist, the quote's pickup point is the rider's, not checked against the store (the same trust rides use today).
+2. **The delivery trip is not created at acceptance yet.** Trip creation moves to a later step. The pickup and drop-off coordinates from the fare quote are kept on the order.
+3. **Delivery fee** comes from the existing signed fare quote, bound to the rider and route and usable once, as for rides.
+   - **[Owner decision 2026-10-18]** Store location: "Staff confirm a map pin during the store approval process."
+   - Built in PR `claude/store-pickup-pin`: staff paste the pickup entrance's coordinates (or a Google Maps link) on the admin dashboard; the pin must be in Tennessee; who confirmed it and when are kept; audited.
+   - A store takes orders only once it has a pin, and a fee quote must start within 150 m of it. No geocoding service is used.
 4. **Store hours** are checked at checkout. A store that has saved no hours for today counts as closed.
 5. **Separate Stripe tag.** Order authorizations carry `app: harvey_taxi_orders`, so the ride payment reconciliation, which releases unattached `harvey_taxi` holds, never touches an order. Orders release their own holds.
 6. **Test mode is enforced in code:** checkout refuses unless `ENABLE_MERCHANT_ORDERS` is on and Stripe uses test keys (`sk_test_` / `rk_test_`), and refuses any live-mode authorization.

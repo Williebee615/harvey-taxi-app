@@ -1722,3 +1722,53 @@ No code, migration or Stripe change.
   - steps 3b and 3c;
   - the store-coordinates decision.
 - **Next authorized action:** none. Merging, the migration and turning ordering on each need the owner's approval.
+
+## 41. Update 2026-10-18 (UTC): #281 merged; orders migration not applied (confirmation cancelled); store pickup pin (PR `claude/store-pickup-pin`, not merged); demo activation needs a decision
+
+**[Owner decision 2026-10-18]**
+1. "Approved. Proceed to merge PR #281".
+2. "Authorize the application of the order tables migration in the production database following the merge".
+3. "Authorize turning on ordering in test mode (enabling ENABLE_MERCHANT_ORDERS and delivery settings with Stripe test keys) for the upcoming test-mode demo once the migration is applied".
+4. Store location: "Staff confirm a map pin during the store approval process".
+
+**[Verified 2026-10-18 00:37 UTC, production]**
+- All six CI checks were green on `b42e4ac`; #281 merged as `1d919e9`; `/api/health` reports `1d919e9`, healthy.
+- Without sign-in, the new routes refuse: `GET /api/admin/orders` 401, `POST /api/orders/checkout` 401, `GET /api/merchant/orders` 401.
+
+**[Unresolved] Orders migration not applied.**
+- The `apply_migration` call for `20261018010000_orders.sql` (identical to `main`, SHA-256 `afd5d606…`) returned "cancelled": the confirmation it asked for was not given in this session, as with the earlier DELETE.
+- **[Verified 2026-10-18]** Nothing was partly applied: `orders`, `order_items`, `order_events` and the trigger function don't exist.
+- Next: the owner runs the merged file in the Supabase SQL editor, or approves the confirmation; then the session verifies.
+
+**[Unresolved] Demo activation: two side effects found before switching anything on.** Nothing has been switched on.
+1. **The delivery switches would reopen the old delivery booking.** `ENABLE_DELIVERY`, `ENABLE_FOOD_DELIVERY` and `ENABLE_GROCERY_DELIVERY` also control the existing free-text delivery booking that #260 paused. Turning them on for the demo would let any rider book an old-style delivery again (verified in code: `deliveryBookingEnabled()` and `rejectUnavailableRideType()`).
+2. **Stripe keys are shared with rides.** Orders refuse live keys by design. If production's Stripe key is live (this session can't see the key, by design), switching production to test keys would stop real ride payments.
+
+**[Recommendation]** A small follow-up PR:
+- orders use their own test key (`ORDERS_STRIPE_SECRET_KEY`, which must start with `sk_test_`), separate from the ride key;
+- orders no longer depend on the general delivery switches (only `ENABLE_MERCHANT_ORDERS`).
+
+The demo can then run in production with test money while rides keep their keys and delivery booking stays paused. Needs the owner's go-ahead.
+
+**Store pickup pin [Verified 2026-10-18, local]:**
+- Migration `20261018020000_merchant_pickup_pin.sql` (not applied; needs separate approval): pin columns on `merchants`, with who confirmed it and when; a check requires all four together.
+- `parsePickupPin`: coordinates or a Google Maps link; Tennessee only.
+- `POST /api/admin/merchants/:id/pickup-pin`: approved or paused stores; audited.
+- The admin list shows the pin, a link to the address in Google Maps, and "Set pin". It reads pins separately, so the list still works before the migration.
+- Checkout now needs a pinned store and a fee quote starting within 150 m of the pin.
+- Tests:
+  - `lib/merchants.test.js`: 9 new;
+  - `lib/orders.test.js`: 1 new;
+  - `test/server.orders.test.js`: 4 new;
+  - `test/db/merchantPickupPin.db.test.js`: 1;
+  - `test/admin-merchants.browser.test.js`: 1 new.
+- Database suite: 172 passed, 4 skipped. Full suite: 2,773 passed.
+
+**Handoff:**
+- **Done:** #281 live (ordering off); pickup pin built.
+- **Remaining:**
+  - the orders migration (owner to run or confirm);
+  - merge and migration approvals for the pin PR;
+  - the owner's go-ahead on the separate-test-key recommendation before any demo switch-on;
+  - step 3b.
+- **Next authorized action:** none until the migration confirmation and the activation decision.

@@ -20649,7 +20649,14 @@ app.get(
       const { data: users } = await supabase.from("merchant_users").select("id, merchant_id, name, phone, status, last_sign_in_at").in("merchant_id", ids);
       for (const u of users || []) (usersByMerchant[u.merchant_id] = usersByMerchant[u.merchant_id] || []).push(u);
     }
-    return ok(res, { merchants: (data || []).map((m) => ({ ...m, review_flags: flags[m.id] || [], sign_in_users: usersByMerchant[m.id] || [] })) });
+    // Pickup pins, read separately so the list still works before the pin
+    // migration is applied.
+    const pins = {};
+    if (ids.length) {
+      const { data: pinRows } = await supabase.from("merchants").select(["id", ...merchantRules.PICKUP_PIN_FIELDS].join(", ")).in("id", ids);
+      for (const p of pinRows || []) pins[p.id] = p;
+    }
+    return ok(res, { merchants: (data || []).map((m) => ({ ...m, review_flags: flags[m.id] || [], sign_in_users: usersByMerchant[m.id] || [], pickup_pin: pins[m.id] && pins[m.id].pickup_lat != null ? { lat: pins[m.id].pickup_lat, lng: pins[m.id].pickup_lng, confirmed_by: pins[m.id].pickup_pin_confirmed_by, confirmed_at: pins[m.id].pickup_pin_confirmed_at } : null })) });
   })
 );
 
@@ -20845,6 +20852,30 @@ app.put(
     if (error) return fail(res, "Hours could not be saved.", 502);
     auditLog({ actor_type: "merchant_user", actor_id: req.merchantUser.id, action: "merchant_hours_updated", entity_type: "merchant", entity_id: req.merchant.id, metadata: { days: checked.rows }, req }).catch(() => {});
     return ok(res, { hours: checked.rows });
+  })
+);
+
+// Store pickup pin (owner decision 2026-10-18). Staff paste coordinates
+// copied from a map at the store's pickup entrance. Orders need a pin, and
+// a delivery-fee quote must start within 150 m of it. Audited.
+app.post(
+  "/api/admin/merchants/:id/pickup-pin",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const pin = merchantRules.parsePickupPin(req.body && req.body.pin);
+    if (!pin.ok) return fail(res, pin.error, 400);
+    const id = cleanString(req.params.id, 64);
+    const { data, error } = await supabase
+      .from("merchants")
+      .update({ pickup_lat: pin.lat, pickup_lng: pin.lng, pickup_pin_confirmed_by: req.admin.email || req.admin.id, pickup_pin_confirmed_at: nowIso() })
+      .eq("id", id)
+      .in("status", ["approved", "suspended"])
+      .select("id")
+      .maybeSingle();
+    if (error) return fail(res, error.code === "42703" ? "Pickup pins aren't set up yet (database migration not applied)." : "The pin could not be saved.", error.code === "42703" ? 503 : 502);
+    if (!data) return fail(res, "Pins can be set for approved or paused stores only.", 409);
+    auditLog({ actor_type: "admin", actor_id: req.admin.email, action: "merchant_pickup_pin_set", entity_type: "merchant", entity_id: id, metadata: { lat: pin.lat, lng: pin.lng }, req }).catch(() => {});
+    return ok(res, { pickup_pin: { lat: pin.lat, lng: pin.lng } });
   })
 );
 
@@ -21300,6 +21331,9 @@ app.post(
 
     const { data: store } = await supabase.from("merchants").select("id, business_name, category, status").eq("id", cleanString(body.merchant_id, 64)).maybeSingle();
     if (!store || store.status !== "approved") return fail(res, "This store isn't taking orders.", 404);
+    // A store takes orders only once staff have confirmed its pickup pin.
+    const { data: pinRow } = await supabase.from("merchants").select("pickup_lat, pickup_lng").eq("id", store.id).maybeSingle();
+    if (!pinRow || pinRow.pickup_lat == null || pinRow.pickup_lng == null) return fail(res, "This store isn't taking orders yet.", 409);
     const { data: hours } = await supabase.from("merchant_hours").select("day_of_week, closed, opens_at, closes_at").eq("merchant_id", store.id);
     if (!orderRules.isOpenAt(hours)) return fail(res, `${store.business_name} is closed right now.`, 409);
 
@@ -21315,6 +21349,10 @@ app.post(
     req.body.rider_id = riderId;
     const quote = verifyAndConsumeRideQuote(req, res);
     if (!quote) return;
+    // The fee must be for a trip that starts at this store.
+    if (!quote.pickup || orderRules.distanceMeters(quote.pickup, { lat: pinRow.pickup_lat, lng: pinRow.pickup_lng }) > orderRules.PICKUP_TOLERANCE_M) {
+      return fail(res, "Please get a fresh delivery estimate from this store.", 400);
+    }
     const deliveryFeeCents = Math.round(Number(quote.estimate.total) * 100);
     const totals = orderRules.computeTotals({ lines: built.lines, orderType, taxRateBps: ORDERS_TEST_TAX_RATE_BPS, deliveryFeeCents, tipCents });
 

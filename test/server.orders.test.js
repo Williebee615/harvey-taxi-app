@@ -62,7 +62,7 @@ const RIDER2 = { ...BASE_RIDER, id: "RIDER_2", first_name: "Ben", email: "ben@ex
 let RIDER = BASE_RIDER;
 let riderN = 0;
 const allDay = (merchantId) => [0, 1, 2, 3, 4, 5, 6].map((d) => ({ merchant_id: merchantId, day_of_week: d, closed: false, opens_at: "00:00:00", closes_at: "24:00:00" }));
-const store = (id, category) => ({ id, business_name: `TEST Store ${id}`, category, address_line: "1 Test St", city: "Nashville", postal_code: "37203", contact_name: "O", contact_phone: "+16155550100", contact_email: `${id}@example.test`, status: "approved", created_at: "2026-10-17T00:00:00Z" });
+const store = (id, category, pin = PICKUP) => ({ id, business_name: `TEST Store ${id}`, category, pickup_lat: pin ? pin.lat : null, pickup_lng: pin ? pin.lng : null, pickup_pin_confirmed_by: pin ? "staff@example.test" : null, pickup_pin_confirmed_at: pin ? "2026-10-18T00:00:00Z" : null, address_line: "1 Test St", city: "Nashville", postal_code: "37203", contact_name: "O", contact_phone: "+16155550100", contact_email: `${id}@example.test`, status: "approved", created_at: "2026-10-17T00:00:00Z" });
 const item = (id, merchantId, extra = {}) => ({ id, merchant_id: merchantId, name: id, price_cents: 500, available: true, substitutable: false, review_status: "listed", review_flags: [], archived_at: null, ...extra });
 
 let app;
@@ -79,8 +79,8 @@ beforeEach(() => {
   mockCalls.cancel.length = 0;
   mockClient = createFakeSupabase({
     riders: [{ ...RIDER }, { ...RIDER2 }],
-    merchants: [store("M1", "grocery"), store("M2", "restaurant"), store("M3", "restaurant")],
-    merchant_hours: [...allDay("M1"), ...allDay("M2")],
+    merchants: [store("M1", "grocery"), store("M2", "restaurant"), store("M3", "restaurant"), store("M4", "restaurant", null)],
+    merchant_hours: [...allDay("M1"), ...allDay("M2"), ...allDay("M4")],
     merchant_users: [
       { id: "U0000001", merchant_id: "M1", phone: "+16155550001", name: "Owner", role: "owner", status: "active", session_version: 0 },
       { id: "U0000002", merchant_id: "M2", phone: "+16155550002", name: "Owner", role: "owner", status: "active", session_version: 0 }
@@ -89,7 +89,8 @@ beforeEach(() => {
       item("milk", "M1", { name: "Whole milk", price_cents: 449, substitutable: true }),
       item("bread", "M1", { name: "Bread", price_cents: 325 }),
       item("beer", "M1", { name: "Craft beer", review_status: "held" }),
-      item("burger", "M2", { name: "Burger", price_cents: 1099 })
+      item("burger", "M2", { name: "Burger", price_cents: 1099 }),
+      item("taco", "M4", { name: "Taco", price_cents: 399 })
     ],
     orders: [],
     order_items: [],
@@ -116,10 +117,10 @@ const asStore = (userId = "U0000001", merchantId = "M1") => ({
 const admin = (r) => r.set("x-admin-token", "test-admin-token");
 
 let keyN = 0;
-function checkoutBody({ rider = RIDER, merchant = "M1", rideType = "grocery", items = [{ catalog_item_id: "milk", quantity: 2, substitution_choice: "best_match", unit_price_cents: 1 }, { catalog_item_id: "bread", quantity: 1 }], tip = 200, key, quoteTotal = 11.5, jti } = {}) {
+function checkoutBody({ rider = RIDER, merchant = "M1", rideType = "grocery", items = [{ catalog_item_id: "milk", quantity: 2, substitution_choice: "best_match", unit_price_cents: 1 }, { catalog_item_id: "bread", quantity: 1 }], tip = 200, key, quoteTotal = 11.5, jti, pickup = PICKUP } = {}) {
   keyN += 1;
-  const estimate_token = signRideQuote({ rideType, miles: 3.2, minutes: 12, pickup: PICKUP, destination: DROPOFF, riderId: rider.id, estimate: { total: quoteTotal, miles: 3.2, minutes: 12 }, secret: process.env.RIDE_QUOTE_SECRET, ttlMinutes: 15, ...(jti ? { jti } : {}) });
-  return { merchant_id: merchant, items, tip_cents: tip, client_order_key: key || `order-key-${keyN}`, estimate_token, ride_type: rideType, pickup_lat: PICKUP.lat, pickup_lng: PICKUP.lng, destination_lat: DROPOFF.lat, destination_lng: DROPOFF.lng, rider_notes: "Ring the bell" };
+  const estimate_token = signRideQuote({ rideType, miles: 3.2, minutes: 12, pickup, destination: DROPOFF, riderId: rider.id, estimate: { total: quoteTotal, miles: 3.2, minutes: 12 }, secret: process.env.RIDE_QUOTE_SECRET, ttlMinutes: 15, ...(jti ? { jti } : {}) });
+  return { merchant_id: merchant, items, tip_cents: tip, client_order_key: key || `order-key-${keyN}`, estimate_token, ride_type: rideType, pickup_lat: pickup.lat, pickup_lng: pickup.lng, destination_lat: DROPOFF.lat, destination_lng: DROPOFF.lng, rider_notes: "Ring the bell" };
 }
 const orders = () => mockClient._state.orders;
 const events = (orderId) => mockClient._state.order_events.filter((e) => e.order_id === orderId).map((e) => e.to_status);
@@ -170,7 +171,9 @@ describe("checkout", () => {
     ["another store's item", { items: [{ catalog_item_id: "burger", quantity: 1 }] }, 409, /no longer available/],
     ["a closed store", { merchant: "M3", rideType: "food", items: [{ catalog_item_id: "burger", quantity: 1 }] }, 409, /closed right now/],
     ["the wrong delivery type for the store", { rideType: "food" }, 400, /fresh delivery estimate/],
-    ["a tip over $500", { tip: 50001 }, 400, /tip/]
+    ["a tip over $500", { tip: 50001 }, 400, /tip/],
+    ["a store without a confirmed pickup pin", { merchant: "M4", rideType: "food", items: [{ catalog_item_id: "taco", quantity: 1 }] }, 409, /isn't taking orders yet/],
+    ["a delivery quote that doesn't start at the store (about 1.3 km away)", { pickup: { lat: 36.1745, lng: -86.7816 } }, 400, /fresh delivery estimate from this store/]
   ])("refuses %s", async (_label, opts, status, error) => {
     const r = await asRider().post("/api/orders/checkout", checkoutBody(opts));
     expect(r.status).toBe(status);
@@ -296,5 +299,24 @@ describe("staff", () => {
     await asStore().post(`/api/merchant/orders/${id}/accept`, { prep_minutes: 10 });
     orders()[0].accepted_at = new Date(Date.now() - 31 * 60 * 1000).toISOString();
     expect((await admin(request(app).get("/api/admin/orders"))).body.orders[0].attention).toMatch(/preparation time/);
+  });
+});
+
+describe("store pickup pin (staff)", () => {
+  const pin = (id, body) => admin(request(app).post(`/api/admin/merchants/${id}/pickup-pin`)).send(body);
+  test("admin only; paste coordinates or a Google Maps link; must be in Tennessee; audited", async () => {
+    expect((await request(app).post("/api/admin/merchants/M4/pickup-pin").send({ pin: "36.1627, -86.7816" })).status).toBe(401);
+    expect((await pin("M4", { pin: "somewhere downtown" })).status).toBe(400);
+    expect((await pin("M4", { pin: "40.7128, -74.0060" })).body.error).toMatch(/isn't in Tennessee/);
+    const r = await pin("M4", { pin: "https://www.google.com/maps/place/Store/@36.158812,-86.778344,17z" });
+    expect(r.body.pickup_pin).toEqual({ lat: 36.158812, lng: -86.778344 });
+    expect(mockClient._state.merchants.find((m) => m.id === "M4")).toMatchObject({ pickup_lat: 36.158812, pickup_lng: -86.778344, pickup_pin_confirmed_by: expect.any(String), pickup_pin_confirmed_at: expect.any(String) });
+    expect(mockClient._state.audit_logs.map((a) => a.action)).toContain("merchant_pickup_pin_set");
+    const list = await admin(request(app).get("/api/admin/merchants"));
+    expect(list.body.merchants.find((m) => m.id === "M4").pickup_pin).toMatchObject({ lat: 36.158812, lng: -86.778344 });
+  });
+  test("pins are for approved or paused stores only", async () => {
+    mockClient._state.merchants.find((m) => m.id === "M4").status = "pending";
+    expect((await pin("M4", { pin: "36.1627, -86.7816" })).status).toBe(409);
   });
 });
