@@ -213,4 +213,28 @@ describeWithBrowser("Admin dashboard: merchant applications", () => {
     await page.locator("#heldItemsList").locator("text=Cigarettes").waitFor();
     await context.close();
   });
+
+  test("staff set a store's pickup pin from a pasted Google Maps link; audited", async () => {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 1600 } });
+    await context.addCookies([{ name: "htaf_admin_session", value: session("owner@harvey.example"), url: base }]);
+    await context.route(/^https?:\/\/(?!127\.0\.0\.1)/, (route) => route.abort());
+    const page = await context.newPage();
+    await page.goto(`${base}/admin-dashboard.html`, { waitUntil: "load" });
+
+    const row = page.locator("#merchantsList .item", { hasText: "TEST Synthetic Diner" }).locator(".merchant-pin");
+    await row.waitFor();
+    expect(await row.innerText()).toMatch(/not set\. The store can't take orders until it has one\./);
+    expect(await row.locator("a", { hasText: "Open address in Google Maps" }).getAttribute("href")).toBe("https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent("100 Test Ave, Nashville, TN, 37203"));
+
+    page.once("dialog", (d) => d.accept("40.7128, -74.0060"));
+    await row.locator('button[data-merchant-pin="M-SYN-1"]').click();
+    await page.waitForFunction(() => /isn't in Tennessee/.test(document.body.innerText));
+
+    page.once("dialog", (d) => d.accept("https://www.google.com/maps/place/Diner/@36.158812,-86.778344,17z"));
+    await page.locator('button[data-merchant-pin="M-SYN-1"]').click();
+    await page.waitForFunction(() => /36\.158812, -86\.778344 \(confirmed by owner@harvey\.example/.test(document.getElementById("merchantsList").innerText));
+    expect(mockClient._state.merchants.find((m) => m.id === "M-SYN-1")).toMatchObject({ pickup_lat: 36.158812, pickup_lng: -86.778344, pickup_pin_confirmed_by: "owner@harvey.example" });
+    expect(mockClient._state.audit_logs.map((a) => a.action)).toContain("merchant_pickup_pin_set");
+    await context.close();
+  });
 });

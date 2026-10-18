@@ -429,6 +429,7 @@ async function loadMerchants(){
       ${(m.review_flags || []).length ? `<div class="merchant-flags" role="note" aria-label="Review flags"><strong>⚠ Check before deciding:</strong><ul>${m.review_flags.map(f => `<li>${esc(f.label)}</li>`).join("")}</ul><span class="item-sub">Flags are hints for staff, not decisions.</span></div>` : ""}
       ${m.reviewed_at ? `<div class="item-sub">Reviewed by ${esc(m.reviewed_by)} ${esc(new Date(m.reviewed_at).toLocaleString())}${m.review_reason ? ": " + esc(m.review_reason) : ""}</div>` : ""}
       ${m.status === "approved" ? `<div class="item-sub merchant-signin"><strong>Store sign-in:</strong> ${(m.sign_in_users || []).filter(u => u.status === "active").map(u => `${esc(u.name)} (${esc(u.phone)}) <button class="danger" type="button" data-merchant-user-remove="${esc(u.id)}">Remove</button>`).join(" ") || "nobody yet"} <button class="neutral" type="button" data-merchant-signin-add="${esc(m.id)}" data-default-phone="${esc(m.contact_phone)}" data-default-name="${esc(m.contact_name)}">Give sign-in access</button></div>` : ""}
+      ${["approved", "suspended"].includes(m.status) ? `<div class="item-sub merchant-pin"><strong>Pickup pin:</strong> ${m.pickup_pin ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(m.pickup_pin.lat + "," + m.pickup_pin.lng)}" target="_blank" rel="noopener">${esc(m.pickup_pin.lat)}, ${esc(m.pickup_pin.lng)}</a> (confirmed by ${esc(m.pickup_pin.confirmed_by)} ${esc(new Date(m.pickup_pin.confirmed_at).toLocaleDateString())})` : `not set. The store can't take orders until it has one.`} <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([m.address_line, m.city, "TN", m.postal_code].filter(Boolean).join(", "))}" target="_blank" rel="noopener">Open address in Google Maps</a> <button class="neutral" type="button" data-merchant-pin="${esc(m.id)}">${m.pickup_pin ? "Change pin" : "Set pin"}</button></div>` : ""}
       ${["approved", "suspended"].includes(m.status) ? `<div class="item-sub"><button class="neutral" type="button" data-merchant-catalog="${esc(m.id)}" aria-expanded="false">View catalog</button></div><div class="merchant-catalog" data-catalog-for="${esc(m.id)}" hidden></div>` : ""}
       ${m.status === "approved" ? `<details class="staff-import" data-import-for="${esc(m.id)}"><summary>Import a CSV for this store</summary>
         <div class="item-sub">For a spreadsheet the store sent in. Same format as the store's own import (<a href="/merchant-catalog-template.csv" download>template</a>, <a href="/merchant-catalog-example.csv" download>example</a>). Possibly-excluded items are still held for review. Audited.</div>
@@ -600,6 +601,20 @@ document.getElementById("merchantsList").addEventListener("click", async (event)
     runBtn.hidden = true;
   }
   btn.disabled = false;
+});
+// Store pickup pin (owner decision 2026-10-18): staff find the pickup
+// entrance in Google Maps, copy its coordinates (or the link) and paste
+// them here. Orders need a pin; audited.
+document.getElementById("merchantsList").addEventListener("click", async (event) => {
+  const btn = event.target.closest("button[data-merchant-pin]");
+  if (!btn) return;
+  const pin = (window.prompt("In Google Maps, right-click the store's pickup entrance and copy the coordinates (or the link), then paste here:") || "").trim();
+  if (!pin) return;
+  try {
+    await api(`/api/admin/merchants/${encodeURIComponent(btn.dataset.merchantPin)}/pickup-pin`, { method: "POST", body: JSON.stringify({ pin }) });
+    showResult("Pickup pin saved.");
+  } catch (e) { showError(e.message); }
+  loadMerchants();
 });
 // Store sign-in access (merchant portal phase 1b). Giving access lets that
 // phone sign in to /merchant-portal.html with a texted code; removing it
