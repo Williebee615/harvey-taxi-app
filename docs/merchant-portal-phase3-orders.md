@@ -230,6 +230,12 @@ Checks in the database: amounts never negative; `captured_cents ≤ authorized_c
 - **Rider:** the address chosen at checkout is saved for the driver (display only; coordinates come from the signed estimate). The order screen shows the delivery PIN once the trip exists and the new statuses.
 - **Migration `20261018050000_order_trip.sql`:** `orders.dropoff_address` and a unique index on `orders.ride_id`. It must be run in production **before** this PR merges, because the server reads the new column.
 
+**Dispatch timing and the substitution alert (PR `claude/order-dispatch-timing-push`).** **[Owner decision 2026-10-18]** "Approved as a follow-up PR" (the trip held until the prep time minus 10 minutes, or until the order is marked ready) and "Implement web push notifications for the 7-minute 'Contact me first' substitution window."
+- **Hold:** the trip created at accept carries `scheduled_time` = accepted time + prep minutes − 10 (none if that is already past, e.g. a 10-minute prep). The existing scheduled-ride sweep offers it to drivers when that time arrives; the stalled-ride re-dispatcher already ignores rides scheduled in the future.
+- **Ready:** marking the order ready offers a held trip at once (claimed the way the sweep claims a ride, so it can't be dispatched twice).
+- **Alert:** when the store offers a substitute on a "Contact me first" item, the rider gets a web push (if they turned notifications on): "Your store has a question … Open Harvey Taxi within 7 minutes", linking to the order. It names no item or price, because push sign-up isn't yet tied to a signed-in session (see the status record). No SMS.
+- Phase 4: replace the fixed 10 minutes with the driver's ETA to the store.
+
 ## 12. Build plan (each a separate PR; each merge, the migration and turning on the switch need the owner's approval)
 
 | Step | Delivers |
