@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Alert, Linking, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 
-import { EMERGENCY_NUMBER, LINKS } from '../config';
+import { LINKS } from '../config';
 import { DELIVERY_OFFER_NOTE, directionsUrl, isDelivery, nextStep, offerLabel, STATUS_LABELS } from '../tripSteps';
 import { riderSharingText } from '../tripMap';
 import { formatWait, noShowText, waitingSeconds } from '../pickupWait';
@@ -57,12 +57,6 @@ function OfferCard({ offer, app }) {
   );
 }
 
-function callEmergency() {
-  Alert.alert('Call 911?', 'This calls emergency services now.', [
-    { text: 'Cancel', style: 'cancel' },
-    { text: 'Call 911', style: 'destructive', onPress: () => Linking.openURL(`tel:${EMERGENCY_NUMBER}`) }
-  ]);
-}
 
 function ActiveRideCard({ ride, app, mapToken }) {
   const sharing = riderSharingText(ride);
@@ -144,7 +138,6 @@ function ActiveRideCard({ ride, app, mapToken }) {
           }
         />
       )}
-      <Button title="Emergency · call 911" kind="danger" onPress={callEmergency} />
     </Card>
   );
 }

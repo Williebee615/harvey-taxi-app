@@ -4,6 +4,7 @@ import { SafeAreaProvider, SafeAreaView, initialWindowMetrics } from 'react-nati
 
 import { useDriverApp } from './src/useDriverApp';
 import { C } from './src/ui';
+import { callEmergency, showEmergencyBar } from './src/emergency';
 import SignInScreen from './src/screens/SignInScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import EarningsScreen from './src/screens/EarningsScreen';
@@ -92,6 +93,19 @@ export function DriverApp() {
           <Screen app={app} onOpenAssistant={assistantAvailable ? () => setAssistantOpen(true) : null} />
         )}
       </View>
+      {showEmergencyBar(app.snapshot) ? (
+        <View style={st.emergencyWrap}>
+          <Pressable
+            testID="emergency-911"
+            accessibilityRole="button"
+            accessibilityLabel="Emergency, call 911"
+            onPress={callEmergency}
+            style={({ pressed }) => [st.emergency, pressed && { opacity: 0.7 }]}
+          >
+            <Text style={st.emergencyText}>Emergency · call 911</Text>
+          </Pressable>
+        </View>
+      ) : null}
       <View style={st.tabs}>
         <View style={st.tabRow} accessibilityRole="tablist">
           {TABS.map((t) => (
@@ -128,6 +142,13 @@ const st = StyleSheet.create({
   // On iPad the screens keep a phone-like reading width, centred, instead
   // of stretching cards and buttons across the whole display.
   column: { flex: 1, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
+  // Pinned above the bottom menu while driving, outside the scrolling
+  // screen, so it never scrolls away or hides behind a card.
+  emergencyWrap: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', paddingHorizontal: 12, paddingVertical: 8, backgroundColor: C.bg },
+  // Deep red with white text (about 5.9:1 contrast); the lighter theme
+  // danger colour is too pale behind white.
+  emergency: { minHeight: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#C8102E' },
+  emergencyText: { color: '#fff', fontWeight: '900', fontSize: 16 },
   tabs: { borderTopWidth: 1, borderTopColor: C.line, backgroundColor: C.panel },
   tabRow: { flexDirection: 'row', width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   tab: { flex: 1, minHeight: 56, alignItems: 'center', justifyContent: 'center' },
