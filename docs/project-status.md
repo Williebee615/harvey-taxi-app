@@ -2215,3 +2215,40 @@ The demo can then run in production with test money while rides keep their keys 
 - **Done:** #297 live; push fix built and tested.
 - **Remaining:** this PR's CI, then merge (pre-approved); phone-only deletion test; driver app emergency button and build.
 - **Next authorized action:** merge this PR when CI is green.
+
+## 57. Update 2026-10-18 (UTC): #298 and #299 merged; Android build 12; phone-only account deletion fix (PR `claude/phone-only-deletion`)
+
+**[Owner decision 2026-10-18]**
+- Phone-only deletion fix approved: "Proceed to open and merge the PR once the full test suite clears." The owner will run a live phone test right after switching Just-in-Time booking on.
+- #299 approved to merge, with a new driver app build after it.
+- Android versionCode 12: **hold**, no upload until the iOS build is ready and this fix is merged; both are uploaded together.
+- iOS: the owner builds locally on a Mac (`eas build --local`), to avoid the Expo quota and the upgrade cost.
+- VAPID keys: the owner generates them locally and sets them on Render (not shared in chat).
+- Store sign-in: the owner gives the approved pilot store sign-in access from the admin dashboard.
+- Just-in-Time switch-on: the owner calls the enable route directly, swaps in the "on" App Review paragraph before submission, and accepts the Twilio cost.
+
+**[Verified 2026-10-18]**
+- #298 merged as `33fc8f4`; `/api/health` reported `33fc8f4` at 14:04 UTC.
+- #299 merged as `0313997` (six checks green on `2946d82`).
+- Driver app Android build **1.0.0 versionCode 12** finished on EAS from `0313997` (build `ca0ce0c1-8e6b-4ca2-a5af-b825d0d8c9f4`). Not uploaded.
+- The iOS EAS build was refused: the account's free iOS builds for the month are used up (reset 2026-11-01).
+- Push: `POST /api/push/subscribe` answered **503** and `/api/push/vapid-public-key` returned an empty key at 14:04, 14:49 and 15:03 UTC. Production has no VAPID keys yet, so web push is off; the "contact me first" push can't reach anyone until they are set.
+- Merchant check (13:47 UTC, counts only): stores 0 → 1, approved 0 → 1, active store sign-ins 0, items 0.
+
+**Deletion test [Verified 2026-10-18, local, fake database and Twilio]:** a Just-in-Time phone-only account (first name + phone, no email):
+- deletes while signed in: data removed, access revoked, the session ends and the old session can't book;
+- can sign up again with the same number afterwards, which creates a new account;
+- can delete by texted code with the number as 10 digits or formatted.
+- **Found and fixed:** typed with a +1 prefix, the code path answered "No account was found". The lookup matched the exact phone text; it now matches the last 10 digits, the same rule as phone sign-in.
+- Tests: `test/server.jit-account-deletion.test.js` (5, new). The related suites (deletion, Just-in-Time, Twilio sign-in, rider auth, ride-request auth) pass 201/201.
+- The local full suite couldn't finish this afternoon: the container ran at a load of about 9 on 4 CPUs and browser tests timed out; two attempts were stopped at the time limit. GitHub CI runs the full suite on this PR.
+
+**Handoff:**
+- **Done:** #298, #299 merged; Android build 12; deletion fix built and tested.
+- **Remaining:**
+  - merge this PR when CI is green;
+  - the owner's local iOS build, then the joint store upload (needs approval);
+  - VAPID keys on Render;
+  - store sign-in;
+  - Just-in-Time switch-on and the owner's phone test.
+- **Next authorized action:** merge this PR when CI is green.
