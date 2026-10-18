@@ -16,7 +16,7 @@ const fs = require("fs");
 const path = require("path");
 const request = require("supertest");
 const { createFakeSupabase } = require("./fakeSupabase");
-const { makeRider, makeDriver } = require("./rideTestHelpers");
+const { makeRider, makeDriver, riderAuthHeaders, signTestRiderToken } = require("./rideTestHelpers");
 
 let mockSupabaseClient;
 jest.mock("@supabase/supabase-js", () => ({ createClient: () => mockSupabaseClient }));
@@ -56,14 +56,14 @@ test("a fare estimate for an autonomous ride is refused", async () => {
 test("a ride request naming autonomous is refused even with a valid quote, and nothing is created", async () => {
   const estimate = await request(app).post("/api/rides/estimate").send({ miles: 5, minutes: 12, ...TRIP, ride_type: "standard" });
   expect(estimate.body.estimate_token).toBeTruthy();
-  const res = await request(app).post("/api/rides/request").send({ ...TRIP, ride_type: "AUTONOMOUS", estimate_token: estimate.body.estimate_token });
+  const res = await request(app).post("/api/rides/request").set(riderAuthHeaders(signTestRiderToken(RIDER.id))).send({ ...TRIP, ride_type: "AUTONOMOUS", estimate_token: estimate.body.estimate_token });
   expect(res.status).toBe(400);
   expect(mockSupabaseClient._state.rides).toHaveLength(0);
 });
 
 test("standard rides still work", async () => {
   const estimate = await request(app).post("/api/rides/estimate").send({ miles: 5, minutes: 12, ...TRIP, ride_type: "standard" });
-  const res = await request(app).post("/api/rides/request").send({ ...TRIP, ride_type: "standard", estimate_token: estimate.body.estimate_token });
+  const res = await request(app).post("/api/rides/request").set(riderAuthHeaders(signTestRiderToken(RIDER.id))).send({ ...TRIP, ride_type: "standard", estimate_token: estimate.body.estimate_token });
   expect(res.status).toBe(201);
 });
 

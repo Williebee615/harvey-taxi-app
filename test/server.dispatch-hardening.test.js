@@ -21,7 +21,7 @@ process.env.ENABLE_PAYMENT_GATE = "false";
 process.env.ENABLE_RIDER_APPROVAL_GATE = "false";
 
 const { createFakeSupabase } = require("./fakeSupabase");
-const { makeRider, makeDriver } = require("./rideTestHelpers");
+const { makeRider, makeDriver, riderAuthHeaders, signTestRiderToken } = require("./rideTestHelpers");
 
 let mockSupabaseClient;
 
@@ -85,8 +85,10 @@ async function requestRide(riderId = RIDER.id) {
     .post("/api/rides/estimate")
     .send({ miles: 5, minutes: 12, ...TRIP_BODY, rider_id: riderId });
 
+  // Ride requests need a signed-in rider (security fix, 2026-10-18).
   return request(app)
     .post("/api/rides/request")
+    .set(riderAuthHeaders(signTestRiderToken(riderId)))
     .send({ ...TRIP_BODY, rider_id: riderId, estimate_token: estimate.body.estimate_token });
 }
 

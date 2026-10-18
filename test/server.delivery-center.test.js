@@ -93,7 +93,7 @@ const TRIP = {
 async function requestService(rideType) {
   const body = { ...TRIP, ride_type: rideType, rider_id: RIDER.id };
   const estimate = await request(app).post("/api/rides/estimate").send({ miles: 5, minutes: 12, ...body });
-  return request(app).post("/api/rides/request").send({ ...body, estimate_token: estimate.body.estimate_token });
+  return request(app).post("/api/rides/request").set(riderAuthHeaders(signTestRiderToken(RIDER.id))).send({ ...body, estimate_token: estimate.body.estimate_token });
 }
 
 describe("dispatch: deliveries reach eligible delivery drivers", () => {

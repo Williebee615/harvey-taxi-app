@@ -535,6 +535,8 @@ describe("POST /api/rides/request -> dispatchRide() -- reviewer dispatch isolati
 
     const res = await request(app)
       .post("/api/rides/request")
+      .set(RIDER_CLIENT_HEADER)
+      .set("Cookie", ordinaryRiderCookie())
       .send(buildRideRequestBody({ riderId: ORDINARY_RIDER.id }));
 
     expect(res.status).toBe(201);
@@ -544,16 +546,18 @@ describe("POST /api/rides/request -> dispatchRide() -- reviewer dispatch isolati
     expect(res.body.dispatch.driver.id).not.toBe(REVIEW_DRIVER.id);
   });
 
-  test("an unauthenticated caller who merely names the review rider id creates an ordinary (non-review) ride that never reaches the review driver", async () => {
+  test("an unauthenticated caller who merely names the review rider id is refused and creates no ride", async () => {
     enableReviewLogin();
+    const ridesBefore = mockSupabaseClient._state.rides.length;
 
     const res = await request(app)
       .post("/api/rides/request")
       .send(buildRideRequestBody({ riderId: REVIEW_RIDER.id }));
 
-    expect(res.status).toBe(201);
-    expect(res.body.ride.is_review_ride).toBe(false);
-    expect(res.body.dispatch.driver.id).not.toBe(REVIEW_DRIVER.id);
+    // Security fix 2026-10-18: a ride request needs a signed-in rider.
+    expect(res.status).toBe(401);
+    expect(res.body.ride).toBeUndefined();
+    expect(mockSupabaseClient._state.rides.length).toBe(ridesBefore);
   });
 
   test("client-supplied is_review_ride:true has no effect without an authenticated reviewer session", async () => {
@@ -563,7 +567,11 @@ describe("POST /api/rides/request -> dispatchRide() -- reviewer dispatch isolati
     body.is_review_ride = true;
     body.is_review_account = true;
 
-    const res = await request(app).post("/api/rides/request").send(body);
+    const res = await request(app)
+      .post("/api/rides/request")
+      .set(RIDER_CLIENT_HEADER)
+      .set("Cookie", ordinaryRiderCookie())
+      .send(body);
 
     expect(res.status).toBe(201);
     expect(res.body.ride.is_review_ride).toBe(false);
@@ -573,14 +581,16 @@ describe("POST /api/rides/request -> dispatchRide() -- reviewer dispatch isolati
   test("flag-off blocks review-ride creation even with a previously-valid reviewer session", async () => {
     const agent = await getReviewRiderAgent();
     disableReviewLogin();
+    const ridesBefore = mockSupabaseClient._state.rides.length;
 
     const res = await agent
       .post("/api/rides/request")
       .set(RIDER_CLIENT_HEADER)
       .send(buildRideRequestBody({ riderId: REVIEW_RIDER.id }));
 
-    expect(res.status).toBe(201);
-    expect(res.body.ride.is_review_ride).toBe(false);
-    expect(res.body.dispatch.driver.id).not.toBe(REVIEW_DRIVER.id);
+    // The reviewer session is rejected while review login is off, so the
+    // request has no signed-in rider at all (security fix 2026-10-18).
+    expect(res.status).toBe(401);
+    expect(mockSupabaseClient._state.rides.length).toBe(ridesBefore);
   });
 });

@@ -13165,48 +13165,41 @@ app.post(
     // flag's value.
     const reviewerRider = await resolveAuthenticatedReviewRider(req);
 
-    const riderId = reviewerRider
-      ? reviewerRider.id
-      : resolveEnforcedRiderId({
+    // Security fix (owner decision 2026-10-18): a ride request needs a
+    // signed-in rider, whatever rider_auth_enforced says. The rider is
+    // taken only from the verified session (or the reviewer session),
+    // never from req.body.rider_id, and must pass the readiness checks
+    // (approved or active, not suspended or revoked). Before this, a
+    // request with no rider_id skipped those checks entirely.
+    const sessionRider = reviewerRider || req.rider || (await resolveVerifiedRiderSession(req));
 
-        authenticatedRiderId: req.rider?.id,
+    if (!sessionRider?.id) {
+      return fail(res, "Please sign in to request a ride.", 401);
+    }
 
-        clientSuppliedRiderId: cleanString(req.body.rider_id, 100)
+    const riderId = sessionRider.id;
 
-      });
+    const readiness =
+      await getRiderReadiness(
+        riderId
+      );
 
-    if (riderId) {
+    // Approved or active is required even when the approval gate
+    // (ENABLE_RIDER_APPROVAL_GATE) is switched off.
+    const riderStatusOk =
+      ["active", "approved"].includes(String(readiness.rider?.status || "").toLowerCase()) ||
+      String(readiness.rider?.approval_status || "").toLowerCase() === "approved";
 
-      const readiness =
-
-        await getRiderReadiness(
-
-          riderId
-
-        );
-
-      if (!readiness.ready) {
-
-        return fail(
-
-          res,
-
-          readiness.reason,
-
-          403,
-
-          {
-
-            checks:
-
-              readiness.checks || {}
-
-          }
-
-        );
-
-      }
-
+    if (!readiness.ready || !riderStatusOk) {
+      return fail(
+        res,
+        readiness.reason || "Your rider account is not approved to book yet.",
+        403,
+        {
+          checks:
+            readiness.checks || {}
+        }
+      );
     }
 
     // Google Play reviewer-account flagging (approved correction): set
