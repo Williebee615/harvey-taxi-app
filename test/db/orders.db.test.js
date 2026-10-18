@@ -23,7 +23,8 @@ describeDb("orders migration", () => {
   });
   beforeEach(async () => {
     await q("alter table public.order_events disable trigger order_events_no_update");
-    await q("truncate public.order_events, public.order_items, public.orders");
+    // The step 3c-1 tables reference orders, so they are cleared with them.
+    await q("truncate public.store_ledger_entries, public.order_refund_proposals, public.order_events, public.order_items, public.orders");
     await q("alter table public.order_events enable trigger order_events_no_update");
   });
 

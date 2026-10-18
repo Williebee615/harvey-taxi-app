@@ -194,6 +194,24 @@ Checks in the database: amounts never negative; `captured_cents ≤ authorized_c
 - `/store-menu.html` checkout: address, delivery fee, tip (none, 10%, 15%, 20% of the items or another amount, nothing chosen in advance, per D3; 100% to the driver), a note for the store. "Review and pay" starts the order; the pay screen then shows the server's figures (items, tax at the test-mode placeholder, fee, tip, total, and the grocery hold amount) before the card form. The card form is Stripe's (Stripe.js with the orders `pk_test_` key); after authorization the server checks the PaymentIntent with Stripe before the order goes to the store. The order screen shows its status, refreshes every 15 seconds and offers Cancel until the store marks it ready (D2).
 - The Delivery Center shows "Order from a partner store (test mode)" only while `GET /api/orders/config` reports ordering on. The legacy booking buttons stay paused.
 
+## 11c. Step 3c (2026-10-18)
+
+**[Owner decision 2026-10-18]** 3c is built in four PRs (3c-1 schema, 3c-2 substitutions while preparing, 3c-3 driver trip and capture at delivery, 3c-4 missing-item refunds). Approved as recommended:
+1. **Driver pay on orders:** 70% of the delivery fee (`DRIVER_PAYOUT_PERCENT`) plus 100% of the tip, the same as deliveries.
+2. **Commission:** 12% of the item subtotal only. The ledger records items, tax, delivery fee, tip, commission and the store's share (items − commission) separately.
+3. **Ledger:** append-only. A completed order adds a credit; a confirmed missing-item deduction adds a debit. Payout weeks are the Monday date in Nashville time.
+4. **Item status:** the existing `fulfilment` stays the only item status; "Contact me first" adds asked, expires, answer and answered fields.
+5. **Refund proposals:** statuses `pending_review`, `approved`, `declined`, `refunded`, `refund_failed`. "Approved" means a person said yes; only "refunded" means Stripe confirmed the refund.
+6. **Claim window:** 48 hours from `delivered_at`. More than 3 claims by a rider in a calendar month marks the proposal `high_risk_review`.
+7. **Dispatch:** the delivery trip is created when the store accepts. **Contact me first:** asked in the app only (no SMS); no answer in 7 minutes refunds the item.
+
+**3c-1 (PR `claude/phase3c-1-ledger-schema`): migration `20261018040000_order_ledger.sql`.**
+- `order_items`: `substitution_asked_at`, `substitution_expires_at`, `substitution_answer` (`substitute` / `refund`), `substitution_answered_at` (allowed only on items set to "Contact me first"), and `refunded_quantity` (never more than the quantity ordered).
+- `order_refund_proposals`: one row per missing-item claim, carrying the market. The database checks that the amounts add up (refund = items + their tax; store deduction + commission reversed = items), that each outcome has its record (who reviewed and when; a reason for a decline; the Stripe refund id for "refunded"; a failure reason for "refund_failed"), and the store's dispute fields.
+- `store_ledger_entries`: append-only (a trigger refuses updates and deletes). The database checks that commission = 12% of items (rate stored per entry, default 12%), that the store's amount = items − commission (credits) or its reversal (deductions), that payout weeks start on a Monday, one credit per order and one deduction per proposal.
+- Server-only: RLS on, no policies, no anon or signed-in access. Nothing writes to these tables until 3c-2 to 3c-4.
+- Note for 3c-4: `planMissingItemRefund` measures the window from `completed_at`; 3c-4 passes `delivered_at`, per decision 6.
+
 ## 12. Build plan (each a separate PR; each merge, the migration and turning on the switch need the owner's approval)
 
 | Step | Delivers |

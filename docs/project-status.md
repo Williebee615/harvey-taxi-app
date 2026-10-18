@@ -1920,3 +1920,27 @@ The demo can then run in production with test money while rides keep their keys 
 - **Remaining:** merge approval for this PR; pilot store pins; 3c (outline sent to the owner); the demo walkthrough.
 - **Next authorized action:** none. Merging this PR and building 3c wait for the owner's approval.
 
+## 46. Update 2026-10-18 (UTC): #286 merged; step 3c-1 schema (PR `claude/phase3c-1-ledger-schema`, not merged; migration not applied)
+
+**[Owner decision 2026-10-18]**
+1. Driver pay on orders: "Revert to the standard 70% of the delivery fee (DRIVER_PAYOUT_PERCENT) plus 100% of the tip."
+2. "The 12% commission applies strictly to the item subtotal." The ledger isolates items, tax, delivery fee, tip, commission and the 88% store share.
+3. "Implement the append-only ledger architecture", with credits for completed orders, debits for approved missing-item deductions, and the Nashville Monday date as the payout week.
+4. "Do not create a duplicate status column": extend `fulfilment` and add only asked, expires, answer and answered fields.
+5. Refund proposal statuses gain `refunded` and `refund_failed`; the 48-hour window runs from `delivered_at`.
+6. "Approved. Proceed to merge PR #286."
+7. Write the 3c-1 migration with tests and status updates, open the PR, and send the SQL file; the owner will apply it manually in production.
+
+**[Verified 2026-10-18 02:05 UTC]** All six CI checks were green on `e969eb4`; #286 merged as `3e09852`. `/api/health` reports `3e09852`, healthy; `/api/orders/config` reports `enabled: true, test_mode: true`; the live checkout page has the new tip choices.
+
+**3c-1 (this PR) [Verified 2026-10-18, local]:** details are in `docs/merchant-portal-phase3-orders.md` §11c.
+- Migration `20261018040000_order_ledger.sql`: "Contact me first" fields and `refunded_quantity` on `order_items`; `order_refund_proposals`; append-only `store_ledger_entries`. Server-only (RLS on, no policies, no client access).
+- Nothing reads or writes these yet; the server changes come in 3c-2 to 3c-4.
+- **[Recommendation]** The proposals table is named `order_refund_proposals` (not `refund_proposals`) to keep it separate from ride refunds (`payment_refunds`).
+- Tests: `test/db/orderLedger.db.test.js` (4: contact-me-first fields; proposal amounts and outcome records; ledger commission on items only, one credit per order, Monday weeks, append-only, balance by sum; server-only access). `test/db/orders.db.test.js` now clears the new tables with `orders`. Database suite: 177 passed, 4 skipped.
+
+**Handoff:**
+- **Done:** #286 live; 3c-1 written and tested; SQL file sent to the owner.
+- **Remaining:** merge approval for this PR; the owner runs the migration, then a read-only check; 3c-2 to 3c-4; the demo.
+- **Next authorized action:** after the owner confirms the migration ran, verify it read-only. Merging this PR waits for the owner's approval.
+
