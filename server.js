@@ -24281,12 +24281,21 @@ app.post(
           400
         );
       }
-      const { data: rows, error } =
+      // Match on the number's last 10 digits, the way phone sign-in does
+      // (riderPhoneLast10): a rider may type "+1 615 ..." for an account
+      // stored as "6155550199" (Just-in-Time sign-up) or the reverse.
+      // Deleted accounts have no phone, so they never match.
+      const last10 = riderPhoneLast10(phone);
+      if (!last10) {
+        return fail(res, "No account was found for that phone number.", 404);
+      }
+      const { data: candidates, error } =
         await supabase
           .from("riders")
           .select("id, phone, is_review_account")
-          .eq("phone", phone)
-          .limit(2);
+          .ilike("phone", `%${last10}`)
+          .limit(10);
+      const rows = (candidates || []).filter((row) => riderPhoneLast10(row.phone) === last10);
       if (error) {
         throw error;
       }
