@@ -10,6 +10,8 @@ process.env.MERCHANT_SESSION_SECRET = "test-merchant-session-secret";
 process.env.RIDER_SESSION_SECRET = "test-rider-session-secret";
 process.env.RIDE_QUOTE_SECRET = "test-ride-quote-secret";
 process.env.DRIVER_SESSION_SECRET = "test-driver-session-secret";
+process.env.VAPID_PUBLIC_KEY = "test-vapid-public";
+process.env.VAPID_PRIVATE_KEY = "test-vapid-private";
 // Orders have their own Stripe test key and switch; the ride key and the
 // legacy delivery switches stay as production has them (owner decision
 // 2026-10-18: real ride payments unaffected, legacy delivery paused).
@@ -28,6 +30,9 @@ const { signMerchantSession } = require("../lib/merchantAuth");
 const { signRiderSession } = require("../lib/riderAuth");
 const { signRideQuote } = require("../lib/rideQuote");
 const { makeDriver, signTestDriverToken, driverAuthHeaders } = require("./rideTestHelpers");
+
+const mockPushes = [];
+jest.mock("web-push", () => ({ setVapidDetails: () => {}, sendNotification: async (sub, payload) => { mockPushes.push({ endpoint: sub.endpoint, ...JSON.parse(payload) }); } }));
 
 let mockClient;
 jest.mock("@supabase/supabase-js", () => ({ createClient: () => new Proxy({}, { get: (_t, k) => mockClient && mockClient[k] }) }));
@@ -100,6 +105,7 @@ beforeEach(() => {
   mockCalls.create.length = 0;
   mockCalls.cancel.length = 0;
   mockCalls.capture.length = 0;
+  mockPushes.length = 0;
   mockCalls.failCapture = false;
   mockClient = createFakeSupabase({
     riders: [{ ...RIDER }, { ...RIDER2 }],
@@ -123,7 +129,8 @@ beforeEach(() => {
     rides: [],
     drivers: [makeDriver({ id: "DRIVER_1" })],
     driver_earnings: [],
-    store_ledger_entries: []
+    store_ledger_entries: [],
+    push_subscriptions: [{ id: "PUSH-1", owner_type: "rider", owner_id: RIDER.id, endpoint: "https://push.example.test/rider", p256dh: "k", auth: "a" }]
   }, { uniqueColumns: { orders: ["quote_jti", "order_number"] } });
 });
 
@@ -666,6 +673,53 @@ describe("delivery trip and capture at the handoff (step 3c-3)", () => {
   test("the address the rider chose is saved for the driver", async () => {
     const id = (await asRider().post("/api/orders/checkout", { ...checkoutBody(), dropoff_address: "501 Broadway, Nashville, Tennessee 37203" })).body.order.id;
     expect(orders().find((o) => o.id === id).dropoff_address).toBe("501 Broadway, Nashville, Tennessee 37203");
+  });
+});
+
+describe("dispatch timing and the substitution alert (owner decision 2026-10-18)", () => {
+  const rides = () => mockClient._state.rides;
+  test("a trip is held until 10 minutes before the prep time is up", async () => {
+    const id = await placedOrder();
+    const before = Date.now();
+    await asStore().post(`/api/merchant/orders/${id}/accept`, { prep_minutes: 30 });
+    const ride = rides().find((r) => r.id === orders().find((o) => o.id === id).ride_id);
+    const held = Date.parse(ride.scheduled_time);
+    expect(held).toBeGreaterThanOrEqual(before + 20 * 60000 - 1000);
+    expect(held).toBeLessThanOrEqual(Date.now() + 20 * 60000 + 1000);
+    expect(ride.dispatch_status).toBe("ready_to_dispatch");
+  });
+
+  test("a short prep time is offered at once", async () => {
+    const id = await placedOrder();
+    await asStore().post(`/api/merchant/orders/${id}/accept`, { prep_minutes: 10 });
+    const ride = rides().find((r) => r.id === orders().find((o) => o.id === id).ride_id);
+    expect(ride.scheduled_time ?? null).toBeNull();
+  });
+
+  test("marking the order ready offers a held trip straight away", async () => {
+    const id = await placedOrder();
+    await asStore().post(`/api/merchant/orders/${id}/accept`, { prep_minutes: 45 });
+    const ride = rides().find((r) => r.id === orders().find((o) => o.id === id).ride_id);
+    expect(Date.parse(ride.scheduled_time)).toBeGreaterThan(Date.now());
+    await packAll(id);
+    expect((await asStore().post(`/api/merchant/orders/${id}/ready`)).status).toBe(200);
+    expect(Date.parse(ride.scheduled_time)).toBeLessThanOrEqual(Date.now());
+    expect(ride.dispatch_status).not.toBe("ready_to_dispatch");
+  });
+
+  test("a contact-me-first question sends the rider a web push with no item details", async () => {
+    const id = await placedOrder({ items: [{ catalog_item_id: "milk", quantity: 1, substitution_choice: "contact" }] });
+    await asStore().post(`/api/merchant/orders/${id}/accept`, { prep_minutes: 15 });
+    const milk = itemsOf(id)[0];
+    await asStore().post(`/api/merchant/orders/${id}/items/${milk.id}`, { action: "substitute", substitute_name: "2% milk", substitute_price_cents: 429 });
+    expect(mockPushes).toEqual([expect.objectContaining({ endpoint: "https://push.example.test/rider", title: "Your store has a question", url: `/store-menu.html?order=${id}` })]);
+    expect(JSON.stringify(mockPushes)).not.toMatch(/milk|4\.29|429/i);
+    // Packing an item sends nothing.
+    mockPushes.length = 0;
+    const other = await placedOrder();
+    await asStore().post(`/api/merchant/orders/${other}/accept`, { prep_minutes: 15 });
+    await asStore().post(`/api/merchant/orders/${other}/items/${itemsOf(other)[0].id}`, { action: "packed" });
+    expect(mockPushes).toEqual([]);
   });
 });
 

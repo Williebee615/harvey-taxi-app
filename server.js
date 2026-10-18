@@ -21352,7 +21352,10 @@ async function createOrderTrip(order) {
       deliveryPin: String(crypto.randomInt(1000, 10000))
     }),
     status: RIDE_STATUS.PAYMENT_AUTHORIZED,
-    dispatch_status: "ready_to_dispatch"
+    dispatch_status: "ready_to_dispatch",
+    // Held until 10 minutes before the prep time is up (or until ready);
+    // the scheduled-ride sweep offers it then.
+    scheduled_time: orderRules.orderDispatchAt(order)
   };
   // Claim the order first, so two callers can't each start a trip.
   const { data: claimed } = await supabase.from("orders").update({ ride_id: ride.id, updated_at: nowIso() }).eq("id", order.id).is("ride_id", null).select("id").maybeSingle();
@@ -21393,6 +21396,24 @@ async function cancelOrderTrip(order, reasonStatus) {
   }
   broadcastRideSse(ride.id, "stage", { status: RIDE_STATUS.CANCELLED });
   auditLog({ actor_type: "system", actor_id: "orders", action: "order_trip_cancelled", entity_type: "ride", entity_id: ride.id, metadata: { order_id: order.id, order_status: reasonStatus } }).catch(() => {});
+}
+
+// The store marked the order ready: a trip still held for its prep time is
+// offered to drivers now. Claimed like the scheduled sweep claims a ride,
+// so the two can't both dispatch it.
+async function releaseHeldOrderTrip(order) {
+  if (!order || !order.ride_id) return;
+  const { data: ride } = await supabase.from("rides").select("*").eq("id", order.ride_id).maybeSingle();
+  if (!ride || ride.status !== RIDE_STATUS.PAYMENT_AUTHORIZED || ride.driver_id || ride.dispatch_status !== "ready_to_dispatch" || !ride.scheduled_time || Date.parse(ride.scheduled_time) <= Date.now()) return;
+  const at = nowIso();
+  const { data: claimed } = await supabase.from("rides").update({ scheduled_time: at, dispatch_status: "dispatching", dispatch_claimed_at: at, updated_at: at }).eq("id", ride.id).eq("status", RIDE_STATUS.PAYMENT_AUTHORIZED).eq("dispatch_status", "ready_to_dispatch").select().maybeSingle();
+  if (!claimed) return;
+  try {
+    await dispatchRide(claimed);
+  } catch (err) {
+    console.error("❌ order trip dispatch on ready failed:", claimed.id, err.message);
+    await resetScheduledRideForRetry(claimed.id).catch(() => {});
+  }
 }
 
 async function orderForRide(rideId) {
@@ -21925,6 +21946,11 @@ app.post(
     if (!plan.ok) return fail(res, plan.error, plan.status);
     const { data: updated } = await supabase.from("order_items").update(plan.patch).eq("id", cleanString(req.params.itemId, 64)).eq("order_id", order.id).eq("fulfilment", "pending").select("id").maybeSingle();
     if (!updated) return fail(res, "This item changed. Reload and try again.", 409);
+    // "Contact me first": alert the rider by web push (if they turned it on).
+    // No item names or prices: push sign-up isn't tied to a session yet.
+    if (plan.patch.fulfilment === "out_of_stock") {
+      sendPushNotification({ ownerType: "rider", ownerId: order.rider_id, title: "Your store has a question", body: "An item in your order is out of stock. Open Harvey Taxi within 7 minutes to choose the store's suggestion or a refund.", url: `/store-menu.html?order=${encodeURIComponent(order.id)}` }).catch(() => {});
+    }
     auditLog({ actor_type: "merchant_user", actor_id: req.merchantUser.id, action: "order_item_marked", entity_type: "order", entity_id: order.id, metadata: { item_id: updated.id, fulfilment: plan.patch.fulfilment, substitute_price_cents: plan.patch.substitute_price_cents || null }, req }).catch(() => {});
     const names = await riderFirstNames([order.rider_id]);
     return ok(res, { order: orderRules.storeView(order, (await loadOrderItems([order.id]))[order.id], names[order.rider_id]) });
@@ -21961,6 +21987,7 @@ app.post(
     if (!moved.ok) return fail(res, moved.error, moved.status);
     // Step 3c-3: accepting starts the delivery trip (retried by the sweep if this fails).
     if (action.to === "accepted") await createOrderTrip(moved.order);
+    if (action.to === "ready") await releaseHeldOrderTrip(moved.order);
     const names = await riderFirstNames([order.rider_id]);
     return ok(res, { order: orderRules.storeView(moved.order, (await loadOrderItems([order.id]))[order.id], names[order.rider_id]) });
   })

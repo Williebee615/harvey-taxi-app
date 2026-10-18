@@ -1998,3 +1998,35 @@ The demo can then run in production with test money while rides keep their keys 
 - **Remaining:** the owner runs the 3c-3 migration (then a read-only check); merge approval; 3c-4 (missing-item refunds); the demo walkthrough.
 - **Next authorized action:** none. The migration and the merge wait for the owner.
 
+## 49. Update 2026-10-18 (UTC): #289 merged and live; driver pipeline audit; dispatch timing and substitution alert (PR `claude/order-dispatch-timing-push`, not merged)
+
+**[Owner decision 2026-10-18]**
+1. The owner ran the 3c-3 migration in production (check `1 | 1`) and approved merging #289.
+2. Dispatch timing "Approved as a follow-up PR": hold the trip until prep time − 10 minutes or until ready.
+3. App Review panel: "Remove the large App Review Access panel from all public-facing screens ... Retain the small sign-in link. Update docs/app-review/review-notes-2026-10.md in this same PR" (the rider-screens PR).
+4. Web push for the "Contact me first" window: approved.
+5. Step 3c-4 (missing-item refunds): approved.
+6. Driver email campaign: approved to draft, with the list de-duplicated by email or phone; one call to action ("Verify your email and phone to continue your Harvey Taxi application").
+7. Backlog: show drivers' real setup state instead of "Approved" on admin screens; format rider names at display time; pin the driver emergency button; defer the 12% commission page until the merchant agreement is signed.
+
+**[Verified 2026-10-18 ~05:37 UTC, read-only]** `orders.dropoff_address` (text, nullable, 3–300 check) and the unique index `orders_ride_id_key` exist; 0 orders.
+**[Verified 2026-10-18 05:38 UTC]** All six CI checks were green on `48e3203`; #289 merged as `5a7c68b`. `/api/health` reports `5a7c68b`, healthy; `/api/orders/config` reports `enabled: true, test_mode: true`.
+
+**Driver pipeline [Verified 2026-10-18 ~05:40 UTC, read-only; counts only, no names recorded here]:**
+- 27 driver rows not deleted and not review accounts: 8 are the owner's or test accounts; 19 are applicants (applied July–August 2026).
+- All 19 have vehicle details; **none** has a verified email or phone, a completed Persona check, background-check consent, a Checkr check, or licence or insurance records. Every applicant stops at the first step.
+- Same first names recur 2–5 times, often on one day: likely repeat submissions (about 10 people). De-duplicate by email or phone before any email.
+- All rows show approval "approved" although none is verified. **[Verified, code]** Going online and receiving offers re-check verification, so this can't let an unverified driver work; the admin label is misleading (backlog).
+
+**Security finding [Unresolved]:** `POST /api/push/subscribe` takes `owner_type` and `owner_id` from the request without checking a session, so a browser could subscribe to another rider's or driver's notifications. **[Recommendation]** Tie sign-up to the signed-in rider or driver (a separate PR; it may need care for older app versions). Until then, new notifications carry no order details.
+
+**This PR [Verified 2026-10-18, local]:** details in `docs/merchant-portal-phase3-orders.md` §11c.
+- Order trips are held until prep time − 10 minutes (via the existing scheduled-ride sweep) or offered at once when the store marks the order ready.
+- A "Contact me first" question sends the rider a web push with no item details.
+- Tests: `lib/orders.test.js` (2 new); `test/server.orders.test.js` (4 new: hold time; short prep offered at once; ready releases a held trip; push sent without item details, none for packing). Orders suites 92/92 on four runs in a row (one unexplained failure in an earlier run did not recur in 12 further runs); the new tests 8/8 runs; order browser suites 8/8.
+
+**Handoff:**
+- **Done:** #289 live; driver audit; this PR.
+- **Remaining:** merge approval for this PR; 3c-4 (next); rider-screens PR (App Review panel, overlap, setup button, status badge, name formatting); driver app emergency button (needs a build); driver email draft; admin driver-status label; push sign-up security fix (needs approval).
+- **Next authorized action:** build 3c-4. Merging this PR waits for the owner.
+
