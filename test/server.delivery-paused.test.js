@@ -20,7 +20,7 @@ const fs = require("fs");
 const path = require("path");
 const request = require("supertest");
 const { createFakeSupabase } = require("./fakeSupabase");
-const { makeRider } = require("./rideTestHelpers");
+const { makeRider, riderAuthHeaders, signTestRiderToken } = require("./rideTestHelpers");
 
 let mockSupabaseClient;
 jest.mock("@supabase/supabase-js", () => ({ createClient: () => mockSupabaseClient }));
@@ -45,7 +45,7 @@ test.each(["food", "grocery"])("a %s delivery estimate is refused while delivery
 test("a delivery request is refused even with a valid ride quote, and nothing is created", async () => {
   const estimate = await request(app).post("/api/rides/estimate").send({ miles: 5, minutes: 12, ...TRIP, ride_type: "standard" });
   expect(estimate.body.estimate_token).toBeTruthy();
-  const res = await request(app).post("/api/rides/request").send({ ...TRIP, ride_type: "food", merchant_name: "TEST Diner", estimate_token: estimate.body.estimate_token });
+  const res = await request(app).post("/api/rides/request").set(riderAuthHeaders(signTestRiderToken(RIDER.id))).send({ ...TRIP, ride_type: "food", merchant_name: "TEST Diner", estimate_token: estimate.body.estimate_token });
   expect(res.status).toBe(400);
   expect(mockSupabaseClient._state.rides).toHaveLength(0);
 });

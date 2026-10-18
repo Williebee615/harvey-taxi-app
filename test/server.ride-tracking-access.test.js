@@ -186,7 +186,7 @@ test("POST /api/rides/request returns the ride's tracking token, which opens tha
   const estimate = { total: 18.5, driver_payout: 14, platform_fee: 4.5, miles: 3.2, minutes: 12 };
   const res = await request(app)
     .post("/api/rides/request")
-    .set({ "x-requested-with": "harvey-rider-app" })
+    .set(riderAuthHeaders(signTestRiderToken(RIDER.id)))
     .send({
       estimate_token: signRideQuote({ rideType: "standard", miles: 3.2, minutes: 12, pickup, destination, riderId: "RIDER_1", estimate, secret: process.env.RIDE_QUOTE_SECRET, ttlMinutes: 15 }),
       ride_type: "standard",

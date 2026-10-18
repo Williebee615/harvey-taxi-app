@@ -2080,3 +2080,26 @@ The demo can then run in production with test money while rides keep their keys 
 - **Done:** #290, #291, #292 live; rider-screen fixes built and tested locally.
 - **Remaining:** merge approval for this PR; the owner's decisions on Just-in-Time booking; driver app emergency button (needs a build); admin driver-status label; the two security fixes (need approval); the test-mode order demo.
 - **Next authorized action:** none. Merging this PR waits for the owner.
+
+## 53. Update 2026-10-18 (UTC): security fix, ride requests require a signed-in, approved rider (PR `claude/ride-request-auth`, not merged)
+
+**[Owner decision 2026-10-18]** "Approved. You are explicitly authorized to build the server-side fix to close this gap immediately … enforce a strict requirement that all /api/rides/request payloads must contain a valid, authenticated rider ID that resolves to an 'approved' or 'active' status, returning a hard 401/403 otherwise." Built as a separate patch PR so it can merge ahead of #294.
+
+**Finding closed:** `POST /api/rides/request` skipped every rider check when the request carried no `rider_id` (§51), so a visitor with no account could book and a suspended rider could avoid the check.
+
+**This PR [Verified 2026-10-18, local]:**
+- The rider comes only from the verified session (or the App Review session), whatever `rider_auth_enforced` says. `req.body.rider_id` is no longer trusted for identity on this route.
+- No session: **401** "Please sign in to request a ride." No ride is created and the quote is not used.
+- A session for a rider who isn't ready, isn't approved or active, is suspended or revoked: **403**, even when `ENABLE_RIDER_APPROVAL_GATE` is off.
+- App Review: the review account (active, approved, verified; read-only check 2026-10-18) books as before. A reviewer session while review login is switched off is refused.
+- Tests: `test/server.ride-request-auth.test.js` (7, new). Seven existing suites now sign their riders in. Tests that expected an unauthenticated request to create a ride now expect 401 and no ride: idempotency replay with no session, a caller naming the review rider id, and a stale reviewer session.
+
+**Impact [Verified 2026-10-18, read-only]:**
+- In the last 30 days, all 21 rides came from the App Review rider account, which signs in with a session. No ride in the database lacks a rider ID.
+- **[Unresolved] Ordinary riders:** with the rider sign-in screen (`rider_auth_ui_enabled`) and Just-in-Time booking (`jit_booking_enabled`) both off, an ordinary rider has no way to get a session, so they can't book until one of them is switched on. The rider sign-up page (`rider-signup.html`) doesn't create a session.
+- Card authorization (`/api/rides/payment-intent`) is unchanged. A hold made without a session can't become a ride and is released as today.
+
+**Handoff:**
+- **Done:** fix built and tested locally.
+- **Remaining:** merge approval; then #294 is rebased on it.
+- **Next authorized action:** none. Merging waits for the owner.
