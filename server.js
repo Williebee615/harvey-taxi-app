@@ -21145,6 +21145,427 @@ app.post(
 );
 
 /* =========================================================
+   MERCHANT PORTAL, PHASE 3A: ORDERS
+   Owner decisions 2026-10-18: design docs/merchant-portal-phase3-orders.md,
+   D1-D7 as recommended, "Authorize the initiation of Step 3a". A signed-in
+   rider orders from one approved, open store and authorizes the card once
+   (manual capture); the store accepts with a prep time, rejects, marks
+   ready or cancels; staff can cancel. Every ending other than completion
+   releases the authorization in full. Driver pickup, delivery, capture
+   and refunds come later (3c / phase 4).
+   Test mode only: off unless ENABLE_MERCHANT_ORDERS is on AND Stripe uses
+   test keys. Order PaymentIntents carry their own app tag so the ride
+   payment reconciliation never acts on them.
+========================================================= */
+const orderRules = require("./lib/orders");
+const ENABLE_MERCHANT_ORDERS = envBool("ENABLE_MERCHANT_ORDERS", false);
+// Placeholder until the accountant's advice (design §8). Test mode only.
+const ORDERS_TEST_TAX_RATE_BPS = (() => {
+  const n = Number(env("ORDERS_TEST_TAX_RATE_BPS", "0"));
+  return Number.isInteger(n) && n >= 0 && n <= 2000 ? n : 0;
+})();
+const ORDER_INTENT_APP_TAG = "harvey_taxi_orders";
+const ORDER_FIELDS = "id, order_number, merchant_id, rider_id, ride_id, status, order_type, prep_minutes, placed_at, accepted_at, ready_at, cancelled_at, cancel_reason, items_subtotal_cents, tax_cents, tax_rate_bps, delivery_fee_cents, tip_cents, authorized_cents, captured_cents, refunded_cents, payment_intent_id, livemode, client_order_key, rider_notes, created_at, updated_at";
+const ORDER_ITEM_FIELDS = "id, order_id, catalog_item_id, name, unit_price_cents, quantity, tax_cents, substitution_choice, fulfilment";
+const ORDER_EVENT_ACTOR = { rider: "rider", merchant: "merchant_user", admin: "admin", system: "system" };
+
+const ordersStripeTestMode = () => Boolean(stripe) && /^(sk|rk)_test_/.test(String(STRIPE_SECRET_KEY || ""));
+// Writes need the switch and Stripe test keys; returns true if it replied.
+function ordersUnavailable(res) {
+  if (!ENABLE_MERCHANT_ORDERS) return fail(res, "Ordering from stores isn't available yet.", 503) || true;
+  if (!ordersStripeTestMode()) return fail(res, "Ordering is in test mode and needs Stripe test keys.", 503) || true;
+  return false;
+}
+const ordersNotSetUp = (error) => error && error.code === "42P01";
+
+async function releaseOrderAuthorization(order) {
+  if (!order.payment_intent_id || !stripe) return;
+  try {
+    const intent = await stripe.paymentIntents.retrieve(order.payment_intent_id);
+    if (intent.metadata?.order_id !== order.id) throw new Error("payment intent does not belong to this order");
+    if (RELEASABLE_INTENT_STATUSES.includes(intent.status)) {
+      await stripe.paymentIntents.cancel(intent.id, {}, { idempotencyKey: `harvey-order-release-${order.id}` });
+    }
+  } catch (err) {
+    console.error("❌ order authorization release failed:", order.id, err.message);
+    auditLog({ actor_type: "system", actor_id: "orders", action: "order_release_failed", entity_type: "order", entity_id: order.id, metadata: { status: order.status, error: String(err.message).slice(0, 200) } }).catch(() => {});
+  }
+}
+
+// The only way an order changes state: allowed by lib/orders.js, applied
+// only if nobody else moved it first, written to order_events, audited.
+async function moveOrder(order, to, actor, { reason = null, patch = {}, req = null } = {}) {
+  // Read before the update: the history must record where the order was.
+  const from = order.status;
+  if (!orderRules.canTransition(actor.kind, from, to)) return { ok: false, status: 409, error: "This order can't be changed that way now." };
+  if (orderRules.NEEDS_REASON.includes(to) && String(reason || "").trim().length < 3) return { ok: false, status: 400, error: "Give a reason." };
+  const now = nowIso();
+  const stamp = { placed: "placed_at", accepted: "accepted_at", ready: "ready_at" }[to];
+  const ending = orderRules.RELEASES_AUTHORIZATION.includes(to);
+  const fullPatch = { ...patch, status: to, updated_at: now, ...(stamp ? { [stamp]: now } : {}), ...(ending ? { cancelled_at: now, cancel_reason: reason || to } : {}) };
+  const { data, error } = await supabase.from("orders").update(fullPatch).eq("id", order.id).eq("status", from).select(ORDER_FIELDS).maybeSingle();
+  if (error) return { ok: false, status: 502, error: "The order could not be updated." };
+  if (!data) return { ok: false, status: 409, error: "This order changed. Reload and try again." };
+  await supabase.from("order_events").insert({ id: crypto.randomUUID(), order_id: order.id, from_status: from, to_status: to, actor_type: ORDER_EVENT_ACTOR[actor.kind], actor_id: actor.id || null, reason: reason || null, created_at: now });
+  if (ending) await releaseOrderAuthorization(data);
+  auditLog({ actor_type: ORDER_EVENT_ACTOR[actor.kind], actor_id: actor.id || null, action: `order_${to}`, entity_type: "order", entity_id: order.id, metadata: { merchant_id: order.merchant_id, from, reason: reason || null }, req }).catch(() => {});
+  return { ok: true, order: data };
+}
+
+// Close unpaid checkouts after 15 minutes and unanswered orders after 8
+// (D1). Runs before store and staff reads, and every minute while on.
+async function sweepOrders({ merchantId = null } = {}) {
+  let query = supabase.from("orders").select(ORDER_FIELDS).in("status", ["pending_payment", "placed"]).limit(200);
+  if (merchantId) query = query.eq("merchant_id", merchantId);
+  const { data } = await query;
+  for (const order of data || []) {
+    const action = orderRules.sweepAction(order);
+    if (action) await moveOrder(order, action, { kind: "system", id: "order_sweep" }, { reason: action === "expired" ? "The store didn't respond in time." : "Payment wasn't completed." });
+  }
+}
+if (ENABLE_MERCHANT_ORDERS && process.env.NODE_ENV !== "test") {
+  setInterval(() => sweepOrders().catch((err) => console.error("❌ order sweep:", err.message)), 60_000).unref();
+}
+
+async function loadOrderItems(orderIds) {
+  if (!orderIds.length) return {};
+  const { data } = await supabase.from("order_items").select(ORDER_ITEM_FIELDS).in("order_id", orderIds);
+  const byOrder = {};
+  for (const i of data || []) (byOrder[i.order_id] = byOrder[i.order_id] || []).push(i);
+  return byOrder;
+}
+async function riderFirstNames(riderIds) {
+  const ids = [...new Set(riderIds.filter(Boolean))];
+  if (!ids.length) return {};
+  const { data } = await supabase.from("riders").select("id, first_name, full_name").in("id", ids);
+  const names = {};
+  for (const r of data || []) names[r.id] = r.first_name || String(r.full_name || "").trim().split(/\s+/)[0] || null;
+  return names;
+}
+function riderOrderView(order, items, storeName) {
+  return {
+    id: order.id,
+    order_number: order.order_number,
+    status: order.status,
+    order_type: order.order_type,
+    store_name: storeName || null,
+    prep_minutes: order.prep_minutes,
+    placed_at: order.placed_at,
+    accepted_at: order.accepted_at,
+    ready_at: order.ready_at,
+    cancelled_at: order.cancelled_at,
+    cancel_reason: order.cancel_reason,
+    items_subtotal_cents: order.items_subtotal_cents,
+    tax_cents: order.tax_cents,
+    delivery_fee_cents: order.delivery_fee_cents,
+    tip_cents: order.tip_cents,
+    total_cents: order.items_subtotal_cents + order.tax_cents + order.delivery_fee_cents + order.tip_cents,
+    authorized_cents: order.authorized_cents,
+    test_mode: !order.livemode,
+    can_cancel: orderRules.canTransition("rider", order.status, "cancelled_by_rider"),
+    items: (items || []).map((i) => ({ name: i.name, quantity: i.quantity, unit_price_cents: i.unit_price_cents, substitution_choice: i.substitution_choice }))
+  };
+}
+async function loadRiderOrder(req, id) {
+  const { data } = await supabase.from("orders").select(ORDER_FIELDS).eq("id", cleanString(id, 64)).eq("rider_id", String(req.rider.id)).maybeSingle();
+  return data || null;
+}
+async function storeName(merchantId) {
+  const { data } = await supabase.from("merchants").select("business_name").eq("id", merchantId).maybeSingle();
+  return data ? data.business_name : null;
+}
+
+// Checkout. Prices, availability and names come from the catalog; the
+// delivery fee from the signed, single-use fare quote (as for rides); the
+// tax rate from the test-mode placeholder. Safe to retry with the same
+// client_order_key.
+app.post(
+  "/api/orders/checkout",
+  requireRider,
+  rateLimit({ windowMs: 10 * 60_000, max: 20, keyPrefix: "orders_checkout", keyFn: (req) => `r:${req.rider && req.rider.id}` }),
+  asyncRoute(async (req, res) => {
+    if (ordersUnavailable(res)) return;
+    const body = req.body || {};
+    const riderId = String(req.rider.id);
+    const clientKey = cleanString(body.client_order_key, 100);
+    if (clientKey.length < 8) return fail(res, "This checkout could not be verified. Please try again.", 400);
+
+    const { data: existing, error: existingError } = await supabase.from("orders").select(ORDER_FIELDS).eq("rider_id", riderId).eq("client_order_key", clientKey).maybeSingle();
+    if (ordersNotSetUp(existingError)) return fail(res, "Ordering isn't set up yet.", 503);
+    if (existing) {
+      const intent = existing.payment_intent_id ? await stripe.paymentIntents.retrieve(existing.payment_intent_id) : null;
+      const items = (await loadOrderItems([existing.id]))[existing.id];
+      return ok(res, { order: riderOrderView(existing, items, await storeName(existing.merchant_id)), client_secret: existing.status === "pending_payment" && intent ? intent.client_secret : null, repeated: true });
+    }
+
+    const { data: store } = await supabase.from("merchants").select("id, business_name, category, status").eq("id", cleanString(body.merchant_id, 64)).maybeSingle();
+    if (!store || store.status !== "approved") return fail(res, "This store isn't taking orders.", 404);
+    const { data: hours } = await supabase.from("merchant_hours").select("day_of_week, closed, opens_at, closes_at").eq("merchant_id", store.id);
+    if (!orderRules.isOpenAt(hours)) return fail(res, `${store.business_name} is closed right now.`, 409);
+
+    const { data: catalog } = await supabase.from("catalog_items").select("id, name, price_cents, available, substitutable, review_status, archived_at").eq("merchant_id", store.id).is("archived_at", null);
+    const built = orderRules.buildLines(body.items, new Map((catalog || []).map((i) => [i.id, i])));
+    if (!built.ok) return fail(res, built.error, 409);
+
+    const orderType = orderRules.orderTypeFor(store.category);
+    if (body.ride_type !== orderType) return fail(res, "Please get a fresh delivery estimate for this store.", 400);
+    const tipCents = Number(body.tip_cents || 0);
+    if (!Number.isInteger(tipCents) || tipCents < 0 || tipCents > orderRules.MAX_TIP_CENTS) return fail(res, "Choose a tip from $0 to $500.", 400);
+    // The fare quote is bound to this rider and route; it can't be reused.
+    req.body.rider_id = riderId;
+    const quote = verifyAndConsumeRideQuote(req, res);
+    if (!quote) return;
+    const deliveryFeeCents = Math.round(Number(quote.estimate.total) * 100);
+    const totals = orderRules.computeTotals({ lines: built.lines, orderType, taxRateBps: ORDERS_TEST_TAX_RATE_BPS, deliveryFeeCents, tipCents });
+
+    const notes = cleanString(body.rider_notes, 300) || null;
+    let order = null;
+    for (let attempt = 0; attempt < 3 && !order; attempt += 1) {
+      const { data, error } = await supabase
+        .from("orders")
+        .insert({
+          id: crypto.randomUUID(),
+          order_number: orderRules.orderNumber(crypto.randomBytes(6)),
+          merchant_id: store.id,
+          rider_id: riderId,
+          status: "pending_payment",
+          order_type: orderType,
+          items_subtotal_cents: totals.items_subtotal_cents,
+          tax_cents: totals.tax_cents,
+          tax_rate_bps: ORDERS_TEST_TAX_RATE_BPS,
+          delivery_fee_cents: totals.delivery_fee_cents,
+          tip_cents: totals.tip_cents,
+          authorized_cents: totals.authorized_cents,
+          captured_cents: 0,
+          refunded_cents: 0,
+          livemode: false,
+          client_order_key: clientKey,
+          quote_jti: String(quote.jti),
+          pickup_lat: quote.pickup ? quote.pickup.lat : null,
+          pickup_lng: quote.pickup ? quote.pickup.lng : null,
+          dropoff_lat: quote.destination ? quote.destination.lat : null,
+          dropoff_lng: quote.destination ? quote.destination.lng : null,
+          rider_notes: notes,
+          created_at: nowIso(),
+          updated_at: nowIso()
+        })
+        .select(ORDER_FIELDS)
+        .single();
+      if (!error) order = data;
+      else if (error.code !== "23505") return fail(res, "Your order could not be started. Please try again.", 502);
+      else if (/quote_jti/.test(error.message || "")) return fail(res, "This delivery estimate was already used. Please get a fresh estimate.", 409);
+      else if (/client_order_key|orders_rider_key/.test(error.message || "")) return fail(res, "This order is already being placed. Please wait a moment.", 409);
+    }
+    if (!order) return fail(res, "Your order could not be started. Please try again.", 502);
+
+    const { error: itemsError } = await supabase.from("order_items").insert(totals.lines.map((l) => ({ id: crypto.randomUUID(), order_id: order.id, catalog_item_id: l.catalog_item_id, name: l.name, unit_price_cents: l.unit_price_cents, quantity: l.quantity, tax_cents: l.tax_cents, substitution_choice: l.substitution_choice, fulfilment: "pending", created_at: nowIso() })));
+    if (itemsError) {
+      await moveOrder(order, "payment_abandoned", { kind: "system", id: "checkout" }, { reason: "Items could not be saved." });
+      return fail(res, "Your order could not be started. Please try again.", 502);
+    }
+    await supabase.from("order_events").insert({ id: crypto.randomUUID(), order_id: order.id, from_status: null, to_status: "pending_payment", actor_type: "rider", actor_id: riderId, reason: null, created_at: nowIso() });
+
+    let intent;
+    try {
+      intent = await stripe.paymentIntents.create(
+        {
+          amount: order.authorized_cents,
+          currency: "usd",
+          capture_method: "manual",
+          automatic_payment_methods: { enabled: true },
+          description: `Harvey Taxi order ${order.order_number}`,
+          metadata: { app: ORDER_INTENT_APP_TAG, account: "harvey_taxi_service", order_id: order.id, order_number: order.order_number, merchant_id: store.id, rider_id: riderId }
+        },
+        { idempotencyKey: `harvey-order-${order.id}` }
+      );
+    } catch (err) {
+      console.error("❌ order payment intent:", err.message);
+      await moveOrder(order, "payment_abandoned", { kind: "system", id: "checkout" }, { reason: "The card authorization could not be started." });
+      return fail(res, "Payment could not be started. Please try again.", 502);
+    }
+    if (intent.livemode) {
+      // Defence in depth: test mode was checked above; never keep a live hold.
+      await stripe.paymentIntents.cancel(intent.id).catch(() => {});
+      await moveOrder(order, "payment_abandoned", { kind: "system", id: "checkout" }, { reason: "Live payments aren't enabled for orders." });
+      return fail(res, "Ordering is in test mode only.", 503);
+    }
+    const { data: withIntent } = await supabase.from("orders").update({ payment_intent_id: intent.id, updated_at: nowIso() }).eq("id", order.id).select(ORDER_FIELDS).single();
+    auditLog({ actor_type: "rider", actor_id: riderId, action: "order_checkout_started", entity_type: "order", entity_id: order.id, metadata: { merchant_id: store.id, authorized_cents: order.authorized_cents }, req }).catch(() => {});
+    return ok(res, { order: riderOrderView(withIntent || order, totals.lines, store.business_name), client_secret: intent.client_secret }, 201);
+  })
+);
+
+// After the card is confirmed on the device, the server checks Stripe
+// itself before the order goes to the store.
+app.post(
+  "/api/orders/:id/confirm-payment",
+  requireRider,
+  asyncRoute(async (req, res) => {
+    if (ordersUnavailable(res)) return;
+    const order = await loadRiderOrder(req, req.params.id);
+    if (!order) return fail(res, "Order not found.", 404);
+    if (order.status !== "pending_payment") return ok(res, { order: riderOrderView(order, (await loadOrderItems([order.id]))[order.id], await storeName(order.merchant_id)) });
+    const intent = order.payment_intent_id ? await stripe.paymentIntents.retrieve(order.payment_intent_id) : null;
+    if (!intent || intent.metadata?.order_id !== order.id || intent.amount !== order.authorized_cents || intent.livemode) return fail(res, "This payment could not be verified.", 409);
+    if (intent.status !== "requires_capture") return fail(res, "Your card hasn't been authorized yet.", 409);
+    const moved = await moveOrder(order, "placed", { kind: "system", id: "payment_confirmed" }, { req });
+    if (!moved.ok) return fail(res, moved.error, moved.status);
+    return ok(res, { order: riderOrderView(moved.order, (await loadOrderItems([order.id]))[order.id], await storeName(order.merchant_id)) });
+  })
+);
+
+app.get(
+  "/api/orders",
+  requireRider,
+  asyncRoute(async (req, res) => {
+    const { data, error } = await supabase.from("orders").select(ORDER_FIELDS).eq("rider_id", String(req.rider.id)).order("created_at", { ascending: false }).limit(20);
+    if (ordersNotSetUp(error)) return ok(res, { orders: [], not_set_up: true });
+    if (error) return fail(res, "Your orders could not be loaded.", 502);
+    const items = await loadOrderItems((data || []).map((o) => o.id));
+    const names = {};
+    for (const id of new Set((data || []).map((o) => o.merchant_id))) names[id] = await storeName(id);
+    return ok(res, { orders: (data || []).map((o) => riderOrderView(o, items[o.id], names[o.merchant_id])) });
+  })
+);
+
+app.get(
+  "/api/orders/:id",
+  requireRider,
+  asyncRoute(async (req, res) => {
+    const order = await loadRiderOrder(req, req.params.id);
+    if (!order) return fail(res, "Order not found.", 404);
+    return ok(res, { order: riderOrderView(order, (await loadOrderItems([order.id]))[order.id], await storeName(order.merchant_id)) });
+  })
+);
+
+// D2: free until the store marks the order ready; after that, support.
+app.post(
+  "/api/orders/:id/cancel",
+  requireRider,
+  asyncRoute(async (req, res) => {
+    const order = await loadRiderOrder(req, req.params.id);
+    if (!order) return fail(res, "Order not found.", 404);
+    if (!orderRules.canTransition("rider", order.status, "cancelled_by_rider")) return fail(res, "This order is ready or on its way. Please contact support to cancel it.", 409);
+    const moved = await moveOrder(order, "cancelled_by_rider", { kind: "rider", id: String(req.rider.id) }, { reason: cleanString(req.body && req.body.reason, 300) || "Cancelled by the customer.", req });
+    if (!moved.ok) return fail(res, moved.error, moved.status);
+    return ok(res, { order: riderOrderView(moved.order, (await loadOrderItems([order.id]))[order.id], await storeName(order.merchant_id)) });
+  })
+);
+
+// Store inbox. The store sees first names, items and notes only.
+app.get(
+  "/api/merchant/orders",
+  requireMerchant,
+  asyncRoute(async (req, res) => {
+    await sweepOrders({ merchantId: req.merchant.id });
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data, error } = await supabase.from("orders").select(ORDER_FIELDS).eq("merchant_id", req.merchant.id).neq("status", "pending_payment").gte("created_at", since).order("created_at", { ascending: false }).limit(100);
+    if (ordersNotSetUp(error)) return ok(res, { orders: [], not_set_up: true });
+    if (error) return fail(res, "Orders could not be loaded.", 502);
+    const items = await loadOrderItems((data || []).map((o) => o.id));
+    const names = await riderFirstNames((data || []).map((o) => o.rider_id));
+    return ok(res, { orders: (data || []).map((o) => orderRules.storeView(o, items[o.id], names[o.rider_id])), enabled: ENABLE_MERCHANT_ORDERS });
+  })
+);
+
+async function loadStoreOrder(req, id) {
+  const { data } = await supabase.from("orders").select(ORDER_FIELDS).eq("id", cleanString(id, 64)).eq("merchant_id", req.merchant.id).maybeSingle();
+  return data || null;
+}
+const STORE_ACTIONS = {
+  accept: { to: "accepted" },
+  reject: { to: "rejected", needsReason: true },
+  ready: { to: "ready" },
+  cancel: { to: "cancelled_by_store", needsReason: true }
+};
+app.post(
+  "/api/merchant/orders/:id/:action",
+  requireMerchant,
+  asyncRoute(async (req, res) => {
+    const action = STORE_ACTIONS[req.params.action];
+    if (!action) return fail(res, "Unknown action.", 404);
+    const order = await loadStoreOrder(req, req.params.id);
+    if (!order) return fail(res, "Order not found.", 404);
+    // A late answer to an order that has run out of time expires it instead.
+    if (order.status === "placed" && orderRules.sweepAction(order) === "expired") {
+      await moveOrder(order, "expired", { kind: "system", id: "order_sweep" }, { reason: "The store didn't respond in time." });
+      return fail(res, "This order expired before it was accepted. The customer's card hold was released.", 409);
+    }
+    const reason = cleanString(req.body && req.body.reason, 500);
+    if (action.needsReason && reason.length < 3) return fail(res, "Give the customer a reason.", 400);
+    const patch = {};
+    if (action.to === "accepted") {
+      const prep = orderRules.validPrepMinutes(req.body && req.body.prep_minutes);
+      if (!prep) return fail(res, `Enter a preparation time from ${orderRules.PREP_MINUTES.min} to ${orderRules.PREP_MINUTES.max} minutes.`, 400);
+      patch.prep_minutes = prep;
+    }
+    const moved = await moveOrder(order, action.to, { kind: "merchant", id: req.merchantUser.id }, { reason: reason || null, patch, req });
+    if (!moved.ok) return fail(res, moved.error, moved.status);
+    const names = await riderFirstNames([order.rider_id]);
+    return ok(res, { order: orderRules.storeView(moved.order, (await loadOrderItems([order.id]))[order.id], names[order.rider_id]) });
+  })
+);
+
+// Staff: every order, with stuck ones flagged; detail with history; cancel.
+function orderAttention(o, now = Date.now()) {
+  if (o.status === "accepted" && o.accepted_at && now > Date.parse(o.accepted_at) + ((o.prep_minutes || 0) + 20) * 60000) return "Past its preparation time";
+  if (o.status === "ready" && o.ready_at && now > Date.parse(o.ready_at) + 30 * 60000) return "Ready for over 30 minutes";
+  return null;
+}
+app.get(
+  "/api/admin/orders",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    await sweepOrders();
+    let query = supabase.from("orders").select(ORDER_FIELDS).order("created_at", { ascending: false }).limit(200);
+    if (req.query.view !== "all") query = query.in("status", orderRules.OPEN);
+    const { data, error } = await query;
+    if (ordersNotSetUp(error)) return ok(res, { orders: [], not_set_up: true, enabled: ENABLE_MERCHANT_ORDERS });
+    if (error) return fail(res, "Orders could not be loaded.", 502);
+    const ids = [...new Set((data || []).map((o) => o.merchant_id))];
+    const names = {};
+    if (ids.length) {
+      const { data: stores } = await supabase.from("merchants").select("id, business_name").in("id", ids);
+      for (const s of stores || []) names[s.id] = s.business_name;
+    }
+    return ok(res, {
+      enabled: ENABLE_MERCHANT_ORDERS,
+      test_mode_keys: ordersStripeTestMode(),
+      orders: (data || []).map((o) => ({ ...riderOrderView(o, [], names[o.merchant_id]), attention: orderAttention(o), created_at: o.created_at, can_staff_cancel: orderRules.canTransition("admin", o.status, "cancelled_by_staff") }))
+    });
+  })
+);
+
+app.get(
+  "/api/admin/orders/:id",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const { data: order } = await supabase.from("orders").select(ORDER_FIELDS).eq("id", cleanString(req.params.id, 64)).maybeSingle();
+    if (!order) return fail(res, "Order not found.", 404);
+    const { data: events } = await supabase.from("order_events").select("from_status, to_status, actor_type, actor_id, reason, created_at").eq("order_id", order.id).order("created_at", { ascending: true });
+    const names = await riderFirstNames([order.rider_id]);
+    return ok(res, {
+      order: { ...riderOrderView(order, (await loadOrderItems([order.id]))[order.id], await storeName(order.merchant_id)), rider_first_name: names[order.rider_id] || null, payment_intent_id: order.payment_intent_id, attention: orderAttention(order) },
+      events: (events || []).sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)))
+    });
+  })
+);
+
+app.post(
+  "/api/admin/orders/:id/cancel",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const reason = cleanString(req.body && req.body.reason, 500);
+    if (reason.length < 10) return fail(res, "Give a reason of at least 10 characters.", 400);
+    const { data: order } = await supabase.from("orders").select(ORDER_FIELDS).eq("id", cleanString(req.params.id, 64)).maybeSingle();
+    if (!order) return fail(res, "Order not found.", 404);
+    const moved = await moveOrder(order, "cancelled_by_staff", { kind: "admin", id: req.admin.email || req.admin.id }, { reason, req });
+    if (!moved.ok) return fail(res, moved.error, moved.status);
+    return ok(res, { order: riderOrderView(moved.order, [], await storeName(order.merchant_id)) });
+  })
+);
+
+/* =========================================================
 
    ADMIN MANUAL CONTACT-VERIFICATION OVERRIDE (DRIVER)
 

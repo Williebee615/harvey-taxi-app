@@ -23,7 +23,7 @@ describeDb("catalog_items migration", () => {
     if (db) await db.drop();
   });
   beforeEach(async () => {
-    await q("truncate public.catalog_items");
+    await q("truncate public.catalog_items cascade");
   });
 
   const add = (name, price = 499, m = merchantId) =>

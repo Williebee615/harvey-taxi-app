@@ -64,7 +64,9 @@ const EXPECTED_ORDER = [
   // Covered by test/db/merchantUsersHours.db.test.js.
   "20261017020000_merchant_users_hours.sql",
   // Covered by test/db/catalogItems.db.test.js.
-  "20261017030000_catalog_items.sql"
+  "20261017030000_catalog_items.sql",
+  // Covered by test/db/orders.db.test.js.
+  "20261018010000_orders.sql"
 ];
 
 // Synthetic pre-existing row (no production data), inserted after the

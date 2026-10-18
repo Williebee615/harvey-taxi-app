@@ -302,6 +302,12 @@
         <div class="list" id="merchantsList"><div class="empty">Loading merchant applications...</div></div>
       </section>
 
+      <section class="card" id="ordersAdminCard">
+        <div class="card-head"><div><div class="title">Store Orders <span class="badge warn">test mode</span></div><div class="sub" id="ordersAdminSub">Merchant orders (phase 3a). Staff can cancel an order before pickup; the customer's card hold is released.</div></div><span class="item-sub" id="ordersAdminCount">0</span></div>
+        <div class="actions"><label class="item-sub"><input type="checkbox" id="ordersShowAll" /> Include finished and cancelled</label></div>
+        <div class="list" id="ordersAdminList"><div class="empty">Loading orders...</div></div>
+      </section>
+
       <section class="card" id="heldItemsCard">
         <div class="card-head"><div><div class="title">Catalog Items Held for Review</div><div class="sub">Store items that may be on the excluded list. Allow them, or keep them hidden with a reason.</div></div><span class="item-sub" id="heldItemsCount">0</span></div>
         <div class="list" id="heldItemsList"><div class="empty">Loading held items...</div></div>
@@ -434,6 +440,62 @@ async function loadMerchants(){
       <div class="actions">${(MERCHANT_ACTIONS[m.status] || []).map(d => `<button class="${d === "approve" ? "success" : "danger"}" type="button" data-merchant-id="${esc(m.id)}" data-merchant-decision="${d}">${d[0].toUpperCase() + d.slice(1)}</button>`).join("")}</div>
     </div>`).join("") : `<div class="empty">No merchant applications yet.</div>`;
 }
+// Store orders (merchant portal phase 3a), test mode. Staff see every
+// order and can cancel one before pickup with a reason (audited; the card
+// hold is released). Staff can't change prices or charge anything here.
+const ORDER_STATUS_TEXT = { pending_payment: "waiting for payment", placed: "waiting for the store", accepted: "preparing", ready: "ready for pickup", picked_up: "picked up", delivered: "delivered", completed: "completed", rejected: "rejected by store", expired: "expired", payment_abandoned: "payment not completed", cancelled_by_rider: "cancelled by customer", cancelled_by_store: "cancelled by store", cancelled_by_staff: "cancelled by staff" };
+const usd = c => "$" + (Number(c || 0) / 100).toFixed(2);
+async function loadOrdersAdmin(){
+  const list = document.getElementById("ordersAdminList");
+  let data;
+  try { data = await api(`/api/admin/orders${document.getElementById("ordersShowAll").checked ? "?view=all" : ""}`); }
+  catch (e) { list.innerHTML = `<div class="empty">Orders could not be loaded: ${esc(e.message)}</div>`; return; }
+  const orders = data.orders || [];
+  document.getElementById("ordersAdminCount").textContent = orders.length;
+  if (data.not_set_up) { list.innerHTML = `<div class="empty">Orders aren't set up yet (database migration not applied).</div>`; return; }
+  const state = data.enabled ? (data.test_mode_keys ? "Ordering is on (Stripe test keys)." : "Ordering is on but Stripe isn't using test keys, so checkout is refused.") : "Ordering is off (ENABLE_MERCHANT_ORDERS).";
+  document.getElementById("ordersAdminSub").textContent = `${state} Staff can cancel an order before pickup; the customer's card hold is released.`;
+  list.innerHTML = orders.length ? orders.map(o => `
+    <div class="item" data-order-id="${esc(o.id)}">
+      <div class="item-top">
+        <div><div class="item-title">${esc(o.order_number)} · ${esc(o.store_name || "")}</div><div class="item-sub">${esc(o.order_type)} • total ${usd(o.total_cents)} (held ${usd(o.authorized_cents)}) • ${esc(new Date(o.created_at).toLocaleString())}</div></div>
+        <span class="badge ${statusClass(o.status)}">${esc(ORDER_STATUS_TEXT[o.status] || o.status)}</span>
+      </div>
+      ${o.attention ? `<div class="merchant-flags" role="note"><strong>⚠ ${esc(o.attention)}</strong></div>` : ""}
+      ${o.cancel_reason ? `<div class="item-sub">Reason: ${esc(o.cancel_reason)}</div>` : ""}
+      <div class="actions"><button class="neutral" type="button" data-order-detail="${esc(o.id)}">History</button>${o.can_staff_cancel ? `<button class="danger" type="button" data-order-cancel="${esc(o.id)}">Cancel order</button>` : ""}</div>
+      <div class="order-detail" data-detail-for="${esc(o.id)}" hidden></div>
+    </div>`).join("") : `<div class="empty">No ${document.getElementById("ordersShowAll").checked ? "" : "open "}orders.</div>`;
+}
+document.getElementById("ordersShowAll").addEventListener("change", loadOrdersAdmin);
+document.getElementById("ordersAdminList").addEventListener("click", async (event) => {
+  const detailBtn = event.target.closest("button[data-order-detail]");
+  const cancelBtn = event.target.closest("button[data-order-cancel]");
+  if (detailBtn) {
+    const panel = document.querySelector(`.order-detail[data-detail-for="${CSS.escape(detailBtn.dataset.orderDetail)}"]`);
+    if (!panel.hidden) { panel.hidden = true; return; }
+    panel.hidden = false;
+    panel.innerHTML = `<div class="empty">Loading...</div>`;
+    try {
+      const d = await api(`/api/admin/orders/${encodeURIComponent(detailBtn.dataset.orderDetail)}`);
+      const o = d.order;
+      panel.innerHTML = `
+        <div class="item-sub">Customer: ${esc(o.rider_first_name || "")} • items ${usd(o.items_subtotal_cents)} • tax ${usd(o.tax_cents)} • delivery ${usd(o.delivery_fee_cents)} • tip ${usd(o.tip_cents)}</div>
+        <ul>${(o.items || []).map(i => `<li>${esc(i.quantity)} × ${esc(i.name)} @ ${usd(i.unit_price_cents)} (${esc(i.substitution_choice)})</li>`).join("")}</ul>
+        <ol>${(d.events || []).map(e => `<li>${esc(new Date(e.created_at).toLocaleString())}: ${esc(e.from_status || "new")} → ${esc(e.to_status)} by ${esc(e.actor_type)}${e.reason ? ": " + esc(e.reason) : ""}</li>`).join("")}</ol>`;
+    } catch (e) { panel.innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+    return;
+  }
+  if (cancelBtn) {
+    const reason = (window.prompt("Reason to cancel this order (at least 10 characters; the customer and store see it):") || "").trim();
+    if (reason.length < 10) { showError("A reason of at least 10 characters is required."); return; }
+    try {
+      await api(`/api/admin/orders/${encodeURIComponent(cancelBtn.dataset.orderCancel)}/cancel`, { method: "POST", body: JSON.stringify({ reason }) });
+      showResult("Order cancelled. The card hold was released.");
+    } catch (e) { showError(e.message); }
+    loadOrdersAdmin();
+  }
+});
 // Catalog items held for review (merchant portal phase 2, term 3). Staff
 // decide; nothing is rejected automatically. Each decision is audited.
 async function loadHeldItems(){
@@ -768,6 +830,7 @@ async function loadDashboard(){
     loadDeletionRequests();
     loadMerchants();
     loadHeldItems();
+    loadOrdersAdmin();
   }catch(err){
     showError(err.message);
   }
