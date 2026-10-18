@@ -42,6 +42,7 @@
     .hts-logo-mark { overflow: hidden; padding: 0 !important; background: #0b1a3a !important; display: block !important; flex: 0 0 auto; position: relative; }
     .hts-logo-mark > img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: inherit; }
         details#importGuide{margin:8px 0 12px}details#importGuide summary{cursor:pointer;font-weight:600}table.guide td,table.guide th{vertical-align:top}
+          .order{border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:12px;margin:10px 0}.order.new{border-color:var(--gold)}.order h3{margin:0 0 4px;font-size:16px}.order ul{margin:6px 0 8px 18px;padding:0}.order .meta{font-size:13px;color:var(--muted)}.order .actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.order select{width:auto}.badge{display:inline-block;min-width:22px;padding:2px 8px;border-radius:999px;background:var(--gold);color:#111;font-size:13px;text-align:center}
     </style>
 </head>
 <body>
@@ -67,6 +68,14 @@
         <button type="button" class="secondary" id="changePhone">Use a different phone</button>
       </form>
       <div class="status" id="signInStatus" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="card" id="ordersCard" hidden>
+      <h2>Orders <span id="ordersBadge" class="badge" hidden></span></h2>
+      <p id="ordersNote">Accept each new order within 8 minutes, or it expires and the customer's card hold is released. You see the customer's first name and their items only.</p>
+      <div id="ordersList" aria-live="polite"></div>
+      <p id="ordersEmpty">No orders in the last 24 hours.</p>
+      <div class="status" id="ordersStatus" role="status" aria-live="polite"></div>
     </section>
 
     <section class="card" id="storeCard" hidden>
@@ -228,6 +237,7 @@
       async function loadStore() {
         const r = await call("/api/merchant/me");
         if (!r.ok) {
+          stopOrders();
           $("storeCard").hidden = true; $("catalogCard").hidden = true; $("signOut").hidden = true; $("signInCard").hidden = false;
           if (r.status === 403 || r.status === 503) show($("signInStatus"), r.data.error || "Store sign-in isn't available right now.", "error");
           return;
@@ -238,6 +248,99 @@
         renderHours(r.data.hours);
         $("signInCard").hidden = true; $("storeCard").hidden = false; $("signOut").hidden = false;
         loadCatalog();
+        startOrders();
+      }
+
+      // Orders inbox (phase 3a). Polls every 10 seconds while signed in; a
+      // new order plays a short tone and shows a count in the tab title (D6).
+      const STATUS_TEXT = { placed: "New: waiting for you", accepted: "Accepted: preparing", ready: "Ready for pickup", picked_up: "Picked up", delivered: "Delivered", completed: "Completed", rejected: "Rejected", expired: "Expired (not accepted in time)", cancelled_by_rider: "Cancelled by the customer", cancelled_by_store: "Cancelled by your store", cancelled_by_staff: "Cancelled by Harvey Taxi" };
+      const CHOICE_TEXT = { contact: "contact customer if out of stock", best_match: "your best match if out of stock", refund: "refund if out of stock" };
+      const baseTitle = document.title;
+      let ordersTimer = null;
+      let seenNew = new Set();
+      function tone() {
+        try {
+          const ctx = new (window.AudioContext || window.webkitAudioContext)();
+          const osc = ctx.createOscillator();
+          osc.frequency.value = 880;
+          osc.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.25);
+        } catch (e) { /* sound is a courtesy */ }
+      }
+      function stopOrders() {
+        if (ordersTimer) clearInterval(ordersTimer);
+        ordersTimer = null;
+        seenNew = new Set();
+        document.title = baseTitle;
+        $("ordersCard").hidden = true;
+      }
+      function startOrders() {
+        if (ordersTimer) return;
+        loadOrders();
+        ordersTimer = setInterval(loadOrders, 10000);
+      }
+      async function orderAction(o, action, body) {
+        const r = await call("/api/merchant/orders/" + encodeURIComponent(o.id) + "/" + action, { method: "POST", body: body || {} });
+        show($("ordersStatus"), r.ok ? "Order " + o.order_number + ": " + (STATUS_TEXT[r.data.order.status] || r.data.order.status) + "." : (r.data.error || "Could not update the order."), r.ok ? "success" : "error");
+        loadOrders();
+      }
+      function renderOrder(o) {
+        const div = document.createElement("div");
+        div.className = "order" + (o.status === "placed" ? " new" : "");
+        div.dataset.id = o.id;
+        const h = document.createElement("h3");
+        h.textContent = o.order_number + " · " + o.rider_first_name;
+        const meta = document.createElement("div");
+        meta.className = "meta";
+        const bits = [STATUS_TEXT[o.status] || o.status, money(o.items_subtotal_cents) + " in items"];
+        if (o.status === "placed" && o.respond_by) bits.push("respond by " + new Date(o.respond_by).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }));
+        if (o.prep_minutes) bits.push(o.prep_minutes + " min prep");
+        meta.textContent = bits.join(" · ");
+        const ul = document.createElement("ul");
+        (o.items || []).forEach(function (i) {
+          const li = document.createElement("li");
+          li.textContent = i.quantity + " × " + i.name + " (" + CHOICE_TEXT[i.substitution_choice] + ")";
+          ul.appendChild(li);
+        });
+        div.appendChild(h); div.appendChild(meta); div.appendChild(ul);
+        if (o.rider_notes) { const n = document.createElement("p"); n.className = "meta"; n.textContent = "Note: " + o.rider_notes; div.appendChild(n); }
+        const actions = document.createElement("div");
+        actions.className = "actions";
+        function button(label, cls, fn) { const b = document.createElement("button"); b.type = "button"; b.textContent = label; if (cls) b.className = cls; b.addEventListener("click", fn); actions.appendChild(b); return b; }
+        function askReason(prompt) { const r = (window.prompt(prompt) || "").trim(); if (r.length < 3) { show($("ordersStatus"), "Give the customer a reason.", "error"); return null; } return r; }
+        if (o.status === "placed") {
+          const sel = document.createElement("select");
+          sel.className = "prep";
+          sel.setAttribute("aria-label", "Preparation time for " + o.order_number);
+          [10, 15, 20, 30, 45, 60].forEach(function (m) { const op = document.createElement("option"); op.value = String(m); op.textContent = m + " min"; if (m === 15) op.selected = true; sel.appendChild(op); });
+          actions.appendChild(sel);
+          button("Accept", "accept", function () { orderAction(o, "accept", { prep_minutes: Number(sel.value) }); });
+          button("Reject", "reject secondary", function () { const r = askReason("Reason for the customer (for example: closing early, item unavailable):"); if (r) orderAction(o, "reject", { reason: r }); });
+        } else if (o.status === "accepted") {
+          button("Mark ready", "ready", function () { orderAction(o, "ready"); });
+          button("Cancel order", "cancel secondary", function () { const r = askReason("Why are you cancelling? The customer's card hold is released."); if (r) orderAction(o, "cancel", { reason: r }); });
+        } else if (o.status === "ready") {
+          button("Cancel order", "cancel secondary", function () { const r = askReason("Why are you cancelling? The customer's card hold is released."); if (r) orderAction(o, "cancel", { reason: r }); });
+        }
+        if (actions.children.length) div.appendChild(actions);
+        return div;
+      }
+      async function loadOrders() {
+        const r = await call("/api/merchant/orders");
+        if (!r.ok || r.data.not_set_up) { $("ordersCard").hidden = true; return; }
+        $("ordersCard").hidden = false;
+        const orders = r.data.orders || [];
+        const fresh = orders.filter(function (o) { return o.status === "placed"; });
+        if (fresh.some(function (o) { return !seenNew.has(o.id); })) tone();
+        seenNew = new Set(fresh.map(function (o) { return o.id; }));
+        document.title = fresh.length ? "(" + fresh.length + ") " + baseTitle : baseTitle;
+        $("ordersBadge").hidden = fresh.length === 0;
+        $("ordersBadge").textContent = fresh.length ? fresh.length + " new" : "";
+        if (!r.data.enabled && !orders.length) $("ordersNote").textContent = "Ordering isn't turned on yet. New orders will appear here when it is.";
+        $("ordersList").innerHTML = "";
+        orders.forEach(function (o) { $("ordersList").appendChild(renderOrder(o)); });
+        $("ordersEmpty").hidden = orders.length > 0;
       }
 
       $("phoneForm").addEventListener("submit", async function (e) {
@@ -308,6 +411,7 @@
 
       $("signOut").addEventListener("click", async function () {
         await call("/api/merchant/session/logout", { method: "POST" });
+        stopOrders();
         $("storeCard").hidden = true; $("catalogCard").hidden = true; $("signOut").hidden = true; $("signInCard").hidden = false;
         $("codeForm").hidden = true; $("phoneForm").hidden = false;
         show($("signInStatus"), "Signed out.");

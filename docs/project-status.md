@@ -1614,6 +1614,19 @@ The earlier §26 [Unresolved] item is resolved.
   - the three open items above.
 - **Next authorized action:** none. Merging needs the owner's approval.
 
+**[Owner decision 2026-10-18]** "Approved. Proceed to merge PR #279". **[Verified 2026-10-18]** All six CI checks were green on head `7d90be4`; merged as `f679375`.
+
+**[Verified 2026-10-18 00:05 UTC, production]**
+- `/api/health` reports `f679375`, healthy.
+- `htaf-assist.js` serves the keep-clear logic; the home, contact and application pages carry the markers.
+- Live render: the build environment can't reach the HTAF domain and its browser doesn't trust the proxy certificate (certificate checks were not disabled). The production files were fetched with curl and rendered in Chromium from `harveytaxiservice.com/foundation.html`, the same file as the HTAF home page:
+  - at 360 x 740 the button steps aside over the badge;
+  - at 412 x 915 the button sits below the badge with no overlap.
+
+**[Verified 2026-10-18 by the owner's phone screenshots, 7:10 local, Reduce Motion on]** The badge reads in full at the top of the page (button stepped aside) and after scrolling (button clear of it, over the hero paragraph).
+
+**[Owner decision 2026-10-18]** "Keep the current approach; no changes needed": only the 501(c)(3) status lines are keep-clear; the button may sit over ordinary text while scrolling.
+
 ## 39. Update 2026-10-18 (UTC): phase 3 orders design for owner review (PR `claude/phase3-orders-design`, not merged; documentation only)
 
 **[Owner decision 2026-10-18]** "Start the Phase 3 orders design document."
@@ -1655,3 +1668,57 @@ No code, migration or Stripe change.
   - merge approval for this documentation PR;
   - building step 3a after approval.
 - **Next authorized action:** none. Building phase 3 needs the owner's go-ahead on the design.
+
+**[Owner decision 2026-10-18]** D1–D7 "Approved as recommended"; "Approved to merge PR #280"; "Approved. Authorize the initiation of Step 3a".
+
+**[Verified 2026-10-18]** All six CI checks were green on head `b4f7bfb`; #280 merged as `ef44e86`; `/api/health` reports `ef44e86`, healthy (00:18 UTC).
+
+## 40. Update 2026-10-18 (UTC): phase 3 step 3a, orders core (PR `claude/phase3a-orders`, not merged; migration not applied; ordering off)
+
+**[Owner decision 2026-10-18]** "Approved. Authorize the initiation of Step 3a (database schema changes, checkout backend, store order inbox, and staff tools) to be built as a separate PR." D1–D7 approved as recommended.
+
+**Changes (not merged, not deployed):** details are in `docs/merchant-portal-phase3-orders.md`, including §11a (refinements made while building).
+- **Migration `20261018010000_orders.sql` (not applied; needs separate owner approval):** `orders`, `order_items`, `order_events`.
+  - Money in whole cents with database checks: nothing negative, capture ≤ authorization, refunds ≤ capture.
+  - One order per rider per checkout key; each fare quote usable once.
+  - Order history is append-only, enforced by a trigger.
+  - Server-only, RLS on.
+- **`lib/orders.js`:** who may move an order between which states, cart building from the catalog (held or hidden items can never be ordered), totals, store hours in Nashville time, the 8-minute (D1) and 15-minute timers, and what a store may see (first name and items only).
+- **Server:**
+  - riders: checkout, confirm payment, list, detail, cancel (D2);
+  - stores: inbox, accept with prep time, reject, mark ready, cancel;
+  - staff: list (stuck orders flagged), detail with history, cancel with a reason.
+
+  Every change is conditional on the order's current state, logged in `order_events` and audited. Every ending other than completion releases the card hold.
+- **Store portal:** an Orders card, refreshed every 10 seconds, with a tone and a tab-title count for new orders (D6).
+- **Admin dashboard:** "Store Orders (test mode)".
+
+**Safety [Verified 2026-10-18, local]:**
+- Ordering is off unless `ENABLE_MERCHANT_ORDERS` is on, Stripe uses test keys, and the delivery switches are on.
+- Order authorizations have their own Stripe tag (`harvey_taxi_orders`), so the ride hold-release job can't act on them.
+
+**Not in 3a [Unresolved]:**
+- the rider cart and checkout screens (3b);
+- delivery trip creation, which needs store coordinates (design §11a item 2);
+- capture at delivery, substitutions while preparing, missing-item refunds and the store-share ledger (3c);
+- SMS alerts (D6 optional).
+
+**Tax:** the placeholder rate `ORDERS_TEST_TAX_RATE_BPS` defaults to 0 and is for test mode only (waiting on the accountant).
+
+**[Verified 2026-10-18, local]**
+- `lib/orders.test.js`: 29 tests.
+- `test/server.orders.test.js`: 18 tests (checkout, retry, refusals, quote reuse and binding, payment confirmation, store inbox privacy, accept/ready/reject, the race, D1 expiry, sweep, D2 cancel, staff).
+- `test/server.orders-gates.test.js`: 3 tests (switch off, live keys, no Stripe).
+- `test/db/orders.db.test.js`: 7 tests (real Postgres).
+- `test/merchant-orders.browser.test.js`: 2 tests (Chromium).
+- Database suite: 171 passed, 4 skipped.
+
+**Handoff:**
+- **Done:** step 3a built and tested locally.
+- **Remaining:**
+  - merge approval;
+  - separate approval to apply the migration;
+  - owner approval before turning on `ENABLE_MERCHANT_ORDERS` (and the delivery switches) with Stripe test keys for the demo;
+  - steps 3b and 3c;
+  - the store-coordinates decision.
+- **Next authorized action:** none. Merging, the migration and turning ordering on each need the owner's approval.

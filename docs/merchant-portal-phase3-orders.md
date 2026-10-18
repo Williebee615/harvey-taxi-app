@@ -146,6 +146,8 @@ Checks in the database: amounts never negative; `captured_cents ≤ authorized_c
 
 ## 11. Decisions for the owner
 
+**[Owner decision 2026-10-18]** D1–D7 "Approved as recommended": D1 8 minutes; D2 free until marked ready, support-only after; D3 optional tip, no pre-selection, 100% to the driver; D4 single authorization and capture; D5 no minimum during the pilot; D6 portal sound and tab badge (SMS optional and metered); D7 capture at delivery confirmation.
+
 | # | Decision | Recommendation |
 |---|---|---|
 | D1 | How long a store has to accept before the order expires and the hold is released | 8 minutes (long enough for a busy counter; the rider isn't left waiting) |
@@ -155,6 +157,17 @@ Checks in the database: amounts never negative; `captured_cents ≤ authorized_c
 | D5 | Minimum order | None during the pilot; revisit with pilot data |
 | D6 | Store alerts | Sound and tab badge in the portal (free); SMS per order optional per store (Twilio cost per text) |
 | D7 | When the final amount is captured | At delivery confirmation (PIN or photo), not at pickup |
+
+## 11a. Refinements made while building step 3a (2026-10-18)
+
+**[Verified 2026-10-18, code and tests]** These change details of §3–§10, not the approved decisions:
+
+1. **Two more states.** Stripe authorizes the card on the rider's device, so an order starts as `pending_payment`. It becomes `placed` only after the server checks with Stripe that the card is authorized for exactly the order's amount. An unpaid checkout closes as `payment_abandoned` after 15 minutes, releasing any hold.
+2. **The delivery trip is not created at acceptance yet.** Store locations (map coordinates) aren't stored today, so a trip created now would rely on the rider's route. Trip creation moves to a later step, together with store coordinates (**[Unresolved]**: geocode store addresses at approval, or have staff confirm the pin). The pickup and drop-off coordinates from the fare quote are kept on the order.
+3. **Delivery fee** comes from the existing signed fare quote, bound to the rider and route and usable once, as for rides. Until store coordinates exist, the quote's pickup point is the rider's, not checked against the store (the same trust rides use today).
+4. **Store hours** are checked at checkout. A store that has saved no hours for today counts as closed.
+5. **Separate Stripe tag.** Order authorizations carry `app: harvey_taxi_orders`, so the ride payment reconciliation, which releases unattached `harvey_taxi` holds, never touches an order. Orders release their own holds.
+6. **Test mode is enforced in code:** checkout refuses unless `ENABLE_MERCHANT_ORDERS` is on and Stripe uses test keys (`sk_test_` / `rk_test_`), and refuses any live-mode authorization.
 
 ## 12. Build plan (each a separate PR; each merge, the migration and turning on the switch need the owner's approval)
 
