@@ -13449,6 +13449,11 @@ app.post(
       ["active", "approved"].includes(String(readiness.rider?.status || "").toLowerCase()) ||
       String(readiness.rider?.approval_status || "").toLowerCase() === "approved";
 
+    // The rider row: the fallback for the driver-facing name and phone
+    // when the booking screen didn't send them (Just-in-Time booking
+    // collects the phone at sign-up instead).
+    const readinessRider = readiness.rider || null;
+
     if (!readiness.ready || !riderStatusOk) {
       return fail(
         res,
@@ -13527,22 +13532,12 @@ app.post(
         : {}),
 
       rider_name:
-
-        cleanString(
-
-          req.body.rider_name,
-
-          180
-
-        ),
+        cleanString(req.body.rider_name, 180) ||
+        cleanString([readinessRider?.first_name, readinessRider?.last_name].filter(Boolean).join(" "), 180),
 
       rider_phone:
-
-        cleanPhone(
-
-          req.body.rider_phone
-
-        ),
+        cleanPhone(req.body.rider_phone) ||
+        cleanPhone(readinessRider?.phone),
 
       // NOTE: the rides table has no "pickup"/"destination" columns —
       // only pickup_address/dropoff_address. Writing to the old names
