@@ -519,3 +519,35 @@ own separate enable/disable procedure — see
 imply enabling the other; they protect different parts of the dispatch
 pipeline and were deliberately kept on independent switches.
 Implementation does not begin until this plan is approved.
+
+## Update 2026-10-19 (UTC): Mapbox with traffic as the routing provider
+
+**[Owner decision 2026-10-19]** "Mapbox Traffic-Aware ETA: Approved. Since it is covered by the free tier, you may prepare the PR to switch the traffic-aware ETA on."
+
+**What changes (PR `claude/mapbox-traffic-eta`)**
+- With `dispatch_route_api_enabled` on, the pickup ETA comes from **Mapbox Directions, profile `driving-traffic`** (live and typical traffic). Before, it came from Google Routes, whose key was never set in production.
+- Google Routes is used only if Mapbox isn't configured and `GOOGLE_ROUTES_API_KEY` is set.
+- **Fares and delivery estimates are unchanged.** They keep the plain `driving` profile, so a price never moves with traffic.
+- Any Mapbox failure, timeout or cap overrun falls back to Haversine. A driver's location update never waits for it.
+- **The switch:** `POST /api/admin/system/enable-traffic-eta` and `disable-traffic-eta`, both admin-only and audited (`traffic_eta_enabled` / `traffic_eta_disabled`).
+  - Enabling is refused unless `dispatch_eta_persistence_enabled` is on and a provider is configured.
+  - `GET /api/admin/system/traffic-eta` shows the switch, the provider and this month's calls against the cap.
+
+**[Verified 2026-10-19]** Production state, read before this change:
+- Mapbox is configured (`/api/geo/status`).
+- `dispatch_eta_persistence_enabled` = `true`.
+- `dispatch_route_api_enabled` has no row, which reads as off.
+
+**Expected calls (estimate)**
+- The Driver app sends its location at most every 10 seconds and 20 m while heading to pickup (`driver-app/src/locationPolicy.js`). A new Mapbox call is made only when the driver has moved more than 0.03 mile since the last one (per-ride cache).
+- In city traffic that is close to every update: about **50 calls for an 8-minute approach**.
+- At about 20 rides a month (24 rides in production from 2026-09-11 to 2026-10-18, including tests), that is **about 1,000 calls a month**.
+- **Hard cap:** `ROUTE_API_MONTHLY_QUOTA` = **20,000 calls a month** (about 400 rides). Above it, ETAs fall back to Haversine until the next month. The atomic counter is `usage_counters`, key `route_api_calls_YYYY-MM`.
+
+**Cost**
+- **[Unresolved]** The figures below were given by the owner and could not be confirmed from this environment (mapbox.com was unreachable): 100,000 Directions requests a month free, then $2.00 per 1,000 up to 500,000.
+- **[Recommendation]** Confirm in the Mapbox account's pricing and usage pages before switching on.
+- Fare and delivery route calls also count toward Directions usage.
+- At today's volume, the total stays far inside the free allowance. The 20,000-call cap keeps pickup ETAs at no more than a fifth of it.
+
+**Privacy:** the driver's position and the pickup point are sent to Mapbox, which already receives addresses and routes for fares. If #207 is published, its maps line should name Mapbox for arrival estimates instead of Google Maps Platform (`docs/assistant-model-activation-review-pack.md` §2).

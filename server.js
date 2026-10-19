@@ -10517,8 +10517,14 @@ const { excludeBusyDrivers, getBusyDriverIds } = require("./lib/driverAvailabili
    paid routing accuracy must not share one switch:
      dispatch_eta_persistence_enabled — write ETA/distance at all (Haversine,
        no external dependency, no cost).
-     dispatch_route_api_enabled — let a paid routing API supply the value
+     dispatch_route_api_enabled — let a routing API supply the value
        instead of Haversine. Only meaningful once persistence is already on.
+       The provider is Mapbox Directions with live traffic
+       ("driving-traffic"; owner-approved 2026-10-19, within Mapbox's free
+       monthly allowance at current volume), falling back to Google Routes
+       only when Mapbox isn't configured and GOOGLE_ROUTES_API_KEY is set.
+       Switched by POST /api/admin/system/enable-traffic-eta and
+       disable-traffic-eta. Fares never use the traffic profile.
    Both default to "false" via getSystemFlag's fallback (no system_flags row
    exists for either yet — same convention as offer_expiry_sweep_enabled).
    This module does not enable either flag.
@@ -10586,6 +10592,24 @@ async function callGoogleRoutesApi({ fromLat, fromLng, toLat, toLng }) {
     distanceMiles: Math.round((Number(route.distanceMeters) / 1609.34) * 100) / 100,
     etaMinutes: Math.max(1, Math.round(durationSeconds / 60))
   };
+}
+
+// Pickup ETA from Mapbox with traffic. Throws on any failure so
+// resolveEtaEstimate() falls back to Haversine.
+async function callMapboxTrafficRoute({ fromLat, fromLng, toLat, toLng }) {
+  const outcome = await geoClient.route({ lat: fromLat, lng: fromLng }, { lat: toLat, lng: toLng }, { traffic: true });
+  if (!outcome.ok) {
+    throw new Error(`Mapbox traffic route failed (${outcome.error}${outcome.status ? `, HTTP ${outcome.status}` : ""})`);
+  }
+  return {
+    distanceMiles: Math.round(Number(outcome.distance_miles) * 100) / 100,
+    etaMinutes: Math.max(1, Math.round(Number(outcome.duration_minutes)))
+  };
+}
+
+function callPickupRouteApi(points) {
+  if (GEO_CONFIG.configured) return callMapboxTrafficRoute(points);
+  return callGoogleRoutesApi(points);
 }
 
 async function incrementRouteApiUsageCounter() {
@@ -10664,7 +10688,7 @@ async function persistPickupEtaBestEffort({
       setCachedRoute: (entry) => etaRouteCache.set(rideId, entry),
       incrementUsageCounter: incrementRouteApiUsageCounter,
       quotaLimit: ROUTE_API_MONTHLY_QUOTA,
-      callRouteApi: callGoogleRoutesApi,
+      callRouteApi: callPickupRouteApi,
       timeoutMs: ROUTE_API_TIMEOUT_MS,
       movementThresholdMiles: ROUTE_API_MOVEMENT_THRESHOLD_MILES,
       persistEta: (estimate) => persistRideEtaToPickup(rideId, estimate),
@@ -10678,6 +10702,63 @@ async function persistPickupEtaBestEffort({
     return null;
   }
 }
+
+// Traffic-aware pickup ETA switch (dispatch_route_api_enabled). Admin
+// only and audited. Enabling needs ETA persistence on and a routing
+// provider configured, so it can't silently do nothing.
+app.post(
+  "/api/admin/system/enable-traffic-eta",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    if ((await getSystemFlag("dispatch_eta_persistence_enabled", "false")) !== "true") {
+      return fail(res, "Turn on ETA persistence (dispatch_eta_persistence_enabled) first.", 409);
+    }
+    if (!GEO_CONFIG.configured && !GOOGLE_ROUTES_API_KEY) {
+      return fail(res, "No routing provider is configured (MAPBOX_ACCESS_TOKEN).", 409);
+    }
+    const { error } = await supabase
+      .from("system_flags")
+      .upsert({ key: "dispatch_route_api_enabled", value: "true", reason: cleanString(req.body?.reason, 1000), updated_at: nowIso() });
+    if (error) return fail(res, "The switch could not be saved. Nothing was changed.", 500);
+    auditLog({ actor_type: "admin", actor_id: req.admin.email, action: "traffic_eta_enabled", metadata: { provider: GEO_CONFIG.configured ? "mapbox_driving_traffic" : "google_routes", monthly_call_cap: ROUTE_API_MONTHLY_QUOTA }, req }).catch(() => {});
+    return ok(res, { traffic_eta_enabled: true, provider: GEO_CONFIG.configured ? "mapbox_driving_traffic" : "google_routes", monthly_call_cap: ROUTE_API_MONTHLY_QUOTA });
+  })
+);
+
+app.post(
+  "/api/admin/system/disable-traffic-eta",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const { error } = await supabase
+      .from("system_flags")
+      .upsert({ key: "dispatch_route_api_enabled", value: "false", reason: null, updated_at: nowIso() });
+    if (error) return fail(res, "The switch could not be saved. Nothing was changed.", 500);
+    auditLog({ actor_type: "admin", actor_id: req.admin.email, action: "traffic_eta_disabled", req }).catch(() => {});
+    return ok(res, { traffic_eta_enabled: false });
+  })
+);
+
+// This month's routing calls against the cap, and the switch state.
+app.get(
+  "/api/admin/system/traffic-eta",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const month = new Date().toISOString().slice(0, 7);
+    const [enabled, persistence, counter] = await Promise.all([
+      getSystemFlag("dispatch_route_api_enabled", "false"),
+      getSystemFlag("dispatch_eta_persistence_enabled", "false"),
+      supabase.from("usage_counters").select("count").eq("key", `route_api_calls_${month}`).maybeSingle()
+    ]);
+    return ok(res, {
+      traffic_eta_enabled: enabled === "true",
+      eta_persistence_enabled: persistence === "true",
+      provider: GEO_CONFIG.configured ? "mapbox_driving_traffic" : GOOGLE_ROUTES_API_KEY ? "google_routes" : "none",
+      month,
+      calls_this_month: counter && counter.data ? Number(counter.data.count) || 0 : 0,
+      monthly_call_cap: ROUTE_API_MONTHLY_QUOTA
+    });
+  })
+);
 
 // unref() so this background cache-pruning timer never by itself keeps
 // the process alive -- the real server already stays alive via
