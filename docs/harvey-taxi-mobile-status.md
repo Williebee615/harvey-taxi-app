@@ -126,3 +126,10 @@ Website only; the rider app loads the same pages, so no rider build is needed. D
 - **[Verified 2026-10-18, local]** Map and price first, sign-up at "Confirm Ride" with first name, number and texted code, then card. Website only; no rider build. Details in `docs/project-status.md` §52.
 
 **Handoff:** done: the PR. Remaining: merge approval; the owner's decision to switch it on; a phone check with it on; App Review notes if it is on for a submission. Next authorized action: none.
+
+## 11. Update 2026-10-19 (UTC): rider Android build status
+- **[Verified 2026-10-19, EAS]** The latest rider Android build is 1.0.2 (versionCode 11), `79cdbcc3-4f94-4d48-95c9-171424a92b2f`, store distribution, built 2026-10-04 from `fcf3fa0`. The remote Android versionCode is 11.
+- **[Verified 2026-10-19, git]** Since `fcf3fa0`, `mobile/` changed only iOS settings (bundle ID, Xcode 26 image, App Store ID), the release checklist and tests, so this build is current for Android. All rider changes since then are website changes the app already shows.
+- **[Unresolved]** Whether it was ever uploaded to Play Console, and the highest versionCode there. The owner will send an App bundle explorer screenshot. If below 11, upload by hand to Internal testing (draft); if 11 or higher, one new Android build is needed. Each step needs approval.
+- Rider iOS: unchanged; the scheduled 2026-11-01 cloud build check is active.
+- **Next authorized action:** none until the owner's Play Console screenshot.

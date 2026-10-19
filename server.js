@@ -552,6 +552,16 @@ const { readLlmConfig: readAgentLlmConfig, createLlmClient: createAgentLlmClient
 const { createAgentTools } = require("./lib/agent/tools");
 const { handleAssist: handleAgentAssist } = require("./lib/agent/assistant");
 const agentSpecialists = require("./lib/agent/specialists");
+const {
+  FEEDBACK_FLAG: AGENT_FEEDBACK_FLAG,
+  FEEDBACK_ACTION: AGENT_FEEDBACK_ACTION,
+  RATINGS: AGENT_FEEDBACK_RATINGS,
+  cleanConversationId: cleanAgentConversationId,
+  newAnswerId: newAgentAnswerId,
+  createFeedbackSigner: createAgentFeedbackSigner,
+  feedbackEntry: agentFeedbackEntry,
+  summarizeFeedback: summarizeAgentFeedback
+} = require("./lib/agent/feedback");
 const { createKnowledgeStore } = require("./lib/knowledge/store");
 const { readClaudeConfig, createClaudeClient } = require("./lib/agent/claudeClient");
 const { createModelBudget, budgetFromEnv } = require("./lib/agent/modelBudget");
@@ -27333,6 +27343,10 @@ const assistantPilotTestHooks =
 // in memory, no database reads or writes per request.
 const agentUsage = createAgentUsageMeter();
 const AGENT_USAGE_SALT = crypto.randomBytes(16).toString("hex");
+// Signs answer feedback tokens (key derived from the rider session secret,
+// so it survives restarts and is shared by every instance). Null without
+// the secret: ratings are then unavailable.
+const agentFeedbackSigner = createAgentFeedbackSigner(RIDER_SESSION_SECRET);
 const AGENT_LIMITED_REPLY =
   "You've reached today's limit for the Harvey Taxi assistant. Booking, your trips and support still work as usual. In an emergency, call 911.";
 // In-process memory only: cooldowns and log de-duplication. Losing it on
@@ -27548,7 +27562,20 @@ async function runAgentAssist(req, res, { role, actor }) {
   if (result.escalation) {
     caseId = await openAgentCase({ role, actorId: actor ? actor.id : null, escalation: result.escalation, message, source: "assist" });
   }
-  agentAudit(agentAssistDecisionEntry({ role, actorId: actor ? actor.id : null, result, mode: state.mode.mode, message, appTarget, model: model.record }), req);
+  const decision = agentAssistDecisionEntry({ role, actorId: actor ? actor.id : null, result, mode: state.mode.mode, message, appTarget, model: model.record });
+  // Ratings (agent_feedback_enabled): the answer gets an id and a token
+  // only its asker can use to rate it; the conversation id the web
+  // assistant sends links answers to any support request from the same
+  // chat. Off: nothing here changes.
+  let feedbackToken = null;
+  if (state.flags[AGENT_FEEDBACK_FLAG] === true && agentFeedbackSigner) {
+    const answerId = newAgentAnswerId();
+    const conversationId = cleanAgentConversationId(req.body?.conversation_id);
+    decision.metadata.answer_id = answerId;
+    decision.metadata.conversation_id = conversationId;
+    feedbackToken = agentFeedbackSigner.issue({ answerId, role, actorId: actor ? actor.id : null, intent: result.intent, source: result.source, appTarget, conversationId });
+  }
+  agentAudit(decision, req);
   return ok(res, {
     agent_available: true,
     reply: result.reply,
@@ -27566,7 +27593,8 @@ async function runAgentAssist(req, res, { role, actor }) {
     // approved content (no AI model). Absent when a chief answered.
     ...(result.specialist ? { specialist: result.specialist } : {}),
     // A model-written answer is labelled as such in every client.
-    ...(result.source === "model" ? { answered_by: { engine: "model", label: AI_ANSWER_LABEL } } : {})
+    ...(result.source === "model" ? { answered_by: { engine: "model", label: AI_ANSWER_LABEL } } : {}),
+    ...(feedbackToken ? { feedback_token: feedbackToken } : {})
   });
 }
 
@@ -27730,13 +27758,13 @@ async function runHandoffDraft(req, res, { role, actor }) {
 }
 
 // Saves the case, then emails a copy. Resolves to { saved, ... }.
-async function saveHandoff(req, { role, actor, summary, kind, rideId, requestId }) {
+async function saveHandoff(req, { role, actor, summary, kind, rideId, requestId, conversationId = null }) {
   const reference = newHandoffReference();
   const appTarget = agentAppTarget({ role, client: req.body?.client, platform: req.body?.platform, userAgent: req.get("user-agent") });
-  const saved = await auditLog({
-    ...handoffCaseEntry({ reference, role, actorId: actor.id, summary, appTarget, kind, rideId, requestId }),
-    req
-  });
+  const entry = handoffCaseEntry({ reference, role, actorId: actor.id, summary, appTarget, kind, rideId, requestId });
+  // Counts the chat this request came from as one that needed staff.
+  if (conversationId) entry.metadata.conversation_id = conversationId;
+  const saved = await auditLog({ ...entry, req });
   if (!saved || saved.logged !== true) return { saved: false };
   const receivedAt = nowIso();
   // Email copy: its outcome is recorded on its own row whenever it
@@ -27814,12 +27842,61 @@ async function runHandoffSend(req, res, { role, actor }) {
   if (!handoffLimiter.allow(account)) {
     return res.status(429).json({ ok: false, sent: false, error: "You've sent several requests in the last hour. Support has them; please wait for a reply, or use the Support page." });
   }
-  const pending = saveHandoff(req, { role, actor, summary: summary.text, kind, rideId, requestId });
+  const conversationId = state.flags[AGENT_FEEDBACK_FLAG] === true ? cleanAgentConversationId(req.body?.conversation_id) : null;
+  const pending = saveHandoff(req, { role, actor, summary: summary.text, kind, rideId, requestId, conversationId });
   handoffDeduper.track(account, requestId, summary.text, pending);
   const result = await pending;
   if (!result.saved) return res.status(503).json({ ok: false, sent: false, case_created: false, error: HANDOFF_NOT_SENT });
   return ok(res, handoffReply(result, { duplicate: false }));
 }
+
+/* =========================================================
+   ANSWER RATINGS (lib/agent/feedback.js; off unless
+   agent_feedback_enabled is "true")
+   Thumbs up or down on one answer, by the person who got it, using the
+   token returned with the answer. One audit row per rating, with no
+   message text; a later rating of the same answer replaces the earlier
+   one in the counts.
+========================================================= */
+const agentFeedbackRateLimit = rateLimit({ windowMs: 60_000, max: 30, keyPrefix: "agent_feedback" });
+
+async function runAgentFeedback(req, res, { role, actor }) {
+  const state = await loadAgentState();
+  if (!state.mode.assist_enabled || state.flags[AGENT_FEEDBACK_FLAG] !== true || !agentFeedbackSigner) {
+    return fail(res, "Ratings are not switched on.", 409);
+  }
+  const rating = req.body?.rating;
+  if (!AGENT_FEEDBACK_RATINGS.includes(rating)) return fail(res, "rating must be up or down.", 400);
+  const checked = agentFeedbackSigner.verify(req.body?.feedback_token);
+  if (checked.error) {
+    return fail(res, checked.error === "expired" ? "This answer can no longer be rated." : "This answer can't be rated.", 400);
+  }
+  const p = checked.payload;
+  // Only the person who got the answer: same role, and the same signed-in
+  // account when the answer was given to one.
+  if (p.r !== role || (p.u && (!actor || String(actor.id) !== String(p.u)))) {
+    return fail(res, "This answer can't be rated from this account.", 403);
+  }
+  const saved = await auditLog({ ...agentFeedbackEntry(p, rating), req });
+  if (!saved || saved.logged !== true) return fail(res, "Your rating wasn't saved. Please try again.", 503);
+  return ok(res, { saved: true, rating });
+}
+
+app.post(
+  "/api/agent/rider/feedback",
+  agentFeedbackRateLimit,
+  asyncRoute(async (req, res) => {
+    const rider = await resolveVerifiedRiderSession(req);
+    return runAgentFeedback(req, res, { role: "rider", actor: rider ? { role: "rider", id: String(rider.id) } : null });
+  })
+);
+
+app.post(
+  "/api/agent/driver/feedback",
+  agentFeedbackRateLimit,
+  requireDriverSelf,
+  asyncRoute(async (req, res) => runAgentFeedback(req, res, { role: "driver", actor: { role: "driver", id: String(req.driver.id) } }))
+);
 
 const handoffRateLimit = rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "agent_handoff" });
 
@@ -28126,6 +28203,35 @@ app.get(
       today_live: agentUsage.snapshot(),
       history: summarizeAgentUsage(data || [], { days: 7 }),
       history_truncated: (data || []).length >= 20000
+    });
+  })
+);
+
+// Ratings and "resolved without staff" for the last 1-30 days (default 7).
+app.get(
+  "/api/admin/agent/feedback",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const state = await loadAgentState();
+    const days = Math.min(30, Math.max(1, Math.floor(Number(req.query.days) || 7)));
+    const since = new Date(Date.now() - (days - 1) * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const { data, error } = await supabase
+      .from("audit_logs")
+      .select("created_at, action, entity_id, metadata")
+      .in("action", [AGENT_ACTIONS.DECISION, AGENT_ACTIONS.CASE_OPENED, AGENT_FEEDBACK_ACTION])
+      .gte("created_at", `${since}T00:00:00.000Z`)
+      .order("created_at", { ascending: false })
+      .limit(20000);
+    if (error) return fail(res, "Ratings are unavailable right now.", 503);
+    return ok(res, {
+      enabled: state.flags[AGENT_FEEDBACK_FLAG] === true,
+      signer_configured: Boolean(agentFeedbackSigner),
+      measured:
+        "Thumbs up/down are counted once per answer (the latest rating wins). A conversation is one web assistant chat, until Clear chat or sign-out; " +
+        "it needed staff if an answer in it opened a safety or review case or a support request was sent from it. " +
+        "Answers from clients that don't send a conversation id (driver app builds, older pages) are untracked, not counted as resolved.",
+      ...summarizeAgentFeedback(data || [], { days }),
+      truncated: (data || []).length >= 20000
     });
   })
 );

@@ -157,3 +157,11 @@ Still unverified on devices: push notifications and locked-screen tracking. Thes
 - **App build:** not needed now. Older builds reach the page through the redirect; the next build picks up the new link. No build, upload or release is authorized.
 - **Tests [Verified 2026-10-18, local]:** the affected server and browser suites 328/328 (new: the redirects keep the query; `/driver.html` and `/driver` serve the real page, not the old console); Driver app 84/84; rider app 117/117. (One Driver app run showed 6 failures that didn't recur on two further runs.)
 - **Next authorized action:** none. Merging waits for the owner.
+
+## Update 2026-10-19 (UTC): iOS local build blocked; Android 12 upload by hand
+- **[Verified 2026-10-19, owner's screenshots]** The owner's local iOS build of `0313997` failed with `spawn fastlane ENOENT`. Installing the tools isn't possible on that Mac: it is Intel (`x86_64`), macOS 12.7.6, with no Xcode. Xcode 16+ (needed by Expo SDK 54 and for App Store uploads) requires macOS 14+. **No iOS build of 1.0.0 (12+) exists.**
+- **[Unresolved]** The iOS route: the free cloud build after 2026-11-01, a paid Expo plan, or another Mac. Owner's decision.
+- **[Owner decision 2026-10-19]** "Upload Android now."
+- **[Verified 2026-10-19]** EAS build `ca0ce0c1-8e6b-4ca2-a5af-b825d0d8c9f4` is 1.0.0 (12), production profile, from `0313997`, FINISHED. `eas submit` (internal track, draft) stopped before upload: EAS has no Google service account key for `com.harveytaxi.driver`. **Nothing was uploaded.**
+- The owner is uploading the `.aab` by hand: Play Console → Internal testing → new release → Save, with no rollout. **[Unresolved]** The result. Rollout to testers or production, and review submission, need separate approval.
+- **Next authorized action:** record the owner's Play Console result.
