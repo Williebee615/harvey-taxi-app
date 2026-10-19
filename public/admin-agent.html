@@ -202,6 +202,16 @@
     <ul id="usageGaps"></ul>
   </section>
 
+  <section class="panel" id="feedbackPanel">
+    <h2>Ratings and resolution (last 7 days)</h2>
+    <p class="muted" id="feedbackMeasured">Loading…</p>
+    <div class="stats" id="feedbackTotals"></div>
+    <div class="table-wrap"><table><thead><tr><th>Day (UTC)</th><th>Answers</th><th>Untracked answers</th><th>Chats</th><th>Resolved without staff</th><th>Needed staff</th><th>Thumbs up</th><th>Thumbs down</th></tr></thead><tbody id="feedbackDaily"></tbody></table></div>
+    <h3>Recent thumbs down</h3>
+    <p class="muted">Question type and answer source only; the question itself is never stored.</p>
+    <ul id="feedbackDown"></ul>
+  </section>
+
   <section class="panel">
     <h2>Decision log</h2>
     <p class="muted">Every recommendation, shadow decision, executed action and admin override. Raw messages and contact details are not stored.</p>
@@ -219,7 +229,8 @@
     agent_shadow_mode_enabled: ["Shadow mode", "Records what the agent would do. Changes nothing."],
     agent_automation_enabled: ["Automation (master)", "Required for any automatic action. Elevated admin only."],
     agent_auto_redispatch_enabled: ["Automatic redispatch", "Redispatch stalled paid rides through existing dispatch. Elevated admin only."],
-    agent_kill_switch: ["Kill switch", "Stops every agent capability immediately."]
+    agent_kill_switch: ["Kill switch", "Stops every agent capability immediately."],
+    agent_feedback_enabled: ["Answer ratings", "Shows thumbs up/down under web assistant answers and counts chats resolved without staff. Records only; changes no answer."]
   };
   const ELEVATED = ["agent_automation_enabled", "agent_auto_redispatch_enabled"];
   // Specialist switches (from /api/admin/agent/specialists); enabling one
@@ -424,6 +435,32 @@
     }
   }
 
+  async function loadFeedback() {
+    try {
+      const f = await api("/api/admin/agent/feedback");
+      $("feedbackMeasured").textContent = (f.enabled ? "Ratings are on. " : "Ratings are off (switch: Answer ratings). ") + f.measured;
+      const t = f.totals;
+      const pct = (v) => (v == null ? "—" : `${v}%`);
+      $("feedbackTotals").innerHTML = [
+        ["Chats", t.conversations],
+        ["Resolved without staff", `${t.resolved_without_staff} (${pct(t.resolved_without_staff_rate)})`],
+        ["Needed staff", t.needed_staff],
+        ["Thumbs up", t.thumbs_up],
+        ["Thumbs down", t.thumbs_down],
+        ["Satisfaction", pct(t.satisfaction_rate)],
+        ["Answers rated", pct(t.rated_share)]
+      ].map(([k, v]) => `<div class="stat"><span class="muted">${esc(k)}</span><b>${esc(v)}</b></div>`).join("");
+      $("feedbackDaily").innerHTML = f.daily.slice().reverse().map((d) =>
+        `<tr><td>${esc(d.day)}</td><td>${d.answers}</td><td>${d.untracked_answers}</td><td>${d.conversations}</td><td>${d.resolved_without_staff}</td><td>${d.needed_staff}</td><td>${d.thumbs_up}</td><td>${d.thumbs_down}</td></tr>`
+      ).join("");
+      $("feedbackDown").innerHTML = f.recent_down.length
+        ? f.recent_down.map((r) => `<li><span class="muted">${when(r.at)} · ${esc(r.app_target || "unknown app")} · ${esc(r.answer_source)}</span> ${esc(r.intent || "unknown question type")}</li>`).join("")
+        : `<li class="empty">None in the last 7 days.</li>`;
+    } catch (err) {
+      $("feedbackMeasured").textContent = "Ratings are unavailable right now.";
+    }
+  }
+
   async function loadModel() {
     try {
       const m = await api("/api/admin/agent/model");
@@ -489,6 +526,7 @@
 
   async function load() {
     loadUsage();
+    loadFeedback();
     loadModel();
     try {
       state = await api("/api/admin/agent/overview");

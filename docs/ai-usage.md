@@ -75,6 +75,24 @@ The label is reported by the app itself. It is used for reporting only and never
 
 Local screenshot (test data, not production): `docs/screenshots/ai-phase1/admin-assistant-usage.png`.
 
+## Answer ratings and "resolved without staff" (off by default)
+
+Owner-approved 2026-10-19. The admin Agent page switch **Answer ratings** (`agent_feedback_enabled`) turns it on; it is off until then.
+
+- **Rating:** with the switch on, each answer in the web assistant (rider dashboard, the rider apps' WebView, the website and the web driver dashboard) shows "Was this helpful?" with thumbs up and down.
+  - The answer carries a signed token (`lib/agent/feedback.js`). Only the person who got the answer can rate it: the same signed-in account, or for a signed-out visitor, whoever holds the token. Tokens expire after 24 hours.
+  - One audit row per rating (`agent.feedback`): the rating, the question type, the answer source (rules, approved pages, model or specialist), the app and the chat id. **No message text.** A later rating of the same answer replaces the earlier one in the counts.
+- **Chat id:** a random id the web assistant keeps until Clear chat or sign-out. It is sent with each question and with a support request from that chat, and is saved in the browser only while ratings are on.
+- **Resolved without staff:** a chat counts as needing staff if any answer in it opened a safety or review case, or a support request was sent from it. Every other chat counts as resolved without staff.
+  - The Harvey Taxi Driver app doesn't send a chat id or show ratings. Its answers are counted as **untracked**, never as resolved. Adding it would need a driver app build.
+- **Admin:** the Agent page section "Ratings and resolution (last 7 days)", from `GET /api/admin/agent/feedback?days=1-30`, shows:
+  - chats, resolved without staff, needed staff;
+  - thumbs up and down, and the satisfaction rate;
+  - the share of answers rated;
+  - a per-day table;
+  - recent thumbs down (question type and source only).
+- **Privacy:** if this is switched on together with the AI disclosure, the Privacy Policy should say ratings are kept without the message (see `docs/assistant-model-activation-review-pack.md` §2).
+
 ## Not in this phase (on hold)
 
 - Paid models, token budgets and per-token spending caps.

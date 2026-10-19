@@ -2252,3 +2252,52 @@ The demo can then run in production with test money while rides keep their keys 
   - store sign-in;
   - Just-in-Time switch-on and the owner's phone test.
 - **Next authorized action:** merge this PR when CI is green.
+
+## 58. Update 2026-10-19 (UTC): #300 live; builds; assistant ratings (PR `claude/assistant-feedback-tracking`, switch off); model-activation review pack; traffic-aware ETA (separate PR)
+
+**[Owner decision 2026-10-19]**
+- "Model-Activation Review Pack: Approved… Do not activate the model."
+- "Satisfaction and Resolution Tracking: Approved. Please build the PR for thumbs up/down tracking and 'resolved without staff' counts, and keep it toggled off."
+- "Mapbox Traffic-Aware ETA: Approved… you may prepare the PR to switch the traffic-aware ETA on."
+- Dynamic (surge) pricing deferred. The owner noted Tennessee's price-gouging law for declared emergencies; any future surge feature must switch itself off during a declared state of emergency. **[Recommendation]** Counsel confirms the statute before any pricing design.
+- "Upload Android now" (driver app 1.0.0 (12)): the owner uploads it in Play Console (below).
+
+**[Verified 2026-10-19]**
+- #300 merged as `cb84c36`; `/api/health` reported `cb84c36` at 13:26 UTC.
+- `/api/agent/status`: `answer_mode: "rules_only"`. Stored `agent_model_mode` is `test_accounts` with the list `["rider:RIDER_GPLAY_REVIEWER"]` (a store review account). See the review pack §1.
+- `/api/geo/status`: Mapbox configured in production.
+- Rides in production (read-only count): 24 in total (20 completed, 2 failed, 2 cancelled), 2026-09-11 to 2026-10-18, including test and App Review rides.
+
+**Builds and uploads (2026-10-18/19)**
+- **Driver iOS, local build on the owner's Mac: not possible.** **[Verified 2026-10-19, owner's screenshots]** The Mac is Intel (`x86_64`) on macOS 12.7.6 with no Xcode (Command Line Tools only). Homebrew refuses Intel Macs, and Xcode 16+, which Expo SDK 54 and App Store uploads need, requires macOS 14 or later. **[Unresolved]** The owner chooses the iOS route: the free cloud build after 2026-11-01, a paid plan now, or another Mac.
+- **Driver Android 1.0.0 (12):** `eas submit` (internal track, draft) stopped before uploading: no Google service account key on EAS (credential name only; none exists). **Nothing was sent to Google Play.** The owner is uploading the `.aab` by hand to Internal testing as a draft. **[Unresolved]** Upload result; rollout needs separate approval.
+- **Rider Android:** build 1.0.2 (versionCode 11), EAS `79cdbcc3-4f94-4d48-95c9-171424a92b2f`, 2026-10-04, exists. Nothing Android-related has changed in `mobile/` since. **[Unresolved]** Whether it was ever uploaded; the owner's Play Console screenshot will show the highest versionCode.
+- **Rider iOS:** the scheduled cloud build check (`trig_01EQw4n15urNHMHP1dz5SrRz`, 2026-11-01 14:05 UTC) is still active.
+
+**Assistant ratings and "resolved without staff" (this PR; switch `agent_feedback_enabled`, off)**
+- Thumbs up/down under web assistant answers. A signed token means only the person who got the answer can rate it. One audit row per rating, no message text.
+- A random chat id (until Clear chat or sign-out) links answers and support requests. A chat "needed staff" if it opened a safety or review case or sent a support request; otherwise it is "resolved without staff". Driver app answers count as untracked (no build).
+- Admin Agent page: the "Answer ratings" switch (audited) and a "Ratings and resolution" section; `GET /api/admin/agent/feedback`.
+- No migration (uses `audit_logs`). Details: `docs/ai-usage.md`.
+- **[Verified 2026-10-19, local]** Tests:
+  - `lib/agent/feedback.test.js` (8, new);
+  - `test/server.agent-feedback.test.js` (8, new);
+  - `test/assistant-feedback.browser.test.js` (1, new);
+  - all agent suites 300/300;
+  - the assistant browser suites 25/25. With the switch off the memory test still shows only the chat key in browser storage.
+
+**Model-activation review pack:** `docs/assistant-model-activation-review-pack.md`. Documents only; nothing activated.
+
+**Traffic-aware pickup ETA:** separate PR `claude/mapbox-traffic-eta` (status in that PR's description).
+
+**Handoff:**
+- **Done:** review pack; ratings PR (switch off); status recorded.
+- **Remaining:**
+  - owner review of this PR and the ETA PR;
+  - the review pack decisions (§6), starting with the test list;
+  - the driver Android upload result;
+  - the iOS route decision;
+  - the rider Play Console check;
+  - VAPID keys;
+  - Just-in-Time switch-on (the owner's).
+- **Next authorized action:** none beyond preparing these PRs. Merging, switching on ratings, and any model step each need the owner's approval.
