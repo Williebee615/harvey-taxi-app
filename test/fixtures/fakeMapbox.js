@@ -63,6 +63,11 @@ function createFakeMapbox() {
       if (mode === "no_route") return json(200, { code: "NoRoute", message: "No route found", routes: [] });
       return json(200, { code: "Ok", routes: [{ distance: 8369, duration: 840 }], waypoints: [] });
     }
+    // Same route with traffic: slower, so tests can tell the profiles apart.
+    if (url.pathname.startsWith("/directions/v5/mapbox/driving-traffic/")) {
+      if (mode === "no_route") return json(200, { code: "NoRoute", message: "No route found", routes: [] });
+      return json(200, { code: "Ok", routes: [{ distance: 8369, duration: 1260 }], waypoints: [] });
+    }
     return json(404, { message: "Not Found" });
   }
 
