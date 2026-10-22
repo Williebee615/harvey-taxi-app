@@ -80,7 +80,7 @@ function useFake({ mode = "test_accounts", spent = 0, failLedger = false, extraF
       driver_online_sessions: [],
       driver_earnings: [],
       audit_logs: [],
-      agent_model_usage: spent ? [{ usage_month: usageMonth(), role: "rider", model: "claude-haiku-4-5", cost_usd: spent, outcome: "answered" }] : [],
+      agent_model_usage: spent ? [{ usage_month: usageMonth(), role: "rider", model: "claude-haiku-5-5", cost_usd: spent, outcome: "answered" }] : [],
       system_flags: [
         { key: "agent_assist_enabled", value: "true" },
         { key: "agent_kill_switch", value: "false" },
@@ -148,7 +148,8 @@ test("listed test rider: natural reply from the ride-status tool; buttons come f
 
   // The model request: Haiku, bounded output, role-scoped tools only.
   const first = mockCreate.mock.calls[0][0];
-  expect(first.model).toBe("claude-haiku-4-5");
+  expect(first.model).toBe("claude-haiku-5-5");
+  expect(first.thinking).toEqual({ type: "disabled" });
   expect(first.max_tokens).toBe(500);
   const toolNames = first.tools.map((t) => t.name);
   expect(toolNames).toEqual(expect.arrayContaining(["get_my_ride_status", "prepare_ride_cancellation", "search_harvey_policies", "prepare_support_request"]));
@@ -158,11 +159,11 @@ test("listed test rider: natural reply from the ride-status tool; buttons come f
   expect(toolResult).toMatchObject({ type: "tool_result", tool_use_id: "tu_get_my_ride_status" });
   expect(toolResult.content).toContain("TestDriver A.");
 
-  // Spending ledger: 3,300 input + 100 output tokens at $1 / $5 per million.
+  // Spending ledger: 3,300 input + 100 output tokens at $0.10 / $0.50 per million.
   expect(ledger()).toHaveLength(1);
-  expect(currentFake._state.agent_model_reservations).toEqual([expect.objectContaining({ amount_usd: 0.1035, settled_at: expect.any(String) })]);
-  expect(ledger()[0]).toMatchObject({ role: "rider", actor_id: TEST_RIDER, model: "claude-haiku-4-5", calls: 2, input_tokens: 3300, output_tokens: 100, cost_usd: 0.0038, outcome: "answered" });
-  expect(decisions().at(-1).metadata).toMatchObject({ answer_source: "model", model: { used: true, calls: 2, cost_usd: 0.0038, fallback_reason: null } });
+  expect(currentFake._state.agent_model_reservations).toEqual([expect.objectContaining({ amount_usd: 0.01035, settled_at: expect.any(String) })]);
+  expect(ledger()[0]).toMatchObject({ role: "rider", actor_id: TEST_RIDER, model: "claude-haiku-5-5", calls: 2, input_tokens: 3300, output_tokens: 100, cost_usd: 0.00038, outcome: "answered" });
+  expect(decisions().at(-1).metadata).toMatchObject({ answer_source: "model", model: { used: true, calls: 2, cost_usd: 0.00038, fallback_reason: null } });
 });
 
 test("cancellation: the model can only offer the confirmed Cancel button from the tool; a 'done' claim is rejected", async () => {
@@ -316,9 +317,9 @@ test("errors and timeouts fall back to the rules answer", async () => {
 });
 
 test("budget: when this month's recorded spending leaves less than one turn's maximum, the model isn't called", async () => {
-  useFake({ spent: 9.97 });
+  useFake({ spent: 9.995 });
   const status = await refreshBudget();
-  expect(status.body.budget).toMatchObject({ budget_usd: 10, ceiling_usd: 10, spent_usd: 9.97, held_usd: 0, reserve_per_turn_usd: 0.1035 });
+  expect(status.body.budget).toMatchObject({ budget_usd: 10, ceiling_usd: 10, spent_usd: 9.995, held_usd: 0, reserve_per_turn_usd: 0.01035 });
   const res = await riderAsk("where is my driver?");
   expect(res.body.source).not.toBe("model");
   expect(mockCreate).not.toHaveBeenCalled();
@@ -336,8 +337,8 @@ test("budget: if the database can't reserve, the model stays off (fail closed)",
 });
 
 test("budget: simultaneous requests can't overshoot; each answer reserves its worst case first", async () => {
-  // $10 - $9.80 spent leaves room for exactly one $0.1035 reservation.
-  useFake({ spent: 9.8 });
+  // $10 - $9.98 spent leaves room for exactly one $0.01035 reservation.
+  useFake({ spent: 9.98 });
   let release;
   const gate = new Promise((r) => { release = r; });
   mockCreate.mockImplementation(async () => { await gate; return say("Your driver is on the way."); });
@@ -355,21 +356,23 @@ test("cost: a timed-out call is charged at its worst case (it may have been bill
   useFake();
   mockCreate.mockResolvedValueOnce(toolUse("get_my_ride_status")).mockRejectedValueOnce(new Anthropic.APIConnectionTimeoutError(undefined, "timed out"));
   await riderAsk("where's my driver?");
-  // First call: 1,500 in + 60 out = $0.0018; second call unknown: $0.0345.
-  expect(ledger().at(-1)).toMatchObject({ calls: 2, cost_usd: 0.0363, outcome: "fallback_timeout" });
-  expect(decisions().at(-1).metadata.model).toMatchObject({ uncertain_calls: 1, cost_usd: 0.0363 });
+  // First call: 1,500 in + 60 out = $0.00018; second call unknown: $0.00345.
+  expect(ledger().at(-1)).toMatchObject({ calls: 2, cost_usd: 0.00363, outcome: "fallback_timeout" });
+  expect(decisions().at(-1).metadata.model).toMatchObject({ uncertain_calls: 1, cost_usd: 0.00363 });
 
   mockCreate.mockRejectedValueOnce(new Anthropic.AuthenticationError(401, "invalid x-api-key"));
   await riderAsk("where's my driver now?");
   expect(ledger().at(-1)).toMatchObject({ calls: 1, cost_usd: 0, outcome: "fallback_auth" });
 });
 
-test("requests never carry billable extras (caching, server tools, thinking) and stay under the hard input ceiling", async () => {
+test("requests never carry billable extras (caching, server tools), turn thinking off, and stay under the hard input ceiling", async () => {
   useFake();
   mockCreate.mockResolvedValueOnce(say("Hello!"));
   await riderAsk("hello there");
   const req = mockCreate.mock.calls[0][0];
-  expect(Object.keys(req).sort()).toEqual(["max_tokens", "messages", "model", "system", "tools"]);
+  expect(Object.keys(req).sort()).toEqual(["max_tokens", "messages", "model", "system", "thinking", "tools"]);
+  // Claude Haiku 5.5 thinks by default; off keeps the 500-token output cap exact.
+  expect(req.thinking).toEqual({ type: "disabled" });
   expect(req.tools.every((t) => !t.type && t.input_schema)).toBe(true);
   expect(Buffer.byteLength(JSON.stringify(req)) + 1000).toBeLessThan(16000);
 });
@@ -383,7 +386,7 @@ test("admin: settings validated; 'all' refused before the privacy approval; Try 
   expect((await request(app).post("/api/admin/agent/model").set(ADMIN).send({ test_accounts: ["not valid"] })).status).toBe(400);
   const set = await request(app).post("/api/admin/agent/model").set(ADMIN).send({ mode: "test_accounts", test_accounts: [`rider:${TEST_RIDER}`] });
   expect(set.status).toBe(200);
-  expect(set.body).toMatchObject({ mode: "test_accounts", configured: true, model: "claude-haiku-4-5", test_accounts: [`rider:${TEST_RIDER}`] });
+  expect(set.body).toMatchObject({ mode: "test_accounts", configured: true, model: "claude-haiku-5-5", test_accounts: [`rider:${TEST_RIDER}`] });
   expect((await request(app).post("/api/admin/agent/model").send({ mode: "off" })).status).toBe(401);
 
   expect((await request(app).post("/api/admin/agent/model/try").set(ADMIN).send({ role: "rider", actor_id: "RIDER_1", message: "hi" })).status).toBe(403);
@@ -400,7 +403,7 @@ test("usage dashboard reports model tokens and cost separately from requests", a
   await riderAsk("hello");
   const res = await request(app).get("/api/admin/agent/usage").set(ADMIN);
   expect(res.body.measured).toMatch(/model tokens and cost.*listed test accounts only/);
-  expect(res.body.history.totals).toMatchObject({ model_calls: 1, model_turns: 1, model_tokens: { input: 1800, output: 40 }, model_cost_usd: 0.002 });
+  expect(res.body.history.totals).toMatchObject({ model_calls: 1, model_turns: 1, model_tokens: { input: 1800, output: 40 }, model_cost_usd: 0.0002 });
   expect(res.body.model).toMatchObject({ provider: "anthropic", mode: "test_accounts", public_approved: false });
 });
 
@@ -450,7 +453,7 @@ test("free connection check: counts the real first request for each role, bills 
   expect(res.body.checks[1]).toMatchObject({ role: "driver", ok: false, reason: "bad_request", provider_error: { status: 400, request_id: "req_test_0001" } });
   // Same request shape as an answer's first call (model, system, tools, messages, max_tokens).
   const sent = mockCountTokens.mock.calls[0][0];
-  expect(Object.keys(sent).sort()).toEqual(["max_tokens", "messages", "model", "system", "tools"]);
+  expect(Object.keys(sent).sort()).toEqual(["max_tokens", "messages", "model", "system", "thinking", "tools"]);
   expect(sent.messages).toEqual([{ role: "user", content: "Where is my ride?" }]);
   expect(mockCountTokens.mock.calls[1][0].tools.map((t) => t.name)).toContain("get_my_hours");
   expect(mockCreate).not.toHaveBeenCalled();

@@ -8,6 +8,7 @@
 
 **Owner approval (2026-10-04):**
 - Anthropic Claude Haiku 4.5 for the rider app and the driver app, on iOS and Android.
+- **Model changed to Claude Haiku 5.5 (`claude-haiku-5-5`) by the owner's decision of 2026-10-19:** $0.10 / $0.50 per million input / output tokens for prompts up to 100K tokens (every request here is far smaller). Claude 3.5 Haiku, the owner's first suggestion, is retired. Claude Haiku 5.5 thinks by default; every request turns thinking off (`thinking: {type: "disabled"}`, `lib/agent/claudeClient.js`) so the 500-token output cap, and so the worst case below, stays exact.
 - At most **$10 per month in total**, enforced by Harvey's server, with the provider's spending limit set as a backstop.
 - The hosted-provider block is lifted for this integration only.
 
@@ -77,7 +78,7 @@ Every model-written answer carries `answered_by: { engine: "model", label: "AI-g
 | Every model call, including each tool round | At most 3 calls per answer (each tool round is one call). The reservation covers all 3. |
 | Retries | The SDK's automatic retries are off (`maxRetries: 0`), and the server never retries. A failure falls back to the rules answer. |
 | Input tokens | Hard ceiling of 16,000 per call, checked before sending as UTF-8 bytes of the request + 1,000 for Anthropic's tool instructions and formatting. A token always covers at least one byte, so this is a guaranteed bound, not an estimate. A request over the ceiling is never sent. |
-| Input price | Reserved at the dearest input rate, the 1-hour cache write ($2 per million tokens), although requests never use caching. |
+| Input price | Reserved at the dearest input rate, the 1-hour cache write ($0.20 per million tokens on Haiku 5.5), although requests never use caching. |
 | Output tokens | `max_tokens` 500 per call, the provider's hard cap. Extended thinking is not enabled. |
 | Cache writes (5-minute and 1-hour), cache reads | Priced separately when settling. Cache writes without a 5-minute/1-hour split are priced at the 1-hour rate. |
 | Server tools (web search) | Never sent. Priced anyway ($10 per 1,000) if ever reported. |
@@ -87,12 +88,12 @@ Every model-written answer carries `answered_by: { engine: "model", label: "AI-g
 **Settling and caps:**
 - Each answer settles its reservation once (`agent_model_settle`), writing the real cost and token counts to the ledger in the same transaction. A second settle writes nothing.
 - The real cost is recorded as is, never capped.
-- **Worst case per answer:** 3 × (16,000 × $2 + 500 × $5) / 1,000,000 = **$0.1035**. This is reserved, not spent. A typical answer costs about $0.002–$0.006 and releases the rest.
+- **Worst case per answer (Haiku 5.5):** 3 × (16,000 × $0.20 + 500 × $0.50) / 1,000,000 = **$0.01035** ($0.1035 on Haiku 4.5). This is reserved, not spent. A typical answer is estimated at about $0.0003 (about $0.002–$0.006 on Haiku 4.5) and releases the rest. Haiku 5.5 counts the same text as about 30% more tokens; the input ceiling is measured in bytes, so it still holds.
 - **The $10 ceiling is enforced twice:** on the server (`MONTHLY_BUDGET_CEILING_USD`) and inside the database function (`least(budget, 10)`). `AGENT_MODEL_MONTHLY_BUDGET_USD` can only lower it.
 - **Fails closed:** if the database can't reserve, the model is off for that question.
 - **Provider backstop:** a $10 spend limit in the Claude Console. If Anthropic refuses for a spend limit, the server stops calling the model until the next month.
-- **Usable budget:** with the $0.1035 reservation, answers stop once less than that remains, so slightly under $10 is ever spent.
-- **Caching:** prompt caching isn't used. Haiku 4.5 caches only prompts of 4,096 tokens or more; the assistant's instructions and tools are shorter.
+- **Usable budget:** with the $0.01035 reservation, answers stop once less than that remains, so slightly under $10 is ever spent.
+- **Caching:** prompt caching isn't used; the assistant's instructions and tools are short.
 
 ## Usage tracking (Harvey-owned)
 

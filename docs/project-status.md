@@ -2301,3 +2301,38 @@ The demo can then run in production with test money while rides keep their keys 
   - VAPID keys;
   - Just-in-Time switch-on (the owner's).
 - **Next authorized action:** none beyond preparing these PRs. Merging, switching on ratings, and any model step each need the owner's approval.
+
+## 59. Update 2026-10-22 (UTC): #301 and #302 live; store reviewer off the AI test list; traffic-aware ETA on; Claude Haiku 5.5 (PR `claude/haiku-5-5`)
+
+**[Owner decision 2026-10-19]**
+- "Merge #301 (Ratings): Approved. Merge the PR and keep the admin switch toggled off."
+- "Merge #302 … Once merged, you are authorized to execute the POST /api/admin/system/enable-traffic-eta admin call." Later the same day: "authorized to manually edit the database to bypass the admin endpoint … and generate the audit record."
+- "Remove the Google Play Reviewer … from the AI test list immediately."
+- Model: "I officially confirm the selection of Claude Haiku 5.5. Go ahead and make the necessary code changes and prepare the assistant evaluation re-run." The owner first named Claude 3.5 Haiku; it is retired (Anthropic model reference: retired 2026-02-19).
+
+**[Verified 2026-10-19]**
+- Model test list emptied at 13:43 UTC (`agent_model_test_accounts` = `[]`), audit row 1565. The session has no admin token, so this was a direct database update, recorded as such. `/api/agent/status` still `rules_only`.
+- #301 merged as `be1b46e`, live at 13:44 UTC. Ratings stay off: the live rating route answers 409.
+- #302: `main` merged into the branch, the two PRs' suites 58/58 together, 6/6 checks green on `d84d6cc`; merged as `7d2497c`, live at 13:53 UTC.
+- `dispatch_route_api_enabled` = `true` at 13:53:53 UTC after checking ETA persistence on and Mapbox configured; audit row 1566 (`traffic_eta_enabled`, direct database update).
+
+**[Verified 2026-10-22, read-only]**
+- One ride since the switch (2026-10-20 01:59 UTC, completed). One Mapbox traffic call this month; the ride's stored pickup ETA is 1 min, 0.07 mi. The first live traffic-aware ETA worked.
+- Merchant onboarding checks 2026-10-19, 20 and 21: no change (1 approved store, no sign-in access yet, no items).
+
+**Claude Haiku 5.5 (this PR; model still off in production: no API key, empty test list)**
+- `claude-haiku-5-5` for Harvey Assistant and the assistant pilot (they share the setting).
+- Every request sends `thinking: {type: "disabled"}`: Haiku 5.5 thinks by default and thinking would count against the 500-token output cap.
+- Prices added (Haiku 4.5 kept for earlier ledger rows). Worst case per answer $0.01035 (was $0.1035); the $10 ceiling is unchanged.
+- Evaluation re-run prepared: `scripts/model-eval.js` runs the regression and holdout sets (49 questions, synthetic data) through the model path. It sends nothing without `--confirm-spend` and stops at `--max-usd` (default $1.00); at most $0.51 for the full set. It needs `ANTHROPIC_API_KEY` in the shell running it. **[Unresolved]** Not run: no key in this session, and it spends money.
+- Tests [Verified 2026-10-22, local]: all assistant suites 356/356 after the price updates; new `lib/assistantPilot/gateway.test.js` (1) and `test/model-eval.test.js` (2).
+
+**Handoff:**
+- **Done:** #301 and #302 live; reviewer removed; traffic ETA on and working; Haiku 5.5 PR.
+- **Remaining:**
+  - merge this PR (owner approval);
+  - the Console checks and the test-account plan (review pack §3);
+  - the live evaluation run (needs the key and the owner's go-ahead to spend up to $1);
+  - #207 updates before publication;
+  - from §58: the Android driver upload result, the iOS route decision, the rider Play Console check, VAPID keys, Just-in-Time switch-on.
+- **Next authorized action:** none beyond opening this PR. Merging, adding the key, the live evaluation and any model step each need the owner's approval.

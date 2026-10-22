@@ -162,4 +162,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { runEval };
+module.exports = { runEval, fixture, grade, percentile, QUESTION_SETS };
