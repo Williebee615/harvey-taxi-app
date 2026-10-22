@@ -2746,3 +2746,30 @@ Three admin pages kept the admin token in browser storage:
   - rotate the admin token (owner's decision);
   - earlier owner items in §63.
 - **Next authorized action:** open this PR. Merging needs the owner's approval.
+
+## 72. Update 2026-10-22 (UTC): #314 live; log privacy audit and log redaction (PR `claude/log-privacy-audit`)
+
+**[Owner decision 2026-10-22]**
+- "Merge #314 approved."
+- "Approved, start the log privacy audit." Scope: audit logs for personal data, redact in code, update the draft retention policy. It does not cover deleting or rewriting any database record.
+
+**[Verified 2026-10-22]**
+- **#314** (status §71): 6/6 checks green on `30fdf9a`; merged as `cb6c156` at 12:43 UTC; `/api/health` reported `cb6c156` from 12:44 UTC.
+- **Audit:** `docs/log-privacy-audit-2026-10-22.md`. Every `console.*` call (191) was reviewed, and production log tables were counted read-only (no content read).
+  - **Fixed, high risk:** failed HTAF application and ride inserts logged Postgres `details`, which can print the whole row (names, addresses, phone). Now error code only.
+  - **Fixed, medium risk:** the rider session check logged a raw database error; "Email skipped" logged the full address (now domain only); Persona and Checkr failures logged provider text (now HTTP status; both are off).
+  - **Safety net:** every log line now masks email addresses, phone numbers, Postgres row values and credentials (`installConsoleRedaction`, `lib/safeLog.js`). It can't recognise names or street addresses, so allowlisted fields remain the primary control.
+  - **Database:** `audit_logs` has 1,618 rows; 1,525 store IP address and user agent (27 older than 90 days); no new `server_error` rows since 2026-10-14; no phone numbers or row dumps in metadata. 3 staff override reasons (2026-10-17) contain an email address typed by staff. **Nothing changed.**
+- **Retention policy draft** (`docs/data-retention-policy.md`): rows added for store applications, partnership inquiries, orders, fleet records, bounty proposals, dispatch notes, push subscriptions, rider live location (10 minutes, already enforced) and server log output. Still a draft; nothing is in force.
+- **Tests [Verified 2026-10-22, local]:** `lib/safeLog.test.js` adds 10 tests (row dumps, emails, phones, secrets, IDs and SHAs left alone, nested objects, cycles, errors, idempotent install). Full suite: 3,020 passed, 0 failed (database suites skipped; no migration).
+
+**[Recommendation]**
+- Approve the cleanup scope in the retention draft §3 after the preservation check: redact the 832 historical `server_error` rows; clear IP address and user agent on audit rows older than 90 days.
+- Ask staff not to type contact details into override reasons or dispatch notes.
+
+**[Unresolved, owner]** Render log retention and dashboard access; Supabase and provider log retention; counsel and accountant periods in the retention draft.
+
+**Handoff:**
+- **Done:** #314 live; audit, code redaction and policy rows in this PR.
+- **Remaining:** owner approval to merge this PR; the retention decisions above; the earlier owner items in §63 and §71.
+- **Next authorized action:** open this PR. Merging needs the owner's approval. No database cleanup runs without separate approval.
