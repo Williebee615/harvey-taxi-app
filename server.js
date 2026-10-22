@@ -17742,6 +17742,30 @@ async function upsertDriverEarningIdempotent({
   const totalEarning =
     driverBaseEarning + tipAmount;
 
+  // Fleet trip (docs/fleet-management-plan.md): record the fleet, the
+  // vehicle and the owner's agreed share of the fare earning (never the
+  // tip). Recorded only; no money moves. The assignment can't change
+  // during a trip. A failed lookup never blocks the driver's earning.
+  let fleetFields = {};
+  try {
+    const assignment = await openAssignmentForDriver(driverId);
+    if (assignment) {
+      const { data: membership, error: membershipError } = await supabase.from("fleet_memberships").select("fleet_id, owner_share_pct").eq("id", assignment.membership_id).maybeSingle();
+      if (membershipError) throw membershipError;
+      if (membership) {
+        const pct = Number(membership.owner_share_pct) || 0;
+        fleetFields = {
+          fleet_id: membership.fleet_id,
+          fleet_vehicle_id: assignment.vehicle_id,
+          fleet_owner_share_pct: pct,
+          fleet_owner_share_amount: fleetRules.ownerShareAmount(driverBaseEarning, pct)
+        };
+      }
+    }
+  } catch (fleetErr) {
+    if (!fleetTableMissing(fleetErr)) console.error("❌ Fleet earning lookup failed:", ride.id, fleetErr && fleetErr.message);
+  }
+
   const earning = {
 
     id:
@@ -17798,7 +17822,9 @@ async function upsertDriverEarningIdempotent({
 
     created_at:
 
-      nowIso()
+      nowIso(),
+
+    ...fleetFields
 
   };
 
@@ -18808,6 +18834,40 @@ app.post(
 
         );
 
+      }
+
+      // Fleet vehicle (docs/fleet-management-plan.md): a driver assigned a
+      // fleet vehicle can go online only while that vehicle is active and
+      // its insurance and registration are staff-verified and unexpired.
+      // Checked whenever an assignment exists, whatever the fleet switch
+      // says. Fails closed, except before the fleet tables exist.
+      {
+        let assignment = null;
+        try {
+          assignment = await openAssignmentForDriver(driverId);
+        } catch (fleetErr) {
+          if (!fleetTableMissing(fleetErr)) {
+            console.error("❌ Fleet vehicle check failed:", driverId, fleetErr && fleetErr.message);
+            return fail(res, "We couldn't check your fleet vehicle. Please try again in a moment.", 503);
+          }
+        }
+        if (assignment) {
+          let vehicleReady = { ok: false, reasons: ["vehicle_unreadable"] };
+          try {
+            const { data: vehicle, error: vehicleError } = await supabase.from("fleet_vehicles").select("*").eq("id", assignment.vehicle_id).maybeSingle();
+            if (vehicleError) throw vehicleError;
+            vehicleReady = fleetRules.vehicleDispatchable(vehicle, await currentVehicleDocuments([assignment.vehicle_id]));
+          } catch (fleetErr) {
+            console.error("❌ Fleet vehicle check failed:", driverId, fleetErr && fleetErr.message);
+            return fail(res, "We couldn't check your fleet vehicle. Please try again in a moment.", 503);
+          }
+          if (!vehicleReady.ok) {
+            return fail(res, "Your fleet vehicle can't carry riders right now. Ask the fleet owner to update its documents with Harvey Taxi.", 409, {
+              code: "fleet_vehicle_not_ready",
+              reasons: vehicleReady.reasons
+            });
+          }
+        }
       }
 
       // Hours limit: up to 12 hours online per shift, then 6 hours of
@@ -21035,6 +21095,688 @@ app.post(
     return ok(res, { application: { id: data.id, status: data.status } }, 201);
   })
 );
+
+/* =========================================================
+   FLEET MANAGEMENT, PHASE 1 (owner decisions 2026-10-22)
+   docs/fleet-management-plan.md. A verified driver owns a fleet (staff
+   approve it), registers vehicles (staff verify insurance and
+   registration before a vehicle carries riders) and invites other
+   drivers, who accept or decline themselves. A fleet vehicle assigned to
+   a driver is written onto the driver row, so dispatch, readiness and
+   what riders see work unchanged; the driver's own vehicle is restored
+   when the assignment ends. Earnings record the owner's agreed share;
+   no money moves. Human-driven vehicles only. Switch:
+   fleet_management_enabled (off). Tables: migration 20261022020000.
+========================================================= */
+const fleetRules = require("./lib/fleets");
+
+const FLEET_ON_TRIP_STATUSES = [RIDE_STATUS.DRIVER_ASSIGNED, RIDE_STATUS.DRIVER_ENROUTE, RIDE_STATUS.ARRIVED, RIDE_STATUS.IN_PROGRESS];
+
+async function fleetManagementEnabled() {
+  return (await getSystemFlag(fleetRules.FLEET_FLAG, "false")) === "true";
+}
+
+function fleetTableMissing(error) {
+  return Boolean(error && error.code === "42P01");
+}
+
+// Driver routes answer 404 while the switch is off.
+async function requireFleetsOn(req, res, next) {
+  try {
+    if (!(await fleetManagementEnabled())) return fail(res, "Fleet management isn't available yet.", 404);
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+}
+
+function fleetDriverReady(driver) {
+  return computeDriverReadiness(driver, { enablePersona: ENABLE_PERSONA, enableCheckr: ENABLE_CHECKR }).ready;
+}
+
+async function driverOnTrip(driverId) {
+  const { data, error } = await supabase.from("rides").select("id").eq("driver_id", driverId).in("status", FLEET_ON_TRIP_STATUSES).limit(1);
+  if (error) throw error;
+  return Array.isArray(data) && data.length > 0;
+}
+
+async function currentVehicleDocuments(vehicleIds) {
+  if (!vehicleIds.length) return [];
+  const { data, error } = await supabase.from("fleet_vehicle_documents").select("*").in("vehicle_id", vehicleIds).is("superseded_at", null);
+  if (error) throw error;
+  return data || [];
+}
+
+async function openAssignmentForDriver(driverId) {
+  const { data, error } = await supabase.from("vehicle_assignments").select("*").eq("driver_id", driverId).is("ends_at", null).maybeSingle();
+  if (error) throw error;
+  return data || null;
+}
+
+async function ownedFleet(driverId) {
+  const { data, error } = await supabase.from("fleets").select("*").eq("owner_driver_id", driverId).neq("status", "declined").maybeSingle();
+  if (error) throw error;
+  return data || null;
+}
+
+// Ends an assignment: the driver goes offline and gets their own vehicle
+// back. Refused while the driver is on a trip, so a vehicle never changes
+// mid-ride.
+async function endVehicleAssignment(assignment, actor, req) {
+  if (await driverOnTrip(assignment.driver_id)) {
+    return { ok: false, statusCode: 409, error: "The driver is on a trip. The vehicle can be released after the trip ends." };
+  }
+  const endedAt = nowIso();
+  const { data: ended, error } = await supabase
+    .from("vehicle_assignments")
+    .update({ ends_at: endedAt, ended_by: actor })
+    .eq("id", assignment.id)
+    .is("ends_at", null)
+    .select("id")
+    .maybeSingle();
+  if (error) throw error;
+  if (!ended) return { ok: true, already: true };
+  const restore = { ...fleetRules.previousVehicleSnapshot(assignment.previous_vehicle || {}), online: false, updated_at: endedAt };
+  const { error: driverError } = await supabase.from("drivers").update(restore).eq("id", assignment.driver_id);
+  if (driverError) throw driverError;
+  auditLog({ actor_type: "system", actor_id: actor, action: "fleet_assignment_ended", entity_type: "driver", entity_id: assignment.driver_id, metadata: { assignment_id: assignment.id, vehicle_id: assignment.vehicle_id, driver_set_offline: true }, req }).catch(() => {});
+  return { ok: true };
+}
+
+async function endOpenAssignmentsForVehicles(vehicleIds, actor, req) {
+  if (!vehicleIds.length) return { ok: true };
+  const { data, error } = await supabase.from("vehicle_assignments").select("*").in("vehicle_id", vehicleIds).is("ends_at", null);
+  if (error) throw error;
+  for (const assignment of data || []) {
+    const result = await endVehicleAssignment(assignment, actor, req);
+    if (!result.ok) return result;
+  }
+  return { ok: true };
+}
+
+function fleetRouteError(res, error, fallback) {
+  if (fleetTableMissing(error)) return fail(res, "Fleet management isn't set up yet.", 503);
+  console.error("❌ Fleet route failed:", error && error.message);
+  return fail(res, fallback, 502);
+}
+
+// Everything a driver sees about fleets: the fleet they own (if any) and
+// their own membership, assignment and fleet earnings.
+app.get(
+  "/api/driver/fleet",
+  requireDriverSelf,
+  requireFleetsOn,
+  asyncRoute(async (req, res) => {
+    const me = req.driver.id;
+    try {
+      const fleet = await ownedFleet(me);
+      let owned = null;
+      if (fleet) {
+        const { data: vehicles, error: vErr } = await supabase.from("fleet_vehicles").select("*").eq("fleet_id", fleet.id).order("created_at", { ascending: true });
+        if (vErr) throw vErr;
+        const vehicleIds = (vehicles || []).map((v) => v.id);
+        const docs = await currentVehicleDocuments(vehicleIds);
+        const { data: memberships, error: mErr } = await supabase.from("fleet_memberships").select("*").eq("fleet_id", fleet.id).in("status", ["invited", "active"]);
+        if (mErr) throw mErr;
+        const memberIds = (memberships || []).map((m) => m.driver_id);
+        const { data: drivers, error: dErr } = memberIds.length
+          ? await supabase.from("drivers").select("id, first_name, full_name, name, online, is_online").in("id", memberIds)
+          : { data: [], error: null };
+        if (dErr) throw dErr;
+        const { data: assignments, error: aErr } = vehicleIds.length
+          ? await supabase.from("vehicle_assignments").select("*").in("vehicle_id", vehicleIds).is("ends_at", null)
+          : { data: [], error: null };
+        if (aErr) throw aErr;
+        const { data: earnings, error: eErr } = await supabase.from("driver_earnings").select("driver_id, total_earning, fleet_owner_share_amount").eq("fleet_id", fleet.id);
+        if (eErr) throw eErr;
+        const stats = {};
+        for (const e of earnings || []) {
+          const s = (stats[e.driver_id] = stats[e.driver_id] || { trips: 0, earnings: 0, owner_share: 0 });
+          s.trips += 1;
+          s.earnings = Math.round((s.earnings + Number(e.total_earning || 0)) * 100) / 100;
+          s.owner_share = Math.round((s.owner_share + Number(e.fleet_owner_share_amount || 0)) * 100) / 100;
+        }
+        owned = {
+          id: fleet.id,
+          name: fleet.name,
+          status: fleet.status,
+          review_reason: fleet.status === "declined" || fleet.status === "suspended" ? fleet.review_reason : null,
+          vehicles: (vehicles || []).map((v) => {
+            const vDocs = docs.filter((d) => d.vehicle_id === v.id);
+            return {
+              id: v.id,
+              label: `${v.vehicle_year} ${v.make} ${v.model}`,
+              color: v.color,
+              plate: v.plate,
+              plate_state: v.plate_state,
+              status: v.status,
+              documents: vDocs.map((d) => ({ document_type: d.document_type, expires_on: d.expires_on, verification_status: d.verification_status })),
+              ready: fleetRules.vehicleDispatchable(v, vDocs)
+            };
+          }),
+          members: (memberships || []).map((m) => {
+            const assignment = (assignments || []).find((a) => a.membership_id === m.id) || null;
+            return fleetRules.ownerViewOfMember({
+              membership: m,
+              driver: (drivers || []).find((d) => d.id === m.driver_id),
+              assignment,
+              vehicle: assignment ? (vehicles || []).find((v) => v.id === assignment.vehicle_id) : null,
+              stats: stats[m.driver_id]
+            });
+          })
+        };
+      }
+      const { data: myMemberships, error: myErr } = await supabase.from("fleet_memberships").select("*").eq("driver_id", me).in("status", ["invited", "active"]);
+      if (myErr) throw myErr;
+      const fleetIds = [...new Set((myMemberships || []).map((m) => m.fleet_id))];
+      const { data: fleetNames, error: fnErr } = fleetIds.length ? await supabase.from("fleets").select("id, name").in("id", fleetIds) : { data: [], error: null };
+      if (fnErr) throw fnErr;
+      const assignment = await openAssignmentForDriver(me);
+      let assignedVehicle = null;
+      if (assignment) {
+        const { data: v, error: avErr } = await supabase.from("fleet_vehicles").select("*").eq("id", assignment.vehicle_id).maybeSingle();
+        if (avErr) throw avErr;
+        if (v) assignedVehicle = { id: v.id, label: `${v.vehicle_year} ${v.make} ${v.model}`, plate: v.plate, since: assignment.starts_at };
+      }
+      const { data: myEarnings, error: meErr } = await supabase.from("driver_earnings").select("total_earning, fleet_owner_share_amount").eq("driver_id", me).not("fleet_id", "is", null);
+      if (meErr) throw meErr;
+      const totals = (myEarnings || []).reduce(
+        (t, e) => ({ trips: t.trips + 1, earnings: Math.round((t.earnings + Number(e.total_earning || 0)) * 100) / 100, owner_share: Math.round((t.owner_share + Number(e.fleet_owner_share_amount || 0)) * 100) / 100 }),
+        { trips: 0, earnings: 0, owner_share: 0 }
+      );
+      return ok(res, {
+        owned_fleet: owned,
+        memberships: (myMemberships || []).map((m) => ({
+          id: m.id,
+          fleet_name: ((fleetNames || []).find((f) => f.id === m.fleet_id) || {}).name || "Fleet",
+          status: m.status,
+          owner_share_pct: Number(m.owner_share_pct),
+          agreement_version: m.agreement_version
+        })),
+        assigned_vehicle: assignedVehicle,
+        fleet_earnings: totals,
+        limits: { max_vehicles: fleetRules.MAX_VEHICLES_PER_FLEET, max_owner_share_pct: fleetRules.MAX_OWNER_SHARE_PCT },
+        payouts_note: "Earnings splits are recorded only. Harvey Taxi doesn't move money between fleet owners and drivers yet."
+      });
+    } catch (error) {
+      return fleetRouteError(res, error, "Fleet details could not be loaded.");
+    }
+  })
+);
+
+app.post(
+  "/api/driver/fleet/apply",
+  requireDriverSelf,
+  requireFleetsOn,
+  asyncRoute(async (req, res) => {
+    const me = req.driver.id;
+    const parsed = fleetRules.validateFleetName(req.body);
+    if (!parsed.ok) return fail(res, parsed.error, parsed.statusCode);
+    if (!fleetDriverReady(req.driver)) return fail(res, "Finish your own driver verification before applying for a fleet.", 403);
+    try {
+      const { data: openFleets, error: cErr } = await supabase.from("fleets").select("id").in("status", ["pending", "active", "suspended"]);
+      if (cErr) throw cErr;
+      if ((openFleets || []).length >= fleetRules.MAX_PILOT_FLEETS) return fail(res, "The fleet pilot is full right now. Please contact support to join the waitlist.", 409);
+      const { data, error } = await supabase.from("fleets").insert({ id: crypto.randomUUID(), owner_driver_id: me, name: parsed.name, status: "pending" }).select("id, name, status").single();
+      if (error) {
+        if (error.code === "23505") return fail(res, "You already have a fleet application.", 409);
+        throw error;
+      }
+      auditLog({ actor_type: "driver", actor_id: me, action: "fleet_applied", entity_type: "fleet", entity_id: data.id, req }).catch(() => {});
+      return ok(res, { fleet: data }, 201);
+    } catch (error) {
+      return fleetRouteError(res, error, "The fleet application could not be saved.");
+    }
+  })
+);
+
+async function activeOwnedFleetOr403(req, res) {
+  const fleet = await ownedFleet(req.driver.id);
+  if (!fleet || fleet.status !== "active") {
+    fail(res, "Your fleet must be approved by Harvey Taxi first.", 403);
+    return null;
+  }
+  return fleet;
+}
+
+app.post(
+  "/api/driver/fleet/vehicles",
+  requireDriverSelf,
+  requireFleetsOn,
+  asyncRoute(async (req, res) => {
+    const parsed = fleetRules.validateVehicle(req.body);
+    if (!parsed.ok) return fail(res, parsed.error, parsed.statusCode);
+    try {
+      const fleet = await activeOwnedFleetOr403(req, res);
+      if (!fleet) return undefined;
+      const { data: fleetVehicles, error: cErr } = await supabase.from("fleet_vehicles").select("id").eq("fleet_id", fleet.id).neq("status", "inactive");
+      if (cErr) throw cErr;
+      if ((fleetVehicles || []).length >= fleetRules.MAX_VEHICLES_PER_FLEET) return fail(res, `The pilot allows up to ${fleetRules.MAX_VEHICLES_PER_FLEET} vehicles per fleet.`, 409);
+      const { data, error } = await supabase.from("fleet_vehicles").insert({ id: crypto.randomUUID(), ...parsed.row, fleet_id: fleet.id, status: "pending_review" }).select("id, status").single();
+      if (error) {
+        if (error.code === "23505") return fail(res, "That plate is already registered to a fleet vehicle.", 409);
+        throw error;
+      }
+      auditLog({ actor_type: "driver", actor_id: req.driver.id, action: "fleet_vehicle_added", entity_type: "fleet", entity_id: fleet.id, metadata: { vehicle_id: data.id }, req }).catch(() => {});
+      return ok(res, { vehicle: data }, 201);
+    } catch (error) {
+      return fleetRouteError(res, error, "The vehicle could not be saved.");
+    }
+  })
+);
+
+// Supersedes the current record of that type and adds a new one.
+async function recordVehicleDocument({ vehicleId, documentType, expiresOn, recordedBy, staff }) {
+  const now = nowIso();
+  const { error: supErr } = await supabase
+    .from("fleet_vehicle_documents")
+    .update({ superseded_at: now, superseded_by: recordedBy })
+    .eq("vehicle_id", vehicleId)
+    .eq("document_type", documentType)
+    .is("superseded_at", null);
+  if (supErr) throw supErr;
+  const row = {
+    vehicle_id: vehicleId,
+    document_type: documentType,
+    expires_on: expiresOn,
+    source: staff ? "staff_from_document" : "owner_entered",
+    verification_status: staff ? "staff_verified" : "unverified",
+    recorded_by: recordedBy,
+    recorded_at: now,
+    verified_by: staff ? recordedBy : null,
+    verified_at: staff ? now : null
+  };
+  const { error } = await supabase.from("fleet_vehicle_documents").insert(row);
+  if (error) throw error;
+}
+
+app.post(
+  "/api/driver/fleet/vehicles/:id/documents",
+  requireDriverSelf,
+  requireFleetsOn,
+  asyncRoute(async (req, res) => {
+    const parsed = fleetRules.validateDocumentDate(req.body);
+    if (!parsed.ok) return fail(res, parsed.error, parsed.statusCode);
+    try {
+      const fleet = await activeOwnedFleetOr403(req, res);
+      if (!fleet) return undefined;
+      const vehicleId = cleanString(req.params.id, 64);
+      const { data: vehicle, error: vErr } = await supabase.from("fleet_vehicles").select("id, fleet_id").eq("id", vehicleId).maybeSingle();
+      if (vErr) throw vErr;
+      if (!vehicle || vehicle.fleet_id !== fleet.id) return fail(res, "Vehicle not found.", 404);
+      await recordVehicleDocument({ vehicleId, documentType: parsed.document_type, expiresOn: parsed.expires_on, recordedBy: req.driver.id, staff: false });
+      auditLog({ actor_type: "driver", actor_id: req.driver.id, action: "fleet_vehicle_document_entered", entity_type: "fleet", entity_id: fleet.id, metadata: { vehicle_id: vehicleId, document_type: parsed.document_type }, req }).catch(() => {});
+      return ok(res, { recorded: true, verification_status: "unverified", note: "Harvey Taxi staff check the document before the vehicle can carry riders." }, 201);
+    } catch (error) {
+      return fleetRouteError(res, error, "The document date could not be saved.");
+    }
+  })
+);
+
+app.post(
+  "/api/driver/fleet/invitations",
+  requireDriverSelf,
+  requireFleetsOn,
+  asyncRoute(async (req, res) => {
+    const parsed = fleetRules.validateInvitation(req.body);
+    if (!parsed.ok) return fail(res, parsed.error, parsed.statusCode);
+    try {
+      const fleet = await activeOwnedFleetOr403(req, res);
+      if (!fleet) return undefined;
+      const last10 = parsed.phone.slice(-10);
+      const { data: matches, error: dErr } = await supabase
+        .from("drivers")
+        .select("id")
+        .or([parsed.phone, last10].flatMap((p) => [`phone.eq.${p}`, `phone_number.eq.${p}`, `mobile.eq.${p}`]).join(","))
+        .limit(3);
+      if (dErr) throw dErr;
+      const ids = [...new Set((matches || []).map((d) => d.id))];
+      if (!ids.length) return fail(res, "No Harvey Taxi driver uses that number. Ask them to apply as a driver first.", 404);
+      if (ids.length > 1) return fail(res, "More than one driver account uses that number. Please contact support.", 409);
+      const driverId = ids[0];
+      if (driverId === req.driver.id) return fail(res, "You can't invite yourself.", 400);
+      const { data: active, error: aErr } = await supabase.from("fleet_memberships").select("id").eq("driver_id", driverId).eq("status", "active").limit(1);
+      if (aErr) throw aErr;
+      if (active && active.length) return fail(res, "That driver already drives for a fleet.", 409);
+      const { data, error } = await supabase
+        .from("fleet_memberships")
+        .insert({ id: crypto.randomUUID(), fleet_id: fleet.id, driver_id: driverId, status: "invited", owner_share_pct: parsed.owner_share_pct, agreement_version: fleetRules.AGREEMENT_VERSION, invited_by: req.driver.id })
+        .select("id, status, owner_share_pct")
+        .single();
+      if (error) {
+        if (error.code === "23505") return fail(res, "That driver already has an invitation from your fleet.", 409);
+        throw error;
+      }
+      auditLog({ actor_type: "driver", actor_id: req.driver.id, action: "fleet_driver_invited", entity_type: "fleet", entity_id: fleet.id, metadata: { membership_id: data.id, owner_share_pct: parsed.owner_share_pct }, req }).catch(() => {});
+      return ok(res, { invitation: { id: data.id, status: data.status, owner_share_pct: Number(data.owner_share_pct) } }, 201);
+    } catch (error) {
+      return fleetRouteError(res, error, "The invitation could not be saved.");
+    }
+  })
+);
+
+// Only the invited driver can accept or decline.
+app.post(
+  "/api/driver/fleet/invitations/:id/respond",
+  requireDriverSelf,
+  requireFleetsOn,
+  asyncRoute(async (req, res) => {
+    const id = cleanString(req.params.id, 64);
+    const accept = req.body && req.body.accept === true;
+    try {
+      const { data: membership, error: mErr } = await supabase.from("fleet_memberships").select("*").eq("id", id).maybeSingle();
+      if (mErr) throw mErr;
+      if (!membership || membership.driver_id !== req.driver.id) return fail(res, "Invitation not found.", 404);
+      if (membership.status !== "invited") return fail(res, "That invitation has already been answered.", 409);
+      if (accept && !fleetDriverReady(req.driver)) return fail(res, "Finish your driver verification before joining a fleet.", 403);
+      const status = accept ? "active" : "declined";
+      const { data, error } = await supabase
+        .from("fleet_memberships")
+        .update({ status, responded_at: nowIso() })
+        .eq("id", id)
+        .eq("status", "invited")
+        .select("id, status")
+        .maybeSingle();
+      if (error) {
+        if (error.code === "23505") return fail(res, "You already drive for a fleet. Leave it first.", 409);
+        throw error;
+      }
+      if (!data) return fail(res, "That invitation has already been answered.", 409);
+      auditLog({ actor_type: "driver", actor_id: req.driver.id, action: accept ? "fleet_invitation_accepted" : "fleet_invitation_declined", entity_type: "fleet", entity_id: membership.fleet_id, metadata: { membership_id: id, owner_share_pct: Number(membership.owner_share_pct), agreement_version: membership.agreement_version }, req }).catch(() => {});
+      return ok(res, { membership: data });
+    } catch (error) {
+      return fleetRouteError(res, error, "Your answer could not be saved.");
+    }
+  })
+);
+
+// The fleet owner or the driver can end a membership.
+app.post(
+  "/api/driver/fleet/memberships/:id/end",
+  requireDriverSelf,
+  requireFleetsOn,
+  asyncRoute(async (req, res) => {
+    const id = cleanString(req.params.id, 64);
+    try {
+      const { data: membership, error: mErr } = await supabase.from("fleet_memberships").select("*").eq("id", id).maybeSingle();
+      if (mErr) throw mErr;
+      if (!membership || !["invited", "active"].includes(membership.status)) return fail(res, "Membership not found.", 404);
+      const fleet = await ownedFleet(req.driver.id);
+      const isOwner = Boolean(fleet && fleet.id === membership.fleet_id);
+      if (!isOwner && membership.driver_id !== req.driver.id) return fail(res, "Membership not found.", 404);
+      const { data: open, error: oErr } = await supabase.from("vehicle_assignments").select("*").eq("membership_id", id).is("ends_at", null);
+      if (oErr) throw oErr;
+      for (const assignment of open || []) {
+        const result = await endVehicleAssignment(assignment, req.driver.id, req);
+        if (!result.ok) return fail(res, result.error, result.statusCode);
+      }
+      const { error } = await supabase
+        .from("fleet_memberships")
+        .update({ status: "ended", ended_by: req.driver.id, ended_at: nowIso(), responded_at: membership.responded_at || nowIso(), end_reason: cleanString(req.body && req.body.reason, 500) || null })
+        .eq("id", id)
+        .in("status", ["invited", "active"]);
+      if (error) throw error;
+      auditLog({ actor_type: "driver", actor_id: req.driver.id, action: "fleet_membership_ended", entity_type: "fleet", entity_id: membership.fleet_id, metadata: { membership_id: id, by: isOwner ? "owner" : "driver" }, req }).catch(() => {});
+      return ok(res, { ended: true });
+    } catch (error) {
+      return fleetRouteError(res, error, "The membership could not be ended.");
+    }
+  })
+);
+
+app.post(
+  "/api/driver/fleet/assignments",
+  requireDriverSelf,
+  requireFleetsOn,
+  asyncRoute(async (req, res) => {
+    const vehicleId = cleanString(req.body && req.body.vehicle_id, 64);
+    const membershipId = cleanString(req.body && req.body.membership_id, 64);
+    if (!vehicleId || !membershipId) return fail(res, "Choose a vehicle and a driver.", 400);
+    try {
+      const fleet = await activeOwnedFleetOr403(req, res);
+      if (!fleet) return undefined;
+      const { data: vehicle, error: vErr } = await supabase.from("fleet_vehicles").select("*").eq("id", vehicleId).maybeSingle();
+      if (vErr) throw vErr;
+      if (!vehicle || vehicle.fleet_id !== fleet.id) return fail(res, "Vehicle not found.", 404);
+      const ready = fleetRules.vehicleDispatchable(vehicle, await currentVehicleDocuments([vehicleId]));
+      if (!ready.ok) return fail(res, "This vehicle can't carry riders yet: it needs staff-verified, current insurance and registration and an active status.", 409, { reasons: ready.reasons });
+      const { data: membership, error: mErr } = await supabase.from("fleet_memberships").select("*").eq("id", membershipId).maybeSingle();
+      if (mErr) throw mErr;
+      if (!membership || membership.fleet_id !== fleet.id || membership.status !== "active") return fail(res, "That driver isn't an active member of your fleet.", 404);
+      const { data: driver, error: dErr } = await supabase.from("drivers").select("*").eq("id", membership.driver_id).maybeSingle();
+      if (dErr) throw dErr;
+      if (!driver || !fleetDriverReady(driver)) return fail(res, "That driver's verification isn't complete.", 409);
+      if (driver.online || driver.is_online) return fail(res, "The driver must be offline before a vehicle is assigned.", 409);
+      if (await driverOnTrip(driver.id)) return fail(res, "The driver is on a trip.", 409);
+      const { data: assignment, error: aErr } = await supabase
+        .from("vehicle_assignments")
+        .insert({ id: crypto.randomUUID(), vehicle_id: vehicleId, driver_id: driver.id, membership_id: membershipId, previous_vehicle: fleetRules.previousVehicleSnapshot(driver), assigned_by: req.driver.id })
+        .select("id, starts_at")
+        .single();
+      if (aErr) {
+        if (aErr.code === "23505") return fail(res, "That vehicle or driver already has an assignment. End it first.", 409);
+        throw aErr;
+      }
+      const { error: uErr } = await supabase.from("drivers").update({ ...fleetRules.driverFieldsForVehicle(vehicle), updated_at: nowIso() }).eq("id", driver.id);
+      if (uErr) {
+        await supabase.from("vehicle_assignments").update({ ends_at: nowIso(), ended_by: "system:rollback" }).eq("id", assignment.id);
+        throw uErr;
+      }
+      auditLog({ actor_type: "driver", actor_id: req.driver.id, action: "fleet_vehicle_assigned", entity_type: "fleet", entity_id: fleet.id, metadata: { assignment_id: assignment.id, vehicle_id: vehicleId, membership_id: membershipId }, req }).catch(() => {});
+      return ok(res, { assignment: { id: assignment.id, starts_at: assignment.starts_at } }, 201);
+    } catch (error) {
+      return fleetRouteError(res, error, "The vehicle could not be assigned.");
+    }
+  })
+);
+
+// The fleet owner or the assigned driver can end an assignment.
+app.post(
+  "/api/driver/fleet/assignments/:id/end",
+  requireDriverSelf,
+  requireFleetsOn,
+  asyncRoute(async (req, res) => {
+    const id = cleanString(req.params.id, 64);
+    try {
+      const { data: assignment, error } = await supabase.from("vehicle_assignments").select("*").eq("id", id).is("ends_at", null).maybeSingle();
+      if (error) throw error;
+      if (!assignment) return fail(res, "Assignment not found.", 404);
+      const fleet = await ownedFleet(req.driver.id);
+      let isOwner = false;
+      if (fleet) {
+        const { data: v, error: vErr } = await supabase.from("fleet_vehicles").select("fleet_id").eq("id", assignment.vehicle_id).maybeSingle();
+        if (vErr) throw vErr;
+        isOwner = Boolean(v && v.fleet_id === fleet.id);
+      }
+      if (!isOwner && assignment.driver_id !== req.driver.id) return fail(res, "Assignment not found.", 404);
+      const result = await endVehicleAssignment(assignment, req.driver.id, req);
+      if (!result.ok) return fail(res, result.error, result.statusCode);
+      return ok(res, { ended: true });
+    } catch (error) {
+      return fleetRouteError(res, error, "The assignment could not be ended.");
+    }
+  })
+);
+
+// Staff: list, review and verify. Work whether or not the switch is on.
+app.get(
+  "/api/admin/fleets",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const { data: fleets, error } = await supabase.from("fleets").select("*").order("created_at", { ascending: false }).limit(100);
+    if (fleetTableMissing(error)) return ok(res, { fleets: [], not_set_up: true });
+    if (error) return fleetRouteError(res, error, "Fleets could not be loaded.");
+    try {
+      const fleetIds = (fleets || []).map((f) => f.id);
+      const { data: vehicles, error: vErr } = fleetIds.length ? await supabase.from("fleet_vehicles").select("*").in("fleet_id", fleetIds) : { data: [], error: null };
+      if (vErr) throw vErr;
+      const docs = await currentVehicleDocuments((vehicles || []).map((v) => v.id));
+      const { data: memberships, error: mErr } = fleetIds.length ? await supabase.from("fleet_memberships").select("fleet_id, status").in("fleet_id", fleetIds) : { data: [], error: null };
+      if (mErr) throw mErr;
+      const ownerIds = [...new Set((fleets || []).map((f) => f.owner_driver_id))];
+      const { data: owners, error: oErr } = ownerIds.length ? await supabase.from("drivers").select("*").in("id", ownerIds) : { data: [], error: null };
+      if (oErr) throw oErr;
+      return ok(res, {
+        enabled: await fleetManagementEnabled(),
+        fleets: (fleets || []).map((f) => {
+          const owner = (owners || []).find((o) => o.id === f.owner_driver_id);
+          return {
+            id: f.id,
+            name: f.name,
+            status: f.status,
+            review_reason: f.review_reason,
+            created_at: f.created_at,
+            owner: owner ? { id: owner.id, name: [owner.first_name, owner.last_name].filter(Boolean).join(" ") || owner.full_name || owner.name || owner.id, verified: fleetDriverReady(owner) } : null,
+            members: {
+              active: (memberships || []).filter((m) => m.fleet_id === f.id && m.status === "active").length,
+              invited: (memberships || []).filter((m) => m.fleet_id === f.id && m.status === "invited").length
+            },
+            vehicles: (vehicles || []).filter((v) => v.fleet_id === f.id).map((v) => {
+              const vDocs = docs.filter((d) => d.vehicle_id === v.id);
+              return {
+                id: v.id,
+                label: `${v.vehicle_year} ${v.make} ${v.model}`,
+                color: v.color,
+                plate: `${v.plate} (${v.plate_state})`,
+                vin_last6: v.vin_last6,
+                status: v.status,
+                status_reason: v.status_reason,
+                documents: vDocs.map((d) => ({ document_type: d.document_type, expires_on: d.expires_on, source: d.source, verification_status: d.verification_status })),
+                documents_ready: fleetRules.documentsReady(vDocs)
+              };
+            })
+          };
+        })
+      });
+    } catch (err) {
+      return fleetRouteError(res, err, "Fleets could not be loaded.");
+    }
+  })
+);
+
+const FLEET_REVIEW_TRANSITIONS = { approve: ["pending", "active"], decline: ["pending", "declined"], suspend: ["active", "suspended"], reinstate: ["suspended", "active"] };
+const FLEET_REVIEW_PAST = { approve: "approved", decline: "declined", suspend: "suspended", reinstate: "reinstated" };
+
+app.post(
+  "/api/admin/fleets/:id/review",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const id = cleanString(req.params.id, 64);
+    const decision = cleanString(req.body && req.body.decision, 20);
+    const reason = cleanString(req.body && req.body.reason, 500);
+    const transition = FLEET_REVIEW_TRANSITIONS[decision];
+    if (!transition) return fail(res, "Decision must be approve, decline, suspend or reinstate.", 400);
+    if ((decision === "decline" || decision === "suspend") && reason.length < 3) return fail(res, "Give a reason (at least 3 characters).", 400);
+    try {
+      const { data: fleet, error } = await supabase.from("fleets").select("*").eq("id", id).maybeSingle();
+      if (error) throw error;
+      if (!fleet) return fail(res, "Fleet not found.", 404);
+      if (fleet.status !== transition[0]) return fail(res, `Only a ${transition[0]} fleet can be ${FLEET_REVIEW_PAST[decision]}.`, 409);
+      if (transition[1] === "active") {
+        const { data: owner, error: oErr } = await supabase.from("drivers").select("*").eq("id", fleet.owner_driver_id).maybeSingle();
+        if (oErr) throw oErr;
+        if (!owner || !fleetDriverReady(owner)) return fail(res, "The owner's own driver verification isn't complete.", 409);
+      }
+      if (decision === "suspend") {
+        const { data: vehicles, error: vErr } = await supabase.from("fleet_vehicles").select("id").eq("fleet_id", id);
+        if (vErr) throw vErr;
+        const ended = await endOpenAssignmentsForVehicles((vehicles || []).map((v) => v.id), `admin:${req.admin.email || req.admin.id}`, req);
+        if (!ended.ok) return fail(res, ended.error, ended.statusCode);
+      }
+      const { data: updated, error: uErr } = await supabase
+        .from("fleets")
+        .update({ status: transition[1], review_reason: reason || null, reviewed_by: req.admin.email || req.admin.id, reviewed_at: nowIso(), updated_at: nowIso() })
+        .eq("id", id)
+        .eq("status", transition[0])
+        .select("id, status")
+        .maybeSingle();
+      if (uErr) throw uErr;
+      if (!updated) return fail(res, "The fleet changed in the meantime. Reload and try again.", 409);
+      auditLog({ actor_type: "admin", actor_id: req.admin.email, action: `fleet_${FLEET_REVIEW_PAST[decision]}`, entity_type: "fleet", entity_id: id, metadata: { from: transition[0], to: transition[1] }, req }).catch(() => {});
+      return ok(res, { fleet: updated });
+    } catch (err) {
+      return fleetRouteError(res, err, "The decision could not be saved.");
+    }
+  })
+);
+
+// Staff enter a document's expiry date while looking at the document.
+app.post(
+  "/api/admin/fleet-vehicles/:id/documents",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const vehicleId = cleanString(req.params.id, 64);
+    const parsed = fleetRules.validateDocumentDate(req.body);
+    if (!parsed.ok) return fail(res, parsed.error, parsed.statusCode);
+    try {
+      const { data: vehicle, error } = await supabase.from("fleet_vehicles").select("id, fleet_id").eq("id", vehicleId).maybeSingle();
+      if (error) throw error;
+      if (!vehicle) return fail(res, "Vehicle not found.", 404);
+      await recordVehicleDocument({ vehicleId, documentType: parsed.document_type, expiresOn: parsed.expires_on, recordedBy: req.admin.email || req.admin.id, staff: true });
+      auditLog({ actor_type: "admin", actor_id: req.admin.email, action: "fleet_vehicle_document_verified", entity_type: "fleet", entity_id: vehicle.fleet_id, metadata: { vehicle_id: vehicleId, document_type: parsed.document_type, expires_on: parsed.expires_on }, req }).catch(() => {});
+      return ok(res, { recorded: true, verification_status: "staff_verified" }, 201);
+    } catch (err) {
+      return fleetRouteError(res, err, "The document could not be recorded.");
+    }
+  })
+);
+
+const FLEET_VEHICLE_STATUSES = ["active", "suspended", "inactive"];
+
+app.post(
+  "/api/admin/fleet-vehicles/:id/status",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const vehicleId = cleanString(req.params.id, 64);
+    const status = cleanString(req.body && req.body.status, 20);
+    const reason = cleanString(req.body && req.body.reason, 500);
+    if (!FLEET_VEHICLE_STATUSES.includes(status)) return fail(res, "Status must be active, suspended or inactive.", 400);
+    if (status === "suspended" && reason.length < 3) return fail(res, "Give a reason (at least 3 characters).", 400);
+    try {
+      const { data: vehicle, error } = await supabase.from("fleet_vehicles").select("*").eq("id", vehicleId).maybeSingle();
+      if (error) throw error;
+      if (!vehicle) return fail(res, "Vehicle not found.", 404);
+      if (status === "active") {
+        const { data: fleet, error: fErr } = await supabase.from("fleets").select("status").eq("id", vehicle.fleet_id).maybeSingle();
+        if (fErr) throw fErr;
+        if (!fleet || fleet.status !== "active") return fail(res, "The fleet must be active first.", 409);
+        const docs = fleetRules.documentsReady(await currentVehicleDocuments([vehicleId]));
+        if (!docs.ok) return fail(res, "Verify current insurance and registration before activating the vehicle.", 409, { reasons: docs.reasons });
+      } else {
+        const ended = await endOpenAssignmentsForVehicles([vehicleId], `admin:${req.admin.email || req.admin.id}`, req);
+        if (!ended.ok) return fail(res, ended.error, ended.statusCode);
+      }
+      const { error: uErr } = await supabase
+        .from("fleet_vehicles")
+        .update({ status, status_reason: reason || null, status_changed_by: req.admin.email || req.admin.id, status_changed_at: nowIso(), updated_at: nowIso() })
+        .eq("id", vehicleId);
+      if (uErr) {
+        if (uErr.code === "23505") return fail(res, "That plate is already in use by another fleet vehicle.", 409);
+        throw uErr;
+      }
+      auditLog({ actor_type: "admin", actor_id: req.admin.email, action: "fleet_vehicle_status_changed", entity_type: "fleet", entity_id: vehicle.fleet_id, metadata: { vehicle_id: vehicleId, from: vehicle.status, to: status }, req }).catch(() => {});
+      return ok(res, { vehicle: { id: vehicleId, status } });
+    } catch (err) {
+      return fleetRouteError(res, err, "The vehicle status could not be saved.");
+    }
+  })
+);
+
+for (const [path, value, action] of [
+  ["/api/admin/system/enable-fleet-management", "true", "fleet_management_enabled"],
+  ["/api/admin/system/disable-fleet-management", "false", "fleet_management_disabled"]
+]) {
+  app.post(
+    path,
+    requireAdmin,
+    asyncRoute(async (req, res) => {
+      const { error } = await supabase.from("system_flags").upsert({ key: fleetRules.FLEET_FLAG, value, reason: cleanString(req.body && req.body.reason, 1000) || null, updated_at: nowIso() });
+      if (error) return fail(res, "The switch could not be saved.", 502);
+      auditLog({ actor_type: "admin", actor_id: req.admin.email, action, req }).catch(() => {});
+      return ok(res, { fleet_management_enabled: value === "true" });
+    })
+  );
+}
 
 /* =========================================================
    BUSINESS PARTNERSHIP INQUIRIES (owner decision 2026-10-22)

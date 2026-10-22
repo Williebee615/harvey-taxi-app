@@ -60,7 +60,9 @@ All new tables are server-only: RLS on, no anon or signed-in access. Nothing is 
 - **Rider side:** no change beyond the vehicle shown, which comes from the server.
 - **Driver app (iOS/Android):** in phase 1 the app keeps working. A fleet driver going online from the app uses their assigned vehicle (server-side rule). Fleet screens in the app come in a later build.
 
-## 5. Decisions needed from the owner
+## 5. Owner decisions
+
+**[Owner decision 2026-10-22]** "Approved all five recommendations": items 1–5 below as recommended. The agreement text (item 5) is still to be drafted and reviewed by counsel before switch-on.
 
 1. **What the fleet owner can see about their drivers.**
    - *Recommended:* first name, vehicle assignment, online or offline, trip count and fleet earnings.

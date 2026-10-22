@@ -76,7 +76,9 @@ const EXPECTED_ORDER = [
   // Covered by test/db/orderTrip.db.test.js.
   "20261018050000_order_trip.sql",
   // Covered by test/db/partnershipInquiries.db.test.js.
-  "20261022010000_partnership_inquiries.sql"
+  "20261022010000_partnership_inquiries.sql",
+  // Covered by test/db/fleets.db.test.js.
+  "20261022020000_fleets.sql"
 ];
 
 // Synthetic pre-existing row (no production data), inserted after the
