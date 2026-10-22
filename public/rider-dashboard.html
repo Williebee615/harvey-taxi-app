@@ -2960,26 +2960,29 @@
     }
 
     /* Just-in-Time booking (off unless the jit_booking_enabled flag is on):
-       rider detail fields move to the phone sheet; on phones the map stays
-       pinned at the top and the booking steps slide over it as a sheet. */
+       rider detail fields move to the phone sheet; on phones, once a service
+       is confirmed, the map stays pinned at the top and the booking steps
+       slide over it as a sheet. Before that the service choice must stay
+       visible (2026-10-22 fix: hiding it left phones with no way to book).
+       Browsers without :has() keep the standard layout. */
     body.jit-booking [data-jit-hide] { display: none !important; }
 
     @media (max-width: 760px) {
-      body.jit-booking #rideWizardOverlay .hero-card { display: none; }
-      body.jit-booking #rideWizardOverlay .hero > div:first-child {
+      body.jit-booking #rideWizardOverlay:has(.mode-grid.locked) .hero-card { display: none; }
+      body.jit-booking #rideWizardOverlay:has(.mode-grid.locked) .hero > div:first-child {
         position: sticky;
         top: 0;
         z-index: 0;
         align-self: start;
       }
-      body.jit-booking #rideWizardOverlay .ride-card {
+      body.jit-booking #rideWizardOverlay:has(.mode-grid.locked) .ride-card {
         position: relative;
         z-index: 1;
         margin-top: -28px;
         border-radius: 22px 22px 0 0;
         box-shadow: 0 -12px 30px rgba(0, 0, 0, 0.45);
       }
-      body.jit-booking #rideWizardOverlay .ride-card::before {
+      body.jit-booking #rideWizardOverlay:has(.mode-grid.locked) .ride-card::before {
         content: "";
         display: block;
         width: 44px;
@@ -4661,12 +4664,12 @@
             class="notice"
           ></div>
 
-          <!-- SHOWN UNTIL A SERVICE IS CONFIRMED ON THE LEFT -->
+          <!-- SHOWN UNTIL A SERVICE IS CONFIRMED -->
           <div id="serviceNotConfirmedNotice" class="map-fallback-card">
             <strong>Choose a service to begin</strong>
             <span>
-              Pick Driver Ride, Autonomous Pilot, Food Delivery, or Groceries
-              on the left, then tap "Confirm Service" to start your request.
+              Pick Driver Ride, Airport Ride, Food Delivery, or Groceries
+              under "Choose a Service", then tap "Confirm Service".
             </span>
           </div>
 

@@ -171,6 +171,29 @@ describeWithBrowser("Just-in-Time booking on the rider dashboard (mobile)", () =
     await context.close();
   });
 
+  // Regression (2026-10-22, owner's iPhone): on phones the Just-in-Time
+  // layout hid the card holding the service choice, so "Choose a service
+  // to begin" had nothing to choose and no ride could be booked.
+  test("on, phone: the service choice is visible and booking moves on after Confirm Service", async () => {
+    reseed(true);
+    const { context, page, errors } = await openDashboard();
+    await page.click("#heroRequestRideBtn");
+    await page.waitForSelector("#rideWizardOverlay:not([hidden])");
+    await page.waitForTimeout(400);
+    for (const id of ["#modeDriverBtn", "#modeAirportBtn", "#modeFoodBtn", "#modeGroceryBtn", "#confirmServiceBtn"]) {
+      expect(await page.isVisible(id)).toBe(true);
+    }
+    await page.click("#modeDriverBtn");
+    await page.click("#confirmServiceBtn");
+    await page.waitForTimeout(400);
+    expect(await page.evaluate(() => document.getElementById("modeGrid").classList.contains("locked"))).toBe(true);
+    // Once a service is confirmed the map-first sheet layout takes over.
+    expect(await page.isVisible("#confirmServiceBtn")).toBe(false);
+    expect(await page.isVisible("#pickupMap")).toBe(true);
+    expect(errors).toEqual([]);
+    await context.close();
+  });
+
   test("on: the phone sheet signs a new rider up and approves them; then booking continues", async () => {
     reseed(true);
     const { context, page, errors } = await openDashboard();

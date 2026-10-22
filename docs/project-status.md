@@ -2827,3 +2827,24 @@ Three admin pages kept the admin token in browser storage:
 - **Done:** #316 live; the job built and tested, switched off.
 - **Remaining:** owner approval to merge this PR; then a separate approval to switch the job on; the earlier owner items in §63 and §71.
 - **Next authorized action:** open this PR. Merging needs the owner's approval.
+
+## 75. Update 2026-10-22 (UTC): #317 live and the retention job switched on; phone booking fix (PR `claude/rider-request-fix`)
+
+**[Owner decision 2026-10-22]** "Merge #317 approved, switch the job on."
+
+**[Verified 2026-10-22]**
+- **#317** (audit-log IP retention job): 6/6 checks green on `02e4d3e`; merged as `63f726f`; `/api/health` reported `63f726f` at 13:14 UTC. `/api/admin/retention/audit-ip` answers 401 without sign-in.
+- **Job switched on:** `system_flags.audit_ip_retention_enabled = "true"` at 13:14 UTC, recorded as `audit_logs` row 1623 (actor `agent`, approved by the owner). `retention_legal_hold` is not set. 0 rows qualify today. The first run is about 6 hours after the latest server start.
+
+**Phone booking broken since Just-in-Time went on [Verified 2026-10-22, owner's iPhone screenshots and a browser test]**
+- **Owner report:** "No rides possible for rider." On the iPhone (rider review account), the booking screen showed "Choose a service to begin" with no service buttons.
+- **Cause:** #294's Just-in-Time phone layout (screens 760 px wide or narrower) hid the whole top card of the booking screen. That card holds the service choice (Driver Ride, Airport Ride, Food Delivery, Groceries) and "Confirm Service", so no rider on a phone could start a booking once `jit_booking_enabled` was switched on (§63, 04:19 UTC today). Desktop was not affected. #294's browser tests didn't check the service step at phone size.
+- **Fix (this PR):** the map-first phone layout now applies only after a service is confirmed (the CSS check `:has(.mode-grid.locked)`). Before that, phones show the service choice. Browsers without `:has()` keep the standard layout, which also shows it. The empty-state text no longer names an "Autonomous Pilot" option (it doesn't exist) or says "on the left".
+- **Tests [Verified 2026-10-22, local]:** a new phone-size browser test (390×844, iPhone user agent, Just-in-Time on): the four services and Confirm Service are visible; after confirming, the sheet layout takes over and the map shows. It **fails on the code now live** and passes with the fix. Full suite: 3,032 passed, 0 failed (database suites skipped).
+
+**[Recommendation]** Merge this fix urgently. If the merge has to wait, switching `jit_booking_enabled` off brings back the standard layout (owner's decision).
+
+**Handoff:**
+- **Done:** #317 live; retention job on; phone booking fix and regression test.
+- **Remaining:** owner approval to merge this PR; then the owner's phone test of a full booking (review rider with review driver online); the earlier owner items in §63 and §71.
+- **Next authorized action:** open this PR. Merging needs the owner's approval.
