@@ -80,7 +80,9 @@ const EXPECTED_ORDER = [
   // Covered by test/db/fleets.db.test.js.
   "20261022020000_fleets.sql",
   // Covered by test/db/rideDriverBounties.db.test.js.
-  "20261022030000_ride_driver_bounties.sql"
+  "20261022030000_ride_driver_bounties.sql",
+  // Covered by test/db/rideTipsAndRatings.db.test.js.
+  "20261022040000_ride_tips_and_driver_ratings.sql"
 ];
 
 // Synthetic pre-existing row (no production data), inserted after the

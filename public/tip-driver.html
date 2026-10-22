@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harvey Taxi — Tip and Rate Your Driver</title>
+  <meta name="description" content="Tip your Harvey Taxi driver and rate your trip." />
+  <meta name="robots" content="noindex" />
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+  <link rel="apple-touch-icon" href="/icon-192.png" />
+  <style>
+    :root { --bg-1: #06101f; --bg-2: #0a1830; --panel: rgba(10, 20, 40, 0.88); --line: rgba(126, 174, 255, 0.16); --text: #f5f8ff; --muted: #b4c0df; --blue: #6aa8ff; --green: #74f5b2; --gold: #ffd972; --danger: #ff8aa0; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { min-height: 100vh; font-family: Arial, Helvetica, sans-serif; color: var(--text); background: linear-gradient(180deg, var(--bg-1), var(--bg-2)); line-height: 1.5; }
+    a { color: var(--blue); }
+    [hidden] { display: none !important; }
+    .shell { width: min(100%, 560px); margin: 0 auto; padding: 18px 16px 48px; }
+    .card { margin-top: 16px; padding: 18px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); }
+    h1 { font-size: 22px; }
+    h2 { font-size: 18px; margin-bottom: 6px; }
+    p, .muted { color: var(--muted); font-size: 15px; }
+    button { padding: 11px 14px; border: 0; border-radius: 12px; background: var(--blue); color: #06101f; font-weight: 700; font-size: 16px; cursor: pointer; }
+    button.secondary { background: transparent; color: var(--text); border: 1px solid var(--line); }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
+    button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .chip { background: transparent; color: var(--text); border: 1px solid var(--line); }
+    .chip[aria-pressed="true"] { background: var(--green); color: #06101f; border-color: var(--green); }
+    .stars { display: flex; gap: 6px; margin-top: 12px; }
+    .star { font-size: 30px; line-height: 1; padding: 6px 8px; background: transparent; color: var(--muted); border: 1px solid var(--line); }
+    .star[aria-pressed="true"] { color: var(--gold); border-color: var(--gold); }
+    input[type="text"], textarea { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: #0b1a33; color: var(--text); font-size: 16px; font-family: inherit; }
+    label.field { display: grid; gap: 6px; margin-top: 12px; font-size: 14px; color: var(--muted); }
+    #paymentElement { margin-top: 12px; padding: 12px; border-radius: 12px; background: #f5f8ff; }
+    .status { margin-top: 10px; font-size: 14px; color: var(--muted); }
+    .status.error { color: var(--danger); }
+    .done { color: var(--green); font-weight: 700; }
+    .notice { border-left: 4px solid var(--gold); padding: 10px 12px; background: rgba(255, 217, 114, 0.08); border-radius: 8px; margin-top: 12px; color: var(--text); font-size: 14px; }
+    .row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <h1 id="title">Your driver</h1>
+    <p id="subtitle">Tips go 100% to your driver.</p>
+    <div class="notice" id="simNotice" hidden>App Review mode: this tip is simulated. No card is charged.</div>
+
+    <section class="card" id="tipCard" aria-labelledby="tipHeading">
+      <h2 id="tipHeading">Tip your driver</h2>
+      <p id="tipIntro">100% of your tip goes to your driver.</p>
+      <div class="chips" id="tipChips" role="group" aria-label="Tip amount"></div>
+      <label class="field" id="customWrap" hidden>Custom amount ($1 to $100)
+        <input type="text" id="tipCustom" inputmode="decimal" autocomplete="off" placeholder="e.g. 7.50" />
+      </label>
+      <div class="row"><button type="button" id="tipButton" disabled>Add tip</button></div>
+      <div id="paymentElement" hidden></div>
+      <div class="row"><button type="button" id="payButton" hidden>Pay tip</button></div>
+      <p class="status" id="tipStatus" role="status" aria-live="polite"></p>
+    </section>
+
+    <section class="card" id="rateCard" aria-labelledby="rateHeading">
+      <h2 id="rateHeading">Rate your trip</h2>
+      <p>Your rating helps keep Harvey Taxi rides safe and friendly. Your driver doesn't see your name or comment.</p>
+      <div class="stars" id="stars" role="group" aria-label="Stars"></div>
+      <div class="chips" id="tagChips" role="group" aria-label="What stood out"></div>
+      <label class="field">Comment (optional)
+        <textarea id="comment" rows="3" maxlength="500"></textarea>
+      </label>
+      <div class="row"><button type="button" id="rateButton" disabled>Submit rating</button></div>
+      <p class="status" id="rateStatus" role="status" aria-live="polite"></p>
+    </section>
+
+    <div class="row"><a href="/rider-dashboard.html" id="backLink">&larr; Back to my rides</a></div>
+  </main>
+
+  <script>
+    (function () {
+      const $ = function (id) { return document.getElementById(id); };
+      const params = new URLSearchParams(location.search);
+      const rideId = params.get("id") || params.get("ride_id") || "";
+      const type = params.get("type") || "ride";
+      let info = null;
+      let tipCents = null;
+      let stars = 0;
+      const tags = new Set();
+      let stripe = null;
+      let elements = null;
+      let pendingTip = null;
+
+      async function post(path, body) {
+        const res = await fetch(path, { method: "POST", credentials: "same-origin", headers: { Accept: "application/json", "Content-Type": "application/json", "X-Requested-With": "harvey-rider-app" }, body: JSON.stringify(body || {}) });
+        const data = await res.json().catch(function () { return {}; });
+        return { ok: res.ok, status: res.status, data: data };
+      }
+      async function get(path) {
+        const res = await fetch(path, { credentials: "same-origin", headers: { Accept: "application/json" } });
+        const data = await res.json().catch(function () { return {}; });
+        return { ok: res.ok, status: res.status, data: data };
+      }
+      function setStatus(id, text, isError) {
+        const el = $(id);
+        el.textContent = text || "";
+        el.classList.toggle("error", Boolean(isError));
+      }
+      const money = function (c) { return "$" + (c / 100).toFixed(2).replace(/\.00$/, ""); };
+      function chip(label, pressed, onClick) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "chip";
+        b.textContent = label;
+        b.setAttribute("aria-pressed", pressed ? "true" : "false");
+        b.addEventListener("click", onClick);
+        return b;
+      }
+
+      function renderTipChips() {
+        const box = $("tipChips");
+        box.innerHTML = "";
+        info.tips.presets_cents.forEach(function (c) {
+          box.appendChild(chip(money(c), tipCents === c, function () { tipCents = c; $("customWrap").hidden = true; renderTipChips(); }));
+        });
+        box.appendChild(chip("Custom", tipCents === "custom", function () { tipCents = "custom"; $("customWrap").hidden = false; $("tipCustom").focus(); renderTipChips(); }));
+        $("tipButton").disabled = tipCents === null;
+      }
+
+      function renderStars() {
+        const box = $("stars");
+        box.innerHTML = "";
+        for (let i = 1; i <= 5; i += 1) {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.className = "star";
+          b.textContent = "★";
+          b.setAttribute("aria-label", i + (i === 1 ? " star" : " stars"));
+          b.setAttribute("aria-pressed", i <= stars ? "true" : "false");
+          b.addEventListener("click", function () { stars = i; renderStars(); });
+          box.appendChild(b);
+        }
+        $("rateButton").disabled = stars === 0;
+      }
+
+      function renderTags() {
+        const box = $("tagChips");
+        box.innerHTML = "";
+        Object.keys(info.rating.tags).forEach(function (key) {
+          box.appendChild(chip(info.rating.tags[key], tags.has(key), function () { if (tags.has(key)) tags.delete(key); else tags.add(key); renderTags(); }));
+        });
+      }
+
+      function tipDone(text) {
+        $("tipChips").hidden = true;
+        $("customWrap").hidden = true;
+        $("tipButton").hidden = true;
+        $("paymentElement").hidden = true;
+        $("payButton").hidden = true;
+        $("tipIntro").innerHTML = "";
+        const s = document.createElement("span");
+        s.className = "done";
+        s.textContent = text;
+        $("tipIntro").appendChild(s);
+        setStatus("tipStatus", "");
+      }
+
+      function loadStripe(key) {
+        if (window.Stripe) return Promise.resolve(window.Stripe(key));
+        return new Promise(function (resolve, reject) {
+          const s = document.createElement("script");
+          s.src = "https://js.stripe.com/v3/";
+          s.onload = function () { window.Stripe ? resolve(window.Stripe(key)) : reject(new Error("stripe")); };
+          s.onerror = function () { reject(new Error("stripe")); };
+          document.head.appendChild(s);
+        });
+      }
+
+      async function startTip() {
+        let amount;
+        if (tipCents === "custom") amount = $("tipCustom").value.trim();
+        else amount = (tipCents / 100).toFixed(2);
+        $("tipButton").disabled = true;
+        setStatus("tipStatus", "Starting your tip…");
+        const r = await post("/api/rides/" + encodeURIComponent(rideId) + "/tips", { amount: amount });
+        if (!r.ok) { setStatus("tipStatus", r.data.error || "Your tip couldn't be started. Nothing has been charged.", true); $("tipButton").disabled = false; return; }
+        if (r.data.simulated) { tipDone("Thank you! Your " + money(r.data.tip.amount_cents) + " tip was added (simulated)."); return; }
+        pendingTip = r.data.tip;
+        try {
+          stripe = await loadStripe(r.data.publishable_key);
+          elements = stripe.elements({ clientSecret: r.data.client_secret });
+          elements.create("payment").mount("#paymentElement");
+          $("paymentElement").hidden = false;
+          $("payButton").hidden = false;
+          $("payButton").textContent = "Pay " + money(pendingTip.amount_cents) + " tip";
+          $("tipButton").hidden = true;
+          setStatus("tipStatus", r.data.mode === "test" ? "Test mode: use card 4242 4242 4242 4242, any future date, any CVC." : "");
+        } catch (e) {
+          setStatus("tipStatus", "The card form couldn't load. Nothing has been charged.", true);
+          $("tipButton").disabled = false;
+        }
+      }
+
+      async function payTip() {
+        if (!stripe || !elements || !pendingTip) return;
+        $("payButton").disabled = true;
+        setStatus("tipStatus", "Processing…");
+        const result = await stripe.confirmPayment({ elements: elements, redirect: "if_required", confirmParams: { return_url: location.origin + "/tip-driver.html?id=" + encodeURIComponent(rideId) + "&tip=" + encodeURIComponent(pendingTip.id) } });
+        if (result && result.error) { setStatus("tipStatus", result.error.message || "Your card couldn't be charged.", true); $("payButton").disabled = false; return; }
+        await confirmTip(pendingTip.id);
+      }
+
+      async function confirmTip(tipId) {
+        const r = await post("/api/rides/" + encodeURIComponent(rideId) + "/tips/" + encodeURIComponent(tipId) + "/confirm");
+        if (!r.ok) { setStatus("tipStatus", r.data.error || "Your tip couldn't be confirmed yet.", true); $("payButton").disabled = false; return; }
+        tipDone("Thank you! Your " + money(r.data.tip.amount_cents) + " tip goes 100% to " + info.ride.driver_first_name + ".");
+      }
+
+      async function submitRating() {
+        $("rateButton").disabled = true;
+        setStatus("rateStatus", "Saving…");
+        const r = await post("/api/rides/" + encodeURIComponent(rideId) + "/rating", { stars: stars, tags: Array.from(tags), comment: $("comment").value });
+        if (!r.ok) { setStatus("rateStatus", r.data.error || "Your rating couldn't be saved.", true); $("rateButton").disabled = false; return; }
+        rateDone("Thanks for rating your trip.");
+      }
+
+      function rateDone(text) {
+        ["stars", "tagChips", "rateButton"].forEach(function (id) { $(id).hidden = true; });
+        $("comment").closest("label").hidden = true;
+        setStatus("rateStatus", text);
+        $("rateStatus").classList.add("done");
+      }
+
+      async function load() {
+        if (type !== "ride") {
+          $("rateCard").hidden = true;
+          $("tipIntro").textContent = "Delivery tips are added when you place a store order.";
+          $("tipButton").hidden = true;
+          return;
+        }
+        if (!rideId) { setStatus("tipStatus", "No trip was chosen. Go back to your rides.", true); $("rateCard").hidden = true; return; }
+        const r = await get("/api/rides/" + encodeURIComponent(rideId) + "/tip-rating");
+        if (!r.ok) {
+          setStatus("tipStatus", r.status === 401 ? "Please sign in to tip or rate your driver." : (r.data.error || "This trip couldn't be loaded."), true);
+          $("tipButton").hidden = true;
+          $("rateCard").hidden = true;
+          return;
+        }
+        info = r.data;
+        $("title").textContent = "Your driver, " + info.ride.driver_first_name;
+        $("simNotice").hidden = !info.ride.simulated;
+
+        if (info.tips.can_tip) {
+          renderTipChips();
+        } else if (info.tips.paid_cents) {
+          tipDone("You tipped " + money(info.tips.paid_cents) + ". Thank you!");
+        } else {
+          $("tipButton").hidden = true;
+          setStatus("tipStatus", info.tips.reason || "Tipping isn't available for this trip.");
+        }
+
+        if (!info.rating.enabled) { $("rateCard").hidden = true; }
+        else if (info.rating.can_rate) { renderStars(); renderTags(); }
+        else if (info.rating.existing) { rateDone("You rated this trip " + info.rating.existing.stars + " of 5. Thank you!"); }
+        else { rateDone(info.rating.reason || ""); $("rateStatus").classList.remove("done"); }
+
+        // Back from a card check that needed a redirect.
+        const returningTip = params.get("tip");
+        if (returningTip && params.get("redirect_status") === "succeeded" && !info.tips.paid_cents) confirmTip(returningTip);
+      }
+
+      $("tipButton").addEventListener("click", startTip);
+      $("payButton").addEventListener("click", payTip);
+      $("rateButton").addEventListener("click", submitRating);
+      load();
+    })();
+  </script>
+</body>
+</html>

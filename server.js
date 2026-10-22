@@ -768,7 +768,9 @@ const FOUNDATION_REDIRECTS = new Map([
   ["/merchant-portal.html", "/"],
   ["/merchant-catalog-template.csv", "/"],
   ["/merchant-catalog-example.csv", "/"],
-  ["/store-menu.html", "/"]
+  ["/store-menu.html", "/"],
+  // Harvey Taxi's tip and rating page for a rider's trip.
+  ["/tip-driver.html", "/"]
 ]);
 
 app.use((req, res, next) => {
@@ -17763,13 +17765,20 @@ async function upsertDriverEarningIdempotent({
   // completion) rather than into driver_payout (computed pre-trip by
   // calculateRideEstimate), since a percentage split should never apply
   // to a tip.
-  const tipAmount =
+  // A tip chosen at booking plus any tip paid during the trip
+  // (lib/rideTips.js); a failed lookup falls back to the booking tip.
+  let tipAmount =
     Number(
       ride.tip_amount || 0
     );
+  try {
+    tipAmount = rideTips.totalTipDollars(ride, await paidTipsForRide(ride.id));
+  } catch (tipErr) {
+    console.error("❌ Tip lookup for earning failed:", ride.id, logErrorCode(tipErr));
+  }
 
   const totalEarning =
-    driverBaseEarning + tipAmount;
+    Math.round((driverBaseEarning + tipAmount) * 100) / 100;
 
   // Fleet trip (docs/fleet-management-plan.md): record the fleet, the
   // vehicle and the owner's agreed share of the fare earning (never the
@@ -26646,6 +26655,303 @@ app.post(
 );
 
 /* =========================================================
+   TIPS DURING OR AFTER A TRIP, AND RIDER RATINGS OF DRIVERS
+   (owner decisions 2026-10-22; lib/rideTips.js, lib/driverRatings.js)
+   Tips: a separate card charge, 100% to the driver, recorded as paid only
+   after the server confirms the PaymentIntent with Stripe. Stripe test key
+   (the orders test key) unless ride_tips_live is "true". App Review rides
+   are simulated. Ratings: one per completed ride; a low score is flagged
+   for staff and never acts on a driver by itself. Both are off unless
+   their flags are "true".
+========================================================= */
+const rideTips = require("./lib/rideTips");
+const driverRatings = require("./lib/driverRatings");
+
+const TIP_RIDE_FIELDS = "id, rider_id, driver_id, status, is_review_ride, tip_amount, completed_at, updated_at";
+const tipsTableMissing = (error) => Boolean(error && (error.code === "42P01" || error.code === "PGRST205"));
+
+async function tipsConfig() {
+  const enabled = (await getSystemFlag(rideTips.TIPS_FLAG, "false")) === "true";
+  const liveEnabled = (await getSystemFlag(rideTips.TIPS_LIVE_FLAG, "false")) === "true";
+  return { enabled, liveEnabled };
+}
+
+// The Stripe client and publishable key for a tip's mode; null if that
+// mode isn't configured (live needs the live keys, test needs test keys).
+function tipStripe(mode) {
+  if (mode === "live") return stripe && /^(sk|rk)_live_/.test(STRIPE_SECRET_KEY) && /^pk_live_/.test(STRIPE_PUBLISHABLE_KEY) ? { client: stripe, publishableKey: STRIPE_PUBLISHABLE_KEY } : null;
+  if (mode === "test") return ordersStripe && /^pk_test_/.test(ORDERS_STRIPE_PUBLISHABLE_KEY) ? { client: ordersStripe, publishableKey: ORDERS_STRIPE_PUBLISHABLE_KEY } : null;
+  return null;
+}
+
+async function loadTipRide(rideId) {
+  const { data, error } = await supabase.from("rides").select(TIP_RIDE_FIELDS).eq("id", cleanString(rideId, 100)).maybeSingle();
+  if (error) throw error;
+  return data || null;
+}
+
+async function paidTipsForRide(rideId) {
+  const { data, error } = await supabase.from("ride_tips").select("id, status, amount_cents").eq("ride_id", rideId).in("status", ["succeeded", "simulated"]);
+  if (tipsTableMissing(error)) return [];
+  if (error) throw error;
+  return data || [];
+}
+
+// Keeps the driver's earning row in step with paid tips (100% to the
+// driver; the fare earning and any fleet share are unchanged). No row yet
+// (trip still in progress) means the completion write picks the tips up.
+async function applyTipsToEarning(rideId) {
+  const ride = await loadTipRide(rideId);
+  if (!ride) return null;
+  const tip = rideTips.totalTipDollars(ride, await paidTipsForRide(rideId));
+  const { data: earning, error } = await supabase.from("driver_earnings").select("id, driver_base_earning").eq("ride_id", rideId).maybeSingle();
+  if (error) throw error;
+  if (!earning) return null;
+  const total = Math.round((Number(earning.driver_base_earning || 0) + tip) * 100) / 100;
+  const { error: uErr } = await supabase.from("driver_earnings").update({ tip_amount: tip, total_earning: total, payout_amount: total, updated_at: nowIso() }).eq("id", earning.id);
+  if (uErr) throw uErr;
+  return { tip_amount: tip, total_earning: total };
+}
+
+// Marks a pending tip paid once Stripe shows a matching, succeeded intent.
+async function finalizeTip(tip, intent) {
+  if (!rideTips.intentMatchesTip(intent, tip)) return { ok: false };
+  const { data: updated, error } = await supabase.from("ride_tips").update({ status: "succeeded", succeeded_at: nowIso() }).eq("id", tip.id).eq("status", "pending").select("id");
+  if (error) throw error;
+  if (updated && updated.length) {
+    await applyTipsToEarning(tip.ride_id).catch((err) => console.error("❌ Tip earning update failed:", tip.ride_id, logErrorCode(err)));
+    auditLog({ actor_type: "rider", actor_id: tip.rider_id, action: "ride_tip_paid", entity_type: "ride", entity_id: tip.ride_id, metadata: { tip_id: tip.id, amount_cents: tip.amount_cents, mode: tip.mode } }).catch(() => {});
+    sendPushNotification({ ownerType: "driver", ownerId: tip.driver_id, title: "You got a tip", body: `A rider tipped you $${(tip.amount_cents / 100).toFixed(2)}. Tips are 100% yours.`, url: "/driver.html" }).catch(() => {});
+  }
+  return { ok: true };
+}
+
+const riderFirstNameOf = (driver) => (driver && (driver.first_name || String(driver.full_name || driver.name || "").split(" ")[0])) || "your driver";
+
+// What the tip and rating page needs for one ride.
+app.get(
+  "/api/rides/:id/tip-rating",
+  requireRider,
+  asyncRoute(async (req, res) => {
+    const ride = await loadTipRide(req.params.id);
+    if (!ride || String(ride.rider_id) !== String(req.rider.id)) return fail(res, "Ride not found.", 404);
+    const { enabled: tipsOn, liveEnabled } = await tipsConfig();
+    const ratingsOn = (await getSystemFlag(driverRatings.RATINGS_FLAG, "false")) === "true";
+    const { data: driver } = ride.driver_id ? await supabase.from("drivers").select("id, first_name, full_name, name").eq("id", ride.driver_id).maybeSingle() : { data: null };
+    const paid = await paidTipsForRide(ride.id);
+    const mode = rideTips.tipMode(ride, { liveEnabled });
+    const tipGate = rideTips.tipEligibility(ride, req.rider.id);
+    let existingRating = null;
+    if (ratingsOn) {
+      const { data: rated, error: rErr } = await supabase.from("driver_ratings").select("stars, tags").eq("ride_id", ride.id).maybeSingle();
+      if (rErr && !tipsTableMissing(rErr)) throw rErr;
+      existingRating = rated || null;
+    }
+    const rateGate = driverRatings.ratingEligibility(ride, req.rider.id);
+    const stripeCfg = mode === "simulated" ? null : tipStripe(mode);
+    return ok(res, {
+      ride: { id: ride.id, status: ride.status, driver_first_name: riderFirstNameOf(driver), simulated: Boolean(ride.is_review_ride) },
+      tips: {
+        enabled: tipsOn,
+        can_tip: tipsOn && tipGate.ok && !paid.length && (mode === "simulated" || Boolean(stripeCfg)),
+        reason: !tipsOn ? "Tipping isn't available yet." : paid.length ? "You've tipped on this trip. Thank you!" : !tipGate.ok ? tipGate.error : mode !== "simulated" && !stripeCfg ? "Tipping isn't available right now." : null,
+        paid_cents: paid.reduce((s, t) => s + Number(t.amount_cents || 0), 0),
+        presets_cents: rideTips.PRESET_TIPS_CENTS,
+        mode,
+        publishable_key: stripeCfg ? stripeCfg.publishableKey : null
+      },
+      rating: {
+        enabled: ratingsOn,
+        can_rate: ratingsOn && rateGate.ok && !existingRating,
+        reason: !ratingsOn ? "Ratings aren't available yet." : existingRating ? "Thanks for rating your driver." : !rateGate.ok ? rateGate.error : null,
+        existing: existingRating,
+        tags: driverRatings.TAGS
+      }
+    });
+  })
+);
+
+app.post(
+  "/api/rides/:id/tips",
+  requireRider,
+  rateLimit({ windowMs: 10 * 60_000, max: 20, keyPrefix: "ride_tips", keyFn: (req) => `r:${req.rider && req.rider.id}` }),
+  asyncRoute(async (req, res) => {
+    const { enabled, liveEnabled } = await tipsConfig();
+    if (!enabled) return fail(res, "Tipping isn't available yet.", 403);
+    const amount = rideTips.validateTipAmount(req.body && req.body.amount);
+    if (!amount.ok) return fail(res, amount.error, amount.statusCode);
+    const ride = await loadTipRide(req.params.id);
+    const gate = rideTips.tipEligibility(ride, req.rider.id);
+    if (!gate.ok) return fail(res, gate.error, gate.statusCode);
+    if ((await paidTipsForRide(ride.id)).length) return fail(res, "You've already tipped on this trip.", 409);
+    const mode = rideTips.tipMode(ride, { liveEnabled });
+    const tipId = crypto.randomUUID();
+    const base = { id: tipId, ride_id: ride.id, rider_id: String(req.rider.id), driver_id: String(ride.driver_id), amount_cents: amount.amount_cents, currency: "usd", mode };
+
+    if (mode === "simulated") {
+      const { error } = await supabase.from("ride_tips").insert({ ...base, status: "simulated", succeeded_at: nowIso() });
+      if (error) return fail(res, error.code === "23505" ? "You've already tipped on this trip." : "Your tip couldn't be saved.", error.code === "23505" ? 409 : 502);
+      await applyTipsToEarning(ride.id).catch(() => {});
+      auditLog({ actor_type: "rider", actor_id: req.rider.id, action: "ride_tip_simulated", entity_type: "ride", entity_id: ride.id, metadata: { tip_id: tipId, amount_cents: amount.amount_cents }, req }).catch(() => {});
+      return ok(res, { tip: { id: tipId, status: "simulated", amount_cents: amount.amount_cents }, simulated: true }, 201);
+    }
+
+    const cfg = tipStripe(mode);
+    if (!cfg) return fail(res, "Tipping isn't available right now.", 503);
+    // An earlier unfinished tip on this ride is withdrawn first.
+    const { data: pending } = await supabase.from("ride_tips").select("id, payment_intent_id, mode").eq("ride_id", ride.id).eq("status", "pending");
+    for (const old of pending || []) {
+      const oldCfg = tipStripe(old.mode);
+      if (oldCfg && old.payment_intent_id) await oldCfg.client.paymentIntents.cancel(old.payment_intent_id).catch(() => {});
+      await supabase.from("ride_tips").update({ status: "cancelled" }).eq("id", old.id).eq("status", "pending");
+    }
+    let intent;
+    try {
+      intent = await cfg.client.paymentIntents.create(
+        {
+          amount: amount.amount_cents,
+          currency: "usd",
+          automatic_payment_methods: { enabled: true },
+          description: "Harvey Taxi driver tip",
+          metadata: { kind: "ride_tip", tip_id: tipId, ride_id: ride.id, driver_id: String(ride.driver_id) }
+        },
+        { idempotencyKey: `harvey-ride-tip-${tipId}` }
+      );
+    } catch (err) {
+      console.error("❌ Tip payment intent failed:", logErrorCode(err));
+      return fail(res, "Your tip couldn't be started. Nothing has been charged.", 502);
+    }
+    const { error } = await supabase.from("ride_tips").insert({ ...base, status: "pending", payment_intent_id: intent.id });
+    if (error) {
+      await cfg.client.paymentIntents.cancel(intent.id).catch(() => {});
+      return fail(res, "Your tip couldn't be started. Nothing has been charged.", 502);
+    }
+    return ok(res, { tip: { id: tipId, status: "pending", amount_cents: amount.amount_cents }, client_secret: intent.client_secret, publishable_key: cfg.publishableKey, mode }, 201);
+  })
+);
+
+app.post(
+  "/api/rides/:id/tips/:tipId/confirm",
+  requireRider,
+  asyncRoute(async (req, res) => {
+    const { data: tip, error } = await supabase.from("ride_tips").select("*").eq("id", cleanString(req.params.tipId, 64)).eq("ride_id", cleanString(req.params.id, 100)).maybeSingle();
+    if (error) return fail(res, "Your tip couldn't be checked.", 502);
+    if (!tip || String(tip.rider_id) !== String(req.rider.id)) return fail(res, "Tip not found.", 404);
+    if (tip.status === "succeeded" || tip.status === "simulated") return ok(res, { tip: { id: tip.id, status: tip.status, amount_cents: tip.amount_cents } });
+    if (tip.status !== "pending") return fail(res, "This tip was cancelled. Nothing was charged.", 409);
+    const cfg = tipStripe(tip.mode);
+    if (!cfg) return fail(res, "Tipping isn't available right now.", 503);
+    let intent;
+    try {
+      intent = await cfg.client.paymentIntents.retrieve(tip.payment_intent_id);
+    } catch (err) {
+      return fail(res, "Your tip couldn't be checked. Please try again.", 502);
+    }
+    const result = await finalizeTip(tip, intent);
+    if (!result.ok) return fail(res, "Your card hasn't completed the tip yet.", 409);
+    return ok(res, { tip: { id: tip.id, status: "succeeded", amount_cents: tip.amount_cents } });
+  })
+);
+
+app.post(
+  "/api/rides/:id/rating",
+  requireRider,
+  rateLimit({ windowMs: 10 * 60_000, max: 20, keyPrefix: "driver_rating", keyFn: (req) => `r:${req.rider && req.rider.id}` }),
+  asyncRoute(async (req, res) => {
+    if ((await getSystemFlag(driverRatings.RATINGS_FLAG, "false")) !== "true") return fail(res, "Ratings aren't available yet.", 403);
+    const parsed = driverRatings.validateRating(req.body);
+    if (!parsed.ok) return fail(res, parsed.error, parsed.statusCode);
+    const ride = await loadTipRide(req.params.id);
+    const gate = driverRatings.ratingEligibility(ride, req.rider.id);
+    if (!gate.ok) return fail(res, gate.error, gate.statusCode);
+    const { error } = await supabase.from("driver_ratings").insert({
+      id: crypto.randomUUID(),
+      ride_id: ride.id,
+      rider_id: String(req.rider.id),
+      driver_id: String(ride.driver_id),
+      stars: parsed.stars,
+      tags: parsed.tags,
+      comment: parsed.comment,
+      counted: !ride.is_review_ride
+    });
+    if (error) return fail(res, error.code === "23505" ? "You've already rated this trip." : "Your rating couldn't be saved.", error.code === "23505" ? 409 : 502);
+    // The audit row never carries the comment.
+    auditLog({ actor_type: "rider", actor_id: req.rider.id, action: "driver_rated", entity_type: "ride", entity_id: ride.id, metadata: { stars: parsed.stars, tags: parsed.tags, counted: !ride.is_review_ride }, req }).catch(() => {});
+    return ok(res, { rating: { stars: parsed.stars, tags: parsed.tags } }, 201);
+  })
+);
+
+async function ratingsForDrivers(driverIds) {
+  let query = supabase.from("driver_ratings").select("driver_id, ride_id, stars, tags, comment, counted, created_at").order("created_at", { ascending: false }).limit(5000);
+  if (driverIds) query = query.in("driver_id", driverIds);
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
+}
+
+// A driver's own score: no rider names, no comments.
+app.get(
+  "/api/driver/rating",
+  requireDriverSelf,
+  asyncRoute(async (req, res) => {
+    if ((await getSystemFlag(driverRatings.RATINGS_FLAG, "false")) !== "true") return ok(res, { enabled: false });
+    const rows = await ratingsForDrivers([String(req.driver.id)]);
+    const score = driverRatings.driverScore(rows);
+    return ok(res, {
+      enabled: true,
+      score: score.score,
+      count: score.count,
+      shown: score.shown,
+      min_ratings: driverRatings.MIN_RATINGS_FOR_SCORE,
+      tag_counts: score.tag_counts,
+      tags: driverRatings.TAGS
+    });
+  })
+);
+
+// Staff: every driver's score, those below the review line first, with the
+// recent low ratings to look at. Staff decide what, if anything, to do.
+app.get(
+  "/api/admin/driver-ratings",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    let rows;
+    try {
+      rows = await ratingsForDrivers(null);
+    } catch (err) {
+      if (tipsTableMissing(err)) return ok(res, { drivers: [], not_set_up: true });
+      throw err;
+    }
+    const byDriver = new Map();
+    for (const r of rows) {
+      if (!byDriver.has(r.driver_id)) byDriver.set(r.driver_id, []);
+      byDriver.get(r.driver_id).push(r);
+    }
+    const ids = [...byDriver.keys()];
+    const { data: drivers } = ids.length ? await supabase.from("drivers").select("id, first_name, last_name, full_name, name").in("id", ids) : { data: [] };
+    const names = new Map((drivers || []).map((d) => [String(d.id), consoleDriverName(d)]));
+    const list = ids.map((id) => {
+      const mine = byDriver.get(id);
+      const score = driverRatings.driverScore(mine);
+      return {
+        driver_id: id,
+        name: names.get(String(id)) || "Driver",
+        ...score,
+        recent_low: mine.filter((r) => r.counted && r.stars <= 3).slice(0, 5).map((r) => ({ ride_id: r.ride_id, stars: r.stars, tags: r.tags, comment: r.comment, at: r.created_at }))
+      };
+    });
+    list.sort((a, b) => Number(b.needs_review) - Number(a.needs_review) || (a.score ?? 99) - (b.score ?? 99));
+    return ok(res, {
+      enabled: (await getSystemFlag(driverRatings.RATINGS_FLAG, "false")) === "true",
+      review_threshold: driverRatings.REVIEW_THRESHOLD,
+      min_ratings: driverRatings.MIN_RATINGS_FOR_SCORE,
+      drivers: list,
+      note: "A flag means staff should look. Nothing happens to a driver automatically."
+    });
+  })
+);
+
+/* =========================================================
 
    STRIPE WEBHOOK
 
@@ -26729,6 +27035,13 @@ app.post(
 
     const object =
       event.data?.object || {};
+    // A live tip (lib/rideTips.js): recorded once Stripe confirms it. Test
+    // and simulated tips never reach this account's webhook.
+    if (event.type === "payment_intent.succeeded" && object.metadata && object.metadata.kind === "ride_tip" && object.id) {
+      const { data: tip, error: tipError } = await supabase.from("ride_tips").select("*").eq("payment_intent_id", object.id).maybeSingle();
+      if (tipError && !tipsTableMissing(tipError)) throw tipError;
+      if (tip && tip.mode === "live" && tip.status === "pending") await finalizeTip(tip, object);
+    }
 
     // Forward-only transitions (lib/stripeWebhookTransitions.js): duplicate,
     // late and out-of-order deliveries never move a ride backwards,
