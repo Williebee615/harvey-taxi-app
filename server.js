@@ -21036,6 +21036,119 @@ app.post(
   })
 );
 
+/* =========================================================
+   BUSINESS PARTNERSHIP INQUIRIES (owner decision 2026-10-22)
+   The second path on merchant-apply.html: hotels, healthcare
+   organizations, businesses and local merchants asking to talk about a
+   partnership. Stored in partnership_inquiries (migration
+   20261022010000), emailed to support, listed for staff with a status
+   (new, contacted, closed). Nothing is approved by submitting one.
+========================================================= */
+const partnershipRules = require("./lib/partnerships");
+const PARTNERSHIP_INQUIRY_EMAIL = env("PARTNERSHIP_INQUIRY_EMAIL", "support@harveytaxiservice.com");
+const PARTNERSHIP_FIELDS = "id, organization_name, website, business_type, industry, address_line, city, state, postal_code, contact_name, job_title, contact_email, contact_phone, interests, message, consent_version, consented_at, status, staff_note, reviewed_by, reviewed_at, created_at, updated_at";
+
+app.post(
+  "/api/partnerships/inquiries",
+  rateLimit({ windowMs: 60 * 60_000, max: 5, keyPrefix: "partnership_inquiry" }),
+  asyncRoute(async (req, res) => {
+    const body = req.body || {};
+    // Automated submissions get the same reply and are not stored.
+    const spam = partnershipRules.looksAutomated(body);
+    if (spam) {
+      auditLog({ actor_type: "partnership_applicant", action: "partnership_inquiry_dropped", entity_type: "partnership_inquiry", metadata: { reason: spam }, req }).catch(() => {});
+      return ok(res, { received: true }, 201);
+    }
+    const checked = partnershipRules.validatePartnershipInquiry(body);
+    if (!checked.ok) return fail(res, checked.error, 400);
+    // The same contact with an inquiry still waiting: no second record.
+    const { data: open, error: openError } = await supabase
+      .from("partnership_inquiries")
+      .select("id")
+      .eq("contact_email", checked.row.contact_email)
+      .eq("status", "new")
+      .limit(1);
+    if (openError) {
+      if (openError.code === "42P01") return fail(res, "Partnership inquiries aren't open yet. Please email support@harveytaxiservice.com.", 503);
+      return fail(res, "We couldn't save your inquiry. Please try again later.", 502);
+    }
+    if (open && open.length) return ok(res, { received: true, duplicate: true });
+    const { data, error } = await supabase.from("partnership_inquiries").insert(checked.row).select("id,status").single();
+    if (error) {
+      if (error.code === "42P01") return fail(res, "Partnership inquiries aren't open yet. Please email support@harveytaxiservice.com.", 503);
+      console.warn("⚠️ Partnership inquiry not saved:", { code: error.code || "unknown" });
+      return fail(res, "We couldn't save your inquiry. Please try again later.", 502);
+    }
+    auditLog({
+      actor_type: "partnership_applicant",
+      action: "partnership_inquiry_submitted",
+      entity_type: "partnership_inquiry",
+      entity_id: data.id,
+      metadata: { industry: checked.row.industry, business_type: checked.row.business_type, interests: checked.row.interests },
+      req
+    }).catch(() => {});
+    // The stored row is the record; the email copy is a convenience and
+    // its outcome is logged on its own.
+    sendEmail({
+      to: PARTNERSHIP_INQUIRY_EMAIL,
+      subject: `Harvey Taxi partnership inquiry: ${checked.row.organization_name}`,
+      text: partnershipRules.inquiryEmailText(checked.row, data.id),
+      replyTo: checked.row.contact_email
+    })
+      .then((mail) => mail && mail.sent ? "accepted" : mail && mail.skipped ? "not_configured" : "failed")
+      .catch(() => "failed")
+      .then((status) => auditLog({ actor_type: "system", action: "partnership_inquiry_email", entity_type: "partnership_inquiry", entity_id: data.id, metadata: { status } }).catch(() => {}));
+    return ok(res, { received: true, inquiry: { id: data.id, status: data.status } }, 201);
+  })
+);
+
+app.get(
+  "/api/admin/partnerships",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const status = cleanString(req.query.status, 20);
+    let query = supabase.from("partnership_inquiries").select(PARTNERSHIP_FIELDS).order("created_at", { ascending: false }).limit(200);
+    if (partnershipRules.STATUSES.includes(status)) query = query.eq("status", status);
+    const { data, error } = await query;
+    if (error) {
+      if (error.code === "42P01") return ok(res, { inquiries: [], not_set_up: true });
+      return fail(res, "Partnership inquiries could not be loaded.", 502);
+    }
+    return ok(res, {
+      inquiries: (data || []).map((row) => ({
+        ...row,
+        business_type_label: partnershipRules.BUSINESS_TYPES[row.business_type] || row.business_type,
+        industry_label: partnershipRules.INDUSTRIES[row.industry] || row.industry,
+        interest_labels: (row.interests || []).map((i) => partnershipRules.INTERESTS[i] || i)
+      }))
+    });
+  })
+);
+
+app.patch(
+  "/api/admin/partnerships/:id",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const id = cleanString(req.params.id, 64);
+    const { data: inquiry, error: readError } = await supabase.from("partnership_inquiries").select("id,status,staff_note").eq("id", id).maybeSingle();
+    if (readError) return fail(res, "Inquiry could not be loaded.", 502);
+    const plan = partnershipRules.planStatusChange({ inquiry, status: cleanString(req.body?.status, 20), note: req.body?.note, reviewer: req.admin.email });
+    if (!plan.ok) return fail(res, plan.error, plan.statusCode);
+    const { data, error } = await supabase.from("partnership_inquiries").update(plan.update).eq("id", id).select(PARTNERSHIP_FIELDS).single();
+    if (error) return fail(res, "The status could not be saved. Nothing was changed.", 502);
+    auditLog({
+      actor_type: "admin",
+      actor_id: req.admin.email,
+      action: "partnership_inquiry_status_changed",
+      entity_type: "partnership_inquiry",
+      entity_id: id,
+      metadata: { from: inquiry.status, to: plan.update.status },
+      req
+    }).catch(() => {});
+    return ok(res, { inquiry: data });
+  })
+);
+
 app.get(
   "/api/admin/merchants",
   requireAdmin,

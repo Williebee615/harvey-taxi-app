@@ -2371,3 +2371,36 @@ The demo can then run in production with test money while rides keep their keys 
   - merge this PR, then re-run the evaluation (about $0.02);
   - from §58–59: Android upload result, iOS route, rider Play Console check, VAPID keys, Just-in-Time switch-on, store sign-in.
 - **Next authorized action:** open this PR. Merging needs the owner's approval.
+
+## 61. Update 2026-10-22 (UTC): #304 live; Business & Merchant Partnerships page (PR `claude/merchant-page-v2`, migration not applied)
+
+**[Owner decision 2026-10-22]**
+- "Merge #304." Stripe: "stripe webhook is set as well in env."
+- Merchant page redesign (owner's brief: navy/white/gold, "Let's Move Business Forward.", partnership categories, sectioned application, consent, FAQ, confirmation only after the server accepts). Answers to the three questions:
+  - "Two paths, same URL": `/merchant-apply.html` keeps its name and gains a business-partnership path; the delivery-pilot store application stays on the same page.
+  - "New table + admin list": inquiries go to their own table with a list on the admin dashboard.
+  - "No application fee": the FAQ says so.
+
+**[Verified 2026-10-22]**
+- #304 merged as `8c7e4c8`; `/api/health` reports `8c7e4c8` (03:48 UTC). `/api/agent/status` was `rules_only` at merge; the model stays off.
+- **[Unresolved]** Stripe webhook signature: synthetic signed events at 03:31 and 03:32 UTC still returned 400 "Invalid Stripe signature" after the owner reported the variable set. The owner is checking the Render value against Stripe (first and last characters, no spaces or quotes). No ride payments depend on it yet (ride payment gate off).
+
+**This PR (nothing goes live until the owner approves the merge)**
+- **Page** `/merchant-apply.html`: new design and SEO/social tags. Two paths:
+  - **Business partnership inquiry** (default): sections A–E (business, location, contact, interests, message) and a consent checkbox. "Application Received" appears only after the server stores the inquiry; on any error the message is shown and the entries are kept.
+  - **Delivery pilot store application** (`#delivery`): the existing form, fields, "Delivery isn't live yet" notice and excluded-items list, unchanged in what it sends.
+  - Healthcare card notes that HTAF is a separate nonprofit, with a link to harveytransportationfoundation.com. No airport, volume or revenue claims.
+- **Server:** `POST /api/partnerships/inquiries` (5 per hour per address; spam via a hidden field or a form sent in under 3 s is dropped quietly and audited; one open inquiry per email; audited; emailed to `PARTNERSHIP_INQUIRY_EMAIL`, default support@harveytaxiservice.com). Until the table exists it answers 503 "Partnership inquiries aren't open yet. Please email support@harveytaxiservice.com." `GET /api/admin/partnerships` and `PATCH /api/admin/partnerships/:id` (admin only; status new → contacted → closed, optional note; audited).
+- **Admin dashboard:** "Partnership Inquiries" card after Merchants.
+- **Migration** `20261022010000_partnership_inquiries.sql`: new table `public.partnership_inquiries`, checks matching the form, RLS on, no anon or signed-in access. **[Unresolved] Not applied to production; needs the owner's approval.** Additive only; no existing table changes.
+- Tests [Verified 2026-10-22, local]: full suite 3,151 passed, 0 failed, including database tests against a local Postgres 16 (the new migration applies on the schema baseline; constraints and RLS checked). New: 18 validation tests, 7 route tests, 2 browser tests (both paths; confirmation only after success; no sideways scroll at 390 px). Browser tests are desktop Chromium at phone size, not device tests.
+- **[Recommendation]** Add a line to `/privacy.html` covering business contact details sent through this form (used to review and reply to the inquiry). Not changed in this PR; wording for the owner to approve.
+
+**Handoff:**
+- **Done:** #304 live; partnership page, routes, admin list, migration and tests in this PR.
+- **Remaining:**
+  - owner: review the PR and the page; approve the merge; approve applying the migration (the page shows the clear 503 message until then); privacy-policy line;
+  - owner: Render card; Stripe webhook value check, then the agent re-tests;
+  - re-run the evaluation after #304 (about $0.02);
+  - from §58–60: Android upload result, iOS route, rider Play Console check, VAPID keys, Just-in-Time switch-on, store sign-in.
+- **Next authorized action:** open this PR. Merging and applying the migration each need the owner's approval.
