@@ -57,9 +57,19 @@
 - 832 `server_error` rows: `message` and `path` removed, `error_code` set to `legacy`, IP address and user agent cleared. `method`, `build_sha`, origin host and CORS reason kept.
 - 25 other audit rows older than 90 days: IP address and user agent cleared. The rows themselves are kept.
 - Recorded as `audit_logs` row 1619 (`retention_cleanup_applied`), counts only.
-- **Not yet automatic:** rows reaching 90 days from now on keep their IP address and user agent until a scheduled job is built and approved (§4).
+- **Automatic clearing:** built switched off (2026-10-22, see §4). Until it is switched on, rows reaching 90 days keep their IP address and user agent.
 
 ## 4. Implementation (after approval only)
 - A scheduled job per category, **off by default** behind a system flag, with a dry-run mode that reports counts.
 - Legal-hold exclusion list checked before every run.
 - Tests prove that held records are never touched.
+
+### 4.1 Audit-log IP retention job (built 2026-10-22, switched off)
+- **What it does:** every 6 hours, clears `ip_address` and `user_agent` on `audit_logs` rows older than 90 days. The rows are kept. At most 10,000 rows a run, in batches of 500.
+- **Switches:**
+  - `audit_ip_retention_enabled`: the job does nothing unless this is `"true"`. It does not exist in production, so the job is **off**.
+  - `retention_legal_hold`: when `"true"`, every run is paused, even if the job is on. Nothing clears this flag automatically.
+- **Record:** each run that clears rows writes one `retention_audit_ip_cleared` audit row with the count and cutoff only, never the cleared values.
+- **Dry run:** `GET /api/admin/retention/audit-ip` (staff only) shows both switches, the cutoff, how many rows a run would clear, and the last run. It changes nothing.
+- **Code:** `lib/auditRetention.js`; tests in `lib/auditRetention.test.js` and `test/server.audit-ip-retention.test.js`.
+
