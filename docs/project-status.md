@@ -2404,3 +2404,31 @@ The demo can then run in production with test money while rides keep their keys 
   - re-run the evaluation after #304 (about $0.02);
   - from §58–60: Android upload result, iOS route, rider Play Console check, VAPID keys, Just-in-Time switch-on, store sign-in.
 - **Next authorized action:** open this PR. Merging and applying the migration each need the owner's approval.
+
+## 62. Update 2026-10-22 (UTC): #305 live with its migration; Stripe webhook verified; privacy policy line (PR `claude/privacy-partnership-inquiries`)
+
+**[Owner decision 2026-10-22]**
+- "Merge #305 and apply the migration, approved."
+- Stripe: the owner rolled the webhook signing secret, saved it in Render and redeployed, then approved a live test (a $0.50 payment request created and cancelled, never confirmed).
+- "Approved, add the privacy policy line."
+
+**[Verified 2026-10-22]**
+- **Migration** `partnership_inquiries` applied to production at 03:51 UTC, before the merge. Checked: the table didn't exist before; after, RLS on, no policies, no anon or signed-in access, service role can insert, 16 check constraints, 0 rows. Supabase recorded it as version `20261022035132` (the repo file is `20261022010000`; same SQL).
+- **#305 merged** as `377676f` after 6/6 checks; `/api/health` reported `377676f` at 03:55 UTC. Live checks that stored nothing: the page shows both paths; an incomplete inquiry returns 400 with the field message; the admin list returns 401 without a token; `/api/agent/status` `rules_only`. No real inquiry has been sent yet.
+- **Stripe webhook works.** The owner created `pi_3UTDHhK0dBlmhLqa0scJa8xa` ($0.50, live) from the Stripe CLI and cancelled it with no payment method attached; $0 received. Event `evt_3UTDHhK0dBlmhLqa0iNsvQpG` (`payment_intent.canceled`) shows `pending_webhooks: 0`, and production `audit_logs` has `stripe_webhook_received` for it at 04:11:56 UTC. No ride matched, so no ride changed. The §60 signature issue is resolved; the secret shown in chat earlier is no longer valid (rolled). The new value is stored only in Render as `STRIPE_WEBHOOK_SECRET`.
+- The agent could not create the live payment itself (no live write for payment intents in the connector; the session's safety controls blocked live financial actions). The owner ran it.
+- **[Recommendation]** The live secret key is a legacy-style key (the Stripe CLI refused it). Plan a change to a restricted key; it is used in Render, so schedule the switch.
+
+**This PR**
+- `/privacy.html`: new section 7 "Business and Partnership Inquiries" (NEMT section renumbered to 8); "Last updated: October 2026" added.
+- `/privacy-policy.html`: the same wording added to section 1 (Information We Collect). Section numbers unchanged, so the assistant's policy citations are unaffected.
+- Wording states only what the code does: collected fields, used to review and respond, stored in the database and emailed to support, not sold, no account created, correction or deletion by emailing support. No retention period stated (retention review still open).
+- Tests [Verified 2026-10-22, local]: full suite 3,151 passed, 0 failed (including database tests).
+
+**Handoff:**
+- **Done:** #305 live; migration applied and checked; webhook verified end to end; privacy wording in this PR.
+- **Remaining:**
+  - owner: approve merging this PR; send one real partnership inquiry (check the confirmation, the support email and the admin card); Render card; plan the restricted live key;
+  - re-run the evaluation after #304 (about $0.02);
+  - from §58–60: Android upload result, iOS route, rider Play Console check, VAPID keys, Just-in-Time switch-on, store sign-in.
+- **Next authorized action:** open this PR. Merging needs the owner's approval.
