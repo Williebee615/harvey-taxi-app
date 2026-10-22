@@ -2525,3 +2525,31 @@ The demo can then run in production with test money while rides keep their keys 
 - **Done:** #307 merged; PR 1 built and tested.
 - **Remaining:** owner review and merge of this PR; PR 2; the switch-on items above.
 - **Next authorized action:** open this PR. Merging and applying the migration each need the owner's approval.
+
+## 66. Update 2026-10-22 (UTC): #308 live with its migration; foundation name corrected on the rider dashboard (PR `claude/htaf-name-fix`)
+
+**[Owner decision 2026-10-22]**
+- "Merge 308 and Create the fleet database tables."
+- Owner's screenshot (rider app, HTAF Medical Ride card): "This should say Harvey Transportation Assistance Foundation."
+
+**[Verified 2026-10-22]**
+- **Fleet migration applied** at 05:09 UTC, before the merge. Supabase recorded it as version `20261022050918`; the repo file is `20261022020000` (same SQL).
+  - Before: none of the five tables existed; no fleet columns on `driver_earnings`.
+  - After: all five tables have RLS on and no policies; anon and signed-in clients have no access; the service role can insert. Check constraints: 5, 12, 5, 5 and 1. `driver_earnings` has 4 fleet columns; its 22 rows are unchanged, none with fleet data. 0 fleets.
+  - `fleet_management_enabled` has no row, so the switch is **off**.
+- **#308 merged** as `b699f78` after 6/6 checks; `/api/health` reported `b699f78` at 05:10 UTC.
+- Live checks: `/api/driver/fleet` and `/api/admin/fleets` return 401 without credentials; Just-in-Time is still on; `/api/agent/status` `rules_only`.
+
+**This PR**
+- `public/rider-dashboard.html`: "Harvey Taxi Assistance Foundation" corrected to "Harvey Transportation Assistance Foundation" in two places (the HTAF Medical Ride card and the application card). These were the only wrong uses in the repo.
+- `test/site-accuracy.test.js`: new check that no page or script in `public/` uses the wrong name.
+- The rider iOS and Android apps show this page in a WebView, so the fix reaches them without a new app build once merged.
+- Tests [Verified 2026-10-22, local]: site accuracy and rider suites, 16 suites, 143 tests passed.
+
+**Handoff:**
+- **Done:** #308 live; fleet tables created; name fix in this PR.
+- **Remaining:**
+  - owner: approve merging this PR;
+  - fleet PR 2 (screens), agreement text, counsel and insurer answers, privacy policy fleet section, switch-on approval;
+  - earlier owner items in §63.
+- **Next authorized action:** open this PR. Merging needs the owner's approval.
