@@ -302,6 +302,12 @@
         <div class="list" id="merchantsList"><div class="empty">Loading merchant applications...</div></div>
       </section>
 
+      <section class="card" id="dispatchExceptionsCard">
+        <div class="card-head"><div><div class="title">Dispatch Exceptions</div><div class="sub">Rides that need a person's attention, from live ride and driver data: scheduled pickups with no ready driver nearby, unaccepted requests, offline drivers and late pickups. Staff decide every reassignment; each needs a note and is audited. Distances are straight-line.</div></div><span class="item-sub" id="dispatchExceptionsCount">0</span></div>
+        <div class="actions"><button class="neutral" type="button" id="dispatchExceptionsRefresh">Refresh</button><span class="item-sub" id="dispatchExceptionsSummary"></span></div>
+        <div class="list" id="dispatchExceptionsList"><div class="empty">Loading dispatch exceptions...</div></div>
+      </section>
+
       <section class="card" id="partnershipsCard">
         <div class="card-head"><div><div class="title">Partnership Inquiries</div><div class="sub">Business, hospitality, healthcare and merchant partnership inquiries from the merchant page. Statuses track follow-up only; nothing is approved or promised. Each change is audited.</div></div><span class="item-sub" id="partnershipsCount">0</span></div>
         <div class="list" id="partnershipsList"><div class="empty">Loading partnership inquiries...</div></div>
@@ -455,6 +461,46 @@ async function loadMerchants(){
 // Partnership inquiries (owner decision 2026-10-22). Staff mark each one
 // contacted or closed, with an optional note; changes are audited.
 const PARTNERSHIP_NEXT = { new: ["contacted", "closed"], contacted: ["closed", "new"], closed: ["new"] };
+// Dispatch exception console v1 (owner decisions 2026-10-22). Staff
+// decide: a reassignment asks for a note and is audited server-side.
+const SEVERITY_BADGE = { critical: "bad", warning: "warn", info: "blue" };
+let dispatchExceptionsTimer = null;
+async function loadDispatchExceptions(){
+  const list = document.getElementById("dispatchExceptionsList");
+  let data;
+  try { data = await api("/api/admin/dispatch/exceptions"); }
+  catch (e) { list.innerHTML = `<div class="empty">Dispatch exceptions could not be loaded: ${esc(e.message)}</div>`; return; }
+  const items = data.items || [];
+  document.getElementById("dispatchExceptionsCount").textContent = items.length;
+  document.getElementById("dispatchExceptionsSummary").textContent = `${data.counts.critical} critical • ${data.counts.warning} warning • ${data.counts.info} info • ${data.open_rides} open rides • ${data.drivers_live} drivers live • updated ${new Date(data.generated_at).toLocaleTimeString()}`;
+  list.innerHTML = items.length ? items.map(it => `
+    <div class="item" data-ride-id="${esc(it.ride_id)}">
+      <div class="item-top">
+        <div><div class="item-title">${esc(it.ride_id)} • ${esc(it.rider)} • ${esc(it.ride_type)}</div><div class="item-sub">${esc(it.pickup || "Pickup not set")} → ${esc(it.dropoff || "Drop-off not set")}${it.scheduled_time ? " • scheduled " + esc(new Date(it.scheduled_time).toLocaleString()) : ""}</div></div>
+        <span class="badge ${SEVERITY_BADGE[it.severity]}">${esc(it.severity)}</span>
+      </div>
+      ${it.exceptions.map(e => `<div class="item-sub"><span class="badge ${SEVERITY_BADGE[e.severity]}">${esc(e.severity)}</span> ${esc(e.label)}</div>`).join("")}
+      <div class="item-sub">Status: ${esc(it.status)} • Driver: ${it.driver ? esc(it.driver.name) + (it.driver.online ? " (online)" : " (offline)") : "none"}</div>
+      ${it.can_reassign ? (it.candidates.length ? `<div class="actions">${it.candidates.map(c => `<button class="success" type="button" data-reassign-ride="${esc(it.ride_id)}" data-reassign-driver="${esc(c.driver_id)}" data-reassign-code="${esc(it.exceptions[0].code)}">Assign ${esc(c.name)} • ${esc(String(c.straight_line_miles))} mi${c.vehicle ? " • " + esc(c.vehicle) : ""}</button>`).join("")}</div>` : `<div class="item-sub">No live, ready driver within range right now.</div>`) : `<div class="item-sub">Trip has started; it can't be reassigned here.</div>`}
+    </div>`).join("") : `<div class="empty">No exceptions right now.</div>`;
+}
+document.getElementById("dispatchExceptionsRefresh").addEventListener("click", loadDispatchExceptions);
+document.getElementById("dispatchExceptionsList").addEventListener("click", async (event) => {
+  const btn = event.target.closest("button[data-reassign-driver]");
+  if (!btn) return;
+  const note = window.prompt("Reason for reassigning this ride (required, saved to the audit log):", "");
+  if (note === null) return;
+  try {
+    await api(`/api/admin/dispatch/rides/${encodeURIComponent(btn.dataset.reassignRide)}/reassign`, { method: "POST", body: JSON.stringify({ driver_id: btn.dataset.reassignDriver, note, exception_code: btn.dataset.reassignCode }) });
+    showResult("Ride reassigned. The driver and rider were notified.");
+  } catch (e) { showError(e.message); }
+  loadDispatchExceptions();
+});
+function startDispatchExceptions(){
+  loadDispatchExceptions();
+  if (dispatchExceptionsTimer) clearInterval(dispatchExceptionsTimer);
+  dispatchExceptionsTimer = setInterval(() => { if (!document.hidden) loadDispatchExceptions(); }, 30000);
+}
 async function loadPartnerships(){
   const list = document.getElementById("partnershipsList");
   let data;
@@ -946,6 +992,7 @@ async function loadDashboard(){
     // Load the new admin panels (non-blocking).
     refreshSystemStatus();
     loadDeletionRequests();
+    startDispatchExceptions();
     loadMerchants();
     loadPartnerships();
     loadHeldItems();

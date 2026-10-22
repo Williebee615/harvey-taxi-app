@@ -2525,3 +2525,64 @@ The demo can then run in production with test money while rides keep their keys 
 - **Done:** #307 merged; PR 1 built and tested.
 - **Remaining:** owner review and merge of this PR; PR 2; the switch-on items above.
 - **Next authorized action:** open this PR. Merging and applying the migration each need the owner's approval.
+
+## 67. Update 2026-10-22 (UTC): #309 live; dispatch exception console v1 (PR `claude/dispatch-exception-console`; bounty migration not applied, switch off)
+
+**[Owner decision 2026-10-22]**
+- "Merge approved" (#309).
+- On the dispatch proposal (Gemini screenshots), the owner chose:
+  - **build exception console v1 next**;
+  - when a scheduled driver hasn't checked in, **alert staff and they decide**;
+  - driver surge bounty: **design it, switched off**;
+  - HTAF-funded rides: **add the questions to the counsel brief**, nothing built until counsel and the HTAF board answer.
+
+**[Verified 2026-10-22]**
+- #309 merged as `024976b` after 6/6 checks; `/api/health` reported `024976b` at 06:11 UTC. The live `rider-dashboard.html` shows "Harvey Transportation Assistance Foundation" 3 times and the wrong name 0 times.
+- Production, read-only: 26 rides in total (24 in the last 30 days), 2 scheduled; 0 drivers online at 06:12 UTC; `offer_expiry_sweep_enabled = true`.
+- **Scheduled rides are not pre-assigned.** They are offered to drivers at their scheduled time (`shouldDispatchRideNow`). So the "driver didn't wake up" check in the proposal becomes a coverage check: a scheduled pickup soon with no ready driver online nearby.
+- **[Unresolved] Security finding (pre-existing):** `admin-live-dispatch-map.html` stores the admin token in browser `localStorage` (`harvey_admin_token`). This breaks the standing rule that the admin token is typed per use and never stored. **[Recommendation]** Move that page to the session sign-in the admin dashboard uses, and clear the stored value. Separate PR, needs approval.
+
+**This PR**
+- `lib/dispatchExceptions.js` holds the rules, with thresholds in code:
+  - **scheduled pickup with no ready driver online within 10 miles:** warning within 45 min, critical within 30 min;
+  - **paid but not sent to drivers 5+ min after due:** critical;
+  - **no driver has accepted:** warning at 2 min, critical at 5 min;
+  - **assigned driver offline, or no location update for 3+ min:** critical before pickup, warning during the trip;
+  - **pickup later than the ETA given at acceptance:** warning at 10 min, critical at 20 min. This check is skipped after a staff reassignment, since the first driver's ETA no longer applies;
+  - **driver waiting at pickup 10+ min:** info.
+  - Suggested drivers must be live, verified, eligible for the ride type and not on a trip. They are sorted by straight-line distance (labelled as such) and shown by first name and last initial only.
+- **Server:**
+  - `GET /api/admin/dispatch/exceptions` is admin only.
+  - `POST /api/admin/dispatch/rides/:id/reassign` is admin only and needs a note of 5 or more characters. It accepts only a live, ready, free driver, and only before the trip starts. It refuses if the ride changed meanwhile, supersedes pending offers, notifies the new driver, the previous driver and the rider, and is audited as `dispatch_ride_reassigned` with the note and the exception. **Nothing is reassigned automatically.**
+- **Driver bounty (designed, switched off):**
+  - `lib/driverBounty.js` sets $3–$15 per trip and requires a monthly budget (`driver_bounty_monthly_budget_cents`, default 0, which blocks every proposal).
+  - `POST /api/admin/dispatch/rides/:id/bounty` answers 403 while `driver_bounty_enabled` is off, and it is off: there is no enable route.
+  - Even when on, a bounty is only recorded as "proposed". Drivers don't see it and **nothing is paid**.
+  - Migration `20261022030000_ride_driver_bounties.sql` is **not applied**. The rider's price never changes.
+- **Admin dashboard:** a "Dispatch Exceptions" card. It refreshes every 30 s while visible, offers one-click reassign buttons that ask for a note, and uses the dashboard's session sign-in (no stored token).
+- `docs/legal/autonomous-vehicles-brief.md` §F: questions 20–26 on HTAF-funded rides (related party, § 4958, board process, pricing, grant terms, Form 990 Schedule L, HIPAA, EVV, alternatives).
+- Tests [Verified 2026-10-22, local]:
+  - `lib/dispatchExceptions.test.js` (6);
+  - `lib/driverBounty.test.js` (2);
+  - `test/server.dispatch-console.test.js` (6);
+  - `test/admin-dispatch-exceptions.browser.test.js` (1);
+  - `test/db/rideDriverBounties.db.test.js` (3);
+  - all database tests (195) pass on Postgres 16;
+  - the existing `acceptDriverOfferAtomic.db` cleanup also clears `ride_driver_bounties` (new link to `rides`).
+
+**Not in this PR [Recommendation, later]:**
+- a Will-Call return queue for HTAF medical rides;
+- masked calling and texting (Twilio cost, needs approval);
+- road-network ETAs for suggestions (Mapbox calls count against the 20,000-a-month cap);
+- Redis, H3 and streaming services (deferred until volume needs them).
+- No airport, EVV or HTAF tax ID claims were added anywhere.
+
+**Handoff:**
+- **Done:** #309 live; console v1 built and tested; counsel brief §F.
+- **Remaining:**
+  - owner: approve merging this PR;
+  - send the brief (§E, §F) to counsel;
+  - decide the live-map token fix;
+  - fleet PR 2;
+  - earlier owner items in §63.
+- **Next authorized action:** open this PR. Merging needs the owner's approval. The bounty migration and switch each need separate approval.
