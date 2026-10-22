@@ -69,6 +69,18 @@ The plan is in `docs/fleet-management-plan.md`. A verified Harvey Taxi driver (t
 18. **Data sharing.** What may a fleet owner see about the drivers using their vehicles (trip counts, earnings, online status, vehicle location)? What consent wording is needed?
 19. **Share cap.** Should Harvey Taxi cap or set the fleet owner's share, or only record what the two parties agree?
 
+**F. HTAF-funded rides on Harvey Taxi (added 2026-10-22; nothing built)**
+
+A proposal would have HTAF, a 501(c)(3), pay Harvey Taxi Service LLC for rides it funds for its participants: vouchers tied to an approved clinic, and fares billed against HTAF grant funds. The same person controls both organizations. **The owner decided (2026-10-22) that nothing is built until counsel and the HTAF board answer.**
+
+20. **Related party.** Is HTAF buying rides from the LLC a related-party transaction under IRS rules? What is needed to avoid private benefit or private inurement (§ 4958 excess benefit), for example independent board approval, fair-market pricing evidence and competitive quotes?
+21. **Board process.** What must the HTAF board do: conflict-of-interest policy, recusal of the interested director, documented comparables? Should an independent committee approve the rate card?
+22. **Pricing.** Must HTAF pay no more than market rates, and how should that be documented (for example quotes from other providers)? Can HTAF negotiate a discount below retail?
+23. **Grant terms.** Do any HTAF grants or donor restrictions limit spending with an affiliated company? What records do grantors require per trip?
+24. **Reporting.** What must appear on Form 990 (Schedule L, transactions with interested persons)?
+25. **Medical and privacy.** If HTAF-funded trips carry clinic referrals, what HIPAA or BAA duties apply to the LLC, to HTAF, or to both? Is "electronic visit verification" (EVV) required for non-Medicaid rides? We believe not.
+26. **Alternatives.** Would it be safer for HTAF to reimburse riders, or to use several unaffiliated providers, instead of paying the LLC directly?
+
 ## 5. Questions for the insurance broker
 
 1. Which carriers write commercial liability for driverless vehicles in Tennessee? What limits are typical, and is $5 million needed or market standard?

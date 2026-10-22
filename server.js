@@ -20439,6 +20439,166 @@ app.post(
 );
 
 /* =========================================================
+   DISPATCH EXCEPTION CONSOLE, V1 (owner decisions 2026-10-22)
+   Flags rides needing a person's attention (lib/dispatchExceptions.js)
+   and suggests nearby ready drivers. Staff decide: a reassignment needs a
+   written note and is audited; nothing is reassigned automatically.
+   Driver bounties are designed but switched off (lib/driverBounty.js):
+   a proposal is only recorded; drivers don't see it and nothing is paid.
+========================================================= */
+const dispatchExceptions = require("./lib/dispatchExceptions");
+const driverBounty = require("./lib/driverBounty");
+
+const CONSOLE_RIDE_FIELDS =
+  "id, status, ride_type, dispatch_status, scheduled_time, driver_id, rider_name, pickup_address, dropoff_address, pickup_lat, pickup_lng, accepted_at, driver_accepted_at, driver_eta_to_pickup_minutes, last_dispatch_at, requested_at, created_at, arrived_at";
+const CONSOLE_OPEN_STATUSES = ["payment_authorized", "awaiting_driver_acceptance", ...dispatchExceptions.ON_TRIP_STATUSES];
+
+const consoleDriverName = (d) => (d ? [d.first_name, d.last_name ? `${String(d.last_name)[0]}.` : ""].filter(Boolean).join(" ") || d.name || d.full_name || "Driver" : null);
+
+app.get(
+  "/api/admin/dispatch/exceptions",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const now = Date.now();
+    const { data: rides, error } = await supabase.from("rides").select(CONSOLE_RIDE_FIELDS).in("status", CONSOLE_OPEN_STATUSES).limit(300);
+    if (error) return fail(res, "Rides could not be loaded.", 502);
+    const { data: drivers, error: dErr } = await supabase.from("drivers").select("*").limit(1000);
+    if (dErr) return fail(res, "Drivers could not be loaded.", 502);
+    const driversById = new Map((drivers || []).map((d) => [String(d.id), d]));
+    const busy = new Set((rides || []).filter((r) => r.driver_id && dispatchExceptions.ON_TRIP_STATUSES.includes(r.status)).map((r) => String(r.driver_id)));
+    const bountyEnabled = (await getSystemFlag(driverBounty.BOUNTY_FLAG, "false")) === "true";
+    const items = [];
+    for (const ride of rides || []) {
+      const reassignable = dispatchExceptions.REASSIGNABLE_STATUSES.includes(ride.status);
+      const nearby = dispatchExceptions
+        .candidateDrivers(ride, drivers || [], { now, isReady: (d) => driverVerificationReady(d) && driverEligibleForService(d, ride.ride_type), busyDriverIds: busy, limit: 50 })
+        .filter((c) => c.straight_line_miles <= dispatchExceptions.COVERAGE_RADIUS_MILES);
+      const exceptions = dispatchExceptions.rideExceptions(ride, { now, driversById, liveReadyNearby: nearby.length });
+      if (!exceptions.length) continue;
+      const driver = ride.driver_id ? driversById.get(String(ride.driver_id)) : null;
+      items.push({
+        ride_id: ride.id,
+        status: ride.status,
+        ride_type: ride.ride_type || "standard",
+        scheduled_time: ride.scheduled_time || null,
+        rider: String(ride.rider_name || "").split(" ")[0] || "Rider",
+        pickup: ride.pickup_address || null,
+        dropoff: ride.dropoff_address || null,
+        driver: driver ? { id: driver.id, name: consoleDriverName(driver), online: Boolean(driver.online || driver.is_online) } : null,
+        severity: exceptions[0].severity,
+        exceptions,
+        can_reassign: reassignable,
+        candidates: reassignable ? nearby.slice(0, 5) : []
+      });
+    }
+    dispatchExceptions.sortQueue(items);
+    const counts = { critical: 0, warning: 0, info: 0 };
+    for (const item of items) counts[item.severity] += 1;
+    return ok(res, {
+      generated_at: new Date(now).toISOString(),
+      open_rides: (rides || []).length,
+      drivers_live: (drivers || []).filter((d) => dispatchExceptions.driverLive(d, now)).length,
+      counts,
+      items,
+      bounty_enabled: bountyEnabled,
+      notes: "Distances are straight-line; road time may differ. Staff decide every reassignment."
+    });
+  })
+);
+
+app.post(
+  "/api/admin/dispatch/rides/:id/reassign",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const rideId = cleanString(req.params.id, 100);
+    const parsed = dispatchExceptions.validateReassignment(req.body);
+    if (!parsed.ok) return fail(res, parsed.error, 400);
+    const { data: ride, error } = await supabase.from("rides").select(CONSOLE_RIDE_FIELDS).eq("id", rideId).maybeSingle();
+    if (error) return fail(res, "The ride could not be loaded.", 502);
+    if (!ride) return fail(res, "Ride not found.", 404);
+    if (!dispatchExceptions.REASSIGNABLE_STATUSES.includes(ride.status)) return fail(res, "Only a ride that hasn't started can be reassigned.", 409);
+    if (String(ride.driver_id || "") === parsed.driver_id) return fail(res, "That driver already has this ride.", 400);
+    const { data: driver, error: dErr } = await supabase.from("drivers").select("*").eq("id", parsed.driver_id).maybeSingle();
+    if (dErr) return fail(res, "The driver could not be loaded.", 502);
+    if (!driver) return fail(res, "Driver not found.", 404);
+    if (!driverVerificationReady(driver)) return fail(res, "This driver's verification isn't complete.", 409, { code: "verification_required" });
+    if (!driverEligibleForService(driver, ride.ride_type)) return fail(res, "This driver isn't set up for this type of trip.", 409);
+    if (!dispatchExceptions.driverLive(driver, Date.now())) return fail(res, "This driver isn't online right now.", 409);
+    const { data: busyRides, error: bErr } = await supabase.from("rides").select("id").eq("driver_id", driver.id).in("status", dispatchExceptions.ON_TRIP_STATUSES).limit(1);
+    if (bErr) return fail(res, "The driver's trips could not be checked.", 502);
+    if (busyRides && busyRides.length) return fail(res, "This driver is on another trip.", 409);
+    const previousDriverId = ride.driver_id || null;
+    const previousStatus = ride.status;
+    const driverRideFields = buildDriverRideFields(driver);
+    const { data: updated, error: uErr } = await supabase
+      .from("rides")
+      .update({
+        driver_id: driver.id,
+        status: RIDE_STATUS.DRIVER_ASSIGNED,
+        dispatch_status: "admin_reassigned",
+        assigned_by_admin: true,
+        assigned_at: nowIso(),
+        ...driverRideFields,
+        updated_at: nowIso()
+      })
+      .eq("id", rideId)
+      .eq("status", previousStatus)
+      .select([...ADMIN_RIDE_MUTATION_FIELDS, "rider_id", "rider_phone", "ride_type", "pickup_address"].join(","))
+      .maybeSingle();
+    if (uErr) return fail(res, "The reassignment could not be saved.", 502);
+    if (!updated) return fail(res, "The ride changed in the meantime. Reload and try again.", 409);
+    await supabase.from("driver_offers").update({ status: "superseded", updated_at: nowIso() }).eq("ride_id", rideId).eq("status", "pending");
+    notifyRideStage(updated, "driver_assigned").catch(() => {});
+    sendPushNotification({ ownerType: "driver", ownerId: driver.id, title: "Ride Assigned", body: `Harvey Taxi dispatch assigned you a ride. Pickup: ${updated.pickup_address || "See app for details"}`, url: "/driver.html" }).catch(() => {});
+    if (previousDriverId) {
+      sendPushNotification({ ownerType: "driver", ownerId: previousDriverId, title: "Ride reassigned", body: "Harvey Taxi dispatch moved one of your rides to another driver.", url: "/driver.html" }).catch(() => {});
+    }
+    broadcastRideSse(rideId, "stage", { status: RIDE_STATUS.DRIVER_ASSIGNED, driver: driverRideFields });
+    auditLog({
+      actor_type: "admin",
+      actor_id: req.admin.email,
+      action: "dispatch_ride_reassigned",
+      entity_type: "ride",
+      entity_id: rideId,
+      metadata: { from_driver_id: previousDriverId, to_driver_id: driver.id, previous_status: previousStatus, note: parsed.note, exception_code: cleanString(req.body && req.body.exception_code, 40) || null },
+      req
+    }).catch(() => {});
+    return ok(res, { ride: { id: updated.id, status: updated.status, dispatch_status: updated.dispatch_status, driver_id: updated.driver_id } });
+  })
+);
+
+// Bounty proposals: refused while the switch is off (it is, by owner
+// decision). Even when on, a proposal is only recorded.
+app.post(
+  "/api/admin/dispatch/rides/:id/bounty",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    if ((await getSystemFlag(driverBounty.BOUNTY_FLAG, "false")) !== "true") return fail(res, "Driver bounties are switched off.", 403);
+    const rideId = cleanString(req.params.id, 100);
+    const parsed = driverBounty.validateBounty(req.body);
+    if (!parsed.ok) return fail(res, parsed.error, 400);
+    const { data: ride, error } = await supabase.from("rides").select("id, status").eq("id", rideId).maybeSingle();
+    if (error) return fail(res, "The ride could not be loaded.", 502);
+    if (!ride) return fail(res, "Ride not found.", 404);
+    if (!dispatchExceptions.REASSIGNABLE_STATUSES.includes(ride.status)) return fail(res, "A bounty can only be added before the trip starts.", 409);
+    const monthStart = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)).toISOString();
+    const { data: thisMonth, error: mErr } = await supabase.from("ride_driver_bounties").select("amount_cents").eq("status", "proposed").gte("created_at", monthStart);
+    if (mErr) return fail(res, mErr.code === "42P01" ? "Driver bounties aren't set up yet." : "The bounty budget could not be checked.", mErr.code === "42P01" ? 503 : 502);
+    const budgetCents = Number(await getSystemFlag(driverBounty.BOUNTY_BUDGET_KEY, "0")) || 0;
+    const proposed = (thisMonth || []).reduce((sum, b) => sum + Number(b.amount_cents || 0), 0);
+    if (!driverBounty.withinBudget({ budgetCents, proposedThisMonthCents: proposed, amountCents: parsed.amount_cents })) return fail(res, "This would go over the monthly bounty budget.", 409);
+    const { data: bounty, error: iErr } = await supabase
+      .from("ride_driver_bounties")
+      .insert({ id: crypto.randomUUID(), ride_id: rideId, amount_cents: parsed.amount_cents, reason: parsed.reason, status: "proposed", created_by: req.admin.email || req.admin.id })
+      .select("id, amount_cents, status")
+      .single();
+    if (iErr) return fail(res, iErr.code === "23505" ? "This ride already has a bounty." : "The bounty could not be saved.", iErr.code === "23505" ? 409 : 502);
+    auditLog({ actor_type: "admin", actor_id: req.admin.email, action: "driver_bounty_proposed", entity_type: "ride", entity_id: rideId, metadata: { bounty_id: bounty.id, amount_cents: parsed.amount_cents }, req }).catch(() => {});
+    return ok(res, { bounty, note: "Recorded only. Drivers don't see bounties yet and nothing is paid." }, 201);
+  })
+);
+
+/* =========================================================
 
    ADMIN ASSIGN DRIVER
 

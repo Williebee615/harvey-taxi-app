@@ -25,7 +25,7 @@ describeDb("dispatch migrations against a live-schema Postgres", () => {
   });
 
   beforeEach(async () => {
-    await admin.query("truncate public.driver_earnings, public.driver_offers, public.rides, public.driver_document_records, public.vehicle_assignments, public.fleet_memberships, public.fleet_vehicle_documents, public.fleet_vehicles, public.fleets, public.drivers");
+    await admin.query("truncate public.ride_driver_bounties, public.driver_earnings, public.driver_offers, public.rides, public.driver_document_records, public.vehicle_assignments, public.fleet_memberships, public.fleet_vehicle_documents, public.fleet_vehicles, public.fleets, public.drivers");
   });
 
   // ---------------------------------------------------------------- fixtures
