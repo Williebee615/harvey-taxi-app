@@ -25,6 +25,20 @@ test("every question runs; a rejected model answer falls back to the graded rule
   // Rules answers still pass, so the fallback path is what the apps show.
   expect(metrics.answer_accuracy).toBeGreaterThan(0.8);
   expect(metrics.total_cost_usd).toBeGreaterThan(0);
+  // Each row keeps what was shown and why the model wasn't used.
+  expect(rows[0]).toEqual(expect.objectContaining({ reply: expect.any(String), sources: expect.any(Array), provider_error: null }));
+});
+
+test("Anthropic's reason for a refusal is reported once per kind", async () => {
+  const claude = {
+    model: "claude-haiku-5-5",
+    async create() {
+      return { error: "bad_request", provider: { status: 400, type: "invalid_request_error", message: "This API key is not scoped to a workspace.", request_id: "req_test" } };
+    }
+  };
+  const { metrics } = await runModelEval({ claude, set: "regression" });
+  expect(metrics.fallback_reasons.bad_request).toBeGreaterThan(0);
+  expect(metrics.provider_errors).toEqual({ bad_request: "This API key is not scoped to a workspace." });
 });
 
 test("the spend cap stops the run before it is passed", async () => {

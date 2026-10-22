@@ -2336,3 +2336,38 @@ The demo can then run in production with test money while rides keep their keys 
   - #207 updates before publication;
   - from §58: the Android driver upload result, the iOS route decision, the rider Play Console check, VAPID keys, Just-in-Time switch-on.
 - **Next authorized action:** none beyond opening this PR. Merging, adding the key, the live evaluation and any model step each need the owner's approval.
+
+## 60. Update 2026-10-22 (UTC): #303 live; live Stripe webhook created (signature not yet matching); first Claude Haiku 5.5 evaluation; quote fix (PR `claude/model-eval-quotes`)
+
+**[Owner decision 2026-10-22]**
+- Stripe: "Let's make a live webhook", then "Create the webhook and give it to me in this chat, you have my authorization."
+- "Merge #303 … keep the model strictly switched off."
+- "I authorize the $1 spend limit for the evaluation."
+- "Approved, go ahead with the PR" (evaluation follow-ups below).
+
+**[Verified 2026-10-22]**
+- **Ride payments use the live Stripe account:** `/api/stripe-key` serves a live publishable key for account "Harvey Taxi2"; the Stripe connector's live account is the same one. All 25 rides so far are `payment_status = not_required` (ride payment gate off). Orders stay on the test key (`ORDERS_STRIPE_SECRET_KEY`, test only).
+- **Live webhook created by the agent** through the Stripe connector: `we_1UTBZSK0dBlmhLqaUs6qbDyG`, URL `https://harveytaxiservice.com/api/stripe/webhook`, 4 events (`payment_intent.amount_capturable_updated`, `.succeeded`, `.payment_failed`, `.canceled`), enabled. Its signing secret was shown in the chat at the owner's request. Stored by the owner in Render as `STRIPE_WEBHOOK_SECRET` (name and location only here). **[Recommendation]** Roll the secret once working, without sharing it.
+- From 02:28 UTC the webhook answers unsigned requests with 400 instead of 503 "not configured", so the variable is loaded.
+- **[Unresolved]** Synthetic events signed with the webhook's secret (02:29–02:31 UTC; no matching ride) were rejected as "Invalid Stripe signature". Signing verifies locally, and Stripe shows only this one endpoint, so the value in Render differs from the secret. The owner is to re-copy it from Stripe and paste it exactly.
+- #303 merged as `12e64cc` (6/6 checks), live at 02:31 UTC; `/api/agent/status` still `rules_only`.
+- **Render shows "Payment failed — update your credit card"** (owner's screenshot). **[Unresolved]** If the workspace is suspended, harveytaxiservice.com goes offline. The owner updates the card.
+
+**Evaluation (owner's Mac, owner's key; owner's screenshots)**
+- Run 1: every call refused, "This API key is not scoped to a workspace". $0. Fixed by exporting `ANTHROPIC_WORKSPACE_ID`.
+- Run 2: Claude Haiku 5.5 answered 47 of 49; 2 blocked by the number guard. Accuracy 69.4% overall (rules only: 69.4%), 68.1% for the model's own answers. **4 wrong policy quotes** (rules: 0). Cost $0.0192 ($0.0004 per question); p95 3.6 s.
+- **[Recommendation]** Not ready; the model stays off.
+
+**This PR (no production change; the model stays off)**
+- Policy quotes in model answers come only from searching the person's own question, the rules assistant's search. The model's reworded search is no longer used to pick a section. Checked: on all 49 graded questions, searching the person's words returns either the expected section or nothing, never a wrong one.
+- `scripts/model-eval.js`: writes per-question results (reply, sources, grade, Anthropic's reason) to `model-eval-results.json` (git-ignored) and adds `provider_errors` to the summary.
+- Review pack: `ANTHROPIC_WORKSPACE_ID` (or a workspace-scoped key) added to step T2; the evaluation and its pass bar added to T4; results table added.
+- Tests [Verified 2026-10-22, local]: 2 new quote-selection tests, 1 new evaluation-report test; model, agent and evaluation suites pass.
+
+**Handoff:**
+- **Done:** #303 live; live webhook created; evaluation run 2 analysed; quote fix and report improvements in this PR.
+- **Remaining:**
+  - owner: Render card; re-paste `STRIPE_WEBHOOK_SECRET`;
+  - merge this PR, then re-run the evaluation (about $0.02);
+  - from §58–59: Android upload result, iOS route, rider Play Console check, VAPID keys, Just-in-Time switch-on, store sign-in.
+- **Next authorized action:** open this PR. Merging needs the owner's approval.

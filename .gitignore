@@ -4,3 +4,4 @@ node_modules/
 training/membrane/data/
 training/membrane/out/
 __pycache__/
+model-eval-results*.json
