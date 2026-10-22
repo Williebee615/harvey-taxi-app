@@ -2453,3 +2453,30 @@ The demo can then run in production with test money while rides keep their keys 
 - **Done:** Just-in-Time on; store sign-in given; VAPID confirmed.
 - **Remaining (owner):** phone test of Just-in-Time; Android upload result; Play Console screenshot for the rider app; tell the store it can sign in; merge #306.
 - **Next authorized action:** the iOS cloud builds after 2026-11-01 under the owner's free-route approval; store uploads and submissions need separate approval.
+
+## 64. Update 2026-10-22 (UTC): #306 live; fleet management design (PR `claude/fleet-plan`, docs only)
+
+**[Owner decision 2026-10-22]**
+- "Merge #306 once CI is green." Merged as `cd42cb4` after 6/6 checks; `/api/health` reported `cd42cb4` at 04:26 UTC. **[Verified]** `/privacy.html` shows section 7 "Business and Partnership Inquiries" and "Last updated: October 2026"; `/privacy-policy.html` shows the new entry in section 1.
+- Owner's goal: drivers can send their autonomous vehicles to work for Harvey Taxi once approved, or run their own fleet through Harvey Taxi. Answers to the four questions:
+  - build the **fleet foundation first** (human-driven, built so autonomous vehicles plug in later);
+  - **only approved drivers** may own a fleet;
+  - earnings: **show the split, pay later** (no automated money movement);
+  - counsel and the broker have **not yet** reviewed the autonomous-vehicles brief.
+
+**[Verified 2026-10-22, read-only production counts]**
+- 28 driver rows, all `approval_status = approved`, including applicants who never finished setup. "Approved driver" in the fleet design therefore means passing `computeDriverReadiness` (status "Verified").
+- 0 current `driver_document_records`, 22 `driver_earnings` rows, none paid. No payout system exists.
+
+**This PR (docs only; nothing built, migrated or switched on)**
+- `docs/fleet-management-plan.md`: phase 1 design. It covers fleet owners, vehicles, invited drivers, assignments, the recorded earnings split, the staff review points, the data model, an `automation` field limited to `none`, and the flag `fleet_management_enabled` (off). It ends with five owner decisions: what fleet owners may see, the share cap, required vehicle documents, pilot size, and agreement text.
+- `docs/legal/autonomous-vehicles-brief.md`: section E (fleet questions 15–19 for counsel) and insurer questions 6–7 (fleet vehicles).
+- **[Recommendation]** Send the updated brief to counsel and the broker now. Driverless dispatch of owners' vehicles depends on their answers, and fleet switch-on depends on the contractor and insurance answers.
+
+**Handoff:**
+- **Done:** #306 live; fleet design and brief update in this PR.
+- **Remaining:**
+  - owner: the five decisions in the plan §5; merge this PR; send the brief to counsel and the broker;
+  - assistant evaluation re-run on the owner's Mac;
+  - earlier owner items in §63.
+- **Next authorized action:** after the owner's §5 decisions, build PR 1 (schema and server, migration unapplied, flag off).

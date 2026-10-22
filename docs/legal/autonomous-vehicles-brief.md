@@ -59,6 +59,16 @@
 13. What may we say publicly about plans for autonomous rides before launch, to avoid misleading-advertising risk?
 14. Do the waitlist and the vehicle-owner interest list (by email) raise any consent or privacy-policy issues?
 
+**E. Fleet management (human-driven, planned first; added 2026-10-22)**
+
+The plan is in `docs/fleet-management-plan.md`. A verified Harvey Taxi driver (the "fleet owner") registers vehicles and invites other verified drivers to drive them. Harvey Taxi records an agreed share of each trip's earnings for the fleet owner, but moves no money in the first phase.
+
+15. **Contractor status.** If a fleet owner takes an agreed share of another driver's trip earnings, does that create an employment relationship between them, or affect Harvey Taxi's position on contractor status? What contract terms reduce that risk?
+16. **Licensing.** Does a fleet owner need a business licence, permit or registration in Tennessee or Metro Nashville to put vehicles they own on a TNC platform?
+17. **Regulatory status.** Is a fleet owner a "TNC driver", a vehicle lessor, or something else under Tennessee law? Does the TNC chapter allow drivers to use vehicles they don't own?
+18. **Data sharing.** What may a fleet owner see about the drivers using their vehicles (trip counts, earnings, online status, vehicle location)? What consent wording is needed?
+19. **Share cap.** Should Harvey Taxi cap or set the fleet owner's share, or only record what the two parties agree?
+
 ## 5. Questions for the insurance broker
 
 1. Which carriers write commercial liability for driverless vehicles in Tennessee? What limits are typical, and is $5 million needed or market standard?
@@ -66,6 +76,9 @@
 3. What would a small pilot fleet need for liability, physical damage, cyber, product liability and excess cover? What are indicative premiums?
 4. What will underwriters ask for? For example: system safety data, remote-monitoring procedures, incident-response plans and operating limits.
 5. Does an AV operator partnership change Harvey Taxi's own insurance needs?
+
+6. **Fleet vehicles.** Under § 55-12-141, whose policy must cover a fleet vehicle driven by someone who doesn't own it, in each period (logged on, en route, on trip)? Can the TNC policy cover it, or must the fleet owner's commercial policy?
+7. What do insurers require from a small fleet owner (commercial auto, hired and non-owned auto, named drivers)? Is a vehicle inspection required?
 
 ## 6. Documents we can provide
 
