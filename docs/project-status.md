@@ -2881,3 +2881,53 @@ Three admin pages kept the admin token in browser storage:
   - App Review notes: add the "Just-in-Time on" paragraph before the next submission (§63);
   - the earlier owner items in §63 and §71.
 - **Next authorized action:** open this PR. Merging needs the owner's approval.
+## 77. Update 2026-10-22 (UTC): tips during and after a trip, rider ratings, driver score, all switched off (PR `claude/tips-and-ratings`; migration not applied)
+
+**[Owner decision 2026-10-22]**
+- "Tip driver stays and should be encouraged during a trip also a driver ratings for score for drivers. We should be able to grade our driver by riders ratings."
+- Choices: "Separate tip charge (Recommended)", "1–5 stars after trip (Recommended)", "Score + staff review (Recommended)".
+- Scope: build switched off. Applying the migration, switching tips or ratings on, and live tip charges each need separate approval.
+
+**What was there [Verified 2026-10-22, code and read-only production counts]**
+- A tip could be set only at booking (4 rides have one). It goes 100% to the driver through the earning row.
+- `drivers.rating` is 5 for all 28 drivers: a default, not real ratings. There was no way for riders to rate.
+- The "Tip Driver" button in ride history opened `tip-driver.html`, which didn't exist (404).
+- An older `tips` table (0 rows, no constraints) is left untouched.
+
+**This PR**
+- **Migration** `20261022040000_ride_tips_and_driver_ratings.sql` (not applied). Both tables are server-only (RLS on, no client access).
+  - `ride_tips`: $1–$100; one paid tip per ride; a Stripe payment intent unless the ride is simulated.
+  - `driver_ratings`: 1–5 stars; known tags only; comment up to 500 characters; one per ride; `counted = false` for App Review rides.
+- **Tips** (`lib/rideTips.js`; switch `ride_tips_enabled`, off):
+  - the rider tips $2, $5, $10 or a custom amount while the trip is in progress or up to 24 hours after it ends;
+  - a separate card charge on the **Stripe test key** (the orders test key) unless `ride_tips_live` is also "true" (not set);
+  - recorded as paid only after the server retrieves the payment intent and checks its amount, currency, status and tip/ride ids; live tips are also confirmed by the Stripe webhook;
+  - 100% to the driver: the earning row's tip and total are updated (the fare earning and any fleet share are unchanged), and a tip paid mid-trip is included when the trip completes. The driver gets a push notification;
+  - App Review rides: simulated, no card.
+- **Ratings and score** (`lib/driverRatings.js`; switch `driver_ratings_enabled`, off):
+  - one rating per completed trip, within 7 days. Tags: Safe driving, Clean car, Friendly, Great route, Late, Route issue, Unsafe driving, Rude. Optional comment;
+  - a score is the average of the last 100 counted ratings, shown from 5 ratings. Below 4.6 is **flagged for staff review only**: nothing happens to a driver automatically;
+  - a driver sees their own score and tag counts (`GET /api/driver/rating`), never rider names or comments;
+  - staff see every driver, flagged first, with recent ratings of 3 stars or fewer (`GET /api/admin/driver-ratings`, and a new "Driver Ratings" card on the admin dashboard).
+- **Rider screens:**
+  - `tip-driver.html` (new): tip chips, Stripe card form in test mode, and the rating form. Delivery orders keep their checkout tip. The page is redirected away on the HTAF site;
+  - booking screen during the trip: "Tip Sam — enjoying your ride? 100% of your tip goes to Sam." After the trip: "Rate and tip Sam." Shown only when the server says tipping or rating is possible.
+- **Tests [Verified 2026-10-22, local]:**
+  - 19 rule tests and 8 server tests: off by default; test key only; unconfirmed or mismatched intents never count; ownership and time windows; one tip and one rating per trip; review rides simulated and not counted; earnings updated; staff ordering; no automatic action; the driver view hides comments;
+  - a database test: constraints and RLS;
+  - 2 phone-width browser tests;
+  - full suite 3,063 passed, 0 failed; database suites 32 passed against local Postgres.
+
+**[Unresolved]**
+- **Owner approvals:** merge; apply the migration; switch on tips and ratings (test mode first); later, live tip charges (`ride_tips_live`).
+- **Counsel (privacy and driver terms):**
+  - the privacy policy should say riders' ratings and comments are kept and seen by staff;
+  - driver terms should say scores are used for staff review;
+  - riders aren't shown scores (owner choice).
+- **Driver app:** the score is available to the app by API. A score screen in Harvey Taxi Driver needs a later app build (separate approval).
+- `drivers.rating` (all 5) isn't changed or used for the new score.
+
+**Handoff:**
+- **Done:** tips, ratings and score built and tested, switched off.
+- **Remaining:** the approvals above; counsel wording; the driver app screen; the earlier owner items in §63, §71 and §76.
+- **Next authorized action:** open this PR. Merging and applying the migration need the owner's approval.

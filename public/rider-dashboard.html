@@ -2213,6 +2213,15 @@
       cursor: pointer;
     }
 
+    #rideWizardOverlay .tip-prompt-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      border-color: rgba(255,217,114,0.55);
+      background: rgba(255,217,114,0.12);
+    }
+
     #rideWizardOverlay .rider-share-btn.is-sharing {
       border-color: rgba(255,126,151,0.5);
       background: rgba(255,126,151,0.1);
@@ -5374,6 +5383,14 @@
               <p id="riderShareText" class="rider-share-text" aria-live="polite">Your driver sees where you are until pickup. You can stop at any time.</p>
             </div>
 
+            <!-- Tip during or after the trip, and rate the driver
+                 (lib/rideTips.js, lib/driverRatings.js). Shown only while
+                 the server says tipping or rating is possible. -->
+            <div id="tipPromptRow" class="rider-share-row hidden">
+              <a id="tipPromptLink" class="rider-share-btn tip-prompt-btn" href="#">Tip your driver</a>
+              <p id="tipPromptText" class="rider-share-text">100% of your tip goes to your driver.</p>
+            </div>
+
             <!-- DELIVERY ORDER DETAILS (food/grocery orders only) -->
             <div id="deliveryOrderCard" class="delivery-order-card hidden">
               <div id="deliveryTimeline" class="delivery-timeline"></div>
@@ -6656,6 +6673,7 @@
       const seq = ++liveMap.seq;
       liveMap.lastData = data || null;
       updateRiderShare(data);
+      updateTipPrompt(data);
 
       if (!data || !data.driver || !LIVE_MAP_STATUSES.includes(data.status)) {
         hideLiveMap();
@@ -6742,6 +6760,46 @@
       }
 
       fitLiveMap(points);
+    }
+
+    // ---- Tip and rating prompt (during and after the trip) ----
+
+    const tipPrompt = { key: null };
+
+    async function updateTipPrompt(data) {
+      const row = document.getElementById("tipPromptRow");
+      const link = document.getElementById("tipPromptLink");
+      const text = document.getElementById("tipPromptText");
+      const rideId = (data && (data.id || data.ride_id)) || state.ride.rideId;
+      const status = data && data.status;
+      if (!row || !rideId || !["in_progress", "completed"].includes(status)) {
+        if (row) row.classList.add("hidden");
+        return;
+      }
+      const key = `${rideId}:${status}`;
+      if (tipPrompt.key === key) return;
+      tipPrompt.key = key;
+      try {
+        const info = await apiFetch(`/api/rides/${encodeURIComponent(rideId)}/tip-rating`, { method: "GET" });
+        const canTip = Boolean(info && info.tips && info.tips.can_tip);
+        const canRate = Boolean(info && info.rating && info.rating.can_rate);
+        if (!canTip && !canRate) {
+          row.classList.add("hidden");
+          return;
+        }
+        const name = (info.ride && info.ride.driver_first_name) || "your driver";
+        link.href = `tip-driver.html?type=ride&id=${encodeURIComponent(rideId)}`;
+        if (status === "in_progress") {
+          link.textContent = `Tip ${name}`;
+          text.textContent = `Enjoying your ride? 100% of your tip goes to ${name}.`;
+        } else {
+          link.textContent = canRate && canTip ? `Rate and tip ${name}` : canRate ? `Rate your trip with ${name}` : `Tip ${name}`;
+          text.textContent = canTip ? `Tips can be added up to 24 hours after your trip. 100% goes to ${name}.` : "Your rating helps keep rides safe and friendly.";
+        }
+        row.classList.toggle("hidden", status === "in_progress" && !canTip);
+      } catch {
+        row.classList.add("hidden");
+      }
     }
 
     // ---- Rider location sharing (until pickup) ----

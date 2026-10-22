@@ -21,6 +21,7 @@ const LIVE_PAGES = [
   "public/merchant-apply.html",
   "public/merchant-portal.html",
   "public/store-menu.html",
+  "public/tip-driver.html",
   "public/settings.html",
   "public/admin-dashboard.html",
   "public/admin-htaf.html",

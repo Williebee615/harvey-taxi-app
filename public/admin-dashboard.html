@@ -302,6 +302,11 @@
         <div class="list" id="fleetsList"><div class="empty">Loading fleets...</div></div>
       </section>
 
+      <section class="card" id="driverRatingsCard">
+        <div class="card-head"><div><div class="title">Driver Ratings</div><div class="sub">Riders' 1–5 star ratings. A score is the average of a driver's last 100 counted ratings, shown from 5 ratings. Below 4.6 is flagged for staff to look at; nothing happens to a driver automatically. App Review rides never count.</div></div><span class="item-sub" id="driverRatingsCount">0</span></div>
+        <div class="list" id="driverRatingsList"><div class="empty">Loading driver ratings...</div></div>
+      </section>
+
       <section class="card" id="merchantsCard">
         <div class="card-head"><div><div class="title">Merchant Applications</div><div class="sub">Delivery pilot stores. Approve, or reject or suspend with a reason. Delivery booking stays paused.</div></div><span class="item-sub" id="merchantsCount">0</span></div>
         <div class="list" id="merchantsList"><div class="empty">Loading merchant applications...</div></div>
@@ -505,6 +510,26 @@ function startDispatchExceptions(){
   loadDispatchExceptions();
   if (dispatchExceptionsTimer) clearInterval(dispatchExceptionsTimer);
   dispatchExceptionsTimer = setInterval(() => { if (!document.hidden) loadDispatchExceptions(); }, 30000);
+}
+// Driver ratings (owner decisions 2026-10-22). Read-only: staff decide
+// what, if anything, to do about a flagged score.
+async function loadDriverRatings(){
+  const list = document.getElementById("driverRatingsList");
+  let data;
+  try { data = await api("/api/admin/driver-ratings"); }
+  catch (e) { list.innerHTML = `<div class="empty">Driver ratings could not be loaded: ${esc(e.message)}</div>`; return; }
+  if (data.not_set_up) { list.innerHTML = `<div class="empty">Ratings aren't set up yet (database migration not applied).</div>`; return; }
+  const drivers = data.drivers || [];
+  document.getElementById("driverRatingsCount").textContent = drivers.filter(d => d.needs_review).length + " flagged";
+  const switchText = data.enabled ? "Rider ratings are ON." : "Rider ratings are OFF: riders can't rate drivers yet.";
+  list.innerHTML = `<div class="item-sub">${esc(switchText)}</div>` + (drivers.length ? drivers.map(d => `
+    <div class="item">
+      <div class="item-top">
+        <div><div class="item-title">${esc(d.name)}</div><div class="item-sub">${d.shown ? `Score ${Number(d.score).toFixed(2)} from ${d.count} ratings` : `${d.count} of ${data.min_ratings} ratings needed for a score`}</div></div>
+        <span class="badge ${d.needs_review ? "bad" : d.shown ? "ok" : "blue"}">${d.needs_review ? "Review" : d.shown ? "OK" : "New"}</span>
+      </div>
+      ${(d.recent_low || []).map(r => `<div class="item-sub">${"★".repeat(r.stars)} ${esc((r.tags || []).join(", "))}${r.comment ? ` — “${esc(r.comment)}”` : ""} • ride ${esc(r.ride_id)}</div>`).join("")}
+    </div>`).join("") : `<div class="empty">No ratings yet.</div>`);
 }
 // Fleets (fleet management phase 1, owner decisions 2026-10-22). Staff
 // decide every fleet and vehicle; dates are entered while looking at the
@@ -1068,6 +1093,7 @@ async function loadDashboard(){
     loadDeletionRequests();
     startDispatchExceptions();
     loadFleets();
+    loadDriverRatings();
     loadMerchants();
     loadPartnerships();
     loadHeldItems();
