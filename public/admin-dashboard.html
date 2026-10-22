@@ -297,6 +297,11 @@
         <div class="list" id="htafList"><div class="empty">Loading HTAF applications...</div></div>
       </section>
 
+      <section class="card" id="fleetsCard">
+        <div class="card-head"><div><div class="title">Fleets</div><div class="sub" id="fleetsSub">Fleet applications, vehicles and documents (fleet management phase 1). Staff approve fleets, verify each vehicle's insurance and registration from the document, and activate vehicles. Every action is audited.</div></div><span class="item-sub" id="fleetsCount">0</span></div>
+        <div class="list" id="fleetsList"><div class="empty">Loading fleets...</div></div>
+      </section>
+
       <section class="card" id="merchantsCard">
         <div class="card-head"><div><div class="title">Merchant Applications</div><div class="sub">Delivery pilot stores. Approve, or reject or suspend with a reason. Delivery booking stays paused.</div></div><span class="item-sub" id="merchantsCount">0</span></div>
         <div class="list" id="merchantsList"><div class="empty">Loading merchant applications...</div></div>
@@ -501,6 +506,75 @@ function startDispatchExceptions(){
   if (dispatchExceptionsTimer) clearInterval(dispatchExceptionsTimer);
   dispatchExceptionsTimer = setInterval(() => { if (!document.hidden) loadDispatchExceptions(); }, 30000);
 }
+// Fleets (fleet management phase 1, owner decisions 2026-10-22). Staff
+// decide every fleet and vehicle; dates are entered while looking at the
+// document. Owners and drivers act from their own driver dashboard.
+const FLEET_ACTIONS = { pending: ["approve", "decline"], active: ["suspend"], suspended: ["reinstate"], declined: [] };
+const FLEET_BADGE = { pending: "warn", active: "ok", declined: "bad", suspended: "bad", pending_review: "warn", inactive: "blue" };
+async function loadFleets(){
+  const list = document.getElementById("fleetsList");
+  let data;
+  try { data = await api("/api/admin/fleets"); }
+  catch (e) { list.innerHTML = `<div class="empty">Fleets could not be loaded: ${esc(e.message)}</div>`; return; }
+  const fleets = data.fleets || [];
+  document.getElementById("fleetsCount").textContent = fleets.length;
+  if (data.not_set_up) { list.innerHTML = `<div class="empty">Fleets aren't set up yet (database migration not applied).</div>`; return; }
+  const switchText = data.enabled ? "Fleet management is ON for drivers." : "Fleet management is OFF: drivers can't see or use fleets yet.";
+  list.innerHTML = `<div class="item-sub">${esc(switchText)}</div>` + (fleets.length ? fleets.map(f => `
+    <div class="item">
+      <div class="item-top">
+        <div><div class="item-title">${esc(f.name)}</div><div class="item-sub">Owner: ${f.owner ? esc(f.owner.name) + (f.owner.verified ? " (verified driver)" : " (verification incomplete)") : "unknown"} • ${f.members.active} drivers, ${f.members.invited} invited • applied ${esc(new Date(f.created_at).toLocaleString())}</div></div>
+        <span class="badge ${FLEET_BADGE[f.status] || "blue"}">${esc(f.status)}</span>
+      </div>
+      ${f.review_reason ? `<div class="item-sub">Reason: ${esc(f.review_reason)}</div>` : ""}
+      <div class="actions">${(FLEET_ACTIONS[f.status] || []).map(d => `<button class="${d === "approve" || d === "reinstate" ? "success" : "danger"}" type="button" data-fleet-id="${esc(f.id)}" data-fleet-decision="${d}">${d[0].toUpperCase() + d.slice(1)}</button>`).join("")}</div>
+      ${(f.vehicles || []).map(v => `
+        <div class="box" style="margin-top:8px">
+          <div class="item-top"><div><div class="item-title">${esc(v.label)} • ${esc(v.color)} • ${esc(v.plate)} • VIN …${esc(v.vin_last6)}</div>
+            <div class="item-sub">${(v.documents || []).map(d => `${esc(d.document_type)} until ${esc(d.expires_on)} (${d.verification_status === "staff_verified" ? "staff verified" : "entered by owner, not verified"})`).join(" • ") || "No documents"}</div>
+            <div class="item-sub">${v.documents_ready.ok ? "Documents ready" : "Documents not ready: " + esc(v.documents_ready.reasons.join(", "))}${v.status_reason ? " • " + esc(v.status_reason) : ""}</div></div>
+            <span class="badge ${FLEET_BADGE[v.status] || "blue"}">${esc(v.status)}</span></div>
+          <div class="actions">
+            <button class="neutral" type="button" data-fleet-vehicle="${esc(v.id)}" data-vehicle-doc="insurance">Verify insurance</button>
+            <button class="neutral" type="button" data-fleet-vehicle="${esc(v.id)}" data-vehicle-doc="registration">Verify registration</button>
+            ${v.status !== "active" ? `<button class="success" type="button" data-fleet-vehicle="${esc(v.id)}" data-vehicle-status="active">Activate</button>` : ""}
+            ${v.status === "active" ? `<button class="danger" type="button" data-fleet-vehicle="${esc(v.id)}" data-vehicle-status="suspended">Suspend</button>` : ""}
+            ${v.status !== "inactive" ? `<button class="neutral" type="button" data-fleet-vehicle="${esc(v.id)}" data-vehicle-status="inactive">Retire</button>` : ""}
+          </div>
+        </div>`).join("")}
+    </div>`).join("") : `<div class="empty">No fleet applications yet.</div>`);
+}
+document.getElementById("fleetsList").addEventListener("click", async (event) => {
+  const btn = event.target.closest("button");
+  if (!btn) return;
+  try {
+    if (btn.dataset.fleetDecision) {
+      const decision = btn.dataset.fleetDecision;
+      let reason = "";
+      if (decision === "decline" || decision === "suspend") {
+        reason = window.prompt(`Reason to ${decision} this fleet (required, shown to the owner):`, "");
+        if (reason === null) return;
+      } else if (!window.confirm(`${decision === "approve" ? "Approve" : "Reinstate"} this fleet?`)) return;
+      await api(`/api/admin/fleets/${encodeURIComponent(btn.dataset.fleetId)}/review`, { method: "POST", body: JSON.stringify({ decision, reason }) });
+      showResult("Fleet decision saved.");
+    } else if (btn.dataset.vehicleDoc) {
+      const date = window.prompt(`Expiry date on the ${btn.dataset.vehicleDoc} document you are looking at (YYYY-MM-DD):`, "");
+      if (date === null) return;
+      await api(`/api/admin/fleet-vehicles/${encodeURIComponent(btn.dataset.fleetVehicle)}/documents`, { method: "POST", body: JSON.stringify({ document_type: btn.dataset.vehicleDoc, expires_on: date.trim() }) });
+      showResult("Document verified and recorded.");
+    } else if (btn.dataset.vehicleStatus) {
+      const status = btn.dataset.vehicleStatus;
+      let reason = "";
+      if (status === "suspended") {
+        reason = window.prompt("Reason to suspend this vehicle (required):", "");
+        if (reason === null) return;
+      }
+      await api(`/api/admin/fleet-vehicles/${encodeURIComponent(btn.dataset.fleetVehicle)}/status`, { method: "POST", body: JSON.stringify({ status, reason }) });
+      showResult(`Vehicle ${status === "active" ? "activated" : status === "inactive" ? "retired" : "suspended"}.`);
+    } else return;
+  } catch (e) { showError(e.message); }
+  loadFleets();
+});
 async function loadPartnerships(){
   const list = document.getElementById("partnershipsList");
   let data;
@@ -993,6 +1067,7 @@ async function loadDashboard(){
     refreshSystemStatus();
     loadDeletionRequests();
     startDispatchExceptions();
+    loadFleets();
     loadMerchants();
     loadPartnerships();
     loadHeldItems();

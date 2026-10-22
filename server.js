@@ -21436,7 +21436,7 @@ app.get(
       if (assignment) {
         const { data: v, error: avErr } = await supabase.from("fleet_vehicles").select("*").eq("id", assignment.vehicle_id).maybeSingle();
         if (avErr) throw avErr;
-        if (v) assignedVehicle = { id: v.id, label: `${v.vehicle_year} ${v.make} ${v.model}`, plate: v.plate, since: assignment.starts_at };
+        if (v) assignedVehicle = { assignment_id: assignment.id, id: v.id, label: `${v.vehicle_year} ${v.make} ${v.model}`, plate: v.plate, since: assignment.starts_at };
       }
       const { data: myEarnings, error: meErr } = await supabase.from("driver_earnings").select("total_earning, fleet_owner_share_amount").eq("driver_id", me).not("fleet_id", "is", null);
       if (meErr) throw meErr;

@@ -2645,3 +2645,45 @@ Three admin pages kept the admin token in browser storage:
   - counsel brief §E and §F;
   - earlier owner items in §63.
 - **Next authorized action:** open this PR, then build fleet PR 2 (approved). Merging needs the owner's approval.
+
+## 69. Update 2026-10-22 (UTC): fleet management PR 2, screens (PR `claude/fleet-screens`; switch stays off)
+
+**[Owner decision 2026-10-22]** "Yes to both map token fix and fleet screen approval."
+
+**This PR (no production change while `fleet_management_enabled` is off; no migration)**
+- **Driver dashboard (`driver.html`), Fleet section.** It is hidden unless the switch is on (the server answers 404 while off).
+  - **Not in a fleet:** apply for a fleet (pilot limit shown).
+  - **Pending, declined or suspended:** the status and the staff reason.
+  - **Owner of an active fleet:**
+    - vehicles with documents and readiness in plain words;
+    - add a vehicle (human-driven only, stated);
+    - enter insurance and registration dates (marked "waiting for staff check");
+    - drivers with first name, status, share, online status, trips, earnings, the recorded owner share and the assigned vehicle;
+    - assign a ready vehicle, release a vehicle (with confirmation), remove a driver or withdraw an invitation;
+    - invite by phone with the agreed share (0–50%, fare only, never tips).
+  - **Invited driver:** the owner's share, a plain statement of what the owner sees and doesn't see (phone, email, documents, background check, location), and the terms version marked draft under legal review. Accept or decline.
+  - **Member:** the assigned vehicle, fleet trip totals with the recorded owner share, and leave fleet.
+  - The payout note is shown: splits are recorded only, no money moves.
+- **Admin dashboard, Fleets card.** It shows whether the switch is on or off.
+  - Approve, decline (reason required), suspend (reason required) and reinstate fleets.
+  - For each vehicle: documents with their source and verification status; "Verify insurance" and "Verify registration" (staff enter the expiry date while looking at the document); activate, suspend (reason required) or retire.
+- **Server:** the fleet summary now includes assignment IDs, so the release buttons work. `driver.html` adds a `[hidden]` CSS rule so the hidden section can't be shown by other styles.
+- Tests [Verified 2026-10-22, local]:
+  - `test/fleet-screens.browser.test.js` (2, new). The first covers the full flow: the owner applies, staff approve, the owner adds a vehicle, staff verify both documents and activate it, the owner invites at 20%, the driver sees the disclosure and accepts, the owner assigns the vehicle (the driver row shows the fleet vehicle), and the owner's view shows no contact details. The second checks the switch off: no Fleet section.
+  - Fleet unit and server tests 19/19.
+  - Full suite: 3,010 passed, 0 failed (database suites skipped; no migration in this PR).
+- **Not changed:** the driver iOS and Android apps. They keep working; a fleet driver's assigned vehicle reaches them through the server. Fleet screens in the apps need a later build.
+
+**[Unresolved] Before switch-on:**
+- agreement text reviewed by counsel;
+- counsel and insurer answers (brief §E, insurer questions 6–7);
+- the privacy policy fleet section;
+- the owner's approval to turn on `fleet_management_enabled`.
+
+**Handoff:**
+- **Done:** fleet screens built and tested.
+- **Remaining:**
+  - owner: approve merging #311 and this PR;
+  - the switch-on items above;
+  - earlier owner items in §63.
+- **Next authorized action:** open this PR. Merging needs the owner's approval. This branch is built on #311's branch, so merge #311 first.
