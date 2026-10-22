@@ -2717,3 +2717,32 @@ Three admin pages kept the admin token in browser storage:
   - rotate the admin token (owner's decision);
   - earlier owner items in §63.
 - **Next authorized action:** open this PR. Merging needs the owner's approval.
+
+## 71. Update 2026-10-22 (UTC): #313 live; fleet agreement draft published as a private shareable doc (PR `claude/status-71-fleet-agreement`, docs only)
+
+**[Owner decision 2026-10-22]** "Merge #313 approved also publish the draft as a shareable page if that's easier to send." Scope: merge #313; publish the draft as a page for sending to counsel. It does not cover changing the version string, the privacy policy or the fleet switch.
+
+**[Verified 2026-10-22]**
+- **#313** had 6/6 checks green on head `9196dc2`. It was squash-merged as `3933984` at 12:36 UTC. `/api/health` reported `3933984` shortly after. Docs only: nothing in the app changed.
+- **Shareable doc:** "Harvey Taxi Fleet Owner Agreement (Draft for Counsel)", a Claude Docs page at https://claude.ai/artifact/6NAaS5EE29YTkD4wKNrDc9.
+  - Content: the draft status note, Part A §§1–13 with the counsel notes and **[Enforced by the platform]** markers, Part B (8 points) and Part C as a checklist. The text was copied from `docs/legal/fleet-owner-agreement-draft.md` at `3933984`. It is lightly reformatted (some short lists written as sentences) with no change of terms.
+  - Access: **private to the owner** until the owner shares it from the page's Share menu. It has not been sent to anyone.
+- PR monitoring for #313 has ended, and its scheduled check-in was deleted.
+
+**[Recommendation]**
+- Share the page with counsel with comment access, so their questions sit next to the clauses.
+- Treat the repository file as the version of record. Counsel's edits on the page don't flow back automatically. The final approved text must be copied into the repository, and `AGREEMENT_VERSION` in `lib/fleets.js` updated, in a reviewed PR.
+
+**[Unresolved]**
+- Counsel's review of Parts A and B, and answers to brief §E, questions 15–19.
+- The insurer's answers to questions 6–7; agreement §7 (insurance).
+- The privacy-policy fleet section.
+- Approval to switch on `fleet_management_enabled`. It is still off, with 0 fleets.
+
+**Handoff:**
+- **Done:** #313 merged and live; the draft is published as a private shareable doc.
+- **Remaining:**
+  - owner: share the doc with counsel (and the brief §E and §F with counsel and the insurer); approve merging this PR;
+  - rotate the admin token (owner's decision);
+  - earlier owner items in §63.
+- **Next authorized action:** open this PR. Merging needs the owner's approval.
