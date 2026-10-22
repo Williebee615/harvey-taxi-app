@@ -2848,3 +2848,36 @@ Three admin pages kept the admin token in browser storage:
 - **Done:** #317 live; retention job on; phone booking fix and regression test.
 - **Remaining:** owner approval to merge this PR; then the owner's phone test of a full booking (review rider with review driver online); the earlier owner items in §63 and §71.
 - **Next authorized action:** open this PR. Merging needs the owner's approval.
+
+## 76. Update 2026-10-22 (UTC): phone booking outage resolved and tested end to end; map text and broken tip button (PR `claude/map-text-status`)
+
+**[Owner decision 2026-10-22]**
+- "Approved" (merge #318).
+- "Fix the outdated map text … That PR will also record today's outage, the fix and this successful test in the status record."
+
+**Outage [Verified 2026-10-22]**
+- **Impact:** from 04:19 UTC (when `jit_booking_enabled` was switched on, §63) to 13:30 UTC (about 9 h 11 min), no rider on a phone (screens 760 px wide or narrower) could start a booking, because the service choice was hidden (§75). Desktop worked. No payments or data were affected.
+- **Fix:** #318: 6/6 checks green on `dd28cfd`; merged as `85af242`; `/api/health` reported `85af242` at 13:30 UTC. The live page served the fix and no longer contained "Autonomous Pilot".
+- **Live check:** production page at iPhone size, signed out, with Just-in-Time on. All four services and Confirm Service were visible; after confirming Driver Ride, step 2 (pickup) showed. Nothing was booked. Requests went through Node with TLS verification on.
+- **Follow-up [Recommendation]:** a phone-size browser test of each booking step is now part of the suite. Any future layout change behind a switch should be tested with the switch on, at phone size, before the switch is turned on.
+
+**Owner's end-to-end test after the fix [Verified 2026-10-22, owner's screenshots and a read-only database check]**
+- **Devices:** rider review account on iPhone; driver review account on Android.
+- **Flow:** request (Driver Ride, Lebanon Pike → Smyrna) → accept → drive to pickup, with live location both ways (rider sharing stops at pickup) → arrived → trip started → completed.
+- **Ride record:** `RIDE-32FAB58E32` created 13:33:30 UTC and completed 13:39:17 UTC; `is_review_ride = true`; `payment_status = not_required`; 0 payment rows.
+- **Earnings:** one `driver_earnings` row (fare $41.01; driver $27.31; tip $0; no payout). The driver app's 24-hour ($54.29) and 7-day ($111.07) totals match the database rows.
+- **History:** the trip appears in the driver's Trips list and in the rider's Ride history, both marked Simulated.
+
+**This PR**
+- **Rider pickup card:** "Live Map Standby … Google Maps preview automatically loads" is replaced by the real status. Before a pickup: "Pickup not set yet. Tap 'Use My Location' or type your pickup address." After: "Pickup location set. Your driver will see this pickup point. The live map appears once a driver is assigned." (The app uses Mapbox; the live map shows once a driver is assigned, as seen in the test.)
+- **"Tip Driver" removed** from ride history. It opened `tip-driver.html`, which doesn't exist (live answers 404). No money could move through it. A tipping flow, if wanted, needs its own design and approval.
+- **Tests [Verified 2026-10-22, local]:** the phone booking test now checks the pickup card wording; a markup test checks that no control links to the missing tip page. Full suite: 3,033 passed, 0 failed (database suites skipped).
+
+**Handoff:**
+- **Done:** outage fixed and recorded; end-to-end phone test passed; map text and tip button in this PR.
+- **Remaining:**
+  - owner approval to merge this PR;
+  - decide whether to build tipping;
+  - App Review notes: add the "Just-in-Time on" paragraph before the next submission (§63);
+  - the earlier owner items in §63 and §71.
+- **Next authorized action:** open this PR. Merging needs the owner's approval.

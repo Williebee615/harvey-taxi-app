@@ -4592,13 +4592,10 @@
               >
                 <div class="map-fallback-card">
 
-                  <strong>
-                    Live Map Standby
-                  </strong>
+                  <strong id="mapFallbackTitle">Pickup not set yet</strong>
 
-                  <span>
-                    Use “Use My Location” to activate precise pickup support.
-                    Google Maps preview automatically loads when configured.
+                  <span id="mapFallbackText">
+                    Tap “Use My Location” or type your pickup address.
                   </span>
 
                 </div>
@@ -9916,6 +9913,13 @@
       }
     }
 
+    function setMapFallbackText(title, text) {
+      const titleEl = document.getElementById("mapFallbackTitle");
+      const textEl = document.getElementById("mapFallbackText");
+      if (titleEl) titleEl.textContent = title;
+      if (textEl) textEl.textContent = text;
+    }
+
     // No in-app map (see updateLiveTrackingMap): the map area shows the
     // location status card instead.
     function initOrUpdateMap() {
@@ -9925,10 +9929,12 @@
         state.pickup.longitude === null
       ) {
         setMapBadge("Map Standby");
+        setMapFallbackText("Pickup not set yet", "Tap \u201cUse My Location\u201d or type your pickup address.");
         return;
       }
       updateLocationMeta();
       setMapBadge("Location Captured");
+      setMapFallbackText("Pickup location set", "Your driver will see this pickup point. The live map appears once a driver is assigned.");
     }
 
     function detectLocation() {
@@ -12516,22 +12522,8 @@
             </div>
           </div>
 
-          ${
-            ["completed", "complete", "delivered"].includes(String(status).toLowerCase())
-              ? `
-                <div class="actions">
-                  <button
-                    class="btn success"
-                    type="button"
-                    data-tip-id="${escapeHtml(id)}"
-                    data-tip-type="${isDelivery ? "delivery" : "ride"}"
-                  >
-                    Tip Driver
-                  </button>
-                </div>
-              `
-              : ""
-          }
+          <!-- No "Tip Driver" button: there is no tipping page yet
+               (tip-driver.html was never built and returned 404). -->
         `;
 
         els.activityList.appendChild(card);
@@ -13215,19 +13207,6 @@
       }
     }
 
-    function tipDriver(id, type) {
-      const params = new URLSearchParams();
-
-      params.set("type", type || "ride");
-      params.set("id", id || "");
-
-      if (state.riderId) {
-        params.set("rider_id", state.riderId);
-      }
-
-      window.location.href = `tip-driver.html?${params.toString()}`;
-    }
-
     async function refreshAll() {
       hideSystemNotice();
       await loadRiderStatus();
@@ -13380,16 +13359,6 @@
       });
 
       document.addEventListener("click", (event) => {
-        const tipButton = event.target.closest("[data-tip-id]");
-
-        if (tipButton) {
-          tipDriver(
-            tipButton.dataset.tipId,
-            tipButton.dataset.tipType
-          );
-          return;
-        }
-
         const launchButton = event.target.closest("[data-launch-address]");
 
         if (launchButton) {
