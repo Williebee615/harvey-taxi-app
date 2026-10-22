@@ -159,3 +159,12 @@ describe("internal links on public pages resolve", () => {
     expect(broken).toEqual([]);
   });
 });
+
+// The foundation's legal name (owner correction 2026-10-22: the rider
+// dashboard said "Harvey Taxi Assistance Foundation"). Checks every page
+// and script in public/, signed-in pages included.
+test("the foundation is always named Harvey Transportation Assistance Foundation", () => {
+  const files = fs.readdirSync(PUBLIC_DIR).filter((f) => /\.(html|js)$/.test(f));
+  const wrong = files.filter((f) => /Harvey Taxi Assistance Foundation/i.test(read(f)));
+  expect(wrong).toEqual([]);
+});
