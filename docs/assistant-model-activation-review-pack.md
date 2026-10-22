@@ -100,15 +100,15 @@ Every step changes production and needs **[Needs owner approval]**, given once f
 | Control | Value | Where it's enforced |
 |---|---|---|
 | Monthly ceiling | **$10.00**, all apps combined | On the server (`MONTHLY_BUDGET_CEILING_USD`) **and** inside the database reservation function (`least(budget, 10)`). Can be lowered with `AGENT_MODEL_MONTHLY_BUDGET_USD`, never raised. |
-| Reservation before each answer | **$0.1035** (worst case: 3 calls × 16,000 input tokens at the dearest rate + 500 output tokens) | `agent_model_reserve`, atomic across server instances |
-| Typical answer (Haiku 4.5) | about **$0.002–$0.006** | Settled at the real cost; the unused reservation is released |
+| Reservation before each answer | **$0.01035** on Claude Haiku 5.5 ($0.1035 on Haiku 4.5) (worst case: 3 calls × 16,000 input tokens at the dearest rate + 500 output tokens) | `agent_model_reserve`, atomic across server instances |
+| Typical answer | Haiku 5.5: about **$0.0003** (estimate); Haiku 4.5: about $0.002–$0.006 | Settled at the real cost; the unused reservation is released |
 | Observed so far | 76 calls, $0.1354 → **about $0.0018 per call** | **[Verified]** `agent_model_usage`, 2026-10-04 to 2026-10-08 |
 | When the budget runs out | That question gets the rules-based answer. Nothing breaks. | Server |
 | Provider backstop | $10 spend limit in the Anthropic Console | Anthropic (owner sets it) |
 
 **Estimate at today's volume:** 173 signed-in answers per 30 days × $0.006 ≈ **$1.04/month** at the top of the typical range. This is an estimate; much of today's traffic is testing. Even at 1,500 answers a month, the typical cost is about **$4.90**, under the cap.
 
-**[Recommendation] Option to cut cost about 10×:** Claude Haiku 5.5 ($0.10 / $0.50 per million tokens, read on claude.com/pricing 2026-10-15). It needs a small code change (a price row in `lib/agent/modelBudget.js`, which today prices only Haiku 4.5) and a re-run of the evaluation. That is a separate PR, and only if you want it.
+**[Owner decision 2026-10-19] Claude Haiku 5.5 chosen** (PR `claude/haiku-5-5`). Original recommendation: Claude Haiku 5.5 ($0.10 / $0.50 per million tokens, read on claude.com/pricing 2026-10-15). It needs a small code change (a price row in `lib/agent/modelBudget.js`, which today prices only Haiku 4.5) and a re-run of the evaluation. That is a separate PR, and only if you want it.
 
 ---
 
@@ -140,5 +140,5 @@ Record each switch-off in `docs/project-status.md` with the time, the level and 
 1. **[Needs owner approval]** Remove `RIDER_GPLAY_REVIEWER` from the model test list now, or set the mode to `off` (§1).
 2. Complete the Console checks (§2) and tell me the results, without any key.
 3. **[Needs owner approval]** Run the test-account plan T1–T7 (§3).
-4. Choose a model: Haiku 4.5 (approved 2026-10-04) or Haiku 5.5 (needs a small PR).
+4. ~~Choose a model.~~ **[Owner decision 2026-10-19]** Claude Haiku 5.5. Evaluation runner: `scripts/model-eval.js` (step T4).
 5. After counsel's review, approve #207's updated wording and its publication. This is a separate approval and isn't needed for synthetic testing.
