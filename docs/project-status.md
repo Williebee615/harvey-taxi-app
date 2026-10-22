@@ -2773,3 +2773,36 @@ Three admin pages kept the admin token in browser storage:
 - **Done:** #314 live; audit, code redaction and policy rows in this PR.
 - **Remaining:** owner approval to merge this PR; the retention decisions above; the earlier owner items in §63 and §71.
 - **Next authorized action:** open this PR. Merging needs the owner's approval. No database cleanup runs without separate approval.
+
+## 73. Update 2026-10-22 (UTC): #315 live; retention cleanup applied (PR `claude/status-73-retention-cleanup`, docs only)
+
+**[Owner decision 2026-10-22]**
+- "Merge #315 approved."
+- "Once the preservation check is done, approve the cleanup in the retention draft: redact the 832 old error entries, and clear IP and browser details on audit entries older than 90 days."
+- Preservation question answered by the owner: "None, run cleanup". No lawsuit, legal hold, insurance claim, regulator or police request, or live Stripe dispute known for 2026-07-04 to 2026-10-13.
+
+**[Verified 2026-10-22]**
+- **#315** (log privacy audit): 6/6 checks green on `dfcf11f`; merged as `7b27d9a`; `/api/health` reported `7b27d9a` from 13:00 UTC. Home page and `/api/rider/jit-config` returned 200 after the deploy.
+- **Preservation check, database side (read-only):** 0 rows in `support_cases`, `safety_reports`, `incident_reports`, `emergency_alerts`, `payment_refunds`, `order_refund_proposals`; 0 dispute audit rows. No `server_error` row is linked to a record (`entity_id` empty on all 832). `audit_logs` has no triggers.
+- **Cleanup, one transaction, production:**
+
+  | Step | Before | After |
+  |---|---|---|
+  | `server_error` rows holding message or path | 832 | 0 |
+  | `server_error` rows holding IP or user agent | 832 | 0 |
+  | Other audit rows older than 90 days holding IP or user agent | 25 | 0 |
+
+  - Rows kept: `audit_logs` still has all 1,618 original rows plus the record row (1,619 total). `server_error` rows keep `method`, `build_sha`, origin host and CORS reason, with `error_code: legacy`.
+  - Recorded as `audit_logs` row 1619 (`retention_cleanup_applied`, actor `agent`, approved by the owner), counts only.
+  - 668 rows newer than 90 days still hold an IP address, as the draft policy allows.
+- **Can't be undone:** the removed text, IP addresses and user agents are gone from the table. Supabase backups may still hold them until the backup retention period passes.
+
+**[Unresolved]**
+- **Automatic 90-day clearing** isn't built. It needs a scheduled job, off by default, with a dry run, and the owner's approval (retention draft §4).
+- The other draft periods still need counsel and the accountant.
+- Render log retention and access (owner).
+
+**Handoff:**
+- **Done:** #315 live; one-off cleanup applied and verified.
+- **Remaining:** owner approval to merge this PR; decide whether to build the automatic 90-day job; the earlier owner items in §63 and §71.
+- **Next authorized action:** open this PR. Merging needs the owner's approval.
