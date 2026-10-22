@@ -25,6 +25,16 @@
 | Rider accounts | `riders` | Until deletion is requested, plus the legal minimum | The existing deletion-request flow applies. |
 | Ride and payment records | `rides`, `payments` | 7 years | Tax and accounting; **accountant to confirm**. |
 | HTAF applications | `htaf_applications` | **To be set by the HTAF board** | Grant reporting and funder requirements may set a minimum. |
+| Staff override reasons (free text) | `audit_logs` `metadata.reason` | With the audit row (2 years) | 3 rows (2026-10-17) contain an email address typed by staff. **Recommendation:** mask contact details on save; ask staff not to type them. |
+| Store applications and store users | `merchants`, `merchant_users` | Life of the store relationship + 3 years | Added 2026-10-22. Business contact details. **Counsel to confirm.** |
+| Partnership inquiries | `partnership_inquiries` | 2 years from the last contact | Added 2026-10-22. 0 rows today. |
+| Store orders and order events | `orders`, `order_events` | 7 years (payment records) | Added 2026-10-22. Delivery addresses are proposed to be cleared after 90 days, with the order kept. **Accountant to confirm.** |
+| Fleet records | `fleets`, `fleet_vehicles`, `fleet_vehicle_documents`, `fleet_memberships`, `vehicle_assignments` | Life of the fleet + 3 years | Added 2026-10-22. Switch off, 0 rows. Insurance evidence, as for drivers. **Counsel to confirm** with the fleet agreement. |
+| Driver bounty proposals | `ride_driver_bounties` | With the ride (7 years) | Added 2026-10-22. Table not created (migration not applied). |
+| Dispatch reassignment notes | `audit_logs` `dispatch_ride_reassigned` | With the audit row (2 years) | Added 2026-10-22. Free-text staff note; same guidance as override reasons. |
+| Push subscriptions | `push_subscriptions` | Until the device unsubscribes or the account is deleted | Added 2026-10-22. 0 rows today. |
+| Rider live location | ride row (`rider_live_*`) | 10 minutes (in force) | Already enforced by `purgeRiderLocations` (`lib/liveLocation.js`). |
+| Server log output | Render logs | Provider default; **to be checked** | Since 2026-10-22 every line is masked for email, phone, Postgres row values and credentials (`docs/log-privacy-audit-2026-10-22.md`). |
 | Hosting request logs | Render dashboard | Provider default; **to be checked** | Contain full URLs, including query strings. Review retention and who has access. |
 
 ## 3. Historical sensitive data found (2026-10-14, counts only)

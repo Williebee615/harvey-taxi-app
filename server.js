@@ -12,7 +12,11 @@
 
 const express = require("express");
 const { rideUpdateForStripeEvent } = require("./lib/stripeWebhookTransitions");
-const { serverErrorEntry, errorCode: logErrorCode } = require("./lib/safeLog");
+const { serverErrorEntry, dbErrorEntry, errorCode: logErrorCode, installConsoleRedaction } = require("./lib/safeLog");
+// Safety net for every log line: email addresses, phone numbers, Postgres
+// row dumps and credentials are masked (lib/safeLog.js). Allowlisted log
+// fields remain the primary control.
+installConsoleRedaction();
 
 const cors = require("cors");
 
@@ -3095,7 +3099,8 @@ async function sendEmail({
 
       "📧 Email skipped:",
 
-      { to, subject }
+      // The recipient's domain only, never the address.
+      { to_domain: String(to || "").split("@")[1] || "(none)", subject }
 
     );
 
@@ -3838,7 +3843,7 @@ async function verifyRiderSessionFromRequest(req) {
       .maybeSingle();
 
     if (error) {
-      console.error("❌ verifyRiderSessionFromRequest: failed to load rider row:", error);
+      console.error("❌ verifyRiderSessionFromRequest: failed to load rider row:", dbErrorEntry(error));
       return { ok: false, statusCode: 500, message: "Something went wrong verifying your session." };
     }
 
@@ -5057,33 +5062,8 @@ app.post(
 
         "❌ HTAF DB INSERT FAILED:",
 
-        {
-
-          table:
-
-            "htaf_applications",
-
-          message:
-
-            dbError?.message,
-
-          code:
-
-            dbError?.code,
-
-          details:
-
-            dbError?.details,
-
-          hint:
-
-            dbError?.hint,
-
-          payload_keys:
-
-            dbError?.htaf_payload_keys || []
-
-        }
+        // Code only: Postgres details/hint can echo the applicant's answers.
+        { table: "htaf_applications", ...dbErrorEntry(dbError), payload_keys: dbError?.htaf_payload_keys || [] }
 
       );
 
@@ -9113,7 +9093,7 @@ async function personaRequest(pathname, body = {}) {
 
   if (!response.ok) {
 
-    throw new Error(
+    throw Object.assign(new Error(
 
       json?.errors?.[0]?.detail ||
 
@@ -9121,7 +9101,7 @@ async function personaRequest(pathname, body = {}) {
 
       "Persona request failed."
 
-    );
+    ), { httpStatus: response.status });
 
   }
 
@@ -9339,7 +9319,8 @@ app.post(
 
         "❌ Persona inquiry failed:",
 
-        error.message
+        // The provider's error text can echo the applicant's details.
+        error.httpStatus ? { http_status: error.httpStatus } : error.message
 
       );
 
@@ -9788,7 +9769,7 @@ async function checkrRequest(pathname, body = {}) {
 
   if (!response.ok) {
 
-    throw new Error(
+    throw Object.assign(new Error(
 
       json?.error ||
 
@@ -9796,7 +9777,7 @@ async function checkrRequest(pathname, body = {}) {
 
       "Checkr request failed."
 
-    );
+    ), { httpStatus: response.status });
 
   }
 
@@ -9974,7 +9955,8 @@ app.post(
 
         "❌ Checkr start failed:",
 
-        error.message
+        // The provider's error text can echo the applicant's details.
+        error.httpStatus ? { http_status: error.httpStatus } : error.message
 
       );
 
@@ -13939,25 +13921,8 @@ app.post(
 
         "❌ Ride insert failed:",
 
-        {
-
-          message:
-
-            error.message,
-
-          code:
-
-            error.code,
-
-          details:
-
-            error.details,
-
-          hint:
-
-            error.hint
-
-        }
+        // Code only: Postgres details/hint can echo names and addresses.
+        dbErrorEntry(error)
 
       );
 
