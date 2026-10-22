@@ -53,6 +53,12 @@
 2. Clear `ip_address` and `user_agent` on audit rows older than 90 days.
 3. Run nothing until the owner approves, and record the before and after counts.
 
+**Applied 2026-10-22 (UTC), steps 1 and 2 only, as a one-off [Owner decision 2026-10-22]** after the preservation check (no support cases, safety or incident reports, emergency alerts, refunds or disputes in the database; the owner confirmed no legal hold, claim, regulator request or Stripe dispute):
+- 832 `server_error` rows: `message` and `path` removed, `error_code` set to `legacy`, IP address and user agent cleared. `method`, `build_sha`, origin host and CORS reason kept.
+- 25 other audit rows older than 90 days: IP address and user agent cleared. The rows themselves are kept.
+- Recorded as `audit_logs` row 1619 (`retention_cleanup_applied`), counts only.
+- **Not yet automatic:** rows reaching 90 days from now on keep their IP address and user agent until a scheduled job is built and approved (§4).
+
 ## 4. Implementation (after approval only)
 - A scheduled job per category, **off by default** behind a system flag, with a dry-run mode that reports counts.
 - Legal-hold exclusion list checked before every run.
