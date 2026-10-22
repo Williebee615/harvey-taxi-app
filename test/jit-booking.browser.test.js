@@ -190,6 +190,10 @@ describeWithBrowser("Just-in-Time booking on the rider dashboard (mobile)", () =
     // Once a service is confirmed the map-first sheet layout takes over.
     expect(await page.isVisible("#confirmServiceBtn")).toBe(false);
     expect(await page.isVisible("#pickupMap")).toBe(true);
+    // The pickup card states the real status, not "Live Map Standby" or
+    // a Google Maps preview the app doesn't use.
+    expect((await page.textContent("#mapFallbackTitle")).trim()).toBe("Pickup not set yet");
+    expect(await page.textContent("#mapFallback")).not.toMatch(/Google Maps|Live Map Standby/);
     expect(errors).toEqual([]);
     await context.close();
   });

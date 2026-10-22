@@ -4601,13 +4601,10 @@
               >
                 <div class="map-fallback-card">
 
-                  <strong>
-                    Live Map Standby
-                  </strong>
+                  <strong id="mapFallbackTitle">Pickup not set yet</strong>
 
-                  <span>
-                    Use “Use My Location” to activate precise pickup support.
-                    Google Maps preview automatically loads when configured.
+                  <span id="mapFallbackText">
+                    Tap “Use My Location” or type your pickup address.
                   </span>
 
                 </div>
@@ -9974,6 +9971,13 @@
       }
     }
 
+    function setMapFallbackText(title, text) {
+      const titleEl = document.getElementById("mapFallbackTitle");
+      const textEl = document.getElementById("mapFallbackText");
+      if (titleEl) titleEl.textContent = title;
+      if (textEl) textEl.textContent = text;
+    }
+
     // No in-app map (see updateLiveTrackingMap): the map area shows the
     // location status card instead.
     function initOrUpdateMap() {
@@ -9983,10 +9987,12 @@
         state.pickup.longitude === null
       ) {
         setMapBadge("Map Standby");
+        setMapFallbackText("Pickup not set yet", "Tap \u201cUse My Location\u201d or type your pickup address.");
         return;
       }
       updateLocationMeta();
       setMapBadge("Location Captured");
+      setMapFallbackText("Pickup location set", "Your driver will see this pickup point. The live map appears once a driver is assigned.");
     }
 
     function detectLocation() {
