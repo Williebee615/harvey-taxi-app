@@ -2849,7 +2849,7 @@ Three admin pages kept the admin token in browser storage:
 - **Remaining:** owner approval to merge this PR; then the owner's phone test of a full booking (review rider with review driver online); the earlier owner items in §63 and §71.
 - **Next authorized action:** open this PR. Merging needs the owner's approval.
 
-## 76. Update 2026-10-22 (UTC): phone booking outage resolved and tested end to end; map text and broken tip button (PR `claude/map-text-status`)
+## 76. Update 2026-10-22 (UTC): phone booking outage resolved and tested end to end; map text; tipping and ratings requested (PR `claude/map-text-status`)
 
 **[Owner decision 2026-10-22]**
 - "Approved" (merge #318).
@@ -2870,14 +2870,14 @@ Three admin pages kept the admin token in browser storage:
 
 **This PR**
 - **Rider pickup card:** "Live Map Standby … Google Maps preview automatically loads" is replaced by the real status. Before a pickup: "Pickup not set yet. Tap 'Use My Location' or type your pickup address." After: "Pickup location set. Your driver will see this pickup point. The live map appears once a driver is assigned." (The app uses Mapbox; the live map shows once a driver is assigned, as seen in the test.)
-- **"Tip Driver" removed** from ride history. It opened `tip-driver.html`, which doesn't exist (live answers 404). No money could move through it. A tipping flow, if wanted, needs its own design and approval.
-- **Tests [Verified 2026-10-22, local]:** the phone booking test now checks the pickup card wording; a markup test checks that no control links to the missing tip page. Full suite: 3,033 passed, 0 failed (database suites skipped).
+- **"Tip Driver" kept [Owner decision 2026-10-22]:** "Tip driver stays and should be encouraged during a trip." The button currently opens `tip-driver.html`, which doesn't exist (live answers 404). The tipping flow, in-trip tip prompts and rider ratings of drivers come in a separate PR after the owner's design choices.
+- **Tests [Verified 2026-10-22, local]:** the phone booking test now checks the pickup card wording. Full suite: 3,032 passed, 0 failed (database suites skipped).
 
 **Handoff:**
-- **Done:** outage fixed and recorded; end-to-end phone test passed; map text and tip button in this PR.
+- **Done:** outage fixed and recorded; end-to-end phone test passed; map text in this PR; tipping and ratings planned (owner decision 2026-10-22).
 - **Remaining:**
   - owner approval to merge this PR;
-  - decide whether to build tipping;
+  - choose the tipping and ratings design (asked 2026-10-22);
   - App Review notes: add the "Just-in-Time on" paragraph before the next submission (§63);
   - the earlier owner items in §63 and §71.
 - **Next authorized action:** open this PR. Merging needs the owner's approval.

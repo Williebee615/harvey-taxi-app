@@ -98,10 +98,3 @@ describe("rider history exposes the simulated flag", () => {
     expect(columns.split(",").map((c) => c.trim())).toContain("is_review_ride");
   });
 });
-
-// 2026-10-22: no control may lead to a page that doesn't exist. The
-// "Tip Driver" button opened tip-driver.html, which was never built (404).
-test("ride history offers no Tip Driver link to a missing page", () => {
-  expect(html).not.toMatch(/href\s*=\s*`tip-driver\.html|data-tip-id/);
-  expect(fs.existsSync(path.join(__dirname, "..", "public", "tip-driver.html"))).toBe(false);
-});

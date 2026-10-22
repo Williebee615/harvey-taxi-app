@@ -12522,8 +12522,22 @@
             </div>
           </div>
 
-          <!-- No "Tip Driver" button: there is no tipping page yet
-               (tip-driver.html was never built and returned 404). -->
+          ${
+            ["completed", "complete", "delivered"].includes(String(status).toLowerCase())
+              ? `
+                <div class="actions">
+                  <button
+                    class="btn success"
+                    type="button"
+                    data-tip-id="${escapeHtml(id)}"
+                    data-tip-type="${isDelivery ? "delivery" : "ride"}"
+                  >
+                    Tip Driver
+                  </button>
+                </div>
+              `
+              : ""
+          }
         `;
 
         els.activityList.appendChild(card);
@@ -13207,6 +13221,19 @@
       }
     }
 
+    function tipDriver(id, type) {
+      const params = new URLSearchParams();
+
+      params.set("type", type || "ride");
+      params.set("id", id || "");
+
+      if (state.riderId) {
+        params.set("rider_id", state.riderId);
+      }
+
+      window.location.href = `tip-driver.html?${params.toString()}`;
+    }
+
     async function refreshAll() {
       hideSystemNotice();
       await loadRiderStatus();
@@ -13359,6 +13386,16 @@
       });
 
       document.addEventListener("click", (event) => {
+        const tipButton = event.target.closest("[data-tip-id]");
+
+        if (tipButton) {
+          tipDriver(
+            tipButton.dataset.tipId,
+            tipButton.dataset.tipType
+          );
+          return;
+        }
+
         const launchButton = event.target.closest("[data-launch-address]");
 
         if (launchButton) {
