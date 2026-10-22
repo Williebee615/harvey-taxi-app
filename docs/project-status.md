@@ -2480,3 +2480,48 @@ The demo can then run in production with test money while rides keep their keys 
   - assistant evaluation re-run on the owner's Mac;
   - earlier owner items in §63.
 - **Next authorized action:** after the owner's §5 decisions, build PR 1 (schema and server, migration unapplied, flag off).
+
+## 65. Update 2026-10-22 (UTC): #307 merged; fleet management PR 1, schema and server (PR `claude/fleet-foundation`; migration not applied; switch off)
+
+**[Owner decision 2026-10-22]** "Approved all five recommendations, merge #307 and start PR 1." The five recommendations (plan §5):
+1. Fleet owners see a driver's first name, assigned vehicle, online status, trip count and fleet earnings. They don't see phone, email, documents, screening details or location.
+2. The owner's share is an agreed percentage per driver, capped at 50%, recorded by Harvey Taxi.
+3. Insurance and registration must be staff-verified before a vehicle carries riders.
+4. The pilot is limited to 3 fleets with 5 vehicles each.
+5. The agreement text is drafted for counsel review.
+
+**[Verified 2026-10-22]** #307 merged as `385ea97` (6/6 checks; docs only).
+
+**This PR (nothing changes in production until the migration is applied and the switch is turned on, each with the owner's approval)**
+- `lib/fleets.js`: the rules. Validation, the share cap, the vehicle-ready check, the owner's limited view, the vehicle swap and restore. Automation is `none` only.
+- Migration `20261022020000_fleets.sql`, **not applied**:
+  - five new server-only tables (`fleets`, `fleet_vehicles`, `fleet_vehicle_documents`, `fleet_memberships`, `vehicle_assignments`);
+  - four nullable columns on `driver_earnings`;
+  - database checks for every rule above, including one fleet per owner, one active fleet per driver, one open assignment per vehicle and per driver, and staff-only verification.
+- Server routes:
+  - **Drivers:** `GET /api/driver/fleet`, plus `POST` for apply, vehicles, vehicle documents, invitations, respond, end membership, assign and end assignment. All are self-only and answer 404 while the switch is off.
+  - **Staff:** `GET /api/admin/fleets`, plus `POST` for fleet review (approve, decline, suspend, reinstate), verified vehicle documents, vehicle status, and enable or disable the switch.
+  - Every change is audited.
+- **Assignment:** the fleet vehicle is written onto the driver row, so dispatch, readiness and rider screens are unchanged. The driver's own vehicle is restored when the assignment ends, and the driver is set offline. A vehicle can't be released mid-trip.
+- **Go-online check:** a driver with a fleet vehicle can go online only while it is active with current, staff-verified documents. This check applies whenever an assignment exists, whatever the switch says.
+- **Earnings:** a fleet trip records the fleet, the vehicle, the share percentage and the owner's amount, calculated on the fare earning only (tips stay with the driver). **No money moves.**
+- Suspending a fleet, or a vehicle, ends its assignments and sets those drivers offline.
+- Tests [Verified 2026-10-22, local]:
+  - `lib/fleets.test.js` (8);
+  - `test/server.fleets.test.js` (11): switch off, verified-only applications, pilot cap, an autonomous vehicle refused, staff verification, invitations, the owner's view with no contact data, assignment swap and restore, the mid-trip block, the go-online block on expired insurance, the earnings split ($4 owner share on a $20 fare plus $5 tip), suspension, and the admin-only switch;
+  - `test/db/fleets.db.test.js` (8) against Postgres 16.
+  - Full suite: 3,177 passed, 1 failed. The failure was `htaf-languages.browser`, which timed out under load; it is unrelated and passes 18/18 when run alone.
+  - The existing `acceptDriverOfferAtomic.db` cleanup now also clears the fleet tables (new links to `drivers`).
+
+**[Unresolved] Before switch-on:**
+- PR 2 (the driver dashboard Fleet section and the admin Fleets card);
+- the agreement text, reviewed by counsel;
+- counsel's and the insurer's answers (brief §E and insurer questions 6–7);
+- the privacy policy fleet section;
+- the owner's approval to apply the migration and turn the switch on.
+- **[Recommendation]** When a driver account is deleted (access revoked), end their fleet membership and assignment. Today the fleet owner ends it by hand. Follow-up.
+
+**Handoff:**
+- **Done:** #307 merged; PR 1 built and tested.
+- **Remaining:** owner review and merge of this PR; PR 2; the switch-on items above.
+- **Next authorized action:** open this PR. Merging and applying the migration each need the owner's approval.
