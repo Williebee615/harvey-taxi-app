@@ -302,6 +302,11 @@
         <div class="list" id="merchantsList"><div class="empty">Loading merchant applications...</div></div>
       </section>
 
+      <section class="card" id="partnershipsCard">
+        <div class="card-head"><div><div class="title">Partnership Inquiries</div><div class="sub">Business, hospitality, healthcare and merchant partnership inquiries from the merchant page. Statuses track follow-up only; nothing is approved or promised. Each change is audited.</div></div><span class="item-sub" id="partnershipsCount">0</span></div>
+        <div class="list" id="partnershipsList"><div class="empty">Loading partnership inquiries...</div></div>
+      </section>
+
       <section class="card" id="ordersAdminCard">
         <div class="card-head"><div><div class="title">Store Orders <span class="badge warn">test mode</span></div><div class="sub" id="ordersAdminSub">Merchant orders (phase 3a). Staff can cancel an order before pickup; the customer's card hold is released.</div></div><span class="item-sub" id="ordersAdminCount">0</span></div>
         <div class="actions"><label class="item-sub"><input type="checkbox" id="ordersShowAll" /> Include finished and cancelled</label></div>
@@ -447,6 +452,41 @@ async function loadMerchants(){
       <div class="actions">${(MERCHANT_ACTIONS[m.status] || []).map(d => `<button class="${d === "approve" ? "success" : "danger"}" type="button" data-merchant-id="${esc(m.id)}" data-merchant-decision="${d}">${d[0].toUpperCase() + d.slice(1)}</button>`).join("")}</div>
     </div>`).join("") : `<div class="empty">No merchant applications yet.</div>`;
 }
+// Partnership inquiries (owner decision 2026-10-22). Staff mark each one
+// contacted or closed, with an optional note; changes are audited.
+const PARTNERSHIP_NEXT = { new: ["contacted", "closed"], contacted: ["closed", "new"], closed: ["new"] };
+async function loadPartnerships(){
+  const list = document.getElementById("partnershipsList");
+  let data;
+  try { data = await api("/api/admin/partnerships"); }
+  catch (e) { list.innerHTML = `<div class="empty">Partnership inquiries could not be loaded: ${esc(e.message)}</div>`; return; }
+  const items = data.inquiries || [];
+  document.getElementById("partnershipsCount").textContent = items.length;
+  if (data.not_set_up) { list.innerHTML = `<div class="empty">Partnership inquiries aren't set up yet (database migration not applied).</div>`; return; }
+  list.innerHTML = items.length ? items.map(q => `
+    <div class="item">
+      <div class="item-top">
+        <div><div class="item-title">${esc(q.organization_name)}</div><div class="item-sub">${esc(q.industry_label)} • ${esc(q.business_type_label)} • ${esc([q.city, q.state].filter(Boolean).join(", "))}</div></div>
+        <span class="badge ${statusClass(q.status)}">${esc(q.status)}</span>
+      </div>
+      <div class="item-sub">${esc(q.contact_name)}${q.job_title ? ", " + esc(q.job_title) : ""} • ${esc(q.contact_email)} • ${esc(q.contact_phone)}${q.website ? " • " + esc(q.website) : ""}</div>
+      <div class="item-sub">Interests: ${esc((q.interest_labels || []).join("; "))} • Received ${esc(new Date(q.created_at).toLocaleString())}</div>
+      <div class="item-sub" style="white-space:pre-wrap">${esc(q.message)}</div>
+      ${q.reviewed_at ? `<div class="item-sub">Updated by ${esc(q.reviewed_by)} ${esc(new Date(q.reviewed_at).toLocaleString())}${q.staff_note ? ": " + esc(q.staff_note) : ""}</div>` : ""}
+      <div class="actions">${(PARTNERSHIP_NEXT[q.status] || []).map(st => `<button class="${st === "closed" ? "neutral" : "success"}" type="button" data-partnership-id="${esc(q.id)}" data-partnership-status="${st}">Mark ${st}</button>`).join("")}</div>
+    </div>`).join("") : `<div class="empty">No partnership inquiries yet.</div>`;
+}
+document.getElementById("partnershipsList").addEventListener("click", async (event) => {
+  const btn = event.target.closest("button[data-partnership-status]");
+  if (!btn) return;
+  const note = window.prompt("Optional note (for example who contacted them):", "");
+  if (note === null) return;
+  try {
+    await api(`/api/admin/partnerships/${encodeURIComponent(btn.dataset.partnershipId)}`, { method: "PATCH", body: JSON.stringify({ status: btn.dataset.partnershipStatus, note }) });
+    showResult("Inquiry status saved.");
+  } catch (e) { showError(e.message); }
+  loadPartnerships();
+});
 // Store orders (merchant portal phase 3a), test mode. Staff see every
 // order and can cancel one before pickup with a reason (audited; the card
 // hold is released). Staff can't change prices or charge anything here.
@@ -907,6 +947,7 @@ async function loadDashboard(){
     refreshSystemStatus();
     loadDeletionRequests();
     loadMerchants();
+    loadPartnerships();
     loadHeldItems();
     loadOrdersAdmin();
     loadRefundProposals();

@@ -3,177 +3,603 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Harvey Taxi — Partner With Us</title>
-  <meta name="description" content="Restaurants, grocery and convenience stores in the Nashville area can apply to join the Harvey Taxi delivery pilot." />
+  <title>Business &amp; Merchant Partnerships | Harvey Taxi</title>
+  <meta name="description" content="Explore business and merchant partnership opportunities with Harvey Taxi Service LLC, a transportation technology company based in Nashville, Tennessee." />
+  <link rel="canonical" href="https://harveytaxiservice.com/merchant-apply.html" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Harvey Taxi" />
+  <meta property="og:title" content="Business & Merchant Partnerships | Harvey Taxi" />
+  <meta property="og:description" content="Explore business and merchant partnership opportunities with Harvey Taxi Service LLC, a transportation technology company based in Nashville, Tennessee." />
+  <meta property="og:url" content="https://harveytaxiservice.com/merchant-apply.html" />
+  <meta property="og:image" content="https://harveytaxiservice.com/og-image.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Business & Merchant Partnerships | Harvey Taxi" />
+  <meta name="twitter:description" content="Explore business and merchant partnership opportunities with Harvey Taxi Service LLC in Nashville, Tennessee." />
+  <meta name="twitter:image" content="https://harveytaxiservice.com/og-image.png" />
   <link rel="icon" href="/favicon.ico" sizes="any" />
   <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
   <link rel="apple-touch-icon" href="/icon-192.png" />
   <style>
     :root {
-      --bg-1: #06101f;
-      --bg-2: #0a1830;
-      --panel: rgba(10, 20, 40, 0.88);
-      --line: rgba(126, 174, 255, 0.16);
-      --text: #f5f8ff;
-      --muted: #b4c0df;
-      --blue: #6aa8ff;
-      --green: #74f5b2;
-      --gold: #ffd972;
-      --danger: #ff8aa0;
+      --navy: #0b1f3a;
+      --navy-2: #12305a;
+      --ink: #0f1b2d;
+      --text: #33415c;
+      --muted: #5b6b85;
+      --line: #dde3ec;
+      --bg: #f5f7fb;
+      --white: #ffffff;
+      --gold: #d4a72c;
+      --gold-dark: #b38a1c;
+      --danger: #b42318;
+      --success: #116149;
+      --radius: 14px;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    [hidden] { display: none !important; }
+    html { scroll-behavior: smooth; }
     body {
-      min-height: 100vh;
-      font-family: Arial, Helvetica, sans-serif;
+      font-family: Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       color: var(--text);
-      background: linear-gradient(180deg, var(--bg-1), var(--bg-2));
-      line-height: 1.5;
+      background: var(--bg);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
     }
-    a { color: var(--blue); }
-    .shell { width: min(100%, 760px); margin: 0 auto; padding: 18px 16px 48px; }
-    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 18px; background: rgba(7, 15, 31, 0.82); }
-    .brand-wrap { display: flex; align-items: center; gap: 12px; }
-    .brand-mark { width: 44px; height: 44px; border-radius: 12px; }
-    .brand h1 { font-size: 18px; letter-spacing: 0.06em; }
-    .brand p { font-size: 13px; color: var(--muted); }
-    .mini-btn { color: var(--text); text-decoration: none; border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; font-size: 14px; }
-    .card { margin-top: 18px; padding: 20px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); }
-    h2 { font-size: 22px; margin-bottom: 8px; }
-    h3 { font-size: 16px; margin: 14px 0 6px; }
-    p, li { color: var(--muted); font-size: 15px; }
-    ul { padding-left: 20px; }
-    .notice { border-left: 4px solid var(--gold); padding: 10px 12px; background: rgba(255, 217, 114, 0.08); border-radius: 8px; margin-top: 12px; }
-    form { display: grid; gap: 12px; margin-top: 8px; }
-    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    label { display: grid; gap: 4px; font-size: 14px; color: var(--text); }
-    input, select { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: #0b1a33; color: var(--text); font-size: 15px; }
-    .check { display: flex; gap: 10px; align-items: flex-start; }
-    .check input { width: auto; margin-top: 4px; }
-    button { padding: 12px 18px; border: 0; border-radius: 12px; background: var(--blue); color: #06101f; font-weight: 700; font-size: 16px; cursor: pointer; }
-    button[disabled] { opacity: 0.6; cursor: wait; }
-    #applyStatus { min-height: 22px; font-size: 15px; }
-    #applyStatus.error { color: var(--danger); }
-    #applyStatus.success { color: var(--green); }
-    @media (max-width: 560px) { .row { grid-template-columns: 1fr; } }
+    a { color: var(--navy-2); }
+    a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--gold); outline-offset: 2px;
+    }
+    .wrap { width: min(100%, 1080px); margin: 0 auto; padding: 0 16px; }
 
-    /* HTS logo in the brand mark (replaces the placeholder initials/dot). */
-    .hts-logo-mark { overflow: hidden; padding: 0 !important; background: #0b1a3a !important; display: block !important; flex: 0 0 auto; position: relative; }
-    .hts-logo-mark::before, .hts-logo-mark::after { content: none !important; display: none !important; }
-    .hts-logo-mark > img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: inherit; }
+    /* Header */
+    .site-header { background: var(--white); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 10; }
+    .site-header .wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 64px; }
+    .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--navy); }
+    .brand-mark { width: 40px; height: 40px; border-radius: 10px; overflow: hidden; background: var(--navy); flex: 0 0 auto; }
+    .brand-mark img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .brand strong { font-size: 17px; letter-spacing: 0.08em; }
+    .nav { display: flex; gap: 18px; align-items: center; }
+    .nav a { color: var(--ink); text-decoration: none; font-size: 15px; font-weight: 600; }
+    .nav a:hover { color: var(--gold-dark); }
+    @media (max-width: 720px) { .nav .hide-sm { display: none; } }
+
+    /* Buttons */
+    .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 12px 22px; border-radius: 10px; font: 700 16px/1.2 inherit; text-decoration: none; cursor: pointer; border: 2px solid transparent; }
+    .btn-gold { background: var(--gold); color: var(--navy); }
+    .btn-gold:hover { background: var(--gold-dark); color: var(--white); }
+    .btn-outline { background: transparent; color: var(--white); border-color: rgba(255, 255, 255, 0.7); }
+    .btn-outline:hover { background: rgba(255, 255, 255, 0.1); }
+    .btn-navy { background: var(--navy); color: var(--white); }
+    .btn-navy:hover { background: var(--navy-2); }
+    .btn[disabled] { opacity: 0.6; cursor: wait; }
+
+    /* Hero */
+    .hero { background: linear-gradient(135deg, var(--navy) 0%, var(--navy-2) 100%); color: var(--white); padding: 64px 0 56px; }
+    .eyebrow { font-size: 13px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); }
+    .hero h1 { font-size: clamp(32px, 6vw, 52px); line-height: 1.1; margin: 14px 0 16px; color: var(--white); max-width: 18ch; }
+    .hero p { font-size: 18px; color: #dbe4f3; max-width: 62ch; }
+    .hero p + p { margin-top: 10px; }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 28px 0 18px; }
+    .hero-meta { font-size: 14px; color: #b9c6dc; }
+
+    /* Sections */
+    section.block { padding: 56px 0; }
+    section.block.alt { background: var(--white); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .section-head { max-width: 70ch; margin-bottom: 28px; }
+    .section-head h2 { font-size: clamp(24px, 4vw, 32px); color: var(--navy); line-height: 1.2; margin-bottom: 8px; }
+    .section-head p { font-size: 17px; }
+    .grid { display: grid; gap: 18px; }
+    .grid-4 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+    .grid-2 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+    .card { background: var(--white); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; box-shadow: 0 1px 2px rgba(15, 27, 45, 0.04); }
+    .card h3 { font-size: 18px; color: var(--navy); margin: 12px 0 6px; line-height: 1.3; }
+    .card p { font-size: 15px; }
+    .card .note { margin-top: 10px; font-size: 14px; color: var(--muted); }
+    .icon { width: 44px; height: 44px; border-radius: 10px; background: #fbf4df; color: var(--gold-dark); display: grid; place-items: center; }
+    .icon svg { width: 24px; height: 24px; }
+    .card .btn { margin-top: 16px; }
+
+    /* Path chooser */
+    .paths { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); margin-bottom: 24px; }
+    .path { text-align: left; background: var(--white); border: 2px solid var(--line); border-radius: var(--radius); padding: 18px 20px; cursor: pointer; font: inherit; color: var(--text); }
+    .path strong { display: block; font-size: 17px; color: var(--navy); margin-bottom: 4px; }
+    .path[aria-pressed="true"] { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(212, 167, 44, 0.2); }
+
+    /* Forms */
+    .panel { background: var(--white); border: 1px solid var(--line); border-radius: var(--radius); padding: clamp(18px, 4vw, 32px); }
+    .panel + .panel { margin-top: 24px; }
+    .panel > h2 { font-size: 24px; color: var(--navy); margin-bottom: 6px; }
+    .panel > p { margin-bottom: 8px; }
+    .panel h3 { font-size: 17px; color: var(--navy); margin: 18px 0 6px; }
+    .panel ul { padding-left: 20px; }
+    .panel li { margin: 4px 0; font-size: 15px; }
+    form { display: grid; gap: 22px; margin-top: 18px; }
+    fieldset { border: 0; display: grid; gap: 14px; }
+    legend { font-size: 13px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold-dark); margin-bottom: 4px; }
+    .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+    label { display: grid; gap: 6px; font-size: 15px; font-weight: 600; color: var(--ink); }
+    .optional { font-weight: 400; color: var(--muted); }
+    input, select, textarea { width: 100%; min-height: 48px; padding: 11px 13px; border: 1px solid #c7d0dd; border-radius: 10px; background: var(--white); color: var(--ink); font: 400 16px/1.4 inherit; }
+    textarea { min-height: 130px; resize: vertical; }
+    .checks { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+    .check { display: flex; gap: 10px; align-items: flex-start; font-weight: 500; }
+    .check input { width: 20px; height: 20px; min-height: 0; margin-top: 3px; flex: 0 0 auto; accent-color: var(--navy); }
+    .hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+    .notice { border-left: 4px solid var(--gold); background: #fbf4df; padding: 12px 14px; border-radius: 8px; margin: 12px 0; color: var(--ink); }
+    .fine { font-size: 14px; color: var(--muted); }
+    .status { min-height: 24px; font-size: 15px; font-weight: 600; }
+    .status.error { color: var(--danger); }
+    .received { display: none; border: 1px solid #b7e1cd; background: #ecf8f1; border-radius: var(--radius); padding: 22px; color: var(--success); }
+    .received h3 { color: var(--success); font-size: 20px; margin: 0 0 6px; }
+    .received p { color: #1d4d3a; }
+    .received.show { display: block; }
+
+    /* FAQ */
+    details { background: var(--white); border: 1px solid var(--line); border-radius: 12px; padding: 0 18px; }
+    details + details { margin-top: 10px; }
+    summary { cursor: pointer; padding: 16px 0; font-weight: 700; color: var(--navy); font-size: 16px; }
+    details p { padding: 0 0 16px; }
+
+    /* Footer */
+    .site-footer { background: var(--navy); color: #c9d4e6; padding: 36px 0; font-size: 14px; }
+    .site-footer a { color: var(--white); }
+    .site-footer .wrap { display: grid; gap: 10px; }
+    .site-footer strong { color: var(--white); }
   </style>
 </head>
 <body>
-  <div class="shell">
-    <header class="topbar">
-      <div class="brand-wrap">
-        <div class="brand-mark hts-logo-mark" role="img" aria-label="Harvey Taxi Service logo"><img src="/hts-logo-192.png" alt="" width="48" height="48" decoding="async" /></div>
-        <div class="brand">
-          <h1>HARVEY TAXI</h1>
-          <p>Partner with us</p>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="/" aria-label="Harvey Taxi home">
+        <span class="brand-mark"><img src="/hts-logo-192.png" alt="" width="40" height="40" decoding="async" /></span>
+        <strong>HARVEY TAXI</strong>
+      </a>
+      <nav class="nav" aria-label="Page">
+        <a class="hide-sm" href="#partners">Partnerships</a>
+        <a class="hide-sm" href="#apply">Apply</a>
+        <a class="hide-sm" href="#faq">FAQ</a>
+        <a href="/">Home</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="wrap">
+        <div class="eyebrow">Transportation Technology | Business Partnerships</div>
+        <h1>Let's Move Business Forward.</h1>
+        <p>Connect with Harvey Taxi to explore transportation partnerships, merchant opportunities, and services that support your customers and business operations.</p>
+        <p>Whether you represent a local business, hotel, healthcare organization, property management company, or another organization, we welcome inquiries about potential partnerships.</p>
+        <div class="hero-actions">
+          <a class="btn btn-gold" href="#apply" data-path-link="partnership">Apply for a Business Partnership</a>
+          <a class="btn btn-outline" href="mailto:support@harveytaxiservice.com">Contact Harvey Taxi</a>
+        </div>
+        <div class="hero-meta">Harvey Taxi Service LLC | Nashville, Tennessee</div>
+      </div>
+    </section>
+
+    <section class="block" id="partners">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>Partnership Opportunities</h2>
+          <p>Choose the area closest to your organization. Each is an opportunity to start a conversation, not an offer of a specific service.</p>
+        </div>
+        <div class="grid grid-4">
+          <div class="card">
+            <div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M9 7h1M14 7h1M9 11h1M14 11h1M9 15h1M14 15h1M10 21v-3h4v3"/></svg></div>
+            <h3>Business Partnerships</h3>
+            <p>For companies interested in exploring transportation solutions for customers, employees, or business operations.</p>
+          </div>
+          <div class="card">
+            <div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 18v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6M3 18h18M3 21v-3M21 21v-3M7 10V7a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v3"/></svg></div>
+            <h3>Hospitality &amp; Travel</h3>
+            <p>For hotels, hospitality businesses, and travel-related organizations interested in discussing transportation options.</p>
+          </div>
+          <div class="card">
+            <div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8h14l-1 13H6L5 8Z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg></div>
+            <h3>Merchant Partnerships</h3>
+            <p>For local merchants interested in exploring promotional opportunities, customer engagement, or potential collaborations.</p>
+            <p class="note">Restaurants, grocery and convenience stores can also <a href="#apply" data-path-link="delivery">apply to the delivery pilot</a>.</p>
+          </div>
+          <div class="card">
+            <div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M12 8v8M8 12h8"/></svg></div>
+            <h3>Healthcare &amp; Community Organizations</h3>
+            <p>For organizations interested in discussing transportation access and potential mobility partnerships.</p>
+            <p class="note">Harvey Taxi Service LLC is a for-profit company. The Harvey Transportation Assistance Foundation is a separate nonprofit organization; for its programs, visit <a href="https://harveytransportationfoundation.com">harveytransportationfoundation.com</a>.</p>
+          </div>
         </div>
       </div>
-      <a class="mini-btn" href="/">Home</a>
-    </header>
-
-    <section class="card">
-      <h2>Bring your store to Harvey Taxi delivery</h2>
-      <p>We're inviting a small group of Nashville-area restaurants, grocery and convenience stores to a delivery pilot. Apply below and our team will review your application and contact you.</p>
-      <p class="notice"><strong>Delivery isn't live yet.</strong> Riders can't order from stores today. Applying doesn't create an account, list your store or commit you to anything. We'll send the merchant agreement before anything goes live.</p>
-
-      <h3>Pilot terms in brief</h3>
-      <ul>
-        <li>Commission: 12% of the item subtotal on completed orders only. Harvey Taxi covers card processing fees.</li>
-        <li>No monthly, subscription or fixed fees.</li>
-        <li>Payouts are sent weekly, every Monday, for the previous Monday–Sunday's completed orders. When the money reaches your bank depends on Stripe and your bank's processing times. Missing-item amounts confirmed after a payout are deducted from the next one.</li>
-        <li>You set your prices. If they're higher than in store, customers see "Prices may be higher than in store".</li>
-        <li>Missing items are refunded to the customer right away and deducted from your payout. You have 48 hours to dispute with photos; if you win, Harvey Taxi covers the refund.</li>
-        <li>Customers choose how each item is substituted if it's out of stock. You mark which items can be substituted.</li>
-        <li>Full terms are in the merchant agreement, which you'll review before joining.</li>
-      </ul>
-
-      <h3>Items that can't be sold through Harvey Taxi</h3>
-      <ul id="excludedItems">
-        <li>Alcohol, tobacco and vape products</li>
-        <li>Cannabis, hemp and CBD products</li>
-        <li>Prescription medicines</li>
-        <li>Weapons and ammunition</li>
-        <li>Gift cards, prepaid cards and lottery tickets</li>
-        <li>Live animals</li>
-        <li>Hazardous materials</li>
-        <li>Oversized or highly fragile items, or items needing refrigerated or specialized transport</li>
-      </ul>
     </section>
 
-    <section class="card">
-      <h2>Apply</h2>
-      <form id="merchantApplyForm" novalidate>
-        <label>Business name
-          <input name="business_name" required maxlength="160" autocomplete="organization" />
-        </label>
-        <label>Type of store
-          <select name="category" required>
-            <option value="">Choose one</option>
-            <option value="restaurant">Restaurant</option>
-            <option value="grocery">Grocery store</option>
-            <option value="convenience">Convenience store</option>
-          </select>
-        </label>
-        <label>Street address
-          <input name="address_line" required maxlength="240" autocomplete="street-address" />
-        </label>
-        <div class="row">
-          <label>City
-            <input name="city" required maxlength="80" value="Nashville" autocomplete="address-level2" />
-          </label>
-          <label>ZIP code
-            <input name="postal_code" inputmode="numeric" maxlength="5" pattern="[0-9]{5}" autocomplete="postal-code" />
-          </label>
+    <section class="block alt" id="apply">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>Apply</h2>
+          <p>Choose one of the two applications below.</p>
         </div>
-        <p>The pilot is open to Tennessee stores only.</p>
-        <div class="row">
-          <label>Contact name
-            <input name="contact_name" required maxlength="120" autocomplete="name" />
-          </label>
-          <label>Contact phone
-            <input name="contact_phone" type="tel" required autocomplete="tel" placeholder="(615) 555-0100" />
-          </label>
+
+        <div class="paths" role="group" aria-label="Choose an application">
+          <button type="button" class="path" data-path="partnership" aria-pressed="true" aria-controls="partnershipPanel">
+            <strong>Business partnership inquiry</strong>
+            Businesses, hotels, healthcare and community organizations, property managers and local merchants.
+          </button>
+          <button type="button" class="path" data-path="delivery" aria-pressed="false" aria-controls="deliveryPanel">
+            <strong>Delivery pilot store application</strong>
+            Restaurants, grocery and convenience stores in Tennessee.
+          </button>
         </div>
-        <label>Contact email
-          <input name="contact_email" type="email" required maxlength="254" autocomplete="email" />
-        </label>
-        <label>Website (optional)
-          <input name="website" type="url" maxlength="300" placeholder="https://" />
-        </label>
-        <label class="check">
-          <input type="checkbox" name="prices_differ_from_store" />
-          <span>My prices on Harvey Taxi may be higher than in store.</span>
-        </label>
-        <label class="check">
-          <input type="checkbox" name="confirmed_exclusions" required />
-          <span>I confirm my store won't list any of the excluded items above.</span>
-        </label>
-        <p>We use these details only to review your application and contact you. See our <a href="/privacy.html">Privacy Policy</a>.</p>
-        <button type="submit" id="applySubmit">Submit application</button>
-        <div id="applyStatus" role="status" aria-live="polite"></div>
-      </form>
+
+        <div class="panel" id="partnershipPanel" data-panel="partnership">
+          <h2>Business Partnership Inquiry</h2>
+          <p>Tell us about your organization and what you would like to discuss. Our team reviews every inquiry.</p>
+
+          <form id="partnershipForm" novalidate>
+            <input type="hidden" name="form_started_at" />
+            <div class="hp" aria-hidden="true">
+              <label>Company fax <input name="company_fax" tabindex="-1" autocomplete="off" /></label>
+            </div>
+
+            <fieldset>
+              <legend>A. Business information</legend>
+              <label>Business name
+                <input name="organization_name" required maxlength="160" autocomplete="organization" />
+              </label>
+              <label>Business website <span class="optional">(optional)</span>
+                <input name="website" type="url" maxlength="300" placeholder="https://" autocomplete="url" />
+              </label>
+              <div class="row">
+                <label>Business type
+                  <select name="business_type" required>
+                    <option value="">Choose one</option>
+                    <option value="sole_proprietorship">Sole proprietorship</option>
+                    <option value="llc">LLC</option>
+                    <option value="corporation">Corporation</option>
+                    <option value="nonprofit">Nonprofit organization</option>
+                    <option value="partnership">Partnership</option>
+                    <option value="other">Other</option>
+                  </select>
+                </label>
+                <label>Industry
+                  <select name="industry" required>
+                    <option value="">Choose one</option>
+                    <option value="retail">Retail</option>
+                    <option value="hospitality">Hospitality</option>
+                    <option value="healthcare">Healthcare</option>
+                    <option value="travel_tourism">Travel and tourism</option>
+                    <option value="property_management">Property management</option>
+                    <option value="professional_services">Professional services</option>
+                    <option value="other">Other</option>
+                  </select>
+                </label>
+              </div>
+              <label>Business address <span class="optional">(optional)</span>
+                <input name="address_line" maxlength="240" autocomplete="street-address" />
+              </label>
+              <div class="row">
+                <label>City
+                  <input name="city" required maxlength="80" value="Nashville" autocomplete="address-level2" />
+                </label>
+                <label>State
+                  <input name="state" required maxlength="2" value="TN" autocomplete="address-level1" />
+                </label>
+                <label>ZIP code <span class="optional">(optional)</span>
+                  <input name="postal_code" inputmode="numeric" maxlength="5" autocomplete="postal-code" />
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend>B. Primary contact</legend>
+              <div class="row">
+                <label>Contact name
+                  <input name="contact_name" required maxlength="120" autocomplete="name" />
+                </label>
+                <label>Job title <span class="optional">(optional)</span>
+                  <input name="job_title" maxlength="120" autocomplete="organization-title" />
+                </label>
+              </div>
+              <div class="row">
+                <label>Business email
+                  <input name="contact_email" type="email" required maxlength="254" autocomplete="email" />
+                </label>
+                <label>Business phone
+                  <input name="contact_phone" type="tel" required autocomplete="tel" placeholder="(615) 555-0100" />
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend>C. Partnership interests</legend>
+              <div class="checks">
+                <label class="check"><input type="checkbox" name="interests" value="transportation_partnership" /> Transportation partnerships</label>
+                <label class="check"><input type="checkbox" name="interests" value="merchant_collaboration" /> Merchant collaborations</label>
+                <label class="check"><input type="checkbox" name="interests" value="corporate_transportation" /> Corporate transportation inquiries</label>
+                <label class="check"><input type="checkbox" name="interests" value="customer_referrals" /> Customer referral opportunities</label>
+                <label class="check"><input type="checkbox" name="interests" value="promotional_partnership" /> Promotional partnerships</label>
+                <label class="check"><input type="checkbox" name="interests" value="other" /> Other</label>
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend>D. Tell us about your business</legend>
+              <label>How would you like to partner with Harvey Taxi?
+                <textarea name="message" required maxlength="2000" placeholder="Briefly describe your business, your transportation needs, or the partnership opportunity you would like to discuss."></textarea>
+              </label>
+            </fieldset>
+
+            <fieldset>
+              <legend>E. Consent and submission</legend>
+              <label class="check">
+                <input type="checkbox" name="consent" required />
+                <span>I agree that Harvey Taxi Service LLC may use these details to review and respond to this inquiry, as described in the <a href="/privacy.html">Privacy Policy</a>.</span>
+              </label>
+              <button type="submit" class="btn btn-gold" id="partnershipSubmit">Submit Partnership Application</button>
+              <div class="status" id="partnershipStatus" role="status" aria-live="polite"></div>
+              <p class="fine">Thank you for your interest in Harvey Taxi. Submission of an application does not guarantee approval, a partnership, transportation availability, or a commercial agreement. Our team will review your inquiry and follow up when appropriate.</p>
+            </fieldset>
+          </form>
+
+          <div class="received" id="partnershipReceived" tabindex="-1">
+            <h3>Application Received</h3>
+            <p>Thank you for your interest in partnering with Harvey Taxi.</p>
+            <p>Your information has been submitted for review. Submission does not constitute partnership approval or guarantee future business opportunities.</p>
+            <p>For questions, contact <a href="mailto:support@harveytaxiservice.com">support@harveytaxiservice.com</a>.</p>
+          </div>
+        </div>
+
+        <div class="panel" id="deliveryPanel" data-panel="delivery">
+          <h2>Bring your store to Harvey Taxi delivery</h2>
+          <p>We're inviting a small group of Nashville-area restaurants, grocery and convenience stores to a delivery pilot. Apply below and our team will review your application and contact you.</p>
+          <p class="notice"><strong>Delivery isn't live yet.</strong> Riders can't order from stores today. Applying doesn't create an account, list your store or commit you to anything. We'll send the merchant agreement before anything goes live.</p>
+
+          <h3>Pilot terms in brief</h3>
+          <ul>
+            <li>Commission: 12% of the item subtotal on completed orders only. Harvey Taxi covers card processing fees.</li>
+            <li>No monthly, subscription or fixed fees.</li>
+            <li>Payouts are sent weekly, every Monday, for the previous Monday–Sunday's completed orders. When the money reaches your bank depends on Stripe and your bank's processing times. Missing-item amounts confirmed after a payout are deducted from the next one.</li>
+            <li>You set your prices. If they're higher than in store, customers see "Prices may be higher than in store".</li>
+            <li>Missing items are refunded to the customer right away and deducted from your payout. You have 48 hours to dispute with photos; if you win, Harvey Taxi covers the refund.</li>
+            <li>Customers choose how each item is substituted if it's out of stock. You mark which items can be substituted.</li>
+            <li>Full terms are in the merchant agreement, which you'll review before joining.</li>
+          </ul>
+
+          <h3>Items that can't be sold through Harvey Taxi</h3>
+          <ul id="excludedItems">
+            <li>Alcohol, tobacco and vape products</li>
+            <li>Cannabis, hemp and CBD products</li>
+            <li>Prescription medicines</li>
+            <li>Weapons and ammunition</li>
+            <li>Gift cards, prepaid cards and lottery tickets</li>
+            <li>Live animals</li>
+            <li>Hazardous materials</li>
+            <li>Oversized or highly fragile items, or items needing refrigerated or specialized transport</li>
+          </ul>
+
+          <form id="merchantApplyForm" novalidate>
+            <fieldset>
+              <legend>Store application</legend>
+              <label>Business name
+                <input name="business_name" required maxlength="160" autocomplete="organization" />
+              </label>
+              <label>Type of store
+                <select name="category" required>
+                  <option value="">Choose one</option>
+                  <option value="restaurant">Restaurant</option>
+                  <option value="grocery">Grocery store</option>
+                  <option value="convenience">Convenience store</option>
+                </select>
+              </label>
+              <label>Street address
+                <input name="address_line" required maxlength="240" autocomplete="street-address" />
+              </label>
+              <div class="row">
+                <label>City
+                  <input name="city" required maxlength="80" value="Nashville" autocomplete="address-level2" />
+                </label>
+                <label>ZIP code
+                  <input name="postal_code" inputmode="numeric" maxlength="5" pattern="[0-9]{5}" autocomplete="postal-code" />
+                </label>
+              </div>
+              <p class="fine">The pilot is open to Tennessee stores only.</p>
+              <div class="row">
+                <label>Contact name
+                  <input name="contact_name" required maxlength="120" autocomplete="name" />
+                </label>
+                <label>Contact phone
+                  <input name="contact_phone" type="tel" required autocomplete="tel" placeholder="(615) 555-0100" />
+                </label>
+              </div>
+              <label>Contact email
+                <input name="contact_email" type="email" required maxlength="254" autocomplete="email" />
+              </label>
+              <label>Website <span class="optional">(optional)</span>
+                <input name="website" type="url" maxlength="300" placeholder="https://" />
+              </label>
+              <label class="check">
+                <input type="checkbox" name="prices_differ_from_store" />
+                <span>My prices on Harvey Taxi may be higher than in store.</span>
+              </label>
+              <label class="check">
+                <input type="checkbox" name="confirmed_exclusions" required />
+                <span>I confirm my store won't list any of the excluded items above.</span>
+              </label>
+              <p class="fine">We use these details only to review your application and contact you. See our <a href="/privacy.html">Privacy Policy</a>.</p>
+              <button type="submit" class="btn btn-navy" id="applySubmit">Submit store application</button>
+              <div class="status" id="applyStatus" role="status" aria-live="polite"></div>
+            </fieldset>
+          </form>
+
+          <div class="received" id="applyReceived" tabindex="-1">
+            <h3>Application Received</h3>
+            <p>Thank you. Your store application was received and our team will review it. Applying doesn't list your store or commit you to anything.</p>
+            <p>For questions, contact <a href="mailto:support@harveytaxiservice.com">support@harveytaxiservice.com</a>.</p>
+          </div>
+        </div>
+      </div>
     </section>
-  </div>
+
+    <section class="block" id="why">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>Why Partner With Harvey Taxi?</h2>
+        </div>
+        <div class="grid grid-3">
+          <div class="card">
+            <h3>Technology-Driven Mobility</h3>
+            <p>Harvey Taxi is developing a digital transportation platform that connects riders and drivers through dedicated mobile applications.</p>
+          </div>
+          <div class="card">
+            <h3>Business-Focused Collaboration</h3>
+            <p>We welcome conversations with organizations interested in exploring transportation solutions and mutually beneficial business opportunities.</p>
+          </div>
+          <div class="card">
+            <h3>A Growing Transportation Vision</h3>
+            <p>Harvey Taxi aims to build a transportation platform that supports riders, creates opportunities for drivers, and expands mobility options.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="block alt" id="platform">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>Explore the Harvey Taxi Platform</h2>
+        </div>
+        <div class="grid grid-2">
+          <div class="card">
+            <h3>Harvey Taxi Mobile</h3>
+            <p>For riders: request a ride and follow your trip.</p>
+            <a class="btn btn-navy" href="/rider-signup.html">Explore Rider App</a>
+          </div>
+          <div class="card">
+            <h3>Harvey Taxi Driver</h3>
+            <p>For drivers: apply to drive with Harvey Taxi, receive ride offers and manage trips.</p>
+            <a class="btn btn-navy" href="/driver-signup.html">Explore Driver App</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" id="faq">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>Frequently Asked Questions</h2>
+        </div>
+        <details>
+          <summary>Who can apply for a merchant partnership?</summary>
+          <p>Businesses, hotels and hospitality organizations, healthcare and community organizations, property managers and local merchants can send a business partnership inquiry. Restaurants, grocery and convenience stores in Tennessee can apply to the delivery pilot.</p>
+        </details>
+        <details>
+          <summary>Does submitting an application guarantee approval?</summary>
+          <p>No. Submitting an inquiry or application does not guarantee approval, a partnership, transportation availability or a commercial agreement.</p>
+        </details>
+        <details>
+          <summary>Does Harvey Taxi charge a merchant application fee?</summary>
+          <p>No. There is no fee to apply or to send an inquiry. Stores in the delivery pilot pay only the commission described in the pilot terms, on completed orders.</p>
+        </details>
+        <details>
+          <summary>How does Harvey Taxi review partnership applications?</summary>
+          <p>Our team reviews each inquiry and application individually and may contact you for more information. We follow up when there is a fit to discuss.</p>
+        </details>
+        <details>
+          <summary>How can I contact Harvey Taxi about my application?</summary>
+          <p>Email <a href="mailto:support@harveytaxiservice.com">support@harveytaxiservice.com</a> and include your business name.</p>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div><strong>Harvey Taxi Service LLC</strong> · Nashville, Tennessee</div>
+      <div><a href="mailto:support@harveytaxiservice.com">support@harveytaxiservice.com</a> · <a href="/privacy.html">Privacy Policy</a> · <a href="/terms.html">Terms</a></div>
+      <div>The Harvey Transportation Assistance Foundation is a separate nonprofit organization.</div>
+    </div>
+  </footer>
 
   <script>
     (function () {
-      const form = document.getElementById("merchantApplyForm");
-      const status = document.getElementById("applyStatus");
-      const submit = document.getElementById("applySubmit");
+      // Two applications on one page. Without JavaScript both stay visible.
+      var buttons = document.querySelectorAll("[data-path]");
+      var panels = document.querySelectorAll("[data-panel]");
+      function choose(path, focus) {
+        if (path !== "partnership" && path !== "delivery") path = "partnership";
+        buttons.forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-path") === path ? "true" : "false"); });
+        panels.forEach(function (p) { p.hidden = p.getAttribute("data-panel") !== path; });
+        if (focus) document.getElementById(path === "delivery" ? "deliveryPanel" : "partnershipPanel").scrollIntoView({ block: "start" });
+      }
+      buttons.forEach(function (b) { b.addEventListener("click", function () { choose(b.getAttribute("data-path")); }); });
+      document.querySelectorAll("[data-path-link]").forEach(function (a) {
+        a.addEventListener("click", function () { choose(a.getAttribute("data-path-link")); });
+      });
+      choose(location.hash === "#delivery" ? "delivery" : "partnership");
 
-      function show(message, kind) {
-        status.textContent = message;
-        status.className = kind || "";
+      function show(el, message, kind) {
+        el.textContent = message;
+        el.className = "status" + (kind ? " " + kind : "");
       }
 
-      form.addEventListener("submit", async function (event) {
+      // The confirmation shows only after the server accepted the
+      // submission; on any failure the form and its data stay for a retry.
+      async function send(url, body, submit, status, form, received) {
+        submit.disabled = true;
+        show(status, "Sending…");
+        try {
+          var response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+          var data = await response.json().catch(function () { return {}; });
+          if (!response.ok) {
+            show(status, data.error || "We couldn't send your application. Please try again.", "error");
+            return;
+          }
+          form.reset();
+          form.hidden = true;
+          received.classList.add("show");
+          received.focus();
+        } catch (err) {
+          show(status, "We couldn't reach Harvey Taxi. Check your connection and try again.", "error");
+        } finally {
+          submit.disabled = false;
+        }
+      }
+
+      var pForm = document.getElementById("partnershipForm");
+      pForm.elements.form_started_at.value = String(Date.now());
+      pForm.addEventListener("submit", function (event) {
         event.preventDefault();
-        const f = form.elements;
-        const body = {
+        var f = pForm.elements;
+        var status = document.getElementById("partnershipStatus");
+        var interests = Array.prototype.filter.call(pForm.querySelectorAll('input[name="interests"]'), function (c) { return c.checked; }).map(function (c) { return c.value; });
+        if (!interests.length) { show(status, "Choose at least one partnership interest.", "error"); return; }
+        if (!f.consent.checked) { show(status, "Please confirm the consent statement to submit.", "error"); return; }
+        send("/api/partnerships/inquiries", {
+          organization_name: f.organization_name.value,
+          website: f.website.value,
+          business_type: f.business_type.value,
+          industry: f.industry.value,
+          address_line: f.address_line.value,
+          city: f.city.value,
+          state: f.state.value,
+          postal_code: f.postal_code.value,
+          contact_name: f.contact_name.value,
+          job_title: f.job_title.value,
+          contact_email: f.contact_email.value,
+          contact_phone: f.contact_phone.value,
+          interests: interests,
+          message: f.message.value,
+          consent: f.consent.checked,
+          company_fax: f.company_fax.value,
+          form_started_at: Number(f.form_started_at.value)
+        }, document.getElementById("partnershipSubmit"), status, pForm, document.getElementById("partnershipReceived"));
+      });
+
+      var mForm = document.getElementById("merchantApplyForm");
+      mForm.addEventListener("submit", function (event) {
+        event.preventDefault();
+        var f = mForm.elements;
+        var status = document.getElementById("applyStatus");
+        if (!f.confirmed_exclusions.checked) { show(status, "Confirm that you won't list the excluded items.", "error"); return; }
+        send("/api/merchants/apply", {
           business_name: f.business_name.value,
           category: f.category.value,
           address_line: f.address_line.value,
@@ -186,31 +612,7 @@
           website: f.website.value,
           prices_differ_from_store: f.prices_differ_from_store.checked,
           confirmed_exclusions: f.confirmed_exclusions.checked
-        };
-        if (!body.confirmed_exclusions) {
-          show("Confirm that you won't list the excluded items.", "error");
-          return;
-        }
-        submit.disabled = true;
-        show("Sending…");
-        try {
-          const response = await fetch("/api/merchants/apply", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(body)
-          });
-          const data = await response.json().catch(function () { return {}; });
-          if (!response.ok) {
-            show(data.error || "We couldn't send your application. Please try again later.", "error");
-            return;
-          }
-          form.reset();
-          show("Thank you. Your application was received and our team will contact you.", "success");
-        } catch (err) {
-          show("We couldn't reach Harvey Taxi. Check your connection and try again.", "error");
-        } finally {
-          submit.disabled = false;
-        }
+        }, document.getElementById("applySubmit"), status, mForm, document.getElementById("applyReceived"));
       });
     })();
   </script>
