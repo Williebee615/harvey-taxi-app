@@ -2614,3 +2614,34 @@ The demo can then run in production with test money while rides keep their keys 
   - fleet PR 2;
   - earlier owner items in §63.
 - **Next authorized action:** open this PR. Merging needs the owner's approval. The bounty migration and switch each need separate approval.
+
+## 68. Update 2026-10-22 (UTC): #310 live; admin token no longer stored by any admin page (PR `claude/live-map-session-signin`)
+
+**[Owner decision 2026-10-22]**
+- "Merge #310 approved."
+- "Yes to both map token fix and fleet screen approval." Fleet screens follow in their own PR.
+
+**[Verified 2026-10-22]**
+- #310 had a merge conflict: §66 from #309 and §67 at the same place in this file. Resolved by keeping both, in order, and committed as a merge commit (`6a0f4dd`). Affected suites passed locally (87 tests), then 6/6 checks passed on the new head.
+- #310 merged as `c171b2d`; `/api/health` reported `c171b2d` at 06:32 UTC. Live checks: `/api/admin/dispatch/exceptions` and the bounty route return 401 without sign-in; the admin dashboard has the Dispatch Exceptions card. The bounty migration is not applied, and the switch has no row (off).
+
+**Finding fixed in this PR (standing rule: the admin token is typed per use, never stored)**
+Three admin pages kept the admin token in browser storage:
+
+| Page | Before | Now |
+|---|---|---|
+| `admin-live-dispatch-map.html` | `localStorage` `harvey_admin_token`, asked for by a prompt | Uses the admin session cookie (sign in on the admin dashboard). Never asks for or sends a token. Removes any saved value on load. If nothing loads, it says to sign in, instead of showing an empty board. |
+| `admin-account--deletion.html` | `localStorage` `harvey_admin_token`, reloaded automatically on each visit | Uses the session cookie. A typed token is kept in page memory only (gone on reload). Removes any saved value on load. |
+| `admin-agent.html` (elevated token) | `sessionStorage` for the tab | Kept in page memory only (gone on reload). Removes any saved value on load. |
+
+- Tests [Verified 2026-10-22, local]: `test/admin-token-storage.browser.test.js` (4, new). It checks that each page removes the old value, that no request sends a stored token, and that a typed token never reaches browser storage. The admin sign-in and agent page browser tests still pass.
+- **[Recommendation]** Anyone who used these pages on a shared computer should treat the old token as exposed. Rotating `ADMIN_API_TOKEN` in Render (name only here) closes that risk. This is the owner's decision.
+
+**Handoff:**
+- **Done:** #310 live; token storage fix in this PR.
+- **Remaining:**
+  - owner: approve merging this PR; decide on rotating the admin token;
+  - fleet PR 2 (next);
+  - counsel brief §E and §F;
+  - earlier owner items in §63.
+- **Next authorized action:** open this PR, then build fleet PR 2 (approved). Merging needs the owner's approval.

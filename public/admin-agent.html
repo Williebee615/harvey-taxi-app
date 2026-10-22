@@ -262,7 +262,12 @@
   function esc(v) {
     return String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
-  function token() { try { return sessionStorage.getItem(TOKEN_KEY) || ""; } catch { return ""; } }
+  // The elevated admin token is kept in page memory only (standing owner
+  // rule: typed per use, never stored); it is gone on reload. A value an
+  // older version of this page saved for the tab is removed.
+  let elevatedTokenValue = "";
+  function token() { return elevatedTokenValue; }
+  try { sessionStorage.removeItem(TOKEN_KEY); } catch {}
   function toast(msg) {
     const t = $("toast"); t.textContent = msg; t.style.display = "block";
     clearTimeout(toast._t); toast._t = setTimeout(() => { t.style.display = "none"; }, 4000);
@@ -655,10 +660,10 @@
     load();
   });
   $("elevatedToken").addEventListener("change", (e) => {
-    try { if (e.target.value) sessionStorage.setItem(TOKEN_KEY, e.target.value); else sessionStorage.removeItem(TOKEN_KEY); } catch {}
+    elevatedTokenValue = e.target.value || "";
     e.target.value = "";
     if (state) { renderFlags(); renderHierarchy(); }
-    toast(token() ? "Elevated token held for this tab." : "Elevated token cleared.");
+    toast(token() ? "Elevated token held until you reload this page." : "Elevated token cleared.");
   });
 
   load();

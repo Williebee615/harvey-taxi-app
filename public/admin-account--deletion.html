@@ -134,7 +134,7 @@
       <div class="auth-bar">
         <label for="tokenInput">Admin Token</label>
         <input id="tokenInput" type="password" placeholder="x-admin-token value" autocomplete="off" />
-        <button class="btn primary" type="button" id="saveTokenBtn">Save &amp; Load</button>
+        <button class="btn primary" type="button" id="saveTokenBtn">Load</button>
       </div>
     </section>
 
@@ -173,12 +173,14 @@
       count: document.getElementById("countPill")
     };
 
-    function getToken() {
-      try { return localStorage.getItem(TOKEN_KEY) || ""; } catch { return ""; }
-    }
-    function setToken(v) {
-      try { localStorage.setItem(TOKEN_KEY, v); } catch {}
-    }
+    // The admin token is kept in page memory only (standing owner rule: typed
+    // per use, never stored); it is gone on reload. Signing in on the admin
+    // dashboard also works: the session cookie is sent with each request.
+    // A token an older version of this page saved is removed on load.
+    let memoryToken = "";
+    function getToken() { return memoryToken; }
+    function setToken(v) { memoryToken = String(v || ""); }
+    try { localStorage.removeItem(TOKEN_KEY); } catch {}
 
     function showNotice(msg, type = "info") {
       els.notice.textContent = msg;
@@ -286,20 +288,17 @@
     }
 
     async function loadRequests() {
-      if (!getToken()) {
-        showNotice("Enter and save your admin token first.", "error");
-        return;
-      }
       renderLoading();
       try {
         const res = await fetch(`${API_BASE}/api/admin/account-deletions`, {
           method: "GET",
           headers: authHeaders(),
+          credentials: "same-origin",
           cache: "no-store"
         });
         if (res.status === 401) {
           renderError("Admin authorization failed. Check your token.");
-          showNotice("Authorization failed (401). Verify your admin token.", "error");
+          showNotice("Not signed in. Sign in on the admin dashboard, or enter your admin token and press Load.", "error");
           return;
         }
         if (!res.ok) throw new Error(`Request failed (HTTP ${res.status})`);
@@ -336,9 +335,9 @@
         : `${API_BASE}/api/admin/account-deletions/${encodeURIComponent(type)}/${encodeURIComponent(id)}/deny`;
 
       try {
-        const res = await fetch(endpoint, { method: "POST", headers: authHeaders() });
+        const res = await fetch(endpoint, { method: "POST", headers: authHeaders(), credentials: "same-origin" });
         if (res.status === 401) {
-          showNotice("Authorization failed (401). Verify your admin token.", "error");
+          showNotice("Not signed in. Sign in on the admin dashboard, or enter your admin token and press Load.", "error");
           card.querySelectorAll("button").forEach((b) => { b.disabled = false; });
           btn.textContent = originalText;
           return;
@@ -380,14 +379,8 @@
       if (e.key === "Enter") els.saveToken.click();
     });
 
-    // On load: if a token is already stored, prefill (masked) and auto-load
-    (function init() {
-      const existing = getToken();
-      if (existing) {
-        els.token.value = existing;
-        loadRequests();
-      }
-    })();
+    // On load: try the admin session (signed in on the admin dashboard).
+    loadRequests();
   </script>
 </body>
 </html>
