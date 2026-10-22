@@ -16,13 +16,16 @@
 // environment and never printed.
 //
 // Optional: --set regression|holdout|all (default all), --json (machine-
-// readable report).
+// readable report), --out <file> (per-question results; default
+// model-eval-results.json, which git ignores). The file holds the
+// questions, grades and Anthropic's reason for any refusal, never the key.
 
 const { readClaudeConfig, createClaudeClient } = require("../lib/agent/claudeClient");
 const { handleModelAssist } = require("../lib/agent/modelAssistant");
 const { handleAssist } = require("../lib/agent/assistant");
 const { createAgentTools } = require("../lib/agent/tools");
 const { worstCaseTurnCost } = require("../lib/agent/modelBudget");
+const fs = require("fs");
 const { fixture, grade, percentile, QUESTION_SETS } = require("../test/agent-eval/run");
 
 function argValue(argv, name, fallback) {
@@ -62,13 +65,32 @@ async function runModelEval({ claude, set = "all", maxUsd = 1, log = () => {} })
     // eslint-disable-next-line no-await-in-loop
     const shown = model.ok ? { ...model, source: "model" } : await handleAssist({ role: q.role, actor: q.actor, message: q.item.q, tools, client });
     const g = grade(q.item, shown);
-    rows.push({ set: q.set, role: q.role, q: q.item.q, ms: Date.now() - started, model_used: model.ok === true, fallback_reason: model.ok ? null : model.reason, cost_usd: model.cost_usd || 0, calls: model.calls || 0, ...g });
+    rows.push({
+      set: q.set,
+      role: q.role,
+      q: q.item.q,
+      ms: Date.now() - started,
+      model_used: model.ok === true,
+      fallback_reason: model.ok ? null : model.reason,
+      // Anthropic's own reason for a refused call (already sanitized).
+      provider_error: model.provider_error || null,
+      cost_usd: model.cost_usd || 0,
+      calls: model.calls || 0,
+      reply: String(shown.reply || "").slice(0, 600),
+      sources: (shown.sources || []).map((s) => `${s.url}#${s.section}`),
+      ...g
+    });
     log(`${g.ok ? "PASS" : "FAIL"} [${q.set}/${q.role}] ${model.ok ? "model" : `rules (${model.reason})`} ${q.item.q}${g.ok ? "" : `  -> ${g.problems.join("; ")}`}`);
   }
   const ran = rows.filter((r) => !r.skipped);
   const modelRows = ran.filter((r) => r.model_used);
   const reasons = {};
-  for (const r of ran) if (!r.model_used) reasons[r.fallback_reason] = (reasons[r.fallback_reason] || 0) + 1;
+  const providerErrors = {};
+  for (const r of ran) {
+    if (r.model_used) continue;
+    reasons[r.fallback_reason] = (reasons[r.fallback_reason] || 0) + 1;
+    if (r.provider_error && !providerErrors[r.fallback_reason]) providerErrors[r.fallback_reason] = r.provider_error.message || r.provider_error.type || null;
+  }
   const metrics = {
     model: claude.model,
     questions: rows.length,
@@ -78,6 +100,8 @@ async function runModelEval({ claude, set = "all", maxUsd = 1, log = () => {} })
     model_answer_accuracy: modelRows.length ? modelRows.filter((r) => r.ok).length / modelRows.length : null,
     wrong_quotes: ran.filter((r) => r.wrongQuote).length,
     fallback_reasons: reasons,
+    // The first message Anthropic gave for each kind of refusal.
+    provider_errors: providerErrors,
     total_cost_usd: Math.round(spent * 1e6) / 1e6,
     cost_per_question_usd: ran.length ? Math.round((spent / ran.length) * 1e6) / 1e6 : 0,
     p95_ms: percentile(ran.map((r) => r.ms), 95)
@@ -105,8 +129,11 @@ async function main(argv) {
     return 2;
   }
   const claude = createClaudeClient({ config });
-  const { metrics } = await runModelEval({ claude, set, maxUsd, log: argv.includes("--json") ? () => {} : (line) => console.log(line) });
+  const { rows, metrics } = await runModelEval({ claude, set, maxUsd, log: argv.includes("--json") ? () => {} : (line) => console.log(line) });
+  const out = argValue(argv, "--out", "model-eval-results.json");
+  fs.writeFileSync(out, JSON.stringify({ ran_at: new Date().toISOString(), metrics, rows }, null, 2));
   console.log(argv.includes("--json") ? JSON.stringify(metrics, null, 2) : metrics);
+  console.log(`Per-question results written to ${out}.`);
   return 0;
 }
 
