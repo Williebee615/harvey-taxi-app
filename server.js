@@ -15260,6 +15260,70 @@ async function purgeRiderLocations(nowMs = Date.now()) {
   return due;
 }
 
+// Audit-log IP retention (lib/auditRetention.js): clears the IP address
+// and user agent on audit rows older than 90 days; the rows stay. Off
+// unless audit_ip_retention_enabled is "true"; a retention_legal_hold of
+// "true" pauses it. A dry run only counts.
+let auditIpRetentionRunning = false;
+
+async function auditIpRetentionEligibleIds(cutoff, limit) {
+  const ids = new Set();
+  for (const column of ["ip_address", "user_agent"]) {
+    const { data, error } = await supabase.from("audit_logs").select("id").lt("created_at", cutoff).not(column, "is", null).limit(limit);
+    if (error) throw error;
+    for (const row of data || []) ids.add(row.id);
+  }
+  return [...ids].slice(0, limit);
+}
+
+async function runAuditIpRetention({ mode = "live", trigger = "sweep", nowMs = Date.now() } = {}) {
+  const cutoff = auditRetention.cutoffIso(nowMs);
+  const gate = auditRetention.runGate({
+    enabled: await getSystemFlag(auditRetention.RETENTION_FLAG, "false"),
+    legalHold: await getSystemFlag(auditRetention.LEGAL_HOLD_FLAG, "false")
+  });
+  if (mode === "dry_run") {
+    const ids = await auditIpRetentionEligibleIds(cutoff, auditRetention.BATCH_SIZE * auditRetention.MAX_BATCHES);
+    return { mode, cutoff, eligible: ids.length, would_run: gate.ok, reason: gate.ok ? null : gate.reason };
+  }
+  if (!gate.ok) return { mode, cutoff, skipped: true, reason: gate.reason };
+  if (auditIpRetentionRunning) return { mode, cutoff, skipped: true, reason: "already_running" };
+  auditIpRetentionRunning = true;
+  let cleared = 0;
+  try {
+    for (let i = 0; i < auditRetention.MAX_BATCHES; i += 1) {
+      const ids = await auditIpRetentionEligibleIds(cutoff, auditRetention.BATCH_SIZE);
+      if (!ids.length) break;
+      const { error } = await supabase.from("audit_logs").update({ ip_address: null, user_agent: null }).in("id", ids).lt("created_at", cutoff);
+      if (error) throw error;
+      cleared += ids.length;
+      if (ids.length < auditRetention.BATCH_SIZE) break;
+    }
+  } finally {
+    auditIpRetentionRunning = false;
+    if (cleared) await auditLog(auditRetention.runRecord({ cleared, cutoff, mode, trigger })).catch(() => {});
+  }
+  return { mode, cutoff, cleared };
+}
+
+// Staff: the switch states and a dry-run count. Changes nothing.
+app.get(
+  "/api/admin/retention/audit-ip",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const result = await runAuditIpRetention({ mode: "dry_run", trigger: "admin" });
+    const { data: last } = await supabase.from("audit_logs").select("created_at, metadata").eq("action", "retention_audit_ip_cleared").order("created_at", { ascending: false }).limit(1);
+    return ok(res, {
+      enabled: (await getSystemFlag(auditRetention.RETENTION_FLAG, "false")) === "true",
+      legal_hold: (await getSystemFlag(auditRetention.LEGAL_HOLD_FLAG, "false")) === "true",
+      retention_days: auditRetention.RETENTION_DAYS,
+      cutoff: result.cutoff,
+      eligible: result.eligible,
+      last_run: last && last[0] ? { at: last[0].created_at, cleared: last[0].metadata && last[0].metadata.cleared } : null
+    });
+  })
+);
+
 // Protected by requireRider UNCONDITIONALLY -- not gated behind
 // rider_auth_enforced like the #97/#115/#118 route chain, because no
 // existing client calls this route today, so there is no legacy
@@ -20412,6 +20476,7 @@ app.post(
    a proposal is only recorded; drivers don't see it and nothing is paid.
 ========================================================= */
 const dispatchExceptions = require("./lib/dispatchExceptions");
+const auditRetention = require("./lib/auditRetention");
 const driverBounty = require("./lib/driverBounty");
 
 const CONSOLE_RIDE_FIELDS =
@@ -30993,6 +31058,12 @@ async function startServer() {
         purgeRiderLocations().catch((err) => console.error("⚠️ Rider location purge failed:", err && err.message));
       }, 60_000);
 
+      // Clears IP and user agent on audit rows older than 90 days. Off
+      // unless audit_ip_retention_enabled is "true" (lib/auditRetention.js).
+      setInterval(() => {
+        runAuditIpRetention().catch((err) => console.error("⚠️ Audit IP retention failed:", logErrorCode(err)));
+      }, auditRetention.SWEEP_INTERVAL_MS).unref();
+
       // Cancels uncaptured card holds that never became a ride. Off unless
       // the unused_hold_sweep_enabled system flag is "true".
       setInterval(() => {
@@ -31039,4 +31110,4 @@ if (require.main === module) {
 // runOfferExpirySweep is exported only so tests can drive the real
 // Supabase adapters for the offer-expiry sweep; production runs it on the
 // interval set up under require.main === module below.
-module.exports = { app, __assistantPilot: assistantPilotTestHooks, runReviewDemoTick, runOfferExpirySweep, runUnusedHoldSweep, runAgentCoordinationSweep, reconcileStripeHolds, runScheduledReconciliation, purgeRiderLocations, runDriverHoursSweep };
+module.exports = { app, __assistantPilot: assistantPilotTestHooks, runAuditIpRetention, runReviewDemoTick, runOfferExpirySweep, runUnusedHoldSweep, runAgentCoordinationSweep, reconcileStripeHolds, runScheduledReconciliation, purgeRiderLocations, runDriverHoursSweep };

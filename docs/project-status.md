@@ -2806,3 +2806,24 @@ Three admin pages kept the admin token in browser storage:
 - **Done:** #315 live; one-off cleanup applied and verified.
 - **Remaining:** owner approval to merge this PR; decide whether to build the automatic 90-day job; the earlier owner items in §63 and §71.
 - **Next authorized action:** open this PR. Merging needs the owner's approval.
+
+## 74. Update 2026-10-22 (UTC): #316 live; audit-log IP retention job built switched off (PR `claude/audit-ip-retention-job`)
+
+**[Owner decision 2026-10-22]** "Merge #316 approved, build the 90-day job switched off." Scope: build the job and merge #316. Switching the job on needs a separate approval.
+
+**[Verified 2026-10-22]**
+- **#316** (status §73): 6/6 checks green on `40bb151`; merged as `e77c24c`; `/api/health` reported `e77c24c` at 13:05 UTC.
+- **This PR:**
+  - `lib/auditRetention.js`: the rules (90-day cutoff, switch and legal-hold gate, counts-only run record).
+  - In `server.js`: `runAuditIpRetention`, which clears IP address and user agent on audit rows older than 90 days and keeps the rows. It runs every 6 hours, at most 10,000 rows a run.
+  - `GET /api/admin/retention/audit-ip`: staff only; shows the switch states and a dry-run count; changes nothing.
+  - **Switched off:** it acts only when `audit_ip_retention_enabled` is `"true"`, and `retention_legal_hold = "true"` pauses it. Production has neither flag (read-only check), so the job is off.
+- **Tests [Verified 2026-10-22, local]:** 11 new tests: off by default, legal hold pauses it, rows kept, only rows older than 90 days cleared, counts-only record, a second run is a no-op, admin view staff-only and read-only. Full suite: 3,031 passed, 0 failed (database suites skipped; no migration).
+- `docs/data-retention-policy.md` §4.1 describes the job.
+
+**[Recommendation]** Switch it on after this PR is live: it keeps the 90-day rule applied after today's one-off cleanup. Today no rows qualify (0 older than 90 days hold an IP address), so the first runs will clear nothing until rows age past 90 days.
+
+**Handoff:**
+- **Done:** #316 live; the job built and tested, switched off.
+- **Remaining:** owner approval to merge this PR; then a separate approval to switch the job on; the earlier owner items in §63 and §71.
+- **Next authorized action:** open this PR. Merging needs the owner's approval.
