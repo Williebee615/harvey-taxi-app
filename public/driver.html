@@ -469,6 +469,8 @@
       gap: 18px;
     }
 
+    [hidden] { display: none !important; }
+
     .card {
       padding: 20px;
       min-width: 0;
@@ -1164,6 +1166,15 @@
         <div id="availabilityMsg" class="msg"></div>
       </section>
 
+      <!-- Fleet management, phase 1 (docs/fleet-management-plan.md). Hidden
+           unless fleet management is switched on for this driver's account. -->
+      <section class="glass card span-12" id="fleetCard" hidden>
+        <h3>Fleet</h3>
+        <p class="sub">Run a small fleet through Harvey Taxi, or drive a fleet owner's vehicle. Every driver is screened by Harvey Taxi; a vehicle carries riders only after Harvey Taxi staff verify its insurance and registration. Earnings splits are recorded only; no money moves between fleet owners and drivers yet.</p>
+        <div id="fleetBody"><p class="muted">Loading fleet details...</p></div>
+        <div id="fleetMsg" class="msg"></div>
+      </section>
+
       <section class="glass card span-12">
         <h3>Recent Driver Activity + Earnings</h3>
         <p class="sub">Auditable history ledger map. Cross-referenced directly with platform clearing balances.</p>
@@ -1582,9 +1593,11 @@
       showMessage(el.loginMsg, "Session initialized successfully.", "ok");
       fetchFreshDashboardState(false);
       startLivePollingSync();
+      if (window.loadFleet) window.loadFleet();
     }
 
     function clearDashboardSession() {
+      if (window.hideFleet) window.hideFleet();
       stopLivePollingSync();
       stopLocationTracking();
       Object.keys(STORAGE).forEach(key => localStorage.removeItem(STORAGE[key]));
@@ -2345,5 +2358,170 @@
   </script>
   <!-- Harvey Assistant (AI Agent Manager); renders nothing unless agent_assist_enabled is on. -->
   <script src="/agent-assist.js?v=20261019-ratings" data-role="driver" data-token-key="harvey_driver_token" defer></script>
+
+  <script>
+    // Fleet section (fleet management phase 1; owner decisions 2026-10-22).
+    // Uses the same driver session as the rest of the page. Hidden while
+    // fleet management is switched off (the server answers 404).
+    (function () {
+      const card = document.getElementById("fleetCard");
+      const body = document.getElementById("fleetBody");
+      const msg = document.getElementById("fleetMsg");
+      const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+      const usd = (n) => "$" + Number(n || 0).toFixed(2);
+      const note = (text, type) => { msg.textContent = text; msg.className = `msg show ${type || "ok"}`; };
+      const REASON_TEXT = {
+        vehicle_not_active: "waiting for Harvey Taxi to activate it",
+        insurance_missing: "insurance date missing", registration_missing: "registration date missing",
+        insurance_unverified: "insurance waiting for staff check", registration_unverified: "registration waiting for staff check",
+        insurance_expired: "insurance expired", registration_expired: "registration expired"
+      };
+      let data = null;
+
+      window.hideFleet = () => { card.hidden = true; body.innerHTML = ""; };
+
+      window.loadFleet = async function loadFleet() {
+        try {
+          data = await apiGet("/api/driver/fleet");
+        } catch (e) {
+          // 404 while switched off, 401 when signed out: stay hidden.
+          card.hidden = true;
+          return;
+        }
+        card.hidden = false;
+        render();
+      };
+
+      function vehicleRow(v) {
+        const docs = (v.documents || []).map((d) => `${esc(d.document_type)} until ${esc(d.expires_on)} (${d.verification_status === "staff_verified" ? "verified" : "waiting for staff check"})`).join(" • ") || "No documents yet";
+        const ready = v.ready && v.ready.ok ? '<span class="pill pill-green">Ready for riders</span>' : `<span class="pill pill-gold">Not ready: ${esc((v.ready ? v.ready.reasons : []).map((r) => REASON_TEXT[r] || r).join(", "))}</span>`;
+        return `<div class="activity-item"><div class="activity-content">
+          <h4>${esc(v.label)} • ${esc(v.color)} • ${esc(v.plate)} (${esc(v.plate_state)})</h4>
+          <p class="muted">Status: ${esc(v.status)} • ${docs}</p>
+          <p>${ready}</p>
+          <div class="field" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
+            <select class="input" data-doc-type="${esc(v.id)}"><option value="insurance">Insurance</option><option value="registration">Registration</option></select>
+            <input class="input" type="date" data-doc-date="${esc(v.id)}" />
+            <button class="btn btn-secondary" type="button" data-doc-save="${esc(v.id)}">Save expiry date</button>
+          </div>
+        </div></div>`;
+      }
+
+      function memberRow(m, vehicles) {
+        const assignable = vehicles.filter((v) => v.ready && v.ready.ok);
+        const assigned = m.assigned_vehicle;
+        return `<div class="activity-item"><div class="activity-content">
+          <h4>${esc(m.first_name)} • ${esc(m.status)} • your share ${esc(m.owner_share_pct)}%</h4>
+          <p class="muted">${m.online ? "Online" : "Offline"} • ${esc(m.fleet_trips)} fleet trips • ${usd(m.fleet_earnings)} earned • ${usd(m.owner_share_total)} your recorded share</p>
+          <p class="muted">${assigned ? `Driving ${esc(assigned.label)} (${esc(assigned.plate)})` : "No vehicle assigned"}</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            ${m.status === "active" && !assigned && assignable.length ? `<select class="input" data-assign-vehicle="${esc(m.membership_id)}">${assignable.map((v) => `<option value="${esc(v.id)}">${esc(v.label)} • ${esc(v.plate)}</option>`).join("")}</select><button class="btn btn-primary" type="button" data-assign="${esc(m.membership_id)}">Assign vehicle</button>` : ""}
+            ${assigned ? `<button class="btn btn-warn" type="button" data-end-assignment="${esc(assigned.assignment_id)}">Release vehicle</button>` : ""}
+            <button class="btn btn-danger" type="button" data-end-membership="${esc(m.membership_id)}">${m.status === "invited" ? "Withdraw invitation" : "Remove from fleet"}</button>
+          </div>
+        </div></div>`;
+      }
+
+      function render() {
+        const owned = data.owned_fleet;
+        const parts = [];
+        // My own fleet driving: invitations, assignment, earnings.
+        for (const m of data.memberships || []) {
+          if (m.status === "invited") {
+            parts.push(`<div class="activity-item"><div class="activity-content">
+              <h4>Invitation from ${esc(m.fleet_name)}</h4>
+              <p class="muted">The fleet owner's agreed share of your fare earnings: ${esc(m.owner_share_pct)}%. Tips always stay with you. If you accept, the fleet owner sees your first name, the vehicle you drive, whether you're online, your fleet trip count and your fleet earnings. They don't see your phone, email, documents, background check or location.</p>
+              <p class="muted">Terms version ${esc(m.agreement_version)} (draft, under legal review).</p>
+              <div style="display:flex;gap:8px"><button class="btn btn-success" type="button" data-respond="${esc(m.id)}" data-accept="true">Accept</button><button class="btn btn-secondary" type="button" data-respond="${esc(m.id)}" data-accept="false">Decline</button></div>
+            </div></div>`);
+          } else {
+            parts.push(`<div class="activity-item"><div class="activity-content">
+              <h4>You drive for ${esc(m.fleet_name)}</h4>
+              <p class="muted">Agreed owner share: ${esc(m.owner_share_pct)}% of fare earnings (tips stay with you).</p>
+              ${data.assigned_vehicle ? `<p>Assigned vehicle: <strong>${esc(data.assigned_vehicle.label)}</strong> (${esc(data.assigned_vehicle.plate)}) <button class="btn btn-warn" type="button" data-end-assignment="${esc(data.assigned_vehicle.assignment_id)}">Release vehicle</button></p>` : `<p class="muted">No fleet vehicle assigned. You drive your own vehicle.</p>`}
+              <p class="muted">Fleet trips: ${esc(data.fleet_earnings.trips)} • earned ${usd(data.fleet_earnings.earnings)} • owner's recorded share ${usd(data.fleet_earnings.owner_share)}</p>
+              <button class="btn btn-danger" type="button" data-end-membership="${esc(m.id)}">Leave fleet</button>
+            </div></div>`);
+          }
+        }
+        if (!owned) {
+          parts.push(`<div class="activity-item"><div class="activity-content">
+            <h4>Run your own fleet</h4>
+            <p class="muted">Pilot: up to ${esc(data.limits.max_vehicles)} vehicles per fleet; Harvey Taxi reviews every application. You must have finished your own driver verification.</p>
+            <div class="field"><label for="fleetName">Fleet name</label><input id="fleetName" class="input" maxlength="80" /></div>
+            <button class="btn btn-primary" type="button" id="fleetApplyBtn">Apply for a fleet</button>
+          </div></div>`);
+        } else if (owned.status !== "active") {
+          const text = { pending: "Your fleet application is waiting for Harvey Taxi review.", declined: "Your fleet application was declined.", suspended: "Your fleet is suspended by Harvey Taxi." }[owned.status];
+          parts.push(`<div class="activity-item"><div class="activity-content"><h4>${esc(owned.name)}</h4><p class="muted">${esc(text)}${owned.review_reason ? " Reason: " + esc(owned.review_reason) : ""}</p></div></div>`);
+        } else {
+          parts.push(`<h4 style="margin-top:12px">${esc(owned.name)}: vehicles</h4>`);
+          parts.push((owned.vehicles || []).map(vehicleRow).join("") || '<p class="muted">No vehicles yet.</p>');
+          parts.push(`<div class="activity-item"><div class="activity-content"><h4>Add a vehicle</h4>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px">
+              <input class="input" id="vYear" type="number" placeholder="Year" />
+              <input class="input" id="vMake" placeholder="Make" maxlength="40" />
+              <input class="input" id="vModel" placeholder="Model" maxlength="40" />
+              <input class="input" id="vColor" placeholder="Colour" maxlength="30" />
+              <input class="input" id="vPlate" placeholder="Plate" maxlength="10" />
+              <input class="input" id="vState" placeholder="State (TN)" maxlength="2" />
+              <input class="input" id="vVin" placeholder="Last 6 of VIN" maxlength="6" />
+            </div>
+            <p class="muted">Human-driven vehicles only. Autonomous vehicles aren't accepted yet.</p>
+            <button class="btn btn-primary" type="button" id="vAddBtn">Add vehicle</button>
+          </div></div>`);
+          parts.push(`<h4 style="margin-top:12px">Drivers</h4>`);
+          parts.push((owned.members || []).map((m) => memberRow(m, owned.vehicles || [])).join("") || '<p class="muted">No drivers yet.</p>');
+          parts.push(`<div class="activity-item"><div class="activity-content"><h4>Invite a Harvey Taxi driver</h4>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px">
+              <input class="input" id="invPhone" type="tel" placeholder="Driver's phone (615) 555-0100" />
+              <input class="input" id="invShare" type="number" min="0" max="${esc(data.limits.max_owner_share_pct)}" step="0.5" placeholder="Agreed share %" />
+            </div>
+            <p class="muted">The share you agree with the driver, up to ${esc(data.limits.max_owner_share_pct)}% of fare earnings (never tips). The driver accepts or declines in their own dashboard.</p>
+            <button class="btn btn-primary" type="button" id="invSendBtn">Send invitation</button>
+          </div></div>`);
+        }
+        parts.push(`<p class="muted">${esc(data.payouts_note)}</p>`);
+        body.innerHTML = parts.join("");
+      }
+
+      async function act(fn, okText) {
+        try { await fn(); note(okText, "ok"); }
+        catch (e) { note(e.message || "That didn't work. Please try again.", "err"); }
+        await window.loadFleet();
+      }
+
+      body.addEventListener("click", (event) => {
+        const t = event.target;
+        if (t.id === "fleetApplyBtn") return act(() => apiPost("/api/driver/fleet/apply", { name: document.getElementById("fleetName").value }), "Fleet application sent. Harvey Taxi will review it.");
+        if (t.id === "vAddBtn") {
+          const val = (id) => document.getElementById(id).value;
+          return act(() => apiPost("/api/driver/fleet/vehicles", { vehicle_year: Number(val("vYear")), make: val("vMake"), model: val("vModel"), color: val("vColor"), plate: val("vPlate"), plate_state: val("vState"), vin_last6: val("vVin") }), "Vehicle added. Add its insurance and registration dates next.");
+        }
+        if (t.id === "invSendBtn") return act(() => apiPost("/api/driver/fleet/invitations", { phone: document.getElementById("invPhone").value, owner_share_pct: Number(document.getElementById("invShare").value) }), "Invitation sent. The driver accepts it in their dashboard.");
+        if (t.dataset.docSave) {
+          const id = t.dataset.docSave;
+          return act(() => apiPost(`/api/driver/fleet/vehicles/${encodeURIComponent(id)}/documents`, { document_type: body.querySelector(`[data-doc-type="${id}"]`).value, expires_on: body.querySelector(`[data-doc-date="${id}"]`).value }), "Date saved. Harvey Taxi staff will check the document.");
+        }
+        if (t.dataset.assign) {
+          const id = t.dataset.assign;
+          return act(() => apiPost("/api/driver/fleet/assignments", { membership_id: id, vehicle_id: body.querySelector(`[data-assign-vehicle="${id}"]`).value }), "Vehicle assigned.");
+        }
+        if (t.dataset.endAssignment) {
+          if (!window.confirm("Release this vehicle? The driver will be set offline.")) return undefined;
+          return act(() => apiPost(`/api/driver/fleet/assignments/${encodeURIComponent(t.dataset.endAssignment)}/end`, {}), "Vehicle released.");
+        }
+        if (t.dataset.endMembership) {
+          if (!window.confirm("End this fleet membership?")) return undefined;
+          return act(() => apiPost(`/api/driver/fleet/memberships/${encodeURIComponent(t.dataset.endMembership)}/end`, {}), "Membership ended.");
+        }
+        if (t.dataset.respond) {
+          const accept = t.dataset.accept === "true";
+          return act(() => apiPost(`/api/driver/fleet/invitations/${encodeURIComponent(t.dataset.respond)}/respond`, { accept }), accept ? "You joined the fleet." : "Invitation declined.");
+        }
+        return undefined;
+      });
+    })();
+  </script>
 </body>
 </html>
