@@ -2687,3 +2687,33 @@ Three admin pages kept the admin token in browser storage:
   - the switch-on items above;
   - earlier owner items in §63.
 - **Next authorized action:** open this PR. Merging needs the owner's approval. This branch is built on #311's branch, so merge #311 first.
+
+## 70. Update 2026-10-22 (UTC): #311 and #312 live; fleet owner agreement drafted for counsel (PR `claude/fleet-agreement-draft`, docs only)
+
+**[Owner decision 2026-10-22]**
+- "Merges approved" (#311, #312).
+- "Draft the fleet owner agreement for counsel review."
+
+**[Verified 2026-10-22]**
+- **#311** merged as `77842e4` after 6/6 checks. `/api/health` reported `77842e4` at 12:24 UTC. The live map, account-deletion and agent pages contain no browser-storage writes (`Storage.setItem` count 0 on each live page).
+- **#312** had a conflict in this file (§68 on main, §69 on the branch), resolved by keeping both. The fleet and token tests passed locally (25), and 6/6 checks passed on `6ea89cd`. Merged as `b122e3d`; `/api/health` reported `b122e3d` at 12:28 UTC.
+  - Live: `driver.html` has the hidden Fleet section; `admin-dashboard.html` has the Fleets card; `/api/admin/fleets` returns 401 without sign-in.
+  - Production, read-only: the `fleet_management_enabled` row doesn't exist (switch **off**); 0 fleets.
+
+**This PR (docs only)**
+- `docs/legal/fleet-owner-agreement-draft.md`, version `fleet-draft-2026-10-22` (the version the app already shows to invited drivers, labelled as a draft). It is marked draft for counsel, not for signature or publication.
+  - **Part A, Fleet Owner Agreement:** purpose and relationship, eligibility, vehicles, drivers, earnings and the owner's share, information the owner may see, insurance, safety, owner commitments, term, liability and disputes, changes, general terms.
+  - **Part B, Fleet Driver Acknowledgment:** the text an invited driver sees before accepting.
+  - **Part C:** the switch-on checklist.
+- Each operational term matches the platform's current behaviour and is marked **[Enforced by the platform]**. If counsel changes one, the software must change first.
+- Placeholders are left for counsel, not invented: contractor status (brief §E, question 15), licensing, insurance coverages and limits, notice periods, liability, indemnity, governing law and disputes. The current public Terms of Service state no governing law or dispute process; flagged for alignment.
+- No claims about airports, autonomous rides, earnings or payouts. The draft states that Harvey Taxi records the owner's share only and moves no money, and that tips are always 100% the driver's.
+
+**Handoff:**
+- **Done:** #311 and #312 live; agreement draft in this PR.
+- **Remaining:**
+  - owner: approve merging this PR; send the draft and the brief (§E, §F) to counsel and the insurer;
+  - after counsel: final text, the version string in `lib/fleets.js`, the privacy-policy fleet section, and the switch-on approval;
+  - rotate the admin token (owner's decision);
+  - earlier owner items in §63.
+- **Next authorized action:** open this PR. Merging needs the owner's approval.
