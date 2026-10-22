@@ -2761,7 +2761,7 @@ Three admin pages kept the admin token in browser storage:
   - **Safety net:** every log line now masks email addresses, phone numbers, Postgres row values and credentials (`installConsoleRedaction`, `lib/safeLog.js`). It can't recognise names or street addresses, so allowlisted fields remain the primary control.
   - **Database:** `audit_logs` has 1,618 rows; 1,525 store IP address and user agent (27 older than 90 days); no new `server_error` rows since 2026-10-14; no phone numbers or row dumps in metadata. 3 staff override reasons (2026-10-17) contain an email address typed by staff. **Nothing changed.**
 - **Retention policy draft** (`docs/data-retention-policy.md`): rows added for store applications, partnership inquiries, orders, fleet records, bounty proposals, dispatch notes, push subscriptions, rider live location (10 minutes, already enforced) and server log output. Still a draft; nothing is in force.
-- **Tests [Verified 2026-10-22, local]:** `lib/safeLog.test.js` adds 11 tests (row dumps, emails, phones, secrets, IDs and SHAs left alone, nested objects, cycles, errors, idempotent install). Full suite: 3,020 passed, 0 failed (database suites skipped; no migration).
+- **Tests [Verified 2026-10-22, local]:** `lib/safeLog.test.js` adds 10 tests (row dumps, emails, phones, secrets, IDs and SHAs left alone, nested objects, cycles, errors, idempotent install). Full suite: 3,020 passed, 0 failed (database suites skipped; no migration).
 
 **[Recommendation]**
 - Approve the cleanup scope in the retention draft §3 after the preservation check: redact the 832 historical `server_error` rows; clear IP address and user agent on audit rows older than 90 days.
