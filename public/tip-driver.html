@@ -27,8 +27,9 @@
     .chip { background: transparent; color: var(--text); border: 1px solid var(--line); }
     .chip[aria-pressed="true"] { background: var(--green); color: #06101f; border-color: var(--green); }
     .stars { display: flex; gap: 6px; margin-top: 12px; }
-    .star { font-size: 30px; line-height: 1; padding: 6px 8px; background: transparent; color: var(--muted); border: 1px solid var(--line); }
-    .star[aria-pressed="true"] { color: var(--gold); border-color: var(--gold); }
+    /* Unselected stars are dim so the chosen rating stands out in gold. */
+    .star { font-size: 30px; line-height: 1; padding: 6px 8px; background: transparent; color: rgba(180, 192, 223, 0.35); border: 1px solid var(--line); }
+    .star[aria-pressed="true"] { color: var(--gold); border-color: var(--gold); background: rgba(255, 217, 114, 0.12); }
     input[type="text"], textarea { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: #0b1a33; color: var(--text); font-size: 16px; font-family: inherit; }
     label.field { display: grid; gap: 6px; margin-top: 12px; font-size: 14px; color: var(--muted); }
     #paymentElement { margin-top: 12px; padding: 12px; border-radius: 12px; background: #f5f8ff; }

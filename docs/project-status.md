@@ -2932,6 +2932,41 @@ Three admin pages kept the admin token in browser storage:
 - **Remaining:** the approvals above; counsel wording; the driver app screen; the earlier owner items in §63, §71 and §76.
 - **Next authorized action:** open this PR. Merging and applying the migration need the owner's approval.
 
+## 78. Update 2026-10-22 (UTC): #319 and #320 live; tips (live charges) and ratings switched on and tested; support@ address missing (PR `claude/stars-and-status`)
+
+**[Owner decision 2026-10-22]**
+- "Approved and build tipping features. Approved all merges after successfully testing all."
+- Switch-on choice: "Apply + switch on, test mode (Recommended)", then replaced by "Publish live keys on Stripe no test": tips charge live cards.
+
+**[Verified 2026-10-22]**
+- **#319** (pickup card text, status §76): 6/6 checks green on `c77a6f4`; merged as `beb2700`; `/api/health` reported `beb2700` at 14:12 UTC. The live page shows "Pickup not set yet".
+- **#320** (tips and ratings): the merge of main into the branch had a status-file conflict, resolved by keeping §76 and §77. Full suite 3,063 passed; 6/6 checks green on `104e603`; merged as `f3f85df`; `/api/health` reported `f3f85df` at 14:22 UTC. `tip-driver.html` answers 200; `/api/admin/driver-ratings` answers 401 without sign-in.
+- **Migration** `ride_tips_and_driver_ratings` applied to production at about 14:23 UTC, from the same file as on main (checksum matched). Both tables have RLS on, and anon and signed-in clients have no access.
+- **Switches** set at about 14:24 UTC, recorded as `audit_logs` row 1638 (actor `agent`, approved by the owner): `ride_tips_enabled`, `ride_tips_live` and `driver_ratings_enabled` are all "true".
+- **Live Stripe:** the site's publishable key is a live key (`pk_live_` prefix, checked on `/api/stripe-key`). Live tips use the same account and keys as ride payments; no keys were added or changed. **[Unresolved]** The secret key's mode was not read from here; if a real rider sees "Tipping isn't available right now", check it on the admin payments status page.
+- **Owner's test** on the App Review ride `RIDE-32FAB58E32` (iPhone):
+  - rating at 14:27 UTC: 5 stars; Safe driving, Clean car, Friendly; `counted = false`;
+  - tip at 14:31 UTC: $2.00, `simulated`, no payment intent (no card charged), one audit row;
+  - the driver's earning for the trip moved from $27.31 to $29.31 (tip $2.00);
+  - the page showed each confirmation and offered no second tip or rating.
+- **Merchant daily check** (13:50 UTC): stores 1, approved 1, active sign-ins 1; all other counts 0 (no catalog items yet).
+- **support@harveytaxiservice.com doesn't exist.** The owner's test email bounced at 11:56 local time ("Address not found", 550 5.1.1). The Admin Console screenshot confirms the domain's mail is Google Workspace (Harvey Taxi Service LLC). Pages and forms that name support@ have been sending people to an address that bounces. The server's own emails go to williebee@ (the `SUPPORT_EMAIL` default), so they are unaffected.
+
+**This PR:** on the tip page, unselected stars are now dim and selected stars gold (owner's screenshot showed all five white). The browser test checks the colours. Status §78.
+
+**[Recommendation]**
+- Owner: add `support` as an alternate email address on williebee@ in the Google Workspace Admin Console (Users → williebee → User information → Alternate email addresses), then send the test email again.
+- Afterwards set `SUPPORT_EMAIL = support@harveytaxiservice.com` on Render, outside busy hours (saving restarts the server).
+
+**Handoff:**
+- **Done:** #319 and #320 live; migration applied; tips (live) and ratings on; the owner's simulated tip and rating verified in the database.
+- **Remaining:**
+  - owner: the support@ alias and its test;
+  - counsel: ratings wording in the privacy policy, and scores in the driver terms;
+  - owner: tell the pilot store it can sign in;
+  - driver app score screen (later build);
+  - earlier items in §63 and §71.
+
 ## 79. Update 2026-10-23 (UTC): HTAF and Harvey Taxi websites separated (PR `claude/htaf-web-separation`)
 
 **[Owner decision 2026-10-23]**
