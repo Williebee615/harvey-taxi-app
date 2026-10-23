@@ -3884,7 +3884,9 @@ const {
   HTAF_EXPORT_COLUMNS,
   buildHtafExportCsv,
   resolveHtafExportRequest,
-  resolveHtafExportDelivery
+  resolveHtafExportDelivery,
+  findPossibleDuplicates,
+  chicagoMidnightIso
 } = require("./lib/htafOperations");
 
 const {
@@ -5038,13 +5040,34 @@ app.get(
   requireAdmin,
   requireHtafCapability("GET /api/admin/htaf/assistant-questions", "htaf.applications.read"),
   asyncRoute(async (req, res) => {
-    const { data, error } = await supabase
+    // Triage inbox (owner decision 2026-10-23): open questions by default;
+    // ?status=faq|dismissed|all for the others. Before migration
+    // 20261023020000 adds the status column, every question is shown as open.
+    const wanted = ["open", "faq", "dismissed", "all"].includes(req.query.status) ? req.query.status : "open";
+    // Filtered here rather than in the query: the list is small, and a row
+    // without a status (written before the migration) counts as open.
+    let { data, error } = await supabase
       .from("htaf_assistant_questions")
-      .select("id, question_excerpt, intent, created_at")
+      .select("id, question_excerpt, intent, created_at, status, resolved_at")
       .order("created_at", { ascending: false })
-      .limit(200);
+      .limit(500);
+    let inboxReady = true;
+    if (error && isMissingColumnError(error)) {
+      inboxReady = false;
+      ({ data, error } = await supabase
+        .from("htaf_assistant_questions")
+        .select("id, question_excerpt, intent, created_at")
+        .order("created_at", { ascending: false })
+        .limit(200));
+    }
     if (error) throw error;
+    data = (data || [])
+      .map((q) => ({ ...q, status: q.status || "open" }))
+      .filter((q) => wanted === "all" || q.status === wanted)
+      .slice(0, 200);
     return ok(res, {
+      inbox_ready: inboxReady,
+      status_filter: wanted,
       questions: data || [],
       assistant: {
         enabled: await htafAssistEnabled(),
@@ -5053,6 +5076,43 @@ app.get(
         dropped_topics: HTAF_ASSIST.dropped_topics
       }
     });
+  })
+);
+
+// A column a not-yet-applied migration adds (Postgres 42703, or PostgREST's
+// PGRST204 for an unknown column in a write).
+function isMissingColumnError(error) {
+  return Boolean(error && (error.code === "42703" || error.code === "PGRST204"));
+}
+
+// Dismiss an unanswered question, mark it to add to the FAQ, or reopen
+// it. Records who and when; the excerpt itself is never changed.
+app.post(
+  "/api/admin/htaf/assistant-questions/:id/resolve",
+  requireAdmin,
+  requireHtafCapability("POST /api/admin/htaf/assistant-questions/:id/resolve", "htaf.applications.update"),
+  asyncRoute(async (req, res) => {
+    const id = Number(req.params.id);
+    const action = String(req.body?.action || "");
+    const status = { dismiss: "dismissed", faq: "faq", reopen: "open" }[action];
+    if (!Number.isInteger(id) || id <= 0) return fail(res, "Question not found.", 404);
+    if (!status) return fail(res, "Choose dismiss, faq or reopen.", 400);
+    const patch = status === "open"
+      ? { status, resolved_by: null, resolved_at: null }
+      : { status, resolved_by: req.admin.email, resolved_at: nowIso() };
+    const { data, error } = await supabase
+      .from("htaf_assistant_questions")
+      .update(patch)
+      .eq("id", id)
+      .select("id, status, resolved_at")
+      .maybeSingle();
+    if (error && isMissingColumnError(error)) {
+      return fail(res, "The inbox isn't set up yet (database migration 20261023020000 not applied).", 503);
+    }
+    if (error) return fail(res, "The question could not be updated.", 500);
+    if (!data) return fail(res, "Question not found.", 404);
+    auditLog({ actor_type: "admin", actor_id: req.admin.email, action: `htaf_assistant_question_${status}`, entity_type: "htaf_assistant_question", entity_id: String(id), req }).catch(() => {});
+    return ok(res, { question: data });
   })
 );
 
@@ -5797,11 +5857,29 @@ app.get(
 
         : null;
 
+    // Possible duplicates (same phone, email or name within 7 days),
+    // computed here so contact details never reach the list: each row
+    // gets only the other application codes. Skipped if the read fails.
+    let listed = rows;
+    try {
+      const { data: recent, error: dupError } = await supabase
+        .from("htaf_applications")
+        .select("id, application_code, first_name, last_name, phone, email, created_at")
+        .order("created_at", { ascending: false })
+        .limit(1000);
+      if (!dupError && recent) {
+        const dupes = findPossibleDuplicates(recent);
+        listed = rows.map((row) => (dupes.has(row.id) ? { ...row, possible_duplicate_of: dupes.get(row.id) } : row));
+      }
+    } catch (dupErr) {
+      // A missing duplicate hint must never block the queue.
+    }
+
     return ok(res, {
 
       applications:
 
-        rows,
+        listed,
 
       // The page shows "Schedule Ride" only while ride creation is
       // switched on (it needs recorded approvals; off today).
@@ -6079,6 +6157,16 @@ app.post(
       query = query.eq("program_type", resolved.programType);
     }
 
+    // Grant reporting: submitted between these Nashville calendar days.
+    if (resolved.fromDate) {
+      query = query.gte("created_at", chicagoMidnightIso(resolved.fromDate));
+    }
+    if (resolved.toDate) {
+      const next = new Date(`${resolved.toDate}T12:00:00Z`);
+      next.setUTCDate(next.getUTCDate() + 1);
+      query = query.lt("created_at", chicagoMidnightIso(next.toISOString().slice(0, 10)));
+    }
+
     const { data, error } = await query;
 
     if (error) {
@@ -6099,7 +6187,9 @@ app.post(
         reason: resolved.reason,
         filters: {
           status: resolved.status,
-          program_type: resolved.programType
+          program_type: resolved.programType,
+          from_date: resolved.fromDate,
+          to_date: resolved.toDate
         }
       },
       req
@@ -22528,17 +22618,26 @@ app.get(
   requireAdmin,
   requireHtafPartnerManager("GET /api/admin/htaf/partners"),
   asyncRoute(async (req, res) => {
-    const [{ data: partners, error }, { data: users, error: usersError }, masterOn] = await Promise.all([
-      supabase.from("htaf_partners").select(HTAF_PARTNER_FIELDS).order("created_at", { ascending: true }),
+    const [partnerRead, { data: users, error: usersError }, masterOn] = await Promise.all([
+      supabase.from("htaf_partners").select(`${HTAF_PARTNER_FIELDS}, contact_email`).order("created_at", { ascending: true }),
       supabase.from("htaf_partner_users").select("id, partner_id, name, phone, status, last_sign_in_at").eq("status", "active"),
       htafPartnerMasterOn()
     ]);
+    let { data: partners, error } = partnerRead;
+    // contact_email arrives with migration 20261023020000.
+    const contactEmailReady = !(error && isMissingColumnError(error));
+    if (!contactEmailReady) {
+      ({ data: partners, error } = await supabase.from("htaf_partners").select(HTAF_PARTNER_FIELDS).order("created_at", { ascending: true }));
+    }
     if (error || usersError) return fail(res, HTAF_PARTNERS_NOT_SET_UP, 503, { master_enabled: masterOn });
     return ok(res, {
       master_enabled: masterOn,
+      contact_email_ready: contactEmailReady,
+      portal_url: `https://${FOUNDATION_HOST}/htaf-partner.html`,
       sign_in_configured: Boolean(HTAF_PARTNER_SESSION_SECRET && twilioClient && TWILIO_VERIFY_SERVICE_SID),
       partners: (partners || []).map((p) => ({
         ...p,
+        invite_text: htafPartners.buildPartnerInvite({ partnerName: p.name, portalUrl: `https://${FOUNDATION_HOST}/htaf-partner.html` }),
         users: (users || [])
           .filter((u) => String(u.partner_id) === String(p.id))
           .map((u) => ({ id: u.id, name: u.name, phone_last4: String(u.phone || "").slice(-4), last_sign_in_at: u.last_sign_in_at }))
@@ -22570,13 +22669,24 @@ app.post(
   asyncRoute(async (req, res) => {
     const input = htafPartners.validatePartnerInput(req.body || {});
     if (!input.ok) return fail(res, input.error, 400);
+    // "Activate immediately" needs the signed agreement reference, the
+    // same rule as switching a partner on later.
+    const activate = req.body?.activate === true;
+    if (activate && !input.value.agreement_ref) return fail(res, "Record the signed partner agreement to activate a partner immediately.", 409);
+    const row = { ...input.value, enabled: false, created_by: req.admin.email };
+    if (input.value.contact_email === null) delete row.contact_email;
+    if (activate) Object.assign(row, { enabled: true, enabled_by: req.admin.email, enabled_at: nowIso() });
     const { data, error } = await supabase
       .from("htaf_partners")
-      .insert({ ...input.value, enabled: false, created_by: req.admin.email })
+      .insert(row)
       .select(HTAF_PARTNER_FIELDS)
       .single();
+    if (error && isMissingColumnError(error)) return fail(res, "Contact emails aren't set up yet (database migration 20261023020000 not applied). Add the partner without an email for now.", 503);
     if (error || !data) return fail(res, HTAF_PARTNERS_NOT_SET_UP, 503);
-    auditLog({ actor_type: "admin", actor_id: req.admin.email, action: "htaf_partner_created", entity_type: "htaf_partner", entity_id: data.id, metadata: { partner_type: data.partner_type, has_agreement: Boolean(data.agreement_ref) }, req }).catch(() => {});
+    auditLog({ actor_type: "admin", actor_id: req.admin.email, action: "htaf_partner_created", entity_type: "htaf_partner", entity_id: data.id, metadata: { partner_type: data.partner_type, has_agreement: Boolean(data.agreement_ref), has_contact_email: Boolean(row.contact_email), activated: activate }, req }).catch(() => {});
+    if (activate) {
+      auditLog({ actor_type: "admin", actor_id: req.admin.email, action: "htaf_partner_enabled", entity_type: "htaf_partner", entity_id: data.id, req }).catch(() => {});
+    }
     return ok(res, { partner: data }, 201);
   })
 );
@@ -22644,6 +22754,38 @@ app.post(
     await supabase.rpc("bump_htaf_partner_user_session_version", { p_user_id: id });
     auditLog({ actor_type: "admin", actor_id: req.admin.email, action: "htaf_partner_user_removed", entity_type: "htaf_partner", entity_id: data.partner_id, metadata: { partner_user_id: id }, req }).catch(() => {});
     return ok(res, { removed: true });
+  })
+);
+
+// Partner access history for the owner: switch changes, partners and
+// coordinators added or removed, sign-ins. Identifiers and actions only.
+const HTAF_PARTNER_AUDIT_ACTIONS = [
+  "htaf_partner_access_enabled", "htaf_partner_access_disabled", "htaf_partner_created",
+  "htaf_partner_enabled", "htaf_partner_disabled", "htaf_partner_user_added", "htaf_partner_user_removed",
+  "htaf_partner_sign_in", "htaf_partner_sign_out"
+];
+app.get(
+  "/api/admin/htaf/partners/audit",
+  requireAdmin,
+  requireHtafPartnerManager("GET /api/admin/htaf/partners/audit"),
+  asyncRoute(async (req, res) => {
+    const { data, error } = await supabase
+      .from("audit_logs")
+      .select("id, action, actor_type, actor_id, entity_id, created_at")
+      .in("action", HTAF_PARTNER_AUDIT_ACTIONS)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (error) return fail(res, "The partner history could not be loaded.", 500);
+    return ok(res, {
+      events: (data || []).map((e) => ({
+        id: e.id,
+        action: e.action,
+        // Admin emails are shown to the owner; partner users by id only.
+        by: e.actor_type === "admin" ? e.actor_id : e.actor_type === "htaf_partner_user" ? "partner coordinator" : e.actor_type,
+        partner_id: e.entity_id,
+        at: e.created_at
+      }))
+    });
   })
 );
 

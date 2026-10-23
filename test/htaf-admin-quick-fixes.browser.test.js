@@ -118,7 +118,7 @@ describeWithBrowser("HTAF admin: quick fixes", () => {
     expect(await actions.innerText()).toContain("Ride booking: not available yet");
 
     // The document request says plainly that nobody is contacted.
-    await actions.locator('button:has-text("Record Document Request")').click();
+    await actions.locator('button:has-text("Request Missing Docs")').click();
     const modal = page.locator("#requestDocsModal");
     expect(await modal.innerText()).toContain("This does not contact the applicant.");
     expect(await modal.innerText()).not.toMatch(/Send a document request|Send Request/);

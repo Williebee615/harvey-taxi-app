@@ -1790,6 +1790,58 @@
 
     }
 
+
+    /* ---- HTAF admin redesign (2026-10-23) ---- */
+    .tabbar { display:flex; gap:6px; overflow-x:auto; padding-top:4px; padding-bottom:10px; }
+    .tab { background:transparent; border:1px solid var(--line); color:var(--muted); border-radius:999px; padding:8px 14px; font:inherit; font-weight:700; cursor:pointer; white-space:nowrap; min-height:40px; }
+    .tab.active { color:var(--text); background:rgba(126,166,255,.16); border-color:rgba(126,166,255,.5); }
+    .tab-badge { display:inline-block; min-width:20px; padding:0 6px; margin-left:4px; border-radius:999px; background:var(--gold); color:#1b1300; font-size:.78rem; text-align:center; }
+    [data-tab-panel] { display:none; }
+    [data-tab-panel].tab-active { display:block; }
+    .sync-pill { display:inline-flex; align-items:center; gap:8px; min-height:40px; padding:0 14px; border-radius:999px; border:1px solid var(--line); background:rgba(255,255,255,.04); color:var(--text); font:inherit; font-size:.9rem; cursor:pointer; }
+    .sync-dot { width:10px; height:10px; border-radius:50%; background:#7d8aa8; }
+    .sync-pill.ok .sync-dot { background:#3ccf91; }
+    .sync-pill.err .sync-dot { background:#ff7a7a; }
+    .kpi-filter { text-align:left; font:inherit; color:inherit; cursor:pointer; }
+    .kpi-filter.active { outline:2px solid var(--gold); outline-offset:2px; }
+    .queue-sub { display:block; margin-top:6px; color:var(--muted); font-size:.85rem; }
+    .dup-badge { display:inline-block; margin-top:6px; padding:2px 8px; border-radius:999px; background:rgba(255,217,120,.16); color:var(--gold); font-size:.8rem; font-weight:700; }
+    .detail-card { position:relative; }
+    .detail-actions.sticky-actions { position:sticky; bottom:0; z-index:2; padding:12px 0 4px; background:linear-gradient(180deg, rgba(7,14,32,0), rgba(7,14,32,.96) 30%); }
+    .action-primary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-bottom:10px; }
+    .table-wrap { overflow-x:auto; }
+    .triage-table { width:100%; border-collapse:collapse; font-size:.92rem; }
+    .triage-table th, .triage-table td { text-align:left; padding:10px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+    .triage-table th { color:var(--muted); font-weight:700; font-size:.82rem; text-transform:uppercase; letter-spacing:.04em; }
+    .triage-table td .btn { min-height:34px; padding:0 10px; font-size:.85rem; margin:0 6px 6px 0; }
+    .muted-line { color:var(--muted); margin:10px 0; }
+    .subhead { margin:22px 0 10px; }
+    .master-row { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-bottom:14px; }
+    .toggle { display:inline-flex; align-items:center; gap:10px; background:none; border:0; color:var(--text); font:inherit; font-weight:800; cursor:pointer; padding:6px 0; }
+    .toggle-track { width:52px; height:28px; border-radius:999px; background:#3a4766; position:relative; transition:background .2s; flex:none; }
+    .toggle-knob { position:absolute; top:3px; left:3px; width:22px; height:22px; border-radius:50%; background:#fff; transition:left .2s; }
+    .toggle[aria-checked="true"] .toggle-track { background:#3ccf91; }
+    .toggle[aria-checked="true"] .toggle-knob { left:27px; }
+    .toggle.small { font-weight:700; font-size:.9rem; }
+    .toggle.small .toggle-track { width:42px; height:24px; }
+    .toggle.small .toggle-knob { width:18px; height:18px; }
+    .toggle.small[aria-checked="true"] .toggle-knob { left:21px; }
+    .warn-badge { padding:6px 10px; border-radius:10px; background:rgba(255,122,122,.12); color:#ffb3b3; font-size:.86rem; }
+    .partner-list { display:grid; gap:10px; }
+    .partner-box { border:1px solid var(--line); border-radius:12px; padding:14px; }
+    .partner-box .partner-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+    .partner-form { display:grid; grid-template-columns:minmax(0,1.4fr) 170px minmax(0,1.2fr) minmax(0,1fr); gap:10px; align-items:center; }
+    .partner-form .check-line { grid-column:1 / span 3; display:flex; gap:8px; align-items:center; color:var(--muted); }
+    .partner-form .check-line input { width:18px; height:18px; }
+    .preset-row { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+    .export-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+    .template-row { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+    @media (max-width: 760px) {
+      .partner-form, .export-grid { grid-template-columns:1fr; }
+      .partner-form .check-line { grid-column:auto; }
+      .action-primary { grid-template-columns:1fr; }
+      .sync-pill { width:100%; justify-content:center; }
+    }
   </style>
 
   <link rel="icon" href="/htaf-favicon.ico" sizes="any" />
@@ -1865,24 +1917,21 @@
 
           <h1>HTAF Admin Operations</h1>
 
-          <p>Application Review • Approvals • Scheduling • Reporting</p>
+          <p>Harvey Transportation Assistance Foundation</p>
 
         </div>
 
       </a>
 
       <div class="top-actions">
-
-        <button class="btn btn-secondary" type="button" onclick="refreshApplications()">
-
-          Refresh Queue
-
+        <button id="syncPill" class="sync-pill" type="button" onclick="openDiagnostics()" title="System diagnostics">
+          <span class="sync-dot"></span><span id="syncPillText">Connecting…</span>
         </button>
-
-        <button class="btn btn-secondary" type="button" onclick="exportApplicationsCsv()">
-
+        <button class="btn btn-secondary" type="button" onclick="refreshAll()">
+          Refresh
+        </button>
+        <button class="btn btn-secondary" type="button" onclick="openExportModal()">
           Export CSV
-
         </button>
 
         <button class="btn btn-secondary" type="button" onclick="signOutAdmin()">
@@ -1901,195 +1950,68 @@
 
     </div>
 
-  </header>  <main>
+    <nav class="shell tabbar" role="tablist" aria-label="HTAF admin sections">
+      <button class="tab" role="tab" type="button" data-tab="queue" onclick="showTab('queue')">Queue &amp; Review</button>
+      <button class="tab" role="tab" type="button" data-tab="scheduling" onclick="showTab('scheduling')">Ride Scheduling</button>
+      <button class="tab" role="tab" type="button" data-tab="partners" onclick="showTab('partners')">Partner Portal</button>
+      <button class="tab" role="tab" type="button" data-tab="assistant" onclick="showTab('assistant')">Assistant &amp; Triage <span id="assistantTabBadge" class="tab-badge hidden">0</span></button>
+    </nav>
+  </header>
+  <main>
 
-    <section class="hero">
-
-      <div class="shell hero-grid">
-
-        <section class="card hero-card">
-
-          <div class="eyebrow">
-
-            HTAF Application Review
-
+    <!-- System diagnostics (moved out of the page header): connection
+         state and what the dashboard reads. -->
+    <div id="diagnosticsModal" class="modal-backdrop">
+      <div class="modal">
+        <div class="modal-head">
+          <div>
+            <h3>System Diagnostics</h3>
+            <p>Connection to the HTAF application records.</p>
           </div>
-
-          <h2>
-
-            Manage transportation assistance applications from one admin dashboard.
-
-          </h2>
-
-          <p>
-
-            Review HTAF applications, approve or deny requests, ask applicants
-
-            for missing documents, prepare ride scheduling, and export grant-ready
-
-            reporting data for program operations.
-
-          </p>
-
-          <div class="hero-actions">
-
-            <button
-
-              class="btn btn-primary"
-
-              type="button"
-
-              onclick="refreshApplications()"
-
-            >
-
-              Load Applications
-
-            </button>
-
-            <button
-
-              class="btn btn-success"
-
-              type="button"
-
-              onclick="setQueueFilter('submitted')"
-
-            >
-
-              New Submissions
-
-            </button>
-
-            <button
-
-              class="btn btn-gold"
-
-              type="button"
-
-              onclick="setQueueFilter('approved')"
-
-            >
-
-              Approved Queue
-
-            </button>
-
-          </div>
-
-        </section>
-
-        <aside class="card panel-card">
-
-          <div class="section-head">
-
-            <div>
-
-              <h3>Operations Status</h3>
-
-              <p>
-
-                Connection to the HTAF application records.
-
-              </p>
-
-            </div>
-
-          </div>
-
-          <div id="opsStatusBanner" class="status-banner info show">
-
-            Loading HTAF operations status...
-
-          </div>
-
+          <button class="modal-close" type="button" onclick="closeDiagnostics()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div id="opsStatusBanner" class="status-banner info show">Loading HTAF operations status...</div>
           <div class="detail-grid">
-
-            <div class="detail-row">
-
-              <div class="detail-label">API Route</div>
-
-              <div class="detail-value">/api/admin/foundation/applications</div>
-
-            </div>
-
-            <div class="detail-row">
-
-              <div class="detail-label">Table</div>
-
-              <div class="detail-value">htaf_applications</div>
-
-            </div>
-
-            <div class="detail-row">
-
-              <div class="detail-label">Mode</div>
-
-              <div class="detail-value">Admin Review / Operations</div>
-
-            </div>
-
-            <div class="detail-row">
-
-              <div class="detail-label">Security</div>
-
-              <div class="detail-value">HTAF admin sign-in required</div>
-
-            </div>
-
+            <div class="detail-row"><div class="detail-label">API Route</div><div class="detail-value">/api/admin/foundation/applications</div></div>
+            <div class="detail-row"><div class="detail-label">Table</div><div class="detail-value">htaf_applications</div></div>
+            <div class="detail-row"><div class="detail-label">Mode</div><div class="detail-value">Admin Review / Operations</div></div>
+            <div class="detail-row"><div class="detail-label">Security</div><div class="detail-value">HTAF admin sign-in required</div></div>
+            <div class="detail-row"><div class="detail-label">Auto-refresh</div><div class="detail-value">Every 60 seconds</div></div>
           </div>
-
-        </aside>
-
+        </div>
       </div>
+    </div>
 
-    </section>
-
-    <section class="section">
+    <section class="section" data-tab-panel="queue">
 
       <div class="shell">
 
         <div class="metrics-grid">
 
-          <article class="metric-card">
-
+          <button class="metric-card kpi-filter" type="button" data-filter="" onclick="setQueueFilter('')" title="Show total applications">
             <strong id="metricTotal">0</strong>
-
             <span>Total Applications</span>
-
             <small>All HTAF requests</small>
+          </button>
 
-          </article>
-
-          <article class="metric-card">
-
+          <button class="metric-card kpi-filter" type="button" data-filter="submitted" onclick="setQueueFilter('submitted')" title="Show new submissions">
             <strong id="metricSubmitted">0</strong>
-
             <span>New Submissions</span>
-
             <small>Needs review</small>
+          </button>
 
-          </article>
-
-          <article class="metric-card">
-
+          <button class="metric-card kpi-filter" type="button" data-filter="approved" onclick="setQueueFilter('approved')" title="Show approved">
             <strong id="metricApproved">0</strong>
-
             <span>Approved</span>
-
             <small>Ready for scheduling</small>
+          </button>
 
-          </article>
-
-          <article class="metric-card">
-
+          <button class="metric-card kpi-filter" type="button" data-filter="pending_documents" onclick="setQueueFilter('pending_documents')" title="Show pending documents">
             <strong id="metricPendingDocs">0</strong>
-
             <span>Pending Documents</span>
-
             <small>Applicant follow-up</small>
-
-          </article>
+          </button>
 
         </div>
 
@@ -2097,7 +2019,7 @@
 
     </section>
 
-    <section class="section">
+    <section class="section" data-tab-panel="queue">
 
       <div class="shell ops-layout">
 
@@ -2336,13 +2258,17 @@
             </div>
 
             <div class="modal-body">
-
+              <div class="template-row" aria-label="Message templates">
+                <button class="btn btn-secondary" type="button" onclick="useDocTemplate('appointment')">Appointment proof</button>
+                <button class="btn btn-secondary" type="button" onclick="useDocTemplate('residence')">Proof of address</button>
+                <button class="btn btn-secondary" type="button" onclick="useDocTemplate('income')">Income</button>
+                <button class="btn btn-secondary" type="button" onclick="useDocTemplate('general')">General</button>
+                <button class="btn btn-primary" type="button" onclick="copyDocRequest()">Copy message</button>
+              </div>
+              <p class="muted-line" style="margin-top:0">Pick a template, edit it, copy it, and send it to the applicant yourself (text or email). Then save the record below.</p>
               <div class="field">
-
                 <label>
-
-                  What was requested, and how the applicant was contacted
-
+                  Message to the applicant, and how you sent it
                 </label>
 
                 <textarea
@@ -2549,42 +2475,162 @@
 
         </div>
 
-        <!-- HTAF Assistant: questions it couldn't answer from HTAF's published
-             pages (redacted excerpts only), so staff can add approved answers. -->
-        <section class="card" id="htafAssistantQuestions" style="margin-top:24px;padding:20px">
-          <h3>HTAF Assistant: unanswered questions</h3>
-          <p id="htafAssistantStatus" style="color:var(--muted,#a9bdd6)">Not loaded.</p>
-          <button class="btn" type="button" onclick="loadHtafAssistantQuestions()">Load questions</button>
-          <ul id="htafAssistantQuestionList" style="margin-top:12px"></ul>
-        </section>
-
-        <!-- Partner access (owner decision 2026-10-23): the owner's master
-             switch plus each referral partner's own switch. Owner only. -->
-        <section class="card" id="partnerAccessCard" style="margin-top:24px;padding:20px">
-          <h3>Partner Access</h3>
-          <p style="color:var(--muted,#a9bdd6)">Referral organizations can view their own clients' applications and send new ones. HTAF decides every application. Access needs the master switch AND the partner's own switch; both start off. Owner only.</p>
-          <p id="partnerAccessStatus" style="color:var(--muted,#a9bdd6)">Not loaded.</p>
-          <button class="btn" type="button" onclick="loadPartnerAccess()">Load partner access</button>
-          <div id="partnerAccessBody" class="hidden" style="margin-top:14px">
-            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-              <strong id="partnerMasterState">Master switch: off</strong>
-              <button id="partnerMasterButton" class="btn btn-secondary" type="button" onclick="togglePartnerMaster()">Switch on</button>
-            </div>
-            <div id="partnerList" style="margin-top:14px"></div>
-            <h4 style="margin-top:18px">Add a partner organization</h4>
-            <div class="toolbar" style="grid-template-columns:minmax(0,1fr) 160px minmax(0,1fr) auto">
-              <input id="newPartnerName" class="input" placeholder="Organization name" autocomplete="off" />
-              <select id="newPartnerType" class="select">
-                <option value="shelter">Shelter</option>
-                <option value="clinic">Clinic</option>
-                <option value="workforce">Workforce centre</option>
-                <option value="other">Other</option>
-              </select>
-              <input id="newPartnerAgreement" class="input" placeholder="Signed agreement reference (optional now)" autocomplete="off" />
-              <button class="btn btn-secondary" type="button" onclick="addPartner()">Add (off)</button>
-            </div>
+        <!-- Ride Scheduling: approved and scheduled requests by trip date.
+             HTAF ride booking stays switched off; nothing is booked here. -->
+        <section class="section" data-tab-panel="scheduling">
+          <div class="shell">
+            <section class="card" style="padding:20px">
+              <div class="section-head">
+                <div>
+                  <h3>Ride Scheduling</h3>
+                  <p>Approved and scheduled requests, soonest trip first. HTAF ride booking is switched off: arrange rides outside this system and record them in the application notes.</p>
+                </div>
+                <span id="schedulingCount" class="pill">0 requests</span>
+              </div>
+              <div class="table-wrap">
+                <table class="triage-table">
+                  <thead><tr><th>Trip date</th><th>Application</th><th>Applicant</th><th>Program</th><th>Status</th></tr></thead>
+                  <tbody id="schedulingRows"></tbody>
+                </table>
+              </div>
+            </section>
           </div>
         </section>
+
+        <!-- Partner Portal (owner decisions 2026-10-23): the global switch
+             plus each referral partner's own switch, onboarding and history.
+             Owner only. -->
+        <section class="section" data-tab-panel="partners">
+          <div class="shell">
+            <section class="card" id="partnerAccessCard" style="padding:20px">
+              <div class="section-head">
+                <div>
+                  <h3>Partner Portal</h3>
+                  <p>Referral organizations can view their own clients' applications and send new ones. HTAF decides every application. A partner can sign in only while the global switch AND its own switch are on.</p>
+                </div>
+              </div>
+              <p id="partnerAccessStatus" class="muted-line">Loading…</p>
+              <div id="partnerAccessBody" class="hidden">
+                <div class="master-row">
+                  <button id="partnerMasterToggle" class="toggle" type="button" role="switch" aria-checked="false" onclick="togglePartnerMaster()">
+                    <span class="toggle-track"><span class="toggle-knob"></span></span>
+                    <span id="partnerMasterState" class="toggle-label">Global Partner Portal: OFF</span>
+                  </button>
+                  <span class="warn-badge">⚠ Turning this off immediately suspends every partner sign-in.</span>
+                </div>
+                <div id="partnerList" class="partner-list"></div>
+
+                <h4 class="subhead">Add a partner organization</h4>
+                <div class="partner-form">
+                  <input id="newPartnerName" class="input" placeholder="Organization name" autocomplete="off" />
+                  <select id="newPartnerType" class="select">
+                    <option value="shelter">Shelter</option>
+                    <option value="clinic">Clinic</option>
+                    <option value="workforce">Workforce center</option>
+                    <option value="other">Other</option>
+                  </select>
+                  <input id="newPartnerEmail" class="input" type="email" placeholder="Contact email (for your invite)" autocomplete="off" />
+                  <input id="newPartnerAgreement" class="input" placeholder="Signed agreement reference" autocomplete="off" />
+                  <label class="check-line"><input id="newPartnerActivate" type="checkbox" onchange="updateAddPartnerLabel()" /> Activate immediately (needs the agreement reference)</label>
+                  <button id="addPartnerButton" class="btn btn-primary" type="button" onclick="addPartner()">+ Add Partner (Inactive)</button>
+                </div>
+                <p class="muted-line">The system never emails partners. Use "Copy invite" and send it yourself. Coordinators sign in with a one-time code texted to the phone you register.</p>
+
+                <h4 class="subhead">Partner access history</h4>
+                <div class="table-wrap">
+                  <table class="triage-table">
+                    <thead><tr><th>When</th><th>What happened</th><th>By</th><th>Partner</th></tr></thead>
+                    <tbody id="partnerAuditRows"></tbody>
+                  </table>
+                </div>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <!-- Assistant & Triage: questions the HTAF assistant couldn't answer
+             (redacted excerpts only; no visitor contact details are kept). -->
+        <section class="section" data-tab-panel="assistant">
+          <div class="shell">
+            <section class="card" id="htafAssistantQuestions" style="padding:20px">
+              <div class="section-head">
+                <div>
+                  <h3>Assistant &amp; Triage</h3>
+                  <p id="htafAssistantStatus">Loading…</p>
+                </div>
+                <select id="assistantStatusFilter" class="select" style="max-width:220px" onchange="loadHtafAssistantQuestions()">
+                  <option value="open">Open</option>
+                  <option value="faq">Marked for FAQ</option>
+                  <option value="dismissed">Dismissed</option>
+                  <option value="all">All</option>
+                </select>
+              </div>
+              <div class="table-wrap">
+                <table class="triage-table">
+                  <thead><tr><th>Time</th><th>Category</th><th>Question (redacted)</th><th>Actions</th></tr></thead>
+                  <tbody id="htafAssistantQuestionRows"></tbody>
+                </table>
+              </div>
+              <p class="muted-line">The assistant is anonymous: it keeps no name, phone or email, so there is no one to reply to. "Add to FAQ" marks the question for an answer on HTAF's pages.</p>
+            </section>
+          </div>
+        </section>
+
+        <!-- Grant-ready export: date range, status and program, with a
+             reason recorded in the audit log. -->
+        <div id="exportModal" class="modal-backdrop">
+          <div class="modal">
+            <div class="modal-head">
+              <div>
+                <h3>Export Applications (CSV)</h3>
+                <p>Choose what to export. The reason, your account, the time and the row count are recorded in the audit log.</p>
+              </div>
+              <button class="modal-close" type="button" onclick="closeExportModal()">✕</button>
+            </div>
+            <div class="modal-body">
+              <div class="preset-row">
+                <button class="btn btn-secondary" type="button" onclick="exportPreset('last_quarter_approved')">Last quarter: approved</button>
+                <button class="btn btn-secondary" type="button" onclick="exportPreset('this_quarter_all')">This quarter: all</button>
+                <button class="btn btn-secondary" type="button" onclick="exportPreset('year_to_date')">Year to date: all</button>
+              </div>
+              <div class="export-grid">
+                <div class="field"><label for="exportFrom">Submitted from</label><input id="exportFrom" class="input" type="date" /></div>
+                <div class="field"><label for="exportTo">Submitted to</label><input id="exportTo" class="input" type="date" /></div>
+                <div class="field"><label for="exportStatus">Status</label>
+                  <select id="exportStatus" class="select">
+                    <option value="">All statuses</option>
+                    <option value="submitted">Submitted</option>
+                    <option value="under_review">Under Review</option>
+                    <option value="pending_documents">Pending Documents</option>
+                    <option value="approved">Approved</option>
+                    <option value="denied">Denied</option>
+                    <option value="scheduled">Scheduled</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                </div>
+                <div class="field"><label for="exportProgram">Program</label>
+                  <select id="exportProgram" class="select">
+                    <option value="">All programs</option>
+                    <option value="medical">Medical</option>
+                    <option value="employment">Employment</option>
+                    <option value="education">Education</option>
+                    <option value="senior">Senior</option>
+                    <option value="disability">Disability</option>
+                    <option value="veteran">Veteran</option>
+                    <option value="community">Community</option>
+                    <option value="general">General</option>
+                  </select>
+                </div>
+              </div>
+              <div class="field"><label for="exportReason">Reason for this export (required)</label><input id="exportReason" class="input" placeholder="e.g. Q3 grant report for the county" autocomplete="off" /></div>
+              <div id="exportStatusBanner" class="status-banner"></div>
+            </div>
+            <div class="modal-actions">
+              <button class="btn btn-secondary" type="button" onclick="closeExportModal()">Cancel</button>
+              <button class="btn btn-primary" type="button" onclick="exportApplicationsCsv()">Download CSV</button>
+            </div>
+          </div>
+        </div>
 
       </main>
 
@@ -2627,28 +2673,87 @@
         `${window.location.origin}`;
 
       // HTAF Assistant questions (admin session cookie; text inserted as text).
-      async function loadHtafAssistantQuestions() {
+      // Assistant & Triage inbox: redacted excerpts with Add to FAQ / Dismiss.
+      const ASSISTANT_CATEGORY = { other: "Other", accessibility: "Accessibility", eligibility: "Eligibility", partnership: "Partnership", status: "Application status", programs: "Programs", contact: "Contact", hours: "Hours", donate: "Donations" };
+      async function loadHtafAssistantQuestions({ quiet = false } = {}) {
         const status = document.getElementById("htafAssistantStatus");
-        const list = document.getElementById("htafAssistantQuestionList");
-        status.textContent = "Loading…";
-        list.replaceChildren();
+        const body = document.getElementById("htafAssistantQuestionRows");
+        const filter = document.getElementById("assistantStatusFilter")?.value || "open";
+        if (!quiet) status.textContent = "Loading…";
         try {
-          const response = await fetch(`${HTAF_API}/api/admin/htaf/assistant-questions`, { credentials: "include" });
+          const response = await fetch(`${HTAF_API}/api/admin/htaf/assistant-questions?status=${encodeURIComponent(filter)}`, { credentials: "include" });
           const payload = await response.json();
           if (!response.ok) throw new Error(payload.error || "Unable to load.");
           const a = payload.assistant || {};
-          status.textContent = `Assistant ${a.enabled ? "on" : "off"} · ${payload.questions.length} unanswered question(s)` +
+          const questions = payload.questions || [];
+          const openCount = filter === "open" ? questions.length : null;
+          status.textContent = `Assistant ${a.enabled ? "on" : "off"} · ${questions.length} question(s) shown` +
+            (payload.inbox_ready === false ? " · Dismiss and Add to FAQ need database update 20261023020000" : "") +
             (a.dropped_topics && a.dropped_topics.length ? ` · topics no longer matching their page: ${a.dropped_topics.join(", ")}` : "");
-          for (const q of payload.questions) {
-            const li = document.createElement("li");
-            li.textContent = `${new Date(q.created_at).toLocaleString()} — ${q.question_excerpt}`;
-            list.appendChild(li);
+          const badge = document.getElementById("assistantTabBadge");
+          if (badge && openCount !== null) {
+            badge.textContent = String(openCount);
+            badge.classList.toggle("hidden", openCount === 0);
+          }
+          body.textContent = "";
+          if (!questions.length) {
+            const tr = document.createElement("tr");
+            const td = document.createElement("td");
+            td.colSpan = 4;
+            td.textContent = filter === "open" ? "No open questions." : "Nothing here.";
+            tr.appendChild(td);
+            body.appendChild(tr);
+          }
+          for (const q of questions) {
+            const tr = document.createElement("tr");
+            const cells = [formatDate(q.created_at), ASSISTANT_CATEGORY[q.intent] || q.intent || "Other", q.question_excerpt || ""];
+            for (const v of cells) {
+              const td = document.createElement("td");
+              td.textContent = v;
+              tr.appendChild(td);
+            }
+            const actions = document.createElement("td");
+            const add = (label, action, cls) => {
+              const b = document.createElement("button");
+              b.type = "button";
+              b.className = `btn ${cls}`;
+              b.textContent = label;
+              b.addEventListener("click", () => resolveAssistantQuestion(q.id, action));
+              actions.appendChild(b);
+            };
+            if (q.status === "open") {
+              add("Add to FAQ", "faq", "btn-gold");
+              add("Dismiss", "dismiss", "btn-secondary");
+            } else {
+              const label = document.createElement("span");
+              label.className = "pill";
+              label.textContent = q.status === "faq" ? "Marked for FAQ" : "Dismissed";
+              actions.appendChild(label);
+              add("Reopen", "reopen", "btn-secondary");
+            }
+            tr.appendChild(actions);
+            body.appendChild(tr);
           }
         } catch (error) {
           status.textContent = error.message || "Unable to load.";
         }
       }
-
+      async function resolveAssistantQuestion(id, action) {
+        const status = document.getElementById("htafAssistantStatus");
+        try {
+          const response = await fetch(`${HTAF_API}/api/admin/htaf/assistant-questions/${encodeURIComponent(id)}/resolve`, {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action })
+          });
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(payload.error || "Unable to update.");
+          await loadHtafAssistantQuestions({ quiet: true });
+        } catch (error) {
+          status.textContent = error.message || "Unable to update.";
+        }
+      }
       /* =========================================================
 
          ADMIN AUTH — SERVER SESSION
@@ -3014,26 +3119,33 @@
 
       }
 
-      function formatDate(
-
-        value
-
-      ) {
-
+      // US format in Nashville time (owner decision 2026-10-23):
+      // "Oct 23, 2026 • 8:21 AM".
+      const US_DATE = new Intl.DateTimeFormat("en-US", { timeZone: "America/Chicago", month: "short", day: "numeric", year: "numeric" });
+      const US_TIME = new Intl.DateTimeFormat("en-US", { timeZone: "America/Chicago", hour: "numeric", minute: "2-digit" });
+      function formatDate(value) {
         if (!value) return "—";
-
-        try {
-
-          return new Date(value)
-
-            .toLocaleString();
-
-        } catch {
-
-          return value;
-
-        }
-
+        const d = new Date(value);
+        if (Number.isNaN(d.getTime())) return String(value);
+        return `${US_DATE.format(d)} • ${US_TIME.format(d)}`;
+      }
+      // A calendar date with no time (ride_date "2026-10-28") → "Oct 28, 2026".
+      function formatDay(value) {
+        if (!value) return "—";
+        const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value));
+        if (!m) return String(value);
+        return new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "short", day: "numeric", year: "numeric" }).format(new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])));
+      }
+      // "just now", "5 min ago", "3h ago", "2d ago".
+      function formatAge(value) {
+        const t = new Date(value).getTime();
+        if (!Number.isFinite(t)) return "";
+        const mins = Math.max(0, Math.round((Date.now() - t) / 60000));
+        if (mins < 1) return "just now";
+        if (mins < 60) return `${mins} min ago`;
+        const hours = Math.round(mins / 60);
+        if (hours < 24) return `${hours}h ago`;
+        return `${Math.round(hours / 24)}d ago`;
       }      async function apiRequest(
 
         path,
@@ -3386,10 +3498,33 @@
           });
 
         updateMetrics();
-
         renderQueue();
-
+        renderScheduling();
+        if (
+          filteredApplications.length &&
+          !filteredApplications.some((a) => a.id === selectedApplicationId)
+        ) {
+          selectApplication(filteredApplications[0].id);
+        }
       }
+
+      // ↑ / ↓ move through the queue when no field has focus.
+      document.addEventListener("keydown", (event) => {
+        if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+        const target = event.target;
+        if (target && (target.closest("input, textarea, select, [contenteditable]") || target.isContentEditable)) return;
+        if (document.querySelector(".modal-backdrop.show")) return;
+        if (currentTab !== "queue" || !filteredApplications.length) return;
+        const index = filteredApplications.findIndex((a) => a.id === selectedApplicationId);
+        const next = event.key === "ArrowDown"
+          ? Math.min(filteredApplications.length - 1, index + 1)
+          : Math.max(0, index - 1);
+        if (next !== index) {
+          event.preventDefault();
+          selectApplication(filteredApplications[next].id);
+          document.querySelectorAll(".queue-item")[next]?.scrollIntoView({ block: "nearest" });
+        }
+      });
 
       function countByStatus(
 
@@ -3594,13 +3729,13 @@
                       </span>
 
                       <span class="pill">
-
                         ${escapeHtml(application.county || "county")}
-
                       </span>
-
                     </div>
-
+                    <span class="queue-sub">Submitted ${escapeHtml(formatAge(application.created_at))}${application.ride_date ? ` • Trip: ${escapeHtml(formatDay(application.ride_date))}` : ""}</span>
+                    ${Array.isArray(application.possible_duplicate_of) && application.possible_duplicate_of.length
+                      ? `<span class="dup-badge" title="Same phone, email or name within 7 days">⚠ Possible duplicate of ${escapeHtml(application.possible_duplicate_of.join(", "))}</span>`
+                      : ""}
                   </div>
 
                   <span class="${getStatusClass(application.status)}">
@@ -3872,69 +4007,25 @@
 
             <div id="triagePanel" class="notes-panel hidden"></div>
 
-            <div class="detail-actions">
+            <div class="detail-actions sticky-actions">
+              <div class="action-primary">
+                <button class="btn btn-success" type="button" onclick="updateSelectedStatus('approved')">✓ Approve</button>
+                <button class="btn btn-gold" type="button" onclick="openRequestDocsModal()">? Request Missing Docs</button>
+                <button class="btn btn-danger" type="button" onclick="updateSelectedStatus('denied')">✕ Deny</button>
+              </div>
               <button
-                class="btn btn-gold"
+                class="btn btn-secondary"
                 type="button"
                 onclick="runReviewAssist()"
               >
                 Review Assistant
               </button>
-
               <button
-
                 class="btn btn-secondary"
-
                 type="button"
-
                 onclick="updateSelectedStatus('under_review')"
-
               >
-
                 Mark Under Review
-
-              </button>
-
-              <button
-
-                class="btn btn-success"
-
-                type="button"
-
-                onclick="updateSelectedStatus('approved')"
-
-              >
-
-                Approve
-
-              </button>
-
-              <button
-
-                class="btn btn-danger"
-
-                type="button"
-
-                onclick="updateSelectedStatus('denied')"
-
-              >
-
-                Deny
-
-              </button>
-
-              <button
-
-                class="btn btn-gold"
-
-                type="button"
-
-                onclick="openRequestDocsModal()"
-
-              >
-
-                Record Document Request
-
               </button>
 
               ${rideCreationEnabled ? `<button
@@ -4685,39 +4776,19 @@
       // The server requires -- and audits -- a stated reason before it
       // will build the file at all.
       async function exportApplicationsCsv() {
-
-        const reason = window.prompt(
-          "Bulk PII export -- state why you're exporting this data. " +
-          "This reason is recorded in the audit log alongside your " +
-          "admin account, the time, and the number of rows exported."
-        );
-
-        if (reason === null) {
-          // Cancelled -- no request made, nothing to audit.
-          return;
-        }
-
-        const trimmedReason = reason.trim();
-
+        const trimmedReason = (document.getElementById("exportReason")?.value || "").trim();
         if (!trimmedReason) {
-          showBanner(
-            "queueStatusBanner",
-            "An export reason is required.",
-            "err"
-          );
+          showBanner("exportStatusBanner", "An export reason is required.", "err");
           return;
         }
-
-        const statusFilterValue =
-          document.getElementById("statusFilter")?.value || "";
-
-        const programFilterValue =
-          document.getElementById("programFilter")?.value || "";
-
+        const statusFilterValue = document.getElementById("exportStatus")?.value || "";
+        const programFilterValue = document.getElementById("exportProgram")?.value || "";
+        const fromDate = document.getElementById("exportFrom")?.value || "";
+        const toDate = document.getElementById("exportTo")?.value || "";
         try {
 
           showBanner(
-            "queueStatusBanner",
+            "exportStatusBanner",
             "Preparing export...",
             "info"
           );
@@ -4731,7 +4802,9 @@
               body: JSON.stringify({
                 reason: trimmedReason,
                 status: statusFilterValue || undefined,
-                program_type: programFilterValue || undefined
+                program_type: programFilterValue || undefined,
+                from_date: fromDate || undefined,
+                to_date: toDate || undefined
               })
             }
           );
@@ -4755,13 +4828,14 @@
           const a = document.createElement("a");
           a.href = url;
           a.download = `htaf-applications-${new Date().toISOString().slice(0, 10)}.csv`;
+          setTimeout(closeExportModal, 1200);
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
           URL.revokeObjectURL(url);
 
           showBanner(
-            "queueStatusBanner",
+            "exportStatusBanner",
             "CSV export downloaded and logged.",
             "ok"
           );
@@ -4769,7 +4843,7 @@
         } catch (error) {
           console.error(error);
           showBanner(
-            "queueStatusBanner",
+            "exportStatusBanner",
             error.message || "Unable to export applications.",
             "err"
           );
@@ -4926,35 +5000,17 @@
       }
 
       async function loadDashboardData() {
-
         showBanner(
-
           "opsStatusBanner",
-
           "Loading HTAF operations dashboard...",
-
           "info"
-
         );
-
         try {
-
-          await refreshApplications();
-
+          await refreshAll();
         } catch (error) {
-
-          console.warn(
-
-            "Initial load failed:",
-
-            error
-
-          );
-
+          console.warn("Initial load failed:", error);
         }
-
       }
-
       async function initializeDashboard() {
 
         setupEventListeners();
@@ -4999,6 +5055,166 @@
 
     
   <script>
+    // ---- HTAF admin redesign (owner decisions 2026-10-23) ----
+    let currentTab = "queue";
+    let lastSyncedAt = null;
+    let lastSyncOk = false;
+    const TABS = ["queue", "scheduling", "partners", "assistant"];
+
+    function showTab(name) {
+      currentTab = TABS.includes(name) ? name : "queue";
+      document.querySelectorAll("[data-tab-panel]").forEach((el) => {
+        el.classList.toggle("tab-active", el.getAttribute("data-tab-panel") === currentTab);
+      });
+      document.querySelectorAll(".tab[data-tab]").forEach((el) => {
+        const active = el.getAttribute("data-tab") === currentTab;
+        el.classList.toggle("active", active);
+        el.setAttribute("aria-selected", active ? "true" : "false");
+      });
+      try { history.replaceState(null, "", `#${currentTab}`); } catch {}
+    }
+
+    function openDiagnostics() { document.getElementById("diagnosticsModal")?.classList.add("show"); }
+    function closeDiagnostics() { document.getElementById("diagnosticsModal")?.classList.remove("show"); }
+
+    // Status pill: "Connected (6 records) | Last synced: just now".
+    function updateSyncPill() {
+      const pill = document.getElementById("syncPill");
+      const text = document.getElementById("syncPillText");
+      if (!pill || !text) return;
+      pill.classList.toggle("ok", lastSyncOk);
+      pill.classList.toggle("err", !lastSyncOk && lastSyncedAt !== null);
+      if (lastSyncedAt === null) { text.textContent = "Connecting…"; return; }
+      text.textContent = lastSyncOk
+        ? `Connected (${applications.length} records) | Last synced: ${formatAge(lastSyncedAt)}`
+        : "Not connected | Open diagnostics";
+    }
+
+    function updateKpiActive() {
+      const value = document.getElementById("statusFilter")?.value || "";
+      document.querySelectorAll(".kpi-filter").forEach((el) => {
+        el.classList.toggle("active", el.getAttribute("data-filter") === value);
+      });
+    }
+
+    // One refresh for everything; also every 60 seconds.
+    async function refreshAll() {
+      const results = await Promise.allSettled([
+        refreshApplications(),
+        loadHtafAssistantQuestions({ quiet: true }),
+        typeof loadPartnerAccess === "function" ? loadPartnerAccess({ quiet: true }) : Promise.resolve()
+      ]);
+      lastSyncedAt = Date.now();
+      lastSyncOk = results[0].status === "fulfilled" && !document.getElementById("opsStatusBanner")?.classList.contains("err");
+      updateSyncPill();
+    }
+    setInterval(updateSyncPill, 15000);
+    setInterval(() => { if (!document.hidden && lastSyncedAt !== null) refreshAll(); }, 60000);
+
+    // Ride Scheduling tab: approved and scheduled requests by trip date.
+    function renderScheduling() {
+      updateKpiActive();
+      const body = document.getElementById("schedulingRows");
+      if (!body) return;
+      const rows = applications
+        .filter((a) => ["approved", "scheduled"].includes(String(a.status || "").toLowerCase()))
+        .sort((a, b) => String(a.ride_date || "9999").localeCompare(String(b.ride_date || "9999")));
+      document.getElementById("schedulingCount").textContent = `${rows.length} request${rows.length === 1 ? "" : "s"}`;
+      body.textContent = "";
+      if (!rows.length) {
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.colSpan = 5;
+        td.textContent = "No approved or scheduled requests yet.";
+        tr.appendChild(td);
+        body.appendChild(tr);
+        return;
+      }
+      for (const a of rows) {
+        const tr = document.createElement("tr");
+        const name = `${a.first_name || ""} ${a.last_name ? `${String(a.last_name)[0]}.` : ""}`.trim();
+        [formatDay(a.ride_date), a.application_code || "", name, a.program_type || "", formatStatus(a.status)].forEach((v) => {
+          const td = document.createElement("td");
+          td.textContent = v;
+          tr.appendChild(td);
+        });
+        tr.style.cursor = "pointer";
+        tr.addEventListener("click", () => { showTab("queue"); selectApplication(a.id); });
+        body.appendChild(tr);
+      }
+    }
+
+    // Document-request templates: staff copy and send them; nothing is
+    // sent by the system (owner decision 2026-10-23).
+    const DOC_TEMPLATES = {
+      appointment: (a) => `Hello ${a.first_name || ""}, this is the Harvey Transportation Assistance Foundation (HTAF) about your application ${a.application_code || ""}. To continue reviewing your ride request, please send a confirmation of your appointment showing the date, time and address. You do not need to include any medical details. Thank you.`,
+      residence: (a) => `Hello ${a.first_name || ""}, this is HTAF about your application ${a.application_code || ""}. To continue reviewing your request, please send a document showing your current address (for example a lease, a utility bill or a letter from an agency). Thank you.`,
+      income: (a) => `Hello ${a.first_name || ""}, this is HTAF about your application ${a.application_code || ""}. To continue reviewing your request, please send proof of household income (for example a recent pay stub, a benefits letter or a letter from a caseworker). Thank you.`,
+      general: (a) => `Hello ${a.first_name || ""}, this is HTAF about your application ${a.application_code || ""}. To continue reviewing your request, we need one more document from you: [describe it]. Thank you.`
+    };
+    function useDocTemplate(key) {
+      const box = document.getElementById("documentRequestMessage");
+      if (!box || !selectedApplication || !DOC_TEMPLATES[key]) return;
+      box.value = `${DOC_TEMPLATES[key](selectedApplication)}\n\nSent by: (text / email / phone call)`;
+    }
+    async function copyDocRequest() {
+      const box = document.getElementById("documentRequestMessage");
+      if (!box) return;
+      const text = box.value.split("\n\nSent by:")[0];
+      try {
+        await navigator.clipboard.writeText(text);
+        showBanner("detailStatusBanner", "Message copied. Send it yourself, then save the record.", "ok");
+      } catch {
+        box.select();
+        showBanner("detailStatusBanner", "Copy didn't work automatically: the message is selected; press Ctrl/Cmd+C.", "info");
+      }
+    }
+
+    // Grant-ready export.
+    function openExportModal() {
+      const status = document.getElementById("statusFilter")?.value || "";
+      const program = document.getElementById("programFilter")?.value || "";
+      document.getElementById("exportStatus").value = status;
+      document.getElementById("exportProgram").value = program;
+      hideBanner("exportStatusBanner");
+      document.getElementById("exportModal")?.classList.add("show");
+    }
+    function closeExportModal() { document.getElementById("exportModal")?.classList.remove("show"); }
+    function ymd(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
+    function exportPreset(name) {
+      const now = new Date();
+      const q = Math.floor(now.getMonth() / 3);
+      let from;
+      let to;
+      let status = "";
+      if (name === "last_quarter_approved") {
+        const lq = q === 0 ? 3 : q - 1;
+        const year = q === 0 ? now.getFullYear() - 1 : now.getFullYear();
+        from = new Date(year, lq * 3, 1);
+        to = new Date(year, lq * 3 + 3, 0);
+        status = "approved";
+      } else if (name === "this_quarter_all") {
+        from = new Date(now.getFullYear(), q * 3, 1);
+        to = now;
+      } else {
+        from = new Date(now.getFullYear(), 0, 1);
+        to = now;
+      }
+      document.getElementById("exportFrom").value = ymd(from);
+      document.getElementById("exportTo").value = ymd(to);
+      document.getElementById("exportStatus").value = status;
+      if (!document.getElementById("exportReason").value) {
+        document.getElementById("exportReason").value = name === "last_quarter_approved" ? "Grant report: last quarter's approved requests" : "Grant report";
+      }
+    }
+
+    window.addEventListener("load", () => {
+      const fromHash = String(location.hash || "").replace("#", "");
+      showTab(TABS.includes(fromHash) ? fromHash : "queue");
+      updateSyncPill();
+    });
+  </script>
+  <script>
     // Partner access controls. Direct fetch (not apiRequest) so a 403 for
     // a non-owner shows a message instead of the sign-in overlay.
     let partnerMasterOn = false;
@@ -5019,19 +5235,40 @@
       Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v));
       return el;
     }
+    let partnerById = new Map();
+    const PARTNER_TYPE_LABEL = { shelter: "Shelter", clinic: "Clinic", workforce: "Workforce center", other: "Other" };
+    const PARTNER_AUDIT_TEXT = {
+      htaf_partner_access_enabled: "Global partner portal switched ON",
+      htaf_partner_access_disabled: "Global partner portal switched OFF",
+      htaf_partner_created: "Partner added",
+      htaf_partner_enabled: "Partner switched on",
+      htaf_partner_disabled: "Partner switched off",
+      htaf_partner_user_added: "Coordinator added",
+      htaf_partner_user_removed: "Coordinator removed",
+      htaf_partner_sign_in: "Coordinator signed in",
+      htaf_partner_sign_out: "Coordinator signed out"
+    };
+    function setToggle(el, on) {
+      el.setAttribute("aria-checked", on ? "true" : "false");
+    }
     function renderPartners(data) {
       partnerMasterOn = data.master_enabled === true;
-      document.getElementById("partnerMasterState").textContent = `Master switch: ${partnerMasterOn ? "ON" : "off"}`;
-      document.getElementById("partnerMasterButton").textContent = partnerMasterOn ? "Switch off" : "Switch on";
+      setToggle(document.getElementById("partnerMasterToggle"), partnerMasterOn);
+      document.getElementById("partnerMasterState").textContent = `Global Partner Portal: ${partnerMasterOn ? "ON" : "OFF"}`;
+      partnerById = new Map((data.partners || []).map((p) => [String(p.id), p]));
       const list = document.getElementById("partnerList");
       list.textContent = "";
-      if (!data.sign_in_configured) list.appendChild(partnerEl("p", "Partner sign-in is not configured on the server yet (HTAF_PARTNER_SESSION_SECRET and Twilio Verify). Partners can't sign in until it is.", { style: "color:var(--muted,#a9bdd6)" }));
-      if (!data.partners.length) list.appendChild(partnerEl("p", "No partner organizations yet.", { style: "color:var(--muted,#a9bdd6)" }));
+      if (!data.sign_in_configured) list.appendChild(partnerEl("p", "Partner sign-in is not configured on the server yet (HTAF_PARTNER_SESSION_SECRET and Twilio Verify). Partners can't sign in until it is.", { class: "muted-line" }));
+      if (data.contact_email_ready === false) list.appendChild(partnerEl("p", "Contact emails need database update 20261023020000; partners can be added without one until then.", { class: "muted-line" }));
+      if (!data.partners.length) list.appendChild(partnerEl("p", "No partner organizations yet.", { class: "muted-line" }));
       data.partners.forEach((p) => {
-        const box = partnerEl("div", undefined, { style: "border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px", "data-partner": p.id });
-        box.appendChild(partnerEl("strong", `${p.name} (${p.partner_type})`));
-        box.appendChild(partnerEl("div", `Access: ${p.enabled ? "ON" : "off"} · Agreement: ${p.agreement_ref || "not recorded"}`));
-        const toggle = partnerEl("button", p.enabled ? "Switch this partner off" : "Switch this partner on", { class: "btn btn-secondary", type: "button" });
+        const box = partnerEl("div", undefined, { class: "partner-box", "data-partner": p.id });
+        box.appendChild(partnerEl("strong", `${p.name} (${PARTNER_TYPE_LABEL[p.partner_type] || p.partner_type})`));
+        box.appendChild(partnerEl("div", `Agreement: ${p.agreement_ref || "not recorded"}${p.contact_email ? ` · Contact: ${p.contact_email}` : ""}`, { class: "muted-line" }));
+        const toggle = partnerEl("button", undefined, { class: "toggle small", type: "button", role: "switch" });
+        toggle.appendChild(partnerEl("span", undefined, { class: "toggle-track" })).appendChild(partnerEl("span", undefined, { class: "toggle-knob" }));
+        toggle.appendChild(partnerEl("span", `Access: ${p.enabled ? "ON" : "OFF"}`));
+        setToggle(toggle, p.enabled === true);
         toggle.onclick = () => togglePartner(p);
         box.appendChild(toggle);
         const users = partnerEl("ul");
@@ -5043,19 +5280,46 @@
           users.appendChild(li);
         });
         box.appendChild(users);
+        const actions = partnerEl("div", undefined, { class: "partner-actions" });
         const add = partnerEl("button", "Add coordinator", { class: "btn btn-secondary", type: "button" });
         add.onclick = () => addPartnerUser(p);
-        box.appendChild(add);
+        const invite = partnerEl("button", "Copy invite", { class: "btn btn-secondary", type: "button" });
+        invite.onclick = () => copyPartnerInvite(p);
+        actions.appendChild(add);
+        actions.appendChild(invite);
+        box.appendChild(actions);
         list.appendChild(box);
       });
     }
-    async function loadPartnerAccess() {
+    async function loadPartnerAudit() {
+      const body = document.getElementById("partnerAuditRows");
+      if (!body) return;
+      try {
+        const data = await partnerApi("/api/admin/htaf/partners/audit");
+        body.textContent = "";
+        if (!data.events.length) {
+          const tr = partnerEl("tr");
+          tr.appendChild(partnerEl("td", "No partner activity yet.", { colspan: "4" }));
+          body.appendChild(tr);
+        }
+        for (const e of data.events) {
+          const tr = partnerEl("tr");
+          const partner = e.partner_id && partnerById.get(String(e.partner_id));
+          [formatDate(e.at), PARTNER_AUDIT_TEXT[e.action] || e.action, e.by || "", partner ? partner.name : ""].forEach((v) => tr.appendChild(partnerEl("td", v)));
+          body.appendChild(tr);
+        }
+      } catch (error) {
+        body.textContent = "";
+      }
+    }
+    async function loadPartnerAccess({ quiet = false } = {}) {
       const status = document.getElementById("partnerAccessStatus");
       try {
-        status.textContent = "Loading...";
+        if (!quiet) status.textContent = "Loading…";
         renderPartners(await partnerApi("/api/admin/htaf/partners"));
         document.getElementById("partnerAccessBody").classList.remove("hidden");
-        status.textContent = "Loaded. Every change is recorded in the audit log.";
+        status.textContent = "Every change is recorded in the history below.";
+        await loadPartnerAudit();
       } catch (error) {
         document.getElementById("partnerAccessBody").classList.add("hidden");
         status.textContent = error.status === 403 ? "Only the owner can manage partner access." : error.message;
@@ -5066,7 +5330,7 @@
       const status = document.getElementById("partnerAccessStatus");
       try {
         await partnerApi(path, { method: "POST", body: JSON.stringify(body || {}) });
-        await loadPartnerAccess();
+        await loadPartnerAccess({ quiet: true });
       } catch (error) {
         status.textContent = error.message;
       }
@@ -5074,8 +5338,8 @@
     function togglePartnerMaster() {
       const enable = !partnerMasterOn;
       partnerAction("/api/admin/htaf/partner-access", { enabled: enable }, enable
-        ? "Switch partner access ON? Partners whose own switch is on will be able to sign in."
-        : "Switch partner access OFF? Every partner loses access immediately.");
+        ? "Switch the global partner portal ON? Partners whose own switch is on will be able to sign in."
+        : "Switch the global partner portal OFF? Every partner sign-in is suspended immediately.");
     }
     function togglePartner(p) {
       const enable = !p.enabled;
@@ -5086,12 +5350,37 @@
       }
       partnerAction(`/api/admin/htaf/partners/${encodeURIComponent(p.id)}/access`, { enabled: enable, agreement_ref }, enable ? `Switch ${p.name} ON?` : `Switch ${p.name} OFF? Its coordinators lose access immediately.`);
     }
+    function updateAddPartnerLabel() {
+      const on = document.getElementById("newPartnerActivate").checked;
+      document.getElementById("addPartnerButton").textContent = on ? "+ Add Partner (Active)" : "+ Add Partner (Inactive)";
+    }
     function addPartner() {
+      const activate = document.getElementById("newPartnerActivate").checked;
+      const agreement = document.getElementById("newPartnerAgreement").value.trim();
+      if (activate && !agreement) {
+        document.getElementById("partnerAccessStatus").textContent = "Enter the signed agreement reference to activate immediately, or untick the box.";
+        return;
+      }
       partnerAction("/api/admin/htaf/partners", {
         name: document.getElementById("newPartnerName").value,
         partner_type: document.getElementById("newPartnerType").value,
-        agreement_ref: document.getElementById("newPartnerAgreement").value
+        contact_email: document.getElementById("newPartnerEmail").value,
+        agreement_ref: agreement,
+        activate
+      }, activate ? "Add this partner and switch it ON now?" : null).then(() => {
+        for (const id of ["newPartnerName", "newPartnerEmail", "newPartnerAgreement"]) document.getElementById(id).value = "";
+        document.getElementById("newPartnerActivate").checked = false;
+        updateAddPartnerLabel();
       });
+    }
+    async function copyPartnerInvite(p) {
+      const status = document.getElementById("partnerAccessStatus");
+      try {
+        await navigator.clipboard.writeText(p.invite_text || "");
+        status.textContent = `Invite for ${p.name} copied. Send it yourself${p.contact_email ? ` to ${p.contact_email}` : ""}.`;
+      } catch {
+        window.prompt("Copy this invite:", p.invite_text || "");
+      }
     }
     function addPartnerUser(p) {
       const name = (window.prompt(`Coordinator's name at ${p.name}:`) || "").trim();
