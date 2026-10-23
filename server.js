@@ -881,6 +881,30 @@ const TAXI_SITEMAP_PATHS = [
   ...nashvilleDestinations.SITEMAP_PATHS
 ];
 
+// IndexNow (lib/indexNow.js): once per deployed version, production only.
+// The system flag indexnow_enabled = "false" turns it off; the version
+// last sent is kept in indexnow_last_version so restarts don't repeat it.
+const indexNow = require("./lib/indexNow");
+async function runIndexNowPing({ fetchImpl = typeof fetch === "function" ? fetch : null, force = false } = {}) {
+  if (!force && (!IS_PRODUCTION || BUILD_VERSION === "unknown")) return { skipped: true, reason: "not_production" };
+  if ((await getSystemFlag("indexnow_enabled", "true")) === "false") return { skipped: true, reason: "disabled" };
+  if (!force && (await getSystemFlag("indexnow_last_version", "")) === BUILD_VERSION) return { skipped: true, reason: "already_sent" };
+  if (!fetchImpl) return { skipped: true, reason: "no_fetch" };
+  const body = indexNow.buildIndexNowBody({ host: CANONICAL_HOST, paths: TAXI_SITEMAP_PATHS });
+  const response = await fetchImpl(indexNow.INDEXNOW_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json; charset=utf-8" },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(10_000)
+  });
+  const accepted = indexNow.indexNowAccepted(response.status);
+  if (accepted) {
+    await supabase.from("system_flags").upsert({ key: "indexnow_last_version", value: BUILD_VERSION, updated_at: nowIso() });
+  }
+  console.log(`🔎 IndexNow: ${body.urlList.length} URLs, status ${response.status}${accepted ? "" : " (not accepted)"}`);
+  return { sent: true, status: response.status, accepted, urls: body.urlList.length };
+}
+
 const FOUNDATION_SITEMAP_PATHS = [
   "/",
   "/contact.html",
@@ -32177,6 +32201,12 @@ async function startServer() {
       setTimeout(tipReconcileTick, 5 * 60_000).unref();
       setInterval(tipReconcileTick, 60 * 60_000).unref();
 
+      // IndexNow: tell Bing and other IndexNow engines about the site's
+      // pages once per deployed version, 2 minutes after start.
+      setTimeout(() => {
+        runIndexNowPing().catch((err) => console.error("⚠️ IndexNow ping failed:", logErrorCode(err)));
+      }, 2 * 60_000).unref();
+
       // Stripe-side reconciliation. Does nothing unless
       // stripe_reconciliation_enabled is "true" (off by default); cancels
       // nothing unless unused_hold_sweep_enabled is also "true" (off).
@@ -32217,4 +32247,4 @@ if (require.main === module) {
 // runOfferExpirySweep is exported only so tests can drive the real
 // Supabase adapters for the offer-expiry sweep; production runs it on the
 // interval set up under require.main === module below.
-module.exports = { app, __assistantPilot: assistantPilotTestHooks, runAuditIpRetention, runTipReconciliation, runScheduledTipReconciliation, runReviewDemoTick, runOfferExpirySweep, runUnusedHoldSweep, runAgentCoordinationSweep, reconcileStripeHolds, runScheduledReconciliation, purgeRiderLocations, runDriverHoursSweep };
+module.exports = { app, __assistantPilot: assistantPilotTestHooks, runAuditIpRetention, runTipReconciliation, runScheduledTipReconciliation, runIndexNowPing, runReviewDemoTick, runOfferExpirySweep, runUnusedHoldSweep, runAgentCoordinationSweep, reconcileStripeHolds, runScheduledReconciliation, purgeRiderLocations, runDriverHoursSweep };
