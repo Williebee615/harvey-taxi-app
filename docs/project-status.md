@@ -3564,7 +3564,7 @@ Three admin pages kept the admin token in browser storage:
     - in the home page's structured data (`sameAs`).
   - The link opens in a new tab and stays in English in every language (`data-no-translate`).
   - Screenshots: `docs/screenshots/htaf-facebook/`.
-  - HTAF tests: 493 passed.
+  - HTAF tests: 493 passed. The SEO test now allows exactly this one owner-confirmed `sameAs` profile. Full suite: 3,392 passed, 0 failed.
 - **[Unresolved]**
   - Owner approval to merge.
   - After deploy, the owner replies to Facebook (draft provided) and confirms the Facebook page's About section links to `https://harveytransportationfoundation.com/`. Facebook says that link already works.
