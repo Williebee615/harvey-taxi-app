@@ -3062,6 +3062,27 @@ Three admin pages kept the admin token in browser storage:
   - the decisions in the design's section 11.
 - **Next authorized action:** open this PR (docs only). Merging needs the owner's approval.
 
+## 81. Update 2026-10-23 (UTC): #323 live; HTAF ride assistance switches built, off (PR `claude/htaf-funding-switches`)
+
+- **[Verified 2026-10-23]** #323 (design document and §80) merged as `0c6be65` under the owner's approval ("Merge approved") after CI passed. `/api/health` reports `0c6be65`.
+- **[Owner decision 2026-10-23]** "Switches only, off": build the design's switches and their approval gate. No rider screen, no tables, no invoices, no money.
+
+**This PR**
+- **`resolveHtafFunding()`** in `lib/htafActivation.js`:
+  - `HTAF_FUNDING_ENABLED` needs the approval record: `HTAF_PROVIDER_AGREEMENT_REF`, `HTAF_CONFLICT_REVIEW_REF`, `HTAF_RATE_CARD_APPROVAL_REF`, `HTAF_FUNDING_APPROVED_BY`, and `HTAF_FUNDING_APPROVED_AT` (a real date, not in the future).
+  - `HTAF_INVOICING_ENABLED` also needs ride assistance on, and reports `charges_htaf: false`.
+  - **Both stay off even with a complete record**, because no feature is built (`FUNDING_FEATURE_BUILT = false`). Only the PR that builds the feature, after counsel and the board answer brief §F, can change that.
+- **Server:** the start-up log and the admin `/api/health` (`htaf_activation.ride_assistance`, `ride_assistance_invoicing`) show each switch and why it is off. No route uses them yet. The ride-creation gate is unchanged.
+- **Docs:** `docs/htaf-activation-checklist.md` §2a; the design's §8 notes the switches are built and off.
+- **Tests [Verified 2026-10-23, local]:**
+  - 11 new unit tests and 2 server tests;
+  - full suite: 3,294 passed, 0 failed, including the database suites on local Postgres.
+
+**Handoff:**
+- **Done:** #323 live; switches built and off.
+- **Remaining:** the owner's items in §80; counsel and board answers to §F.
+- **Next authorized action:** open this PR. Merging needs the owner's approval. Nothing is set on Render.
+
 ## 82. Update 2026-10-23 (UTC): admin tools split by domain; board roster approved (PR `claude/htaf-admin-split`)
 
 - **[Owner decision 2026-10-23]** "Full admin split", made after the owner's screenshots showed:
@@ -3096,5 +3117,6 @@ Three admin pages kept the admin token in browser storage:
 
 **Handoff:**
 - **Done:** the admin split and the board label, built and tested.
-- **Remaining:** merge approval (#324 and this PR; the status sections will need a merge when the second one lands); the owner's sign-in check; the items in §80.
+- **Remaining:** the owner's sign-in check; the items in §80.
+- **Merges [Owner decision 2026-10-23]:** "Merge both once tests pass" (#324 and this PR). #324 merged as `6e9db4c` after CI passed.
 - **Next authorized action:** open this PR. Merging needs the owner's approval.
