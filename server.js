@@ -31994,9 +31994,12 @@ async function startServer() {
 
       // Tip reconciliation, read-only. Does nothing unless
       // tips_reconciliation_enabled is "true"; at most once per 20 h.
-      setInterval(() => {
-        runScheduledTipReconciliation().catch((err) => console.error("⚠️ Tip reconciliation failed:", logErrorCode(err)));
-      }, 60 * 60_000).unref();
+      // Also tried 5 minutes after start: every deploy or setting change
+      // restarts the server, and an hourly timer alone kept being reset.
+      // The 20-hour guard (read from the audit log) prevents repeats.
+      const tipReconcileTick = () => runScheduledTipReconciliation().catch((err) => console.error("⚠️ Tip reconciliation failed:", logErrorCode(err)));
+      setTimeout(tipReconcileTick, 5 * 60_000).unref();
+      setInterval(tipReconcileTick, 60 * 60_000).unref();
 
       // Stripe-side reconciliation. Does nothing unless
       // stripe_reconciliation_enabled is "true" (off by default); cancels
