@@ -100,6 +100,10 @@ describeWithBrowser("Tip and rate your driver (phone width)", () => {
     expect(mockClient._state.driver_earnings[0]).toMatchObject({ tip_amount: 7.5, total_earning: 27.5 });
 
     await page.click("#stars button[aria-label='4 stars']");
+    // Chosen stars are gold; the rest are visibly dimmer.
+    const colors = await page.$$eval("#stars button", (bs) => bs.map((b) => getComputedStyle(b).color));
+    expect(colors.slice(0, 4).every((c) => c === "rgb(255, 217, 114)")).toBe(true);
+    expect(colors[4]).not.toBe("rgb(255, 217, 114)");
     await page.click("#tagChips button:has-text('Friendly')");
     await page.fill("#comment", "Kind and careful.");
     await page.click("#rateButton");
