@@ -742,7 +742,9 @@ const HTAF_PAGES = new Map([
   ["/contact.html", "/contact.html"],
   // HTAF staff tool (owner decision 2026-10-23: full admin split). The
   // admin session cookie is host-only, so staff sign in on this domain.
-  ["/admin-htaf.html", "/admin-htaf.html"]
+  ["/admin-htaf.html", "/admin-htaf.html"],
+  // Partner organizations' sign-in page (owner decision 2026-10-23).
+  ["/htaf-partner.html", "/htaf-partner.html"]
 ]);
 const TAXI_HOSTS = new Set([CANONICAL_HOST, `www.${CANONICAL_HOST}`]);
 const FOUNDATION_PAGE_PATHS = new Set(["/", ...HTAF_PAGES.values(), "/privacy.html", "/terms.html", "/service-providers.html"]);
@@ -1262,7 +1264,7 @@ app.get(["/admin.html", "/admin"], (req, res) => {
 // the server. These headers just keep the shells out of search results
 // (robots.txt also disallows /admin).
 app.use((req, res, next) => {
-  if (/^\/admin[^/]*$/.test(req.path)) res.setHeader("X-Robots-Tag", "noindex, nofollow");
+  if (/^\/admin[^/]*$/.test(req.path) || req.path === "/htaf-partner.html") res.setHeader("X-Robots-Tag", "noindex, nofollow");
   next();
 });
 
@@ -22317,6 +22319,326 @@ app.patch(
       metadata: { from: merchant.status, to: plan.update.status, reason: plan.update.review_reason }
     }).catch(() => {});
     return ok(res, { merchant: updated });
+  })
+);
+
+/* =========================================================
+   HTAF PARTNER ACCESS
+   Owner decision 2026-10-23: referral organizations (shelters, clinics,
+   workforce centres) view their own clients' applications and submit new
+   ones; HTAF decides every application. Two switches, both off by
+   default and checked on every request: the owner's master switch
+   (system flag htaf_partner_access_enabled) and each partner's own
+   switch, which needs a signed partner agreement recorded first.
+   Partners sign in with a one-time code texted to their phone (Twilio
+   Verify, as for stores) and never get an admin session. Only the owner
+   (htaf.partners.manage, super_admin only) manages partners and switches.
+========================================================= */
+const htafPartners = require("./lib/htafPartnerAccess");
+const HTAF_PARTNER_SESSION_SECRET = env("HTAF_PARTNER_SESSION_SECRET", "");
+const HTAF_PARTNER_SESSION_TTL_HOURS = envNumber("HTAF_PARTNER_SESSION_TTL_HOURS", 8);
+const HTAF_PARTNER_SESSION_COOKIE = "htaf_partner_session";
+const HTAF_PARTNER_CLIENT_HEADER_VALUE = "htaf-partner-portal";
+const HTAF_PARTNER_USER_FIELDS = "id, partner_id, phone, name, status, session_version, created_at, last_sign_in_at";
+const HTAF_PARTNER_FIELDS = "id, name, partner_type, agreement_ref, enabled, enabled_by, enabled_at, created_at, updated_at";
+const HTAF_PARTNER_UNAVAILABLE = "Partner access isn't available right now.";
+const HTAF_PARTNERS_NOT_SET_UP = "Partner records aren't set up yet (database migration 20261023010000 not applied).";
+
+const htafPartnerMasterOn = async () => (await getSystemFlag(htafPartners.MASTER_FLAG, "false")) === "true";
+const hasHtafPartnerClientHeader = (req) => req.headers["x-requested-with"] === HTAF_PARTNER_CLIENT_HEADER_VALUE;
+function setHtafPartnerSessionCookie(res, token, maxAgeSeconds) {
+  const attrs = [`${HTAF_PARTNER_SESSION_COOKIE}=${encodeURIComponent(token)}`, "Path=/", "HttpOnly", "SameSite=Lax", `Max-Age=${maxAgeSeconds}`];
+  if (IS_PRODUCTION) attrs.push("Secure");
+  res.append("Set-Cookie", attrs.join("; "));
+}
+const htafPartnerLoginDestinationKey = (req) => hashLoginDestination({ phone: cleanString(req.body?.phone, 32), email: "" });
+
+async function loadHtafPartner(id) {
+  const { data } = await supabase.from("htaf_partners").select(HTAF_PARTNER_FIELDS).eq("id", id).maybeSingle();
+  return data || null;
+}
+
+// Exactly one active sign-in for this phone, at a partner that is switched on.
+async function findHtafPartnerUserByPhone(rawPhone) {
+  const e164 = riderPhoneToE164(rawPhone);
+  if (!e164) return null;
+  const { data, error } = await supabase.from("htaf_partner_users").select(HTAF_PARTNER_USER_FIELDS).eq("phone", e164).eq("status", "active").limit(2);
+  if (error || !data || data.length !== 1) return null;
+  const partner = await loadHtafPartner(data[0].partner_id);
+  const decision = htafPartners.accessDecision({ masterOn: true, partner, user: data[0] });
+  return decision.allowed ? { user: data[0], partner, e164 } : null;
+}
+
+async function requireHtafPartner(req, res, next) {
+  try {
+    if (!HTAF_PARTNER_SESSION_SECRET || !(await htafPartnerMasterOn())) return fail(res, HTAF_PARTNER_UNAVAILABLE, 503);
+    if (!hasHtafPartnerClientHeader(req)) return fail(res, "This request could not be verified.", 403);
+    const check = htafPartners.verifyPartnerSession({ token: parseCookies(req)[HTAF_PARTNER_SESSION_COOKIE], secret: HTAF_PARTNER_SESSION_SECRET });
+    if (!check.ok) return fail(res, "Please sign in.", 401);
+    const { data: user } = await supabase.from("htaf_partner_users").select(HTAF_PARTNER_USER_FIELDS).eq("id", check.payload.partner_user_id).maybeSingle();
+    const partner = user ? await loadHtafPartner(user.partner_id) : null;
+    const decision = htafPartners.accessDecision({ masterOn: true, partner, user, session: check.payload });
+    if (!decision.allowed) {
+      if (decision.reason === "partner_off" || decision.reason === "no_agreement") return fail(res, "Your organization's access is switched off. Please contact HTAF.", 403);
+      return fail(res, "Please sign in.", 401);
+    }
+    req.htafPartnerUser = user;
+    req.htafPartner = partner;
+    return next();
+  } catch (err) {
+    return fail(res, "Please try again.", 500);
+  }
+}
+
+// Same response whether or not the phone belongs to a partner: no account
+// enumeration. A code is texted only to an active sign-in at a partner
+// that is switched on, and only while the master switch is on.
+app.post(
+  "/api/htaf/partner/session/start",
+  rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "htaf_partner_session_start_ip" }),
+  rateLimit({ windowMs: 10 * 60_000, max: 3, keyPrefix: "htaf_partner_session_start_dest", keyFn: htafPartnerLoginDestinationKey }),
+  asyncRoute(async (req, res) => {
+    if (!HTAF_PARTNER_SESSION_SECRET || !(await htafPartnerMasterOn())) return fail(res, HTAF_PARTNER_UNAVAILABLE, 503);
+    if (!hasHtafPartnerClientHeader(req)) return fail(res, "This request could not be verified.", 403);
+    if (!riderPhoneToE164(cleanString(req.body.phone, 32))) return fail(res, "Enter a 10-digit US phone number.", 400);
+    if (!twilioClient || !TWILIO_VERIFY_SERVICE_SID) return fail(res, HTAF_PARTNER_UNAVAILABLE, 503);
+    const found = await findHtafPartnerUserByPhone(cleanString(req.body.phone, 32));
+    if (found) {
+      try {
+        await twilioClient.verify.services(TWILIO_VERIFY_SERVICE_SID).verifications.create({ to: found.e164, channel: "sms" });
+      } catch (err) {
+        console.error("❌ HTAF partner sign-in: Twilio Verify send failed:", describeTwilioError(err));
+      }
+    }
+    return ok(res, { sent: true });
+  })
+);
+
+app.post(
+  "/api/htaf/partner/session/verify",
+  rateLimit({ windowMs: 60_000, max: 15, keyPrefix: "htaf_partner_session_verify_ip" }),
+  rateLimit({ windowMs: 10 * 60_000, max: 10, keyPrefix: "htaf_partner_session_verify_dest", keyFn: htafPartnerLoginDestinationKey }),
+  asyncRoute(async (req, res) => {
+    if (!HTAF_PARTNER_SESSION_SECRET || !(await htafPartnerMasterOn())) return fail(res, HTAF_PARTNER_UNAVAILABLE, 503);
+    if (!hasHtafPartnerClientHeader(req)) return fail(res, "This request could not be verified.", 403);
+    const code = cleanString(req.body.code, 12);
+    const invalid = () => fail(res, "Invalid or expired code.", 400);
+    if (!code || !twilioClient || !TWILIO_VERIFY_SERVICE_SID) return invalid();
+    const found = await findHtafPartnerUserByPhone(cleanString(req.body.phone, 32));
+    if (!found) return invalid();
+    let check;
+    try {
+      check = await twilioClient.verify.services(TWILIO_VERIFY_SERVICE_SID).verificationChecks.create({ to: found.e164, code });
+    } catch (err) {
+      console.error("❌ HTAF partner sign-in: Twilio Verify check failed:", describeTwilioError(err));
+      return invalid();
+    }
+    if (!check || check.status !== "approved") return invalid();
+    const token = htafPartners.signPartnerSession({
+      partnerUserId: found.user.id,
+      partnerId: found.user.partner_id,
+      sessionVersion: found.user.session_version,
+      secret: HTAF_PARTNER_SESSION_SECRET,
+      ttlHours: HTAF_PARTNER_SESSION_TTL_HOURS
+    });
+    setHtafPartnerSessionCookie(res, token, Math.round(HTAF_PARTNER_SESSION_TTL_HOURS * 3600));
+    supabase.from("htaf_partner_users").update({ last_sign_in_at: nowIso() }).eq("id", found.user.id).then(() => {}, () => {});
+    auditLog({ actor_type: "htaf_partner_user", actor_id: found.user.id, action: "htaf_partner_sign_in", entity_type: "htaf_partner", entity_id: found.user.partner_id, req }).catch(() => {});
+    return ok(res, { signed_in: true });
+  })
+);
+
+// Sign-out ends every session for this person (session_version + 1).
+app.post(
+  "/api/htaf/partner/session/logout",
+  requireHtafPartner,
+  asyncRoute(async (req, res) => {
+    await supabase.rpc("bump_htaf_partner_user_session_version", { p_user_id: req.htafPartnerUser.id });
+    setHtafPartnerSessionCookie(res, "", 0);
+    auditLog({ actor_type: "htaf_partner_user", actor_id: req.htafPartnerUser.id, action: "htaf_partner_sign_out", entity_type: "htaf_partner", entity_id: req.htafPartner.id, req }).catch(() => {});
+    return ok(res, { signed_out: true });
+  })
+);
+
+// The partner's own clients' applications only, in a reduced view.
+app.get(
+  "/api/htaf/partner/applications",
+  requireHtafPartner,
+  asyncRoute(async (req, res) => {
+    const { data, error } = await supabase
+      .from("htaf_applications")
+      .select(htafPartners.PARTNER_APPLICATION_FIELDS)
+      .eq("partner_id", req.htafPartner.id)
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error) return fail(res, "Applications could not be loaded.", 500);
+    const rows = (data || []).filter((row) => String(row.partner_id) === String(req.htafPartner.id));
+    return ok(res, {
+      partner: { name: req.htafPartner.name, partner_type: req.htafPartner.partner_type },
+      user: { name: req.htafPartnerUser.name },
+      consent_statement: htafPartners.CONSENT_STATEMENT,
+      applications: rows.map(htafPartners.toPartnerApplicationView)
+    });
+  })
+);
+
+// Submit an application for a client. Same checks as the public form,
+// plus the coordinator's confirmation that the client agreed. HTAF
+// reviews and decides it like any other application. No text-message
+// consent is recorded: only the client can give that.
+app.post(
+  "/api/htaf/partner/applications",
+  requireHtafPartner,
+  rateLimit({ windowMs: 60 * 60_000, max: 30, keyPrefix: "htaf_partner_apply", keyFn: (req) => String(req.htafPartnerUser.id) }),
+  asyncRoute(async (req, res) => {
+    if (!ENABLE_HTAF_APPLICATIONS) return fail(res, "HTAF applications are currently unavailable.", 503);
+    if (req.body?.client_consent !== true) return fail(res, "Confirm that the client agreed to this application.", 400);
+    const missing = requireBody(req, ["first_name", "last_name", "email", "phone", "county", "city", "pickup_city", "destination", "ride_date", "transportation_need"]);
+    if (missing.length) return fail(res, "Missing required fields.", 400, { missing });
+    const payload = { ...buildHTAFApplicationPayload({ ...req.body, applicant_type: "caseworker" }), partner_id: req.htafPartner.id, partner_user_id: req.htafPartnerUser.id };
+    const { data: application, error } = await supabase.from("htaf_applications").insert(payload).select().single();
+    if (error || !application) {
+      console.error("❌ HTAF partner application insert failed:", { table: "htaf_applications", ...dbErrorEntry(error) });
+      return fail(res, "Application could not be saved. Please contact HTAF if this continues.", 500);
+    }
+    await Promise.allSettled([sendApplicantConfirmation(application), sendAdminApplicationAlert(application)]);
+    auditLog({
+      actor_type: "htaf_partner_user",
+      actor_id: req.htafPartnerUser.id,
+      action: "htaf_application_created",
+      entity_type: "htaf_application",
+      entity_id: application.id,
+      metadata: { application_code: application.application_code, program_type: application.program_type, partner_id: req.htafPartner.id, client_consent_confirmed: true },
+      req
+    }).catch(() => {});
+    return ok(res, { application: htafPartners.toPartnerApplicationView(application), message: "Application sent to HTAF for review." }, 201);
+  })
+);
+
+// ---- Owner controls (super_admin only) ----
+const requireHtafPartnerManager = (route) => requireHtafCapability(route, "htaf.partners.manage", { alwaysEnforce: true });
+
+app.get(
+  "/api/admin/htaf/partners",
+  requireAdmin,
+  requireHtafPartnerManager("GET /api/admin/htaf/partners"),
+  asyncRoute(async (req, res) => {
+    const [{ data: partners, error }, { data: users, error: usersError }, masterOn] = await Promise.all([
+      supabase.from("htaf_partners").select(HTAF_PARTNER_FIELDS).order("created_at", { ascending: true }),
+      supabase.from("htaf_partner_users").select("id, partner_id, name, phone, status, last_sign_in_at").eq("status", "active"),
+      htafPartnerMasterOn()
+    ]);
+    if (error || usersError) return fail(res, HTAF_PARTNERS_NOT_SET_UP, 503, { master_enabled: masterOn });
+    return ok(res, {
+      master_enabled: masterOn,
+      sign_in_configured: Boolean(HTAF_PARTNER_SESSION_SECRET && twilioClient && TWILIO_VERIFY_SERVICE_SID),
+      partners: (partners || []).map((p) => ({
+        ...p,
+        users: (users || [])
+          .filter((u) => String(u.partner_id) === String(p.id))
+          .map((u) => ({ id: u.id, name: u.name, phone_last4: String(u.phone || "").slice(-4), last_sign_in_at: u.last_sign_in_at }))
+      }))
+    });
+  })
+);
+
+app.post(
+  "/api/admin/htaf/partner-access",
+  requireAdmin,
+  requireHtafPartnerManager("POST /api/admin/htaf/partner-access"),
+  asyncRoute(async (req, res) => {
+    if (typeof req.body?.enabled !== "boolean") return fail(res, "Say whether partner access should be on or off.", 400);
+    const enabled = req.body.enabled;
+    const { error } = await supabase
+      .from("system_flags")
+      .upsert({ key: htafPartners.MASTER_FLAG, value: enabled ? "true" : "false", reason: enabled ? cleanString(req.body?.reason, 1000) : null, updated_at: nowIso() });
+    if (error) return fail(res, "The switch could not be saved. Nothing was changed.", 500);
+    auditLog({ actor_type: "admin", actor_id: req.admin.email, action: enabled ? "htaf_partner_access_enabled" : "htaf_partner_access_disabled", entity_type: "system_flag", entity_id: htafPartners.MASTER_FLAG, req }).catch(() => {});
+    return ok(res, { master_enabled: enabled });
+  })
+);
+
+app.post(
+  "/api/admin/htaf/partners",
+  requireAdmin,
+  requireHtafPartnerManager("POST /api/admin/htaf/partners"),
+  asyncRoute(async (req, res) => {
+    const input = htafPartners.validatePartnerInput(req.body || {});
+    if (!input.ok) return fail(res, input.error, 400);
+    const { data, error } = await supabase
+      .from("htaf_partners")
+      .insert({ ...input.value, enabled: false, created_by: req.admin.email })
+      .select(HTAF_PARTNER_FIELDS)
+      .single();
+    if (error || !data) return fail(res, HTAF_PARTNERS_NOT_SET_UP, 503);
+    auditLog({ actor_type: "admin", actor_id: req.admin.email, action: "htaf_partner_created", entity_type: "htaf_partner", entity_id: data.id, metadata: { partner_type: data.partner_type, has_agreement: Boolean(data.agreement_ref) }, req }).catch(() => {});
+    return ok(res, { partner: data }, 201);
+  })
+);
+
+// A partner's own switch. Turning it on needs a recorded agreement;
+// turning it off takes effect on the partner's next request.
+app.post(
+  "/api/admin/htaf/partners/:id/access",
+  requireAdmin,
+  requireHtafPartnerManager("POST /api/admin/htaf/partners/:id/access"),
+  asyncRoute(async (req, res) => {
+    if (typeof req.body?.enabled !== "boolean") return fail(res, "Say whether this partner's access should be on or off.", 400);
+    const partner = await loadHtafPartner(cleanString(req.params.id, 64));
+    if (!partner) return fail(res, "Partner not found.", 404);
+    const enabled = req.body.enabled;
+    const agreementRef = cleanString(req.body?.agreement_ref, 200) || partner.agreement_ref;
+    if (enabled && !agreementRef) return fail(res, "Record the signed partner agreement before switching this partner on.", 409);
+    const update = enabled
+      ? { enabled: true, agreement_ref: agreementRef, enabled_by: req.admin.email, enabled_at: nowIso(), updated_at: nowIso() }
+      : { enabled: false, updated_at: nowIso() };
+    const { data, error } = await supabase.from("htaf_partners").update(update).eq("id", partner.id).select(HTAF_PARTNER_FIELDS).single();
+    if (error || !data) return fail(res, "The switch could not be saved. Nothing was changed.", 500);
+    auditLog({ actor_type: "admin", actor_id: req.admin.email, action: enabled ? "htaf_partner_enabled" : "htaf_partner_disabled", entity_type: "htaf_partner", entity_id: partner.id, req }).catch(() => {});
+    return ok(res, { partner: data });
+  })
+);
+
+app.post(
+  "/api/admin/htaf/partners/:id/users",
+  requireAdmin,
+  requireHtafPartnerManager("POST /api/admin/htaf/partners/:id/users"),
+  asyncRoute(async (req, res) => {
+    const partner = await loadHtafPartner(cleanString(req.params.id, 64));
+    if (!partner) return fail(res, "Partner not found.", 404);
+    const e164 = riderPhoneToE164(cleanString(req.body?.phone, 32));
+    const name = cleanString(req.body?.name, 120);
+    if (!e164) return fail(res, "Enter a 10-digit US phone number.", 400);
+    if (!name || name.length < 2) return fail(res, "Enter the coordinator's name.", 400);
+    const { data, error } = await supabase
+      .from("htaf_partner_users")
+      .insert({ partner_id: partner.id, phone: e164, name, status: "active", created_by: req.admin.email })
+      .select("id, partner_id, name, status")
+      .single();
+    if (error || !data) return fail(res, error && error.code === "23505" ? "That phone already signs in for a partner." : "The coordinator could not be added.", error && error.code === "23505" ? 409 : 500);
+    auditLog({ actor_type: "admin", actor_id: req.admin.email, action: "htaf_partner_user_added", entity_type: "htaf_partner", entity_id: partner.id, metadata: { partner_user_id: data.id }, req }).catch(() => {});
+    return ok(res, { user: { id: data.id, name: data.name, phone_last4: e164.slice(-4) } }, 201);
+  })
+);
+
+// Removing a coordinator ends their sessions at once.
+app.post(
+  "/api/admin/htaf/partner-users/:id/remove",
+  requireAdmin,
+  requireHtafPartnerManager("POST /api/admin/htaf/partner-users/:id/remove"),
+  asyncRoute(async (req, res) => {
+    const id = cleanString(req.params.id, 64);
+    const { data, error } = await supabase
+      .from("htaf_partner_users")
+      .update({ status: "disabled", disabled_by: req.admin.email, disabled_at: nowIso() })
+      .eq("id", id)
+      .select("id, partner_id")
+      .maybeSingle();
+    if (error) return fail(res, "The coordinator could not be removed.", 500);
+    if (!data) return fail(res, "Coordinator not found.", 404);
+    await supabase.rpc("bump_htaf_partner_user_session_version", { p_user_id: id });
+    auditLog({ actor_type: "admin", actor_id: req.admin.email, action: "htaf_partner_user_removed", entity_type: "htaf_partner", entity_id: data.partner_id, metadata: { partner_user_id: id }, req }).catch(() => {});
+    return ok(res, { removed: true });
   })
 );
 

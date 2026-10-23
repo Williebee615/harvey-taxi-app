@@ -2522,6 +2522,34 @@
           <ul id="htafAssistantQuestionList" style="margin-top:12px"></ul>
         </section>
 
+        <!-- Partner access (owner decision 2026-10-23): the owner's master
+             switch plus each referral partner's own switch. Owner only. -->
+        <section class="card" id="partnerAccessCard" style="margin-top:24px;padding:20px">
+          <h3>Partner Access</h3>
+          <p style="color:var(--muted,#a9bdd6)">Referral organizations can view their own clients' applications and send new ones. HTAF decides every application. Access needs the master switch AND the partner's own switch; both start off. Owner only.</p>
+          <p id="partnerAccessStatus" style="color:var(--muted,#a9bdd6)">Not loaded.</p>
+          <button class="btn" type="button" onclick="loadPartnerAccess()">Load partner access</button>
+          <div id="partnerAccessBody" class="hidden" style="margin-top:14px">
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+              <strong id="partnerMasterState">Master switch: off</strong>
+              <button id="partnerMasterButton" class="btn btn-secondary" type="button" onclick="togglePartnerMaster()">Switch on</button>
+            </div>
+            <div id="partnerList" style="margin-top:14px"></div>
+            <h4 style="margin-top:18px">Add a partner organization</h4>
+            <div class="toolbar" style="grid-template-columns:minmax(0,1fr) 160px minmax(0,1fr) auto">
+              <input id="newPartnerName" class="input" placeholder="Organization name" autocomplete="off" />
+              <select id="newPartnerType" class="select">
+                <option value="shelter">Shelter</option>
+                <option value="clinic">Clinic</option>
+                <option value="workforce">Workforce centre</option>
+                <option value="other">Other</option>
+              </select>
+              <input id="newPartnerAgreement" class="input" placeholder="Signed agreement reference (optional now)" autocomplete="off" />
+              <button class="btn btn-secondary" type="button" onclick="addPartner()">Add (off)</button>
+            </div>
+          </div>
+        </section>
+
       </main>
 
       <footer class="footer">
@@ -3738,6 +3766,8 @@
 
             ${detailRow("Transportation Need", app.transportation_need)}
 
+            ${app.partner_id ? detailRow("Submitted by", "A partner organization (see Partner Access)") : ""}
+
             ${detailRow("Admin Notes", app.notes)}
 
             <div class="notes-panel">
@@ -4867,6 +4897,113 @@
 
       </script>
 
-    </body>
+    
+  <script>
+    // Partner access controls. Direct fetch (not apiRequest) so a 403 for
+    // a non-owner shows a message instead of the sign-in overlay.
+    let partnerMasterOn = false;
+    async function partnerApi(path, options = {}) {
+      const response = await fetch(`${HTAF_API}${path}`, { credentials: "include", ...options, headers: { "Content-Type": "application/json", ...(options.headers || {}) } });
+      let payload = null;
+      try { payload = await response.json(); } catch { payload = null; }
+      if (!response.ok || payload?.ok === false) {
+        const error = new Error(payload?.error || payload?.message || `Request failed with status ${response.status}`);
+        error.status = response.status;
+        throw error;
+      }
+      return payload;
+    }
+    function partnerEl(tag, text, attrs = {}) {
+      const el = document.createElement(tag);
+      if (text !== undefined) el.textContent = text;
+      Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v));
+      return el;
+    }
+    function renderPartners(data) {
+      partnerMasterOn = data.master_enabled === true;
+      document.getElementById("partnerMasterState").textContent = `Master switch: ${partnerMasterOn ? "ON" : "off"}`;
+      document.getElementById("partnerMasterButton").textContent = partnerMasterOn ? "Switch off" : "Switch on";
+      const list = document.getElementById("partnerList");
+      list.textContent = "";
+      if (!data.sign_in_configured) list.appendChild(partnerEl("p", "Partner sign-in is not configured on the server yet (HTAF_PARTNER_SESSION_SECRET and Twilio Verify). Partners can't sign in until it is.", { style: "color:var(--muted,#a9bdd6)" }));
+      if (!data.partners.length) list.appendChild(partnerEl("p", "No partner organizations yet.", { style: "color:var(--muted,#a9bdd6)" }));
+      data.partners.forEach((p) => {
+        const box = partnerEl("div", undefined, { style: "border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px", "data-partner": p.id });
+        box.appendChild(partnerEl("strong", `${p.name} (${p.partner_type})`));
+        box.appendChild(partnerEl("div", `Access: ${p.enabled ? "ON" : "off"} · Agreement: ${p.agreement_ref || "not recorded"}`));
+        const toggle = partnerEl("button", p.enabled ? "Switch this partner off" : "Switch this partner on", { class: "btn btn-secondary", type: "button" });
+        toggle.onclick = () => togglePartner(p);
+        box.appendChild(toggle);
+        const users = partnerEl("ul");
+        (p.users || []).forEach((u) => {
+          const li = partnerEl("li", `${u.name} · phone ending ${u.phone_last4} `);
+          const remove = partnerEl("button", "Remove", { class: "btn btn-secondary", type: "button" });
+          remove.onclick = () => removePartnerUser(u);
+          li.appendChild(remove);
+          users.appendChild(li);
+        });
+        box.appendChild(users);
+        const add = partnerEl("button", "Add coordinator", { class: "btn btn-secondary", type: "button" });
+        add.onclick = () => addPartnerUser(p);
+        box.appendChild(add);
+        list.appendChild(box);
+      });
+    }
+    async function loadPartnerAccess() {
+      const status = document.getElementById("partnerAccessStatus");
+      try {
+        status.textContent = "Loading...";
+        renderPartners(await partnerApi("/api/admin/htaf/partners"));
+        document.getElementById("partnerAccessBody").classList.remove("hidden");
+        status.textContent = "Loaded. Every change is recorded in the audit log.";
+      } catch (error) {
+        document.getElementById("partnerAccessBody").classList.add("hidden");
+        status.textContent = error.status === 403 ? "Only the owner can manage partner access." : error.message;
+      }
+    }
+    async function partnerAction(path, body, confirmText) {
+      if (confirmText && !window.confirm(confirmText)) return;
+      const status = document.getElementById("partnerAccessStatus");
+      try {
+        await partnerApi(path, { method: "POST", body: JSON.stringify(body || {}) });
+        await loadPartnerAccess();
+      } catch (error) {
+        status.textContent = error.message;
+      }
+    }
+    function togglePartnerMaster() {
+      const enable = !partnerMasterOn;
+      partnerAction("/api/admin/htaf/partner-access", { enabled: enable }, enable
+        ? "Switch partner access ON? Partners whose own switch is on will be able to sign in."
+        : "Switch partner access OFF? Every partner loses access immediately.");
+    }
+    function togglePartner(p) {
+      const enable = !p.enabled;
+      let agreement_ref = p.agreement_ref || "";
+      if (enable && !agreement_ref) {
+        agreement_ref = (window.prompt("Reference of the signed partner agreement (required to switch on):") || "").trim();
+        if (!agreement_ref) return;
+      }
+      partnerAction(`/api/admin/htaf/partners/${encodeURIComponent(p.id)}/access`, { enabled: enable, agreement_ref }, enable ? `Switch ${p.name} ON?` : `Switch ${p.name} OFF? Its coordinators lose access immediately.`);
+    }
+    function addPartner() {
+      partnerAction("/api/admin/htaf/partners", {
+        name: document.getElementById("newPartnerName").value,
+        partner_type: document.getElementById("newPartnerType").value,
+        agreement_ref: document.getElementById("newPartnerAgreement").value
+      });
+    }
+    function addPartnerUser(p) {
+      const name = (window.prompt(`Coordinator's name at ${p.name}:`) || "").trim();
+      if (!name) return;
+      const phone = (window.prompt("Coordinator's mobile phone (US):") || "").trim();
+      if (!phone) return;
+      partnerAction(`/api/admin/htaf/partners/${encodeURIComponent(p.id)}/users`, { name, phone });
+    }
+    function removePartnerUser(u) {
+      partnerAction(`/api/admin/htaf/partner-users/${encodeURIComponent(u.id)}/remove`, {}, `Remove ${u.name}? They are signed out at once.`);
+    }
+  </script>
+</body>
 
     </html>
