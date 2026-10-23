@@ -292,7 +292,7 @@ Channels: SMS and email (Slack optional). Alerts carry the partner, ride referen
 ### 12.9 Added decisions
 
 **Owner**
-1. Harvey Taxi's role in HTAF rides: none, or an optional provider subject to counsel and the board.
+1. ~~Harvey Taxi's role in HTAF rides.~~ **Decided 2026-10-23** (see 12.10).
 2. Which provider to approach first for the pilot.
 
 **Board**
@@ -307,3 +307,23 @@ Channels: SMS and email (Slack optional). Alerts carry the partner, ride referen
 
 **Insurer**
 1. Confirm that HTAF has no exposure for rides provided and insured by Uber or Lyft.
+
+### 12.10 Owner decision: provider policy (2026-10-23)
+
+**[Owner decision 2026-10-23]** "Harvey Taxi should always remain optional for HTAF. HTAF is a nonprofit organization that wants collaboration with every rideshare company agreed to HTAF partnership."
+
+What this means for the design:
+- **Open to many providers.** HTAF may work with any rideshare or transportation company that agrees to HTAF's partnership terms, for example Uber Health, Lyft, or a local licensed company. No provider is exclusive.
+- **Harvey Taxi is always optional.** HTAF is never required to use Harvey Taxi, and no partner, rider or program is steered to it.
+  - If Harvey Taxi is ever used, it follows the related-party controls in §5 and brief §F: board approval with the interested director recused, market-rate evidence, and per-trip records.
+  - It joins on the same terms as any other provider.
+- **One set of partnership terms for every provider [Recommendation; counsel drafts].** The terms would cover:
+  - licensing and insurance;
+  - data handling (including BAAs where HIPAA applies);
+  - pricing disclosure;
+  - no-show and cancellation terms;
+  - safety and incident reporting;
+  - termination.
+- **Choosing a provider for a ride stays with a person or a fixed rule** (for example one provider per partner, reviewed periodically). It is never an automatic live price comparison between Uber and other companies, because Uber's API terms prohibit that (12.4).
+- **The fair-treatment rule is written down so it can be shown to the IRS and grantors.** Providers are chosen on cost, availability, accessibility and service to clients, recorded per partner.
+
