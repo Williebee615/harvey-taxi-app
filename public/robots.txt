@@ -1,6 +1,7 @@
 User-agent: *
 Disallow: /admin
 Disallow: /api/
+Disallow: /htaf-partner.html
 Disallow: /merchant-portal.html
 Disallow: /merchant-catalog-template.csv
 Disallow: /merchant-catalog-example.csv

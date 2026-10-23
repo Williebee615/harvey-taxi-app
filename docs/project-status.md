@@ -3323,3 +3323,56 @@ Three admin pages kept the admin token in browser storage:
   - board decisions on retention and denials;
   - the first tip-check result.
 - **Next authorized action:** open this PR. Merging needs the owner's approval. Until then, owner-only use of the HTAF admin, with no caseworker accounts.
+
+## 90. Update 2026-10-23 (UTC): HTAF partner access with owner switches (PR `claude/htaf-partner-access`; built switched off; migration not applied)
+
+- **[Owner decision 2026-10-23]** "Make it optional for owner to switch on and off allowed Partnership limited admin access." Clarified the same day:
+  - **Partners:** referral organizations (shelters, clinics, workforce centres; design §12).
+  - **Switches:** a master switch plus a switch for each partner, both off by default.
+  - **Access:** view their own clients' applications and submit new ones. HTAF decides every application.
+- **This PR:**
+  - **Migration `20261023010000_htaf_partners.sql` (not applied):**
+    - Adds `htaf_partners` and `htaf_partner_users`.
+    - Adds `partner_id` and `partner_user_id` to `htaf_applications`, plus a session-version function.
+    - Server-only (RLS on, no anon or signed-in access).
+    - The database refuses to switch a partner on without an agreement reference and who/when.
+  - **Two switches, both checked on every request:**
+    - the master switch, system flag `htaf_partner_access_enabled` (absent = off);
+    - each partner's own `enabled`.
+    - Turning either off ends access at once.
+  - **Partner sign-in:**
+    - A one-time code is texted to a registered coordinator phone (Twilio Verify, as for stores).
+    - The session is a separate signed cookie, never an admin session. Partner sessions can't reach `/api/admin/*`.
+    - Needs the new Render variable `HTAF_PARTNER_SESSION_SECRET` (name only). Without it, partner sign-in is unavailable.
+  - **What a partner sees:** its own clients only, as code, first name and last initial, program, status, ride date and dates. Never contact details, income, need text, HTAF's notes or other partners' clients.
+  - **What a partner submits:**
+    - The same fields and checks as the public form, recorded as a caseworker submission linked to the partner and coordinator.
+    - Requires the coordinator to confirm that the client agreed. The confirmation is recorded in the audit log.
+    - No text-message consent is recorded, because only the client can give that.
+    - The page tells coordinators not to include medical details.
+  - **Owner controls in the HTAF admin, under "Partner Access":**
+    - Turn the master switch on or off.
+    - Add a partner (it starts off) and switch each partner on or off. Switching on asks for the signed agreement reference.
+    - Add or remove coordinators. Removing one signs them out at once.
+    - Only `super_admin` can do this (capability `htaf.partners.manage`, always enforced). Every change is audited. Phone numbers show as the last 4 digits only.
+  - **New page:** `/htaf-partner.html`, served on the foundation domain only and not indexed (`X-Robots-Tag` and `robots.txt`).
+  - **Application detail:** shows "Submitted by: A partner organization" when a partner sent it.
+- **Tests [Verified 2026-10-23, local]:**
+  - unit tests for sessions, the access decision, the reduced view and validation;
+  - 14 server tests, including: off by default; owner only; agreement required; own clients only; consent required; switching off ends access; removed or old sessions refused; no admin access;
+  - database tests for the migration, including RLS and the agreement check;
+  - 2 Chromium tests (coordinator view and submission at phone width; owner switches);
+  - full suite: 3,364 passed, 0 failed (55 skipped, as before), including the database suites.
+- **[Unresolved] / [Recommendation]:**
+  - **Approvals needed:** merge; apply the migration; set `HTAF_PARTNER_SESSION_SECRET` in Render; each switch-on. Each is a separate owner approval.
+  - **[Recommendation]** Keep the master switch off until:
+    - (a) counsel has drafted the partner agreement and consent wording (design §12.2, §12.7);
+    - (b) the board approves the first partners;
+    - (c) for any clinic partner, the BAA question is settled (§F question 25);
+    - (d) the readiness review's P0 items for staff use (applicant notifications, retention, denial process) are done.
+  - Partners' clients must have an email address and phone today, as on the public form. Relaxing that is a separate change.
+
+**Handoff:**
+- **Done:** partner access built and tested, switched off.
+- **Remaining:** the approvals above; PR #332 (quick fixes) is still awaiting merge approval.
+- **Next authorized action:** open this PR. Merging, the migration, the Render variable and every switch need the owner's approval.

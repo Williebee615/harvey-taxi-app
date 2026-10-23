@@ -5,7 +5,7 @@ const fs = require("fs");
 const path = require("path");
 
 const PUBLIC = path.join(__dirname, "..", "public");
-const HTAF_PAGES = new Set(["foundation", "htaf-application", "htaf-privacy", "htaf-service-providers", "htaf-terms", "contact", "leadership", "admin-htaf"]);
+const HTAF_PAGES = new Set(["foundation", "htaf-application", "htaf-privacy", "htaf-service-providers", "htaf-terms", "contact", "leadership", "admin-htaf", "htaf-partner"]);
 const pages = fs.readdirSync(PUBLIC).filter((f) => f.endsWith(".html")).map((f) => f.slice(0, -5));
 const read = (page) => fs.readFileSync(path.join(PUBLIC, `${page}.html`), "utf8");
 
