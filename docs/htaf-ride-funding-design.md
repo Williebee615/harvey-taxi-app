@@ -206,3 +206,104 @@ These values are references (document ids, minute numbers, dates), not secrets.
 1. Confirm that coverage is unchanged for trips paid by a third party.
 
 **Next authorized action:** merge this document (docs only) when the owner approves. No build starts before phase 1 is complete.
+
+---
+
+## 12. Partner model: delegated guardrails (added 2026-10-23)
+
+**[Owner decision 2026-10-23]** "Approved, update the design doc with the partner model." This section adds the model; nothing is built, signed up for or switched on. The earlier sections (rider-linked authorizations, Harvey Taxi as provider) stay as one option; this section is the other.
+
+### 12.1 The idea in one paragraph
+
+The Executive Director stops dispatching rides and sets policy instead. Each partner establishment (for example a shelter, clinic or workforce centre) gets limits set by HTAF; trusted partner staff book rides for their clients within those limits; HTAF hears only about exceptions. Rides are provided by unaffiliated companies (Uber Health, Lyft), with Harvey Taxi only as an optional provider if counsel and the board clear it. Using unaffiliated providers removes most of the related-party risk in §F questions 20 and 26 **[Recommendation; counsel to confirm]**.
+
+### 12.2 Roles
+
+| Role | Decides | Cannot |
+|---|---|---|
+| Executive Director (with the board) | Which partners, their limits, overrides on exceptions | Book routine rides (not needed) |
+| HTAF board (interested director recused) | Partner agreements, the overall budget, the provider choice | — |
+| Partner coordinator (named, trained staff) | Which of their clients needs a ride, within HTAF's limits | Exceed limits; ride for themselves; change limits |
+| The system | Enforces limits; sends alerts | Decide eligibility, approve over-limit rides, or start a charge without a person's request (`docs/agent-action-rules.md`) |
+
+Each partner signs a written agreement with HTAF before any access: who may book, eligibility the partner applies, data handling, misuse and repayment, termination. **[Unresolved: counsel drafts; board approves.]**
+
+### 12.3 Guardrails HTAF sets per partner
+
+| Guardrail | Example | Enforced how |
+|---|---|---|
+| Location lock | Every ride starts or ends at the partner's address | Phase 1: provider dashboard rules where offered (Lyft Pass allows pickup/drop-off restrictions); Phase 2: our server |
+| Budget cap | $1,500 or 75 rides per month, whichever first | Provider program budget (Phase 1); our server (Phase 2) |
+| Service window | Monday–Friday, 6 AM–8 PM | Provider rules / our server |
+| Ride type | Standard tier only | Provider rules / our server |
+| Distance or cost ceiling | Over 25 miles or over $50 needs the Executive Director's approval | Phase 2 only: held for a one-tap approve/deny |
+| Per-client limit | e.g. 8 rides per client per month | Phase 2 |
+
+Example figures are placeholders; the board sets the real ones.
+
+### 12.4 Providers: what is verified (searched 2026-10-23, official sites)
+
+- **Uber Health:**
+  - Coordinators book rides for patients from a dashboard or API, and riders need no smartphone.
+  - **Flexible rides exist.** The rider gets an SMS link and requests the ride when ready. In the API this is `deferred_ride_options.pickup_day` on Create Health Trip, and it needs a mobile number.
+  - Uber states it will sign a business associate agreement (BAA).
+  - Pricing is described as usage-based with no sign-up fee. Prices can rise during high demand.
+  - Sources: [Create Health Trip](https://developer.uber.com/docs/health/references/api/v1/health-trips-post), [Arranging Uber Health rides](https://help.uber.com/en/business/article/arranging-uber-health-rides?nodeId=16571e08-7395-4e1c-afe5-61168031f154), [Uber Health FAQ](https://www.uberhealth.com/us/en/faq/), [Uber Health Business Associate Addendum](https://www.uber.com/us/en/legal/uber-health-business-associate-addendum/).
+- **Lyft:**
+  - **Lyft Concierge** lets organizations book rides for patients by dashboard or API. Lyft describes flexible, pre-authorized on-demand rides up to 30 days ahead, and says it signs BAAs with healthcare partners. These are vendor statements, and some pages are several years old.
+  - **Lyft Pass** lets an organization set a total budget, rides per rider, a maximum dollar amount per ride, and pickup/drop-off, ride-type and time restrictions. **If a fare exceeds the pass, the rider's own payment method is charged the full amount.** That must be explained to clients, or avoided with Concierge.
+  - Sources: [Lyft Healthcare](https://www.lyft.com/healthcare), [SafeRide Health customer story](https://www.lyft.com/business/customer-stories/saferide-health), [About Lyft Pass](https://help.lyft.com/business/hc/en-us/articles/25023162405267-About-Lyft-Pass), [Lyft Pass](https://www.lyft.com/business/products/lyftpass).
+- **Blocker on "cheapest of Uber or Lyft" routing:** Uber's API Terms of Use prohibit including Uber in an aggregated view with competitors and aggregating Uber data with competitors' data. Uber's price-estimate documentation says offering price comparisons with competing services through the API violates the terms. Automatically comparing live Uber and Lyft prices per ride is therefore **not planned** unless Uber gives written permission. Sources: [Uber API Terms of Use](https://developer.uber.com/docs/riders/terms-of-use), [GET /estimates/price](https://developer.uber.com/docs/v1-estimates-price).
+
+  **[Recommendation]** Assign each partner one provider by rule instead, for example by the partner's needs or a periodic cost review done by a person. **[Unresolved]** The Health API may have its own terms; counsel or Uber to confirm.
+- **Not verified:** current per-ride rates; no-show and cancellation fees charged to the organization; production API access requirements; nonprofit terms. These come from each provider's sales team before any commitment.
+
+### 12.5 Return trips
+
+Use each provider's flexible ride (above) for appointments with unknown end times: the partner books the day, the client taps the SMS link when ready. Clients without a mobile phone cannot use it (Uber requires a mobile number); for them the partner books the return when called. Whether this avoids no-show fees depends on each provider's terms **[Unresolved]**.
+
+### 12.6 Exception alerts to the Executive Director
+
+- A partner reaches 80% of its monthly budget or ride count.
+- A ride is over the distance or cost ceiling. It waits for a one-tap approve or deny, and is never approved automatically.
+- A driver cancels or a client is marked no-show. These are reported to HTAF; no action against the client is automatic.
+- A partner books outside its window or location rules (Phase 2), or a provider rejects a booking.
+
+Channels: SMS and email (Slack optional). Alerts carry the partner, ride reference and amount, not the client's medical details.
+
+### 12.7 Data and privacy
+
+- A partner enters the client's name, phone number and the two addresses. These go to HTAF (Phase 2) and to the provider.
+- Medical details never go to HTAF or the provider; a clinic address is an address.
+- Clinic partners are HIPAA covered entities, so before any clinic partner starts, counsel must settle which BAAs are needed (partner ↔ HTAF, HTAF ↔ provider) (§F question 25).
+- Clients are told who will see their details. The consent wording is written by counsel.
+
+### 12.8 Phased rollout
+
+| Phase | What | Code | Money | Needs |
+|---|---|---|---|---|
+| A | Counsel and board: partner agreement, budget, provider choice, BAAs | None | None | Owner sends brief §F and this section |
+| B | Pilot 3–5 partners on the providers' own dashboards (Uber Health organization or Lyft Pass/Concierge), billed to an HTAF account with caps | None | Yes, HTAF pays the provider | Board approval; HTAF signs up (owner action, paid) |
+| C | Review the pilot: volume, cost per ride, no-shows, misuse, staff time | Report only | No | 2–3 months of pilot data |
+| D | HTAF partner portal and guardrail server (built switched off, like §8), connected to a provider's API after production access is granted | Yes | Only through the provider, within caps | Owner approval per step; provider API approval |
+
+**[Recommendation]** Phase B first. It tests demand without code. Phase D is worth building only if the pilot shows the volume.
+
+### 12.9 Added decisions
+
+**Owner**
+1. Harvey Taxi's role in HTAF rides: none, or an optional provider subject to counsel and the board.
+2. Which provider to approach first for the pilot.
+
+**Board**
+1. Approve the partner model, the pilot budget and the first partners.
+2. Adopt the partner agreement.
+
+**Counsel**
+1. Draft the partner agreement.
+2. Settle the BAAs and the HIPAA position for clinic partners.
+3. Confirm the client consent wording.
+4. Confirm whether Uber's API terms permit any per-ride provider selection.
+
+**Insurer**
+1. Confirm that HTAF has no exposure for rides provided and insured by Uber or Lyft.
