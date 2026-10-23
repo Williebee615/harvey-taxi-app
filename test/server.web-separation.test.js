@@ -145,7 +145,6 @@ describe("admin split (owner decision 2026-10-23)", () => {
   });
 });
 
-<<<<<<< HEAD
 describe("Nashville destination pages on the taxi domain", () => {
   test("the hub and a destination page are served as HTML", async () => {
     const hub = await get("/nashville-destinations/", TAXI);
@@ -193,7 +192,9 @@ describe("Nashville destination pages on the taxi domain", () => {
     const res = await request(app).get("/destinations/ryman-auditorium/").set("Host", "harvey-taxi-app-2.onrender.com");
     expect(res.headers["x-robots-tag"]).toBe("noindex, nofollow");
     expect((await get("/destinations/ryman-auditorium/", TAXI)).headers["x-robots-tag"]).toBeUndefined();
-=======
+  });
+});
+
 describe("each domain's icon (owner report 2026-10-23: HTS icon beside HTAF's Google result)", () => {
   const fs = require("fs");
   const path = require("path");
@@ -223,6 +224,5 @@ describe("each domain's icon (owner report 2026-10-23: HTS icon beside HTAF's Go
 
   test("the taxi homepage declares a 192 px PNG icon", async () => {
     expect((await get("/", TAXI)).text).toContain('<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />');
->>>>>>> origin/main
   });
 });
