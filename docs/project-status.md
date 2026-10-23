@@ -3573,3 +3573,19 @@ Three admin pages kept the admin token in browser storage:
 - **Done:** #336 steps verified; Facebook link built.
 - **Remaining:** merge approval; the owner's reply to Facebook; contacting the 2 real applicants.
 - **Next authorized action:** open this PR. Merging needs the owner's approval.
+
+## 99. Update 2026-10-23 (UTC): #337 live (Facebook link); HTAF admin action-bar fix (PR `claude/htaf-action-bar-fix`)
+
+- **[Verified 2026-10-23]** #337 merged as `d049115` under the owner's approval ("Approved to merge 337"). `/api/health` reported `d049115` at 19:47 UTC.
+  - **[Unresolved]** The agent network can't reach the foundation domain, so the owner checks the live Facebook links on the Contact page and footer before sending the drafted reply to Facebook.
+- **[Owner report 2026-10-23, screenshot]** In the HTAF admin detail panel, the three main buttons (Approve, Request Missing Docs, Deny) were squeezed into one grid cell, and their labels overlapped.
+- **This PR:**
+  - The main action row spans the full panel, and labels wrap instead of overlapping.
+  - The detail panel's ride date shows in US format ("Nov 2, 2026"), matching the queue.
+  - The Chromium test now checks that the row spans the panel and that no label is cut off.
+- **Tests [Verified 2026-10-23, local]:** HTAF browser tests 6 passed.
+
+**Handoff:**
+- **Done:** #337 live; layout fix built.
+- **Remaining:** merge approval; the owner sends the Facebook reply after checking the links.
+- **Next authorized action:** open this PR. Merging needs the owner's approval.
