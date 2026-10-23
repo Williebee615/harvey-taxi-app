@@ -3120,3 +3120,56 @@ Three admin pages kept the admin token in browser storage:
 - **Remaining:** the owner's sign-in check; the items in §80.
 - **Merges [Owner decision 2026-10-23]:** "Merge both once tests pass" (#324 and this PR). #324 merged as `6e9db4c` after CI passed.
 - **Next authorized action:** open this PR. Merging needs the owner's approval.
+
+## 83. Update 2026-10-23 (UTC): #324 and #325 live; Nashville destination pages (PR `claude/nashville-destinations`)
+
+**Merges [Verified 2026-10-23]** (owner approval: "Merge both once tests pass")
+- #324 merged as `6e9db4c` and #325 as `b6c2409`, each after CI passed.
+- `/api/health` reports `b6c2409`.
+- Live checks on harveytaxiservice.com:
+  - `/admin-htaf.html` returns 301 to harveytransportationfoundation.com/admin-htaf.html;
+  - `/admin-dashboard.html` returns 200 and contains no HTAF text.
+- **[Unresolved]** The owner still needs to sign in on the foundation domain and confirm the HTAF admin queue loads.
+
+**Destination pages**
+- **[Owner decision 2026-10-23]** Build hub-and-spoke destination pages for search.
+  - **Leave BNA out:** no airport page and no airport claims.
+  - **Research and cite:** facts come from venue websites, with sources and an as-of date; travel times come from Mapbox; there is a live fare-estimate link and no fixed fares.
+  - **First batch:** Downtown and Broadway, the Opry area, the stadium and zoo, and the medical and university destinations.
+- **This PR:**
+  - **Pages:** `lib/nashvilleDestinations.js` holds 11 destinations: Lower Broadway, Ryman Auditorium, Bridgestone Arena, Grand Ole Opry, Opry Mills, Gaylord Opryland, Nissan Stadium, Nashville Zoo, VUMC, Vanderbilt University and Belmont University. Each page has:
+    - drop-off and pickup;
+    - accessibility;
+    - parking compared with a ride;
+    - a Sources section;
+    - a "Get a live fare estimate" link (`/rider-dashboard.html?ai_destination=…`);
+    - TaxiService and BreadcrumbList JSON-LD;
+    - its own canonical URL.
+
+    The hub at `/nashville-destinations/` lists them all.
+  - **Rendering:** pages are server-rendered, so crawlers get full HTML.
+    - Bare URLs redirect to the trailing-slash form.
+    - On the foundation domain these URLs return a 301 to the taxi domain.
+    - Unknown slugs return 404.
+  - **Travel times:** typical drives with no live traffic, from three neighbourhood points, by Mapbox. They are cached for 24 hours, and a failure is cached for 1 hour. If no result arrives within 2.5 s, the page renders without the table. The table is labelled as estimates.
+  - **Sitemap and homepage:** the hub and all 11 pages are in the taxi sitemap. A "Popular Nashville destinations" link block is above the homepage footer.
+  - **Staging:** `*.onrender.com` responses carry `X-Robots-Tag: noindex, nofollow`. `ENABLE_CANONICAL_REDIRECT` is unchanged and stays the owner's switch.
+- **Research method [Verified 2026-10-23]:**
+  - This environment blocks direct page fetches, so facts come from web searches limited to each venue's own domain: ryman.com, bridgestonearena.com, opry.com, nissanstadium.com, nashvillezoo.org, vumc.org and vanderbilthealth.com, vanderbilt.edu, belmont.edu, simon.com, marriott.com and nashville.gov.
+  - Where official sources conflicted (zoo parking fee, resort parking rates, older stadium rideshare spots, the Metro downtown rideshare program's approval) or said nothing (Ryman, Opry and zoo rideshare spots), the page says so instead of guessing.
+  - No accessibility vehicle, medical-transport or airport claims are made. The VUMC page says it is not for emergencies.
+- **Tests [Verified 2026-10-23, local]:**
+  - 7 unit and 11 server tests;
+  - a phone-width render check (375 px, no sideways scroll);
+  - full suite: 3,316 passed, 0 failed.
+
+**[Unresolved]**
+- **Owner:**
+  - spot-check each page's facts against the cited source before merging;
+  - after deploy, submit the sitemap in Google Search Console and request indexing for the hub and pages. This is owner access; I have none.
+- **[Recommendation]** Re-check venue facts every 3 months, and before major events.
+
+**Handoff:**
+- **Done:** #324 and #325 live; destination pages built and tested.
+- **Remaining:** merge approval; the owner's spot-check; Search Console; the HTAF admin sign-in check; the items in §80.
+- **Next authorized action:** open this PR. Merging needs the owner's approval.
