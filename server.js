@@ -5079,6 +5079,19 @@ app.get(
   })
 );
 
+// HTAF applications marked as the owner's tests (migration 20261023030000).
+// Read separately so lists keep working before that migration: no column
+// means no test records.
+async function htafTestApplicationIds() {
+  try {
+    const { data, error } = await supabase.from("htaf_applications").select("id, is_test").eq("is_test", true);
+    if (error) return new Set();
+    return new Set((data || []).filter((r) => r.is_test === true).map((r) => String(r.id)));
+  } catch {
+    return new Set();
+  }
+}
+
 // A column a not-yet-applied migration adds (Postgres 42703, or PostgREST's
 // PGRST204 for an unknown column in a write).
 function isMissingColumnError(error) {
@@ -5542,31 +5555,25 @@ app.get(
 
   asyncRoute(async (req, res) => {
 
-    const { data, error } =
-
-      await supabase
-
-        .from("htaf_applications")
-
-        .select("status");
-
+    // email is read only for the synthetic-address filter, which until
+    // 2026-10-23 never ran because the column wasn't selected.
+    const [{ data, error }, testIds] = await Promise.all([
+      supabase.from("htaf_applications").select("id, status, email"),
+      htafTestApplicationIds()
+    ]);
     if (error) {
-
       return fail(
-
         res,
-
         "HTAF statistics are temporarily unavailable.",
-
         503
-
       );
-
     }
-
     const stats =
-
-      computeHtafPublicStats((data || []).filter((row) => !isSyntheticEmail(row.email)).map((row) => row.status));
+      computeHtafPublicStats(
+        (data || [])
+          .filter((row) => !isSyntheticEmail(row.email) && !testIds.has(String(row.id)))
+          .map((row) => row.status)
+      );
 
     return ok(res, {
 
@@ -5875,6 +5882,9 @@ app.get(
       // A missing duplicate hint must never block the queue.
     }
 
+    const testIds = await htafTestApplicationIds();
+    listed = listed.map((row) => (testIds.has(String(row.id)) ? { ...row, is_test: true } : row));
+
     return ok(res, {
 
       applications:
@@ -5936,15 +5946,35 @@ app.get(
     if (!data) {
       return fail(res, "HTAF application not found.", 404);
     }
+    const testIds = await htafTestApplicationIds();
+    return ok(res, { application: { ...data, is_test: testIds.has(String(data.id)) } });
+  })
+);
 
-    return ok(res, { application: data });
+// Mark or unmark an application as a test record. Audited; nothing else
+// about the application changes.
+app.post(
+  "/api/admin/foundation/applications/:id/test-marker",
+  requireAdmin,
+  requireHtafCapability("POST /api/admin/foundation/applications/:id/test-marker", "htaf.applications.update"),
+  asyncRoute(async (req, res) => {
+    const id = cleanString(req.params.id, 100);
+    if (typeof req.body?.is_test !== "boolean") return fail(res, "Say whether this is a test record.", 400);
+    const isTest = req.body.is_test;
+    const patch = isTest
+      ? { is_test: true, test_marked_by: req.admin.email, test_marked_at: nowIso() }
+      : { is_test: false, test_marked_by: null, test_marked_at: null };
+    const { data, error } = await supabase.from("htaf_applications").update(patch).eq("id", id).select("id, application_code, is_test").maybeSingle();
+    if (error && isMissingColumnError(error)) return fail(res, "Test records aren't set up yet (database migration 20261023030000 not applied).", 503);
+    if (error) return fail(res, "The application could not be updated.", 500);
+    if (!data) return fail(res, "HTAF application not found.", 404);
+    auditLog({ actor_type: "admin", actor_id: req.admin.email, action: isTest ? "htaf_application_marked_test" : "htaf_application_unmarked_test", entity_type: "htaf_application", entity_id: String(data.id), metadata: { application_code: data.application_code }, req }).catch(() => {});
+    return ok(res, { application: { id: data.id, is_test: data.is_test === true } });
   })
 );
 
 /* =========================================================
-
    HTAF ADMIN UPDATE
-
 ========================================================= */
 
 app.patch(
@@ -6173,7 +6203,10 @@ app.post(
       throw error;
     }
 
-    const rows = data || [];
+    // Test records stay out of exports unless explicitly included.
+    const includeTest = req.body?.include_test === true;
+    const testIds = includeTest ? new Set() : await htafTestApplicationIds();
+    const rows = (data || []).filter((row) => !testIds.has(String(row.id)));
     const csv = buildHtafExportCsv(rows);
 
     const auditResult = await auditLog({
@@ -6189,7 +6222,8 @@ app.post(
           status: resolved.status,
           program_type: resolved.programType,
           from_date: resolved.fromDate,
-          to_date: resolved.toDate
+          to_date: resolved.toDate,
+          include_test: includeTest
         }
       },
       req

@@ -3496,3 +3496,37 @@ Three admin pages kept the admin token in browser storage:
 - **Done:** tip check verified; redesign built and tested.
 - **Remaining:** merge and migration approvals; partner details and switch-ons (owner); test applications identified (owner).
 - **Next authorized action:** open this PR. Merging and the migration need the owner's approval.
+
+## 96. Update 2026-10-23 (UTC): #335 live with its migration; HTAF test records (PR `claude/htaf-test-records`)
+
+- **[Owner decision 2026-10-23]** "Approval granted for merging #335 and … applying its database update."
+- **[Verified 2026-10-23, production]** Migration `20261023020000_htaf_admin_inbox_partner_contact.sql` applied before the merge (recorded by Supabase as version `20261023190615`).
+  - All 9 assistant questions are `open`.
+  - `htaf_partners.contact_email` and both new checks exist.
+- **[Verified 2026-10-23]** #335 merged as `2cf13d5` after all six checks passed on `a0d26e8`. `/api/health` reports `2cf13d5`.
+- **[Owner decision 2026-10-23]** Test applications: "The ones labeled Willie Harvey or Melissa". These are HTAF-20260706-B35ED3, HTAF-20260706-3843D3 and HTAF-20260708-480EB7.
+  - The other three (HTAF-20260805-5455F7, HTAF-20260819-444928 and HTAF-20260819-B52562) are real applicants.
+  - **[Recommendation]** They have waited 65–80 days, their trip dates have passed, and they should be contacted.
+  - One of them includes medical details in free text; limit access until counsel answers (brief §F question 25).
+- **This PR:**
+  - **Migration `20261023030000_htaf_applications_test_marker.sql` (not applied):** adds `is_test`, `test_marked_by` and `test_marked_at`, with a who-and-when check. Nothing is deleted.
+  - **Server:**
+    - `POST /api/admin/foundation/applications/:id/test-marker` (HTAF update permission, audited).
+    - The queue and the detail view carry `is_test`.
+    - Public statistics and exports leave test records out; the export has an "Include test records" option.
+    - The test flag is read separately, so everything works before the migration.
+  - **Fix:** public statistics never left out synthetic `example.test` addresses, because the query didn't select `email`. It now does.
+  - **Page:**
+    - Test records are hidden by default ("Show test records" reveals them, with a TEST RECORD badge).
+    - KPIs, the status pill and the Ride Scheduling list count real applications only.
+    - The detail view has "Mark as test record" / "Mark as real application".
+- **Tests [Verified 2026-10-23, local]:** 4 server tests, 1 Chromium test and 1 database test; HTAF suites 545 passed; full suite 3,392 passed, 0 failed.
+- **[Unresolved]** Owner approvals needed:
+  - merge;
+  - apply migration `20261023030000`;
+  - mark the three test applications above (after the migration, through the new button or by an audited update).
+
+**Handoff:**
+- **Done:** #335 live; test-record support built.
+- **Remaining:** the approvals above; contact the two real applicants (owner); partner details and switch-ons (owner).
+- **Next authorized action:** open this PR. Merging, the migration and the marking need the owner's approval.
