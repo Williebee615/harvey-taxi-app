@@ -2039,10 +2039,11 @@
 
             </div>
 
+            <label class="check-line" style="display:flex;gap:6px;align-items:center;color:var(--muted)">
+              <input id="showTestRecords" type="checkbox" onchange="applyFilters()" /> Show test records
+            </label>
             <span id="queueCount" class="pill">
-
               0 records
-
             </span>
 
           </div>
@@ -2622,6 +2623,7 @@
                   </select>
                 </div>
               </div>
+              <label class="check-line" style="display:flex;gap:8px;align-items:center;color:var(--muted);margin-bottom:10px"><input id="exportIncludeTest" type="checkbox" /> Include test records</label>
               <div class="field"><label for="exportReason">Reason for this export (required)</label><input id="exportReason" class="input" placeholder="e.g. Q3 grant report for the county" autocomplete="off" /></div>
               <div id="exportStatusBanner" class="status-banner"></div>
             </div>
@@ -3493,7 +3495,10 @@
 
               normalizeText(application.program_type) === program;
 
-            return searchOk && statusOk && programOk;
+            const testOk =
+              !application.is_test ||
+              document.getElementById("showTestRecords")?.checked === true;
+            return searchOk && statusOk && programOk && testOk;
 
           });
 
@@ -3533,20 +3538,16 @@
       ) {
 
         return applications.filter(
-
           application =>
-
+            !application.is_test &&
             normalizeText(application.status) === status
-
         ).length;
 
       }
 
       function updateMetrics() {
-
         const total =
-
-          applications.length;
+          applications.filter((a) => !a.is_test).length;
 
         const submitted =
 
@@ -3732,6 +3733,7 @@
                         ${escapeHtml(application.county || "county")}
                       </span>
                     </div>
+                    ${application.is_test ? `<span class="dup-badge" style="background:rgba(126,166,255,.16);color:var(--muted)">TEST RECORD</span>` : ""}
                     <span class="queue-sub">Submitted ${escapeHtml(formatAge(application.created_at))}${application.ride_date ? ` • Trip: ${escapeHtml(formatDay(application.ride_date))}` : ""}</span>
                     ${Array.isArray(application.possible_duplicate_of) && application.possible_duplicate_of.length
                       ? `<span class="dup-badge" title="Same phone, email or name within 7 days">⚠ Possible duplicate of ${escapeHtml(application.possible_duplicate_of.join(", "))}</span>`
@@ -4026,6 +4028,13 @@
                 onclick="updateSelectedStatus('under_review')"
               >
                 Mark Under Review
+              </button>
+              <button
+                class="btn btn-secondary"
+                type="button"
+                onclick="toggleTestRecord()"
+              >
+                ${app.is_test ? "Mark as real application" : "Mark as test record"}
               </button>
 
               ${rideCreationEnabled ? `<button
@@ -4804,7 +4813,8 @@
                 status: statusFilterValue || undefined,
                 program_type: programFilterValue || undefined,
                 from_date: fromDate || undefined,
-                to_date: toDate || undefined
+                to_date: toDate || undefined,
+                include_test: document.getElementById("exportIncludeTest")?.checked === true
               })
             }
           );
@@ -5086,7 +5096,7 @@
       pill.classList.toggle("err", !lastSyncOk && lastSyncedAt !== null);
       if (lastSyncedAt === null) { text.textContent = "Connecting…"; return; }
       text.textContent = lastSyncOk
-        ? `Connected (${applications.length} records) | Last synced: ${formatAge(lastSyncedAt)}`
+        ? `Connected (${applications.filter((a) => !a.is_test).length} records) | Last synced: ${formatAge(lastSyncedAt)}`
         : "Not connected | Open diagnostics";
     }
 
@@ -5117,7 +5127,7 @@
       const body = document.getElementById("schedulingRows");
       if (!body) return;
       const rows = applications
-        .filter((a) => ["approved", "scheduled"].includes(String(a.status || "").toLowerCase()))
+        .filter((a) => !a.is_test && ["approved", "scheduled"].includes(String(a.status || "").toLowerCase()))
         .sort((a, b) => String(a.ride_date || "9999").localeCompare(String(b.ride_date || "9999")));
       document.getElementById("schedulingCount").textContent = `${rows.length} request${rows.length === 1 ? "" : "s"}`;
       body.textContent = "";
@@ -5141,6 +5151,29 @@
         tr.style.cursor = "pointer";
         tr.addEventListener("click", () => { showTab("queue"); selectApplication(a.id); });
         body.appendChild(tr);
+      }
+    }
+
+    // Mark the open application as a test record (or back to real).
+    async function toggleTestRecord() {
+      if (!selectedApplication) return;
+      const makeTest = !selectedApplication.is_test;
+      if (!window.confirm(makeTest
+        ? `Mark ${selectedApplication.application_code} as a test record? It will be left out of counts, statistics and exports. Nothing is deleted.`
+        : `Mark ${selectedApplication.application_code} as a real application again?`)) return;
+      try {
+        const payload = await apiRequest(`/api/admin/foundation/applications/${encodeURIComponent(selectedApplication.id)}/test-marker`, {
+          method: "POST",
+          body: JSON.stringify({ is_test: makeTest })
+        });
+        const isTest = payload.application && payload.application.is_test === true;
+        selectedApplication = { ...selectedApplication, is_test: isTest };
+        applications = applications.map((a) => (a.id === selectedApplication.id ? { ...a, is_test: isTest } : a));
+        showBanner("detailStatusBanner", isTest ? "Marked as a test record." : "Marked as a real application.", "ok");
+        applyFilters();
+        renderApplicationDetail();
+      } catch (error) {
+        showBanner("detailStatusBanner", error.message || "Unable to update.", "err");
       }
     }
 
