@@ -2976,6 +2976,7 @@ Three admin pages kept the admin token in browser storage:
 - The partner line on the HTAF site uses neutral wording, with counsel to confirm later.
 - The web split comes first; the in-app HTAF funding option design pass comes next.
 - support@harveytaxiservice.com is valid now (owner's statement; I did not test it).
+- Merge approval (2026-10-23): "Merge all once test successfully pass". Scope: #321 and #322, each after its CI passes. #321 merged as `7412a88` (CI green).
 
 **This PR**
 - **Routing** (`server.js`, GET/HEAD only):
