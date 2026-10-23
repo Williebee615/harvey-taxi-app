@@ -190,6 +190,6 @@ describeWithBrowser("in the browser", () => {
     await context.close();
     expect(r.note).toContain("Las traducciones son automáticas");
     expect(r.announce).toContain("Solicita un viaje en Nashville");
-    expect(r.nav).toEqual(["Inicio", "Viajes", "Asistente", "HTAF", "Ajustes"]);
+    expect(r.nav).toEqual(["Inicio", "Viajes", "Asistente", "Ajustes"]);
   });
 });

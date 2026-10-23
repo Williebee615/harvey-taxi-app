@@ -723,6 +723,23 @@ const FOUNDATION_STATIC_OVERRIDES = new Map([
   ["/service-providers.html", "htaf-service-providers.html"]
 ]);
 
+// Web separation (owner decision 2026-10-23): HTAF's pages live only on
+// the foundation domain and Harvey Taxi's pages only on the taxi domain.
+// HTAF_PAGES on a taxi host redirect to the foundation domain; any other
+// page on a foundation host redirects to the taxi domain. Assets and
+// /api/* are shared and served on both. Other hosts (previews, tests)
+// are unaffected.
+const HTAF_PAGES = new Map([
+  ["/foundation.html", "/"],
+  ["/htaf-application.html", "/htaf-application.html"],
+  ["/leadership.html", "/leadership.html"],
+  ["/contact.html", "/contact.html"]
+]);
+const TAXI_HOSTS = new Set([CANONICAL_HOST, `www.${CANONICAL_HOST}`]);
+const FOUNDATION_PAGE_PATHS = new Set(["/", ...HTAF_PAGES.values(), "/privacy.html", "/terms.html", "/service-providers.html"]);
+const isPagePath = (p) => p === "/" || /\.html?$/i.test(p);
+const queryOf = (req) => (req.originalUrl.includes("?") ? req.originalUrl.slice(req.originalUrl.indexOf("?")) : "");
+
 // The HTAF legal pages' internal filenames. express.static isn't
 // domain-gated, so without this they would be served as-is on any host
 // (the taxi domain, preview deployments), and the canonical tag alone
@@ -802,6 +819,24 @@ app.use((req, res, next) => {
       return res.sendFile(path.join(PUBLIC_DIR, override));
     }
 
+    const htafHome = HTAF_PAGES.get(req.path);
+    if (htafHome && htafHome !== req.path) {
+      return res.redirect(301, `${htafHome}${queryOf(req)}`);
+    }
+
+    // HTAF staff tools stay reachable; every other Harvey Taxi page goes
+    // to the taxi domain, so a foundation URL never shows ride booking.
+    if (isPagePath(req.path) && !FOUNDATION_PAGE_PATHS.has(req.path) && !req.path.startsWith("/admin")) {
+      return res.redirect(301, `https://${CANONICAL_HOST}${req.path}${queryOf(req)}`);
+    }
+
+  }
+
+  if ((req.method === "GET" || req.method === "HEAD") && req.hostname && TAXI_HOSTS.has(req.hostname)) {
+    const htafPath = HTAF_PAGES.get(req.path);
+    if (htafPath) {
+      return res.redirect(301, `https://${FOUNDATION_HOST}${htafPath}${queryOf(req)}`);
+    }
   }
 
   next();
@@ -827,7 +862,6 @@ const TAXI_SITEMAP_PATHS = [
   "/",
   "/driver-signup.html",
   "/rider-signup.html",
-  "/htaf-application.html",
   "/support.html",
   "/privacy.html",
   "/terms.html"

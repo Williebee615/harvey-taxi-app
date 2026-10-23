@@ -200,7 +200,7 @@ describeWithBrowser("Harvey Taxi Mobile index page: the chat on small phones", (
 
       // Phones: no floating button at all; the Assistant tab is in the nav
       // and all six tabs fit their labels.
-      expect(top).toMatchObject({ sideways: false, covered: [], oldWidget: false, newLauncher: false, navAssistant: true, tabs: 5, tabsFit: true });
+      expect(top).toMatchObject({ sideways: false, covered: [], oldWidget: false, newLauncher: false, navAssistant: true, tabs: 4, tabsFit: true });
       expect(textHits).toEqual([]);
       expect(end).toMatchObject({ sideways: false, covered: [] });
       expect(kb).toMatchObject({ inside: true, inputVisible: true, sideways: false });

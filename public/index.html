@@ -1198,7 +1198,6 @@
         <a class="top-link" href="#how-it-works" data-i18n="navHow">How It Works</a>
         <a class="top-link" href="#safety" data-i18n="navSafety">Safety</a>
         <a class="top-link" href="#services" data-i18n="navServices">Services</a>
-        <a class="top-link" href="foundation.html" data-track="foundation_nav" data-i18n="navFoundation">Foundation</a>
         <a class="top-link" href="settings.html" data-track="settings_nav" data-i18n="navSettings">⚙ Settings</a>
         <a class="top-link cta" href="rider-dashboard.html?screen=book&mode=driver" data-intent="request_ride_start" data-i18n="navBook">Book Ride</a>
       </nav>
@@ -1243,16 +1242,6 @@
 
           <!-- LEFT -->
           <div>
-            <!-- MEDICAL RIDE ENTRY POINT — separate from rideshare/driver CTAs below,
-                 for hospital-referred patients (e.g. Vanderbilt) landing on this page. -->
-            <div class="medical-callout">
-              <div>
-                <strong data-i18n="medicalCalloutTitle">Need a ride to a medical appointment?</strong>
-                <span>Harvey Transportation Assistance Foundation (HTAF) accepts applications for transportation assistance. HTAF is a separate organization from the Harvey Taxi app below, and each application is reviewed before any help is arranged.</span>
-              </div>
-              <a class="btn foundation" href="foundation.html" data-intent="medical_ride_entry">❤️ About HTAF assistance</a>
-            </div>
-
             <div class="hero-badge hero-badge-plain">Nashville, Tennessee · Early access</div>
 
             <h1 class="hero-title" id="hero-heading">
@@ -1272,7 +1261,6 @@
               </div>
               <div class="secondary-actions">
                 <a class="btn ghost" href="rider-signup.html" data-intent="rider_signup_start" data-i18n="riderSignup">Rider Signup</a>
-                <a class="btn foundation" href="foundation.html" data-track="foundation_button" data-i18n="foundationEmoji">❤️ Foundation</a>
               </div>
             </div>
 
@@ -1322,16 +1310,6 @@
                   <span>Autonomous rides</span>
                   <div class="status-pill pilot">PLANNED</div>
                 </div>
-              </div>
-            </div>
-
-            <!-- FOUNDATION CARD -->
-            <div class="side-card gold">
-              <span class="eyebrow" data-i18n="communityImpact">Community Impact</span>
-              <h3 data-i18n="foundationTitle">Harvey Transportation Assistance Foundation</h3>
-              <p data-i18n="foundationCopy">Removing transportation barriers for medical visits, employment, education, and essential mobility needs.</p>
-              <div style="margin-top:16px;">
-                <a class="btn foundation" href="foundation.html" style="width:100%;" data-i18n="exploreFoundation">Explore Foundation</a>
               </div>
             </div>
 
@@ -1489,20 +1467,12 @@
             </div>
             <a class="btn success" href="mailto:support@harveytaxiservice.com?subject=Waitlist%3A%20grocery%20delivery&body=Please%20add%20me%20to%20the%20grocery%20delivery%20waitlist.%20My%20city%3A%20" data-intent="waitlist_grocery">Join the waitlist by email</a>
           </div>
-          <div class="service-card">
-            <div>
-              <h3>❤️ HTAF Transportation</h3>
-              <p>Run by the Harvey Transportation Assistance Foundation (HTAF), a separate organization. Apply online; each application is reviewed before any help is arranged.</p>
-            </div>
-            <a class="btn foundation" href="htaf-application.html" data-intent="service_htaf_apply">Apply for HTAF</a>
-          </div>
         </div>
 
         <!-- PLATFORM HUBS -->
         <div class="grid-3" style="margin-top:16px;">
           <a class="card" href="rider-dashboard.html"><strong>Rider Dashboard</strong><span>Ride activity, account readiness, and trip history.</span></a>
           <a class="card" href="support.html"><strong>Harvey Support Center</strong><span>Rider, driver, payment, foundation, and account support.</span></a>
-          <a class="card" href="foundation.html"><strong>Foundation Hub</strong><span>Harvey Transportation Assistance Foundation: applications and contact.</span></a>
           <a class="card" href="settings.html"><strong>Settings Center</strong><span>Accessibility, language and account settings.</span></a>
           <a class="card" href="driver-signup.html"><strong>Driver Signup</strong><span>Begin the Harvey Taxi driver onboarding process.</span></a>
           <a class="card" href="merchant-apply.html"><strong>Partner With Us</strong><span>Nashville-area stores: apply for the delivery pilot. Delivery isn't live yet.</span></a>
@@ -1549,7 +1519,6 @@
             <div class="list-item"><strong>Support Email</strong><span>support@harveytaxiservice.com</span></div>
             <div class="list-item"><strong>Administrative Contact</strong><span>williebee@harveytaxiservice.com</span></div>
             <div class="list-item"><strong>Driver Opportunities</strong><span>Apply through the Harvey Taxi driver onboarding process.</span></div>
-            <div class="list-item"><strong>Foundation Mission</strong><span>Transportation assistance for healthcare, employment, education, and essential needs.</span></div>
           </div>
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:20px;">
@@ -1557,15 +1526,11 @@
           <a class="btn ghost" href="terms.html">Terms of Service</a>
           <a class="btn ghost" href="settings.html">Settings</a>
           <a class="btn success" href="support.html">Support Center</a>
-          <a class="btn foundation" href="foundation.html">Foundation Hub</a>
         </div>
-        <div class="support-callout" style="margin-top:24px;">
-          <div>
-            <strong>Harvey Transportation Assistance Foundation</strong>
-            <span>A separate organization that accepts applications for transportation assistance.</span>
-          </div>
-          <a class="btn foundation" href="foundation.html">Explore Foundation</a>
-        </div>
+        <p class="lead" style="margin-top:20px;">
+          Need help paying for transportation? The Harvey Transportation Assistance Foundation is a separate nonprofit with its own website:
+          <a href="https://harveytransportationfoundation.com/" rel="noopener">harveytransportationfoundation.com</a>.
+        </p>
       </section>
 
       <!-- APP ECOSYSTEM -->
@@ -1578,7 +1543,6 @@
           <div class="card"><strong>📱 Mobile Platform</strong><span>Use Harvey Taxi in your phone's browser at harveytaxiservice.com. App store availability will be listed here once each app is published.</span></div>
           <div class="card"><strong>🚖 Transportation</strong><span>Rides with drivers who have passed an identity check and a background check.</span></div>
           <div class="card"><strong>🤝 Driver Opportunity</strong><span>Create earning opportunities while serving communities across Tennessee.</span></div>
-          <div class="card"><strong>❤️ Foundation Support</strong><span>Transportation assistance applications through HTAF, a separate organization.</span></div>
           <div class="card"><strong>💬 Harvey Assistant</strong><span>Automated answers for riders and drivers.</span></div>
           <div class="card"><strong>🚀 Planned</strong><span>Delivery and autonomous rides are planned, not available.</span></div>
         </div>
@@ -1588,14 +1552,13 @@
       <footer class="footer">
         <div>
           <span class="footer-title">Harvey Taxi Service LLC</span>
-          <p>Rides in Nashville (early access) and driver sign-up. The Harvey Transportation Assistance Foundation (HTAF) is a separate nonprofit organization.</p>
+          <p>Rides in Nashville (early access) and driver sign-up. The Harvey Transportation Assistance Foundation (HTAF) is a separate nonprofit organization: <a href="https://harveytransportationfoundation.com/" rel="noopener">harveytransportationfoundation.com</a>.</p>
         </div>
         <div class="footer-actions">
           <a class="btn ghost" href="privacy.html">Privacy</a>
           <a class="btn ghost" href="terms.html">Terms</a>
           <a class="btn ghost" href="settings.html">Settings</a>
           <a class="btn success" href="support.html">Support</a>
-          <a class="btn foundation" href="foundation.html">Foundation</a>
         </div>
       </footer>
 
@@ -1615,10 +1578,6 @@
     <button class="nav-btn nav-assistant" type="button" onclick="openHarveyAiChat();" aria-label="Harvey Assistant" aria-controls="htaPanel" data-testid="nav-assistant" data-i18n="navAssistant">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.2 3.6A.5.5 0 0 1 5 19.2V16h-.5A.5.5 0 0 1 4 15.5z"/></svg>
       Assistant
-    </button>
-    <button class="nav-btn" onclick="safeGo('foundation.html','bottom_foundation')" aria-label="Foundation" data-i18n="navHtaf">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>
-      HTAF
     </button>
     <button class="nav-btn" onclick="safeGo('settings.html','bottom_settings')" aria-label="Settings" data-i18n="navSettings">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>

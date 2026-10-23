@@ -2931,3 +2931,52 @@ Three admin pages kept the admin token in browser storage:
 - **Done:** tips, ratings and score built and tested, switched off.
 - **Remaining:** the approvals above; counsel wording; the driver app screen; the earlier owner items in §63, §71 and §76.
 - **Next authorized action:** open this PR. Merging and applying the migration need the owner's approval.
+
+## 79. Update 2026-10-23 (UTC): HTAF and Harvey Taxi websites separated (PR `claude/htaf-web-separation`)
+
+**[Owner decision 2026-10-23]**
+- The two websites are separated, following the reviewer's (Sami's) feedback.
+  - harveytransportationfoundation.com is the nonprofit only: no booking, dispatch or driver dashboards.
+  - harveytaxiservice.com is commercial only.
+- The partner line on the HTAF site uses neutral wording, with counsel to confirm later.
+- The web split comes first; the in-app HTAF funding option design pass comes next.
+- support@harveytaxiservice.com is valid now (owner's statement; I did not test it).
+
+**This PR**
+- **Routing** (`server.js`, GET/HEAD only):
+  - **Foundation domain:**
+    - `/foundation.html` goes to `/`.
+    - Any Harvey Taxi page goes to the same path on harveytaxiservice.com with a 301 (for example `/rider-dashboard.html` or `/request-ride.html`). The query string, including `?lang`, is kept.
+    - Still served on this domain: HTAF's pages (`/`, application, leadership, contact, privacy, terms, service providers) and HTAF staff tools (`/admin*`).
+  - **Taxi domain:** `/foundation.html`, `/htaf-application.html`, `/leadership.html` and `/contact.html` go to the foundation domain with a 301.
+  - **Shared:** assets and `/api/*` are served on both domains. Preview and test hosts are unchanged.
+  - **Sitemap:** `htaf-application.html` is removed from the taxi sitemap. HTAF search results now land only on the foundation domain.
+- **Harvey Taxi homepage** (`index.html`):
+  - Removed: the HTAF buttons, cards, the bottom-bar HTAF tab and the medical-ride callout.
+  - Two plain external links to harveytransportationfoundation.com remain, describing HTAF as a separate nonprofit with its own website.
+- **Rider dashboard:** the Foundation links and the HTAF application now open the foundation website.
+- **Admin dashboard:** the HTAF button opens `/admin-htaf.html`.
+- **HTAF homepage:**
+  - It has its own app install file (`htaf-manifest.json`, HTAF name and icon) instead of Harvey Taxi's.
+  - New line: "Rides are arranged with licensed transportation providers. Harvey Taxi Service LLC is a separate company.", with an external link to harveytaxiservice.com.
+  - The line is machine-translated into all 14 HTAF languages; no fluent speaker has reviewed it, the same as the rest of the table.
+- **Tests [Verified 2026-10-23, local]:**
+  - 20 new routing tests (`test/server.web-separation.test.js`).
+  - Three tests now expect the HTAF tab to be gone (four tabs) and 244 translation entries.
+  - Full suite: 3,280 passed, 0 failed (database suites against local Postgres).
+
+**[Unresolved]**
+- **Owner approval:** merge (Render deploys `main` automatically).
+- **After deploy:**
+  - live check of the redirects on both domains;
+  - in Google Search Console, resubmit both sitemaps and request reindexing of the foundation homepage. That is owner access; I have none.
+- **Counsel:**
+  - final wording of the provider line;
+  - the HTAF donation card shown in the rider dashboard after a ride request (PayPal, unchanged by this PR). It asks Harvey Taxi riders to donate to HTAF, so counsel should confirm it is consistent with the arm's-length separation, or it should be removed.
+- **Recommendation:** set `SUPPORT_EMAIL` on Render to support@harveytaxiservice.com (owner action).
+- **Next:** the design document for HTAF as an in-app funding option (eligibility, approval, billing, records), switched off. Nothing that moves money until counsel answers brief §F.
+
+**Handoff:**
+- **Done:** web separation built and tested.
+- **Remaining:** merge approval; post-deploy checks; Search Console; counsel items; `SUPPORT_EMAIL`; PR #321 (stars and §78) awaiting merge approval.
+- **Next authorized action:** open this PR. Merging needs the owner's approval.
