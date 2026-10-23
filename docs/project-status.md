@@ -3438,3 +3438,14 @@ Three admin pages kept the admin token in browser storage:
 - **Done:** recorded the secret (name and location only).
 - **Remaining:** add partners and coordinators, and the switch-ons (owner approval each); the first tip-check result, with a check-in at 15:10 UTC; this PR's merge approval.
 - **Next authorized action:** none beyond pushing this record.
+
+## 94. Update 2026-10-23 (UTC): #332 merged; tip check also runs after start-up (PR `claude/tip-check-startup`)
+
+- **[Owner decision 2026-10-23]** "Approve all". Applied to the two items then awaiting approval: merging #332, and building the tip-check start-up fix proposed in §93. It does **not** cover turning partner access on or adding partners: the owner was asked to confirm those separately, since no partner, agreement or coordinator details exist yet.
+- **[Verified 2026-10-23]** #332 merged as `7d8c792` after all six checks passed on `011ecac`.
+- **This PR:** the daily tip check also runs once 5 minutes after the server starts, as well as hourly. Deploys and Render setting changes restart the server, and that kept resetting the hourly timer. The existing 20-hour guard (read from the audit log) still prevents more than one run a day. Tip tests: 13 passed.
+
+**Handoff:**
+- **Done:** #332 merged; the start-up fix built.
+- **Remaining:** merge approval for this PR; the first tip-check result (check-in at 15:10 UTC); partner switch-on and partner details (owner); test applications identified (owner).
+- **Next authorized action:** open this PR. Merging needs the owner's approval.
