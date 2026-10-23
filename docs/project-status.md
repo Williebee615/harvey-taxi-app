@@ -3238,6 +3238,10 @@ Three admin pages kept the admin token in browser storage:
   - Provider selection is by a person or a fixed rule, never an automatic Uber price comparison.
   - The criteria are recorded per partner.
 - **Still open:** which provider to approach first for the pilot, plus the board, counsel and insurer items in §11 and §12.9.
+- **CI fix [Verified 2026-10-23]:** this PR's first CI run failed in `test/server.orders.test.js`.
+  - The test checks that a web-push alert never names the item or its price ("429"), but it also scanned the push link. That link carries a random order id, which happened to contain "429" (`f37d5689-6737-4299-…`).
+  - The test now checks only the title and body. The link is still pinned exactly by the line before it.
+  - The app code is unchanged.
 
 **Handoff:**
 - **Done:** #328 merged; provider policy recorded.
