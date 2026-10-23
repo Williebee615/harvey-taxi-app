@@ -3190,3 +3190,39 @@ Three admin pages kept the admin token in browser storage:
 - **Remaining:** merge approval for #326; Search Console requests.
 - **[Verified 2026-10-23]** #327 merged as `f95c031` (owner: "Merge #327") after CI passed. `/api/health` reports `f95c031`. Live on the taxi domain: `/favicon.ico` is the HTS icon, `/apple-touch-icon.png` returns 200 `image/png`, and the homepage declares the 192 px PNG icon. The foundation domain can't be reached from here, so the owner checks it.
 - **Next authorized action:** open this PR. Merging needs the owner's approval.
+
+## 85. Update 2026-10-23 (UTC): #326 live; HTAF partner model added to the funding design (PR `claude/htaf-partner-model`, docs only)
+
+- **[Verified 2026-10-23]** #326 merged as `29ebd63` under the owner's approval ("Merge #326 once tests pass"), after CI passed on `87b867e`.
+  - Earlier commit `91ed22e` had leftover merge-conflict markers in `server.js` and a test file and failed CI. It was on the PR branch only; main and the live site were never affected. `87b867e` fixed it.
+  - `/api/health` reports `29ebd63`.
+- **[Verified 2026-10-23, live]**
+  - `/nashville-destinations/` and the destination pages return 200; the bare hub URL returns 301; `/destinations/bna-airport/` returns 404.
+  - The Bridgestone page has its h1, the TaxiService JSON-LD and a live Mapbox travel table (downtown about 2 min / 0.3 mi; Midtown about 9 min / 1.6 mi; East Nashville about 11 min / 2.5 mi).
+  - The sitemap lists the hub and the 11 pages, and the homepage links to them.
+- **[Owner decision 2026-10-23]** "Approved, update the design doc with the partner model": the delegated-guardrail model, with partner establishments, HTAF-set limits, unaffiliated providers and exception-only alerts.
+- **This PR:** `docs/htaf-ride-funding-design.md` §12 covers:
+  - roles, including what the system may not do;
+  - per-partner guardrails;
+  - verified provider facts with sources: Uber Health flexible rides and BAA, Lyft Concierge and Lyft Pass controls, and the Lyft Pass full-fare fallback to the rider's own card;
+  - return trips, exception alerts and data/HIPAA;
+  - a four-phase rollout (pilot on the providers' own dashboards before any code);
+  - added decisions for the owner, board, counsel and insurer.
+- **[Verified 2026-10-23, official sources]** Uber's API Terms of Use prohibit aggregating Uber with competitors and API price comparisons. The proposed automatic "cheapest of Uber or Lyft" routing is therefore not planned without Uber's written permission. **[Recommendation]** One provider per partner, chosen by a person.
+- **[Unresolved]**
+  - provider per-ride rates and no-show/cancellation fees charged to organizations;
+  - production API access;
+  - nonprofit terms;
+  - whether Uber's Health API terms differ.
+
+  These come from provider sales contacts and counsel.
+- **Nothing signed up for, built or switched on.** Provider accounts are paid and need the owner's and board's approval.
+
+**Handoff:**
+- **Done:** #326 live and checked; partner model documented.
+- **Remaining:**
+  - merge approval for this PR;
+  - Search Console (sitemap, indexing);
+  - sending brief §F with the design to counsel;
+  - the decisions in §11 and §12.9.
+- **Next authorized action:** open this PR. Merging needs the owner's approval.
