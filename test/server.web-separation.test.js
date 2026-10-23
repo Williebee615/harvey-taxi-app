@@ -144,3 +144,35 @@ describe("admin split (owner decision 2026-10-23)", () => {
     expect(res.text).not.toMatch(/foundation\/applications|admin-htaf|HTAF Applications/);
   });
 });
+
+describe("each domain's icon (owner report 2026-10-23: HTS icon beside HTAF's Google result)", () => {
+  const fs = require("fs");
+  const path = require("path");
+  const file = (name) => fs.readFileSync(path.join(__dirname, "..", "public", name));
+  const bytes = (res) => Buffer.from(res.body);
+  const getBinary = (p, host) => request(app).get(p).set("Host", host).buffer(true).parse((res, cb) => {
+    const chunks = [];
+    res.on("data", (c) => chunks.push(c));
+    res.on("end", () => cb(null, Buffer.concat(chunks)));
+  });
+
+  test("the foundation domain's /favicon.ico is HTAF's icon", async () => {
+    const res = await getBinary("/favicon.ico", HTAF);
+    expect(res.status).toBe(200);
+    expect(bytes(res).equals(file("htaf-favicon.ico"))).toBe(true);
+  });
+
+  test("the taxi domain's /favicon.ico is Harvey Taxi's icon", async () => {
+    const res = await getBinary("/favicon.ico", TAXI);
+    expect(bytes(res).equals(file("favicon.ico"))).toBe(true);
+  });
+
+  test("each domain's /apple-touch-icon.png is its own", async () => {
+    expect(bytes(await getBinary("/apple-touch-icon.png", HTAF)).equals(file("htaf-apple-touch-icon.png"))).toBe(true);
+    expect(bytes(await getBinary("/apple-touch-icon.png", TAXI)).equals(file("icon-192.png"))).toBe(true);
+  });
+
+  test("the taxi homepage declares a 192 px PNG icon", async () => {
+    expect((await get("/", TAXI)).text).toContain('<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />');
+  });
+});

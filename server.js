@@ -720,7 +720,13 @@ app.use((req, res, next) => {
 const FOUNDATION_STATIC_OVERRIDES = new Map([
   ["/privacy.html", "htaf-privacy.html"],
   ["/terms.html", "htaf-terms.html"],
-  ["/service-providers.html", "htaf-service-providers.html"]
+  ["/service-providers.html", "htaf-service-providers.html"],
+  // Search engines and browsers ask a domain's root for its icon. Without
+  // these, the foundation domain answered with Harvey Taxi's HTS icon,
+  // and Google showed it beside HTAF's search result.
+  ["/favicon.ico", "htaf-favicon.ico"],
+  ["/apple-touch-icon.png", "htaf-apple-touch-icon.png"],
+  ["/apple-touch-icon-precomposed.png", "htaf-apple-touch-icon.png"]
 ]);
 
 // Web separation (owner decision 2026-10-23): HTAF's pages live only on
@@ -894,6 +900,12 @@ function buildSitemapXml(host, urlPaths) {
 const HTAF_ACTIVATION = resolveHtafActivation(process.env);
 // HTAF ride assistance switches: off, and nothing behind them yet.
 const HTAF_FUNDING = resolveHtafFunding(process.env);
+
+// Harvey Taxi's root touch icon (the foundation domain gets HTAF's
+// through FOUNDATION_STATIC_OVERRIDES above, which runs first).
+app.get(["/apple-touch-icon.png", "/apple-touch-icon-precomposed.png"], (req, res) => {
+  res.sendFile(path.join(PUBLIC_DIR, "icon-192.png"));
+});
 
 app.get("/sitemap.xml", (req, res) => {
   const isFoundation = req.hostname && FOUNDATION_HOSTS.has(req.hostname);

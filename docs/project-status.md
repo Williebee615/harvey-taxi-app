@@ -3120,3 +3120,20 @@ Three admin pages kept the admin token in browser storage:
 - **Remaining:** the owner's sign-in check; the items in §80.
 - **Merges [Owner decision 2026-10-23]:** "Merge both once tests pass" (#324 and this PR). #324 merged as `6e9db4c` after CI passed.
 - **Next authorized action:** open this PR. Merging needs the owner's approval.
+
+## 84. Update 2026-10-23 (UTC): each domain gets its own search icon; HTAF admin verified (PR `claude/favicon-fix`)
+
+- **[Verified 2026-10-23, owner screenshots]** At harveytransportationfoundation.com/admin-htaf.html the owner signed in. The page shows "Connected. 6 HTAF applications loaded", with totals of 6 applications and 5 new. Only the HTAF Home and Contact links remain. The queue showed 0 only because "TN" was typed in its search box.
+- **[Owner decision 2026-10-23]** The owner reported a Google result showing the Harvey Taxi (HTS) icon beside harveytransportationfoundation.com, and a plain globe beside harveytaxiservice.com: "Can we fix this logo issue please".
+- **Cause [Verified 2026-10-23, code]:** search engines ask a domain's root for `/favicon.ico`. The foundation domain was answering with the shared `public/favicon.ico`, which is the HTS taxi icon. The HTAF homepage's own icon links were correct.
+- **This PR:**
+  - On the foundation domain, `/favicon.ico` serves `htaf-favicon.ico`, and `/apple-touch-icon.png` and `/apple-touch-icon-precomposed.png` serve `htaf-apple-touch-icon.png`.
+  - On the taxi domain, the touch-icon paths serve `icon-192.png` (previously a 404). The homepage also declares a 192 px PNG icon, a size Google accepts.
+  - 4 new tests. Full suite: 3,304 passed, 0 failed.
+- **[Verified 2026-10-23, live]** The taxi domain's `/favicon.ico` already returns 200 `image/x-icon`. The globe there is most likely Google not having refreshed its icon yet.
+- **[Unresolved]** Google updates search-result icons on its own schedule, often days to weeks. After deploy, the owner can request indexing of both homepages in Search Console to speed it up. Old snippet text from before the web split (the taxi result mentioning HTAF) will also update when Google recrawls.
+
+**Handoff:**
+- **Done:** icon fix built and tested; HTAF admin check recorded.
+- **Remaining:** merge approval for this PR and #326; Search Console requests.
+- **Next authorized action:** open this PR. Merging needs the owner's approval.
