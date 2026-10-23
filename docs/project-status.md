@@ -3449,3 +3449,50 @@ Three admin pages kept the admin token in browser storage:
 - **Done:** #332 merged; the start-up fix built.
 - **Remaining:** merge approval for this PR; the first tip-check result (check-in at 15:10 UTC); partner switch-on and partner details (owner); test applications identified (owner).
 - **Next authorized action:** open this PR. Merging needs the owner's approval.
+
+## 95. Update 2026-10-23 (UTC): first daily tip check verified; #334 live; HTAF admin redesign (PR `claude/htaf-admin-redesign`)
+
+- **[Verified 2026-10-23]** #334 merged as `ba9e147` under the owner's approval ("Approved"). `/api/health` reported `ba9e147` at 14:02 UTC.
+- **[Verified 2026-10-23, production audit log]** The first scheduled tip reconciliation ran at 14:07:08 UTC (audit 1671, `tip_reconciliation_scheduled_run`), 5 minutes after the #334 start-up. Against the owner's three conditions:
+  - **It ran in production:** yes.
+  - **The two $2 practice tips match driver earnings:** yes. 2 earnings checked, 0 discrepancies, 0 failed modes, no alert email.
+  - **No real card charge:** yes. Live Stripe shows 0 tip payment intents and 0 cents in tips. Our records show 0 paid live tips; both practice tips are `simulated`.
+  - **[Unresolved]** The Stripe test account was skipped (`test_stripe_not_configured`), so test-mode tips are not checked. That is harmless while no test tips exist.
+- **[Owner note 2026-10-23]** "Vanderbilt was a typo." No partner was ever saved (`htaf_partners` is empty), so nothing needs undoing.
+- **[Owner decisions 2026-10-23]** HTAF admin redesign, from the owner's UI review:
+  - **Assistant inbox:** the stored redacted excerpt with Add to FAQ / Dismiss. No contact column, because the assistant is anonymous and collects none.
+  - **Detail actions:** ✓ Approve, ? Request Missing Docs (templates staff copy and send themselves; nothing is sent by the system), ✕ Deny. Scheduling stays hidden while booking is off.
+  - **Partners:** a contact email is stored for the owner's own invite, with "Copy invite". "Activate immediately" requires the agreement reference.
+  - **Delivery:** one PR.
+- **This PR:**
+  - **Layout:**
+    - The marketing header and the technical status card are replaced by a status pill ("Connected (N records) | Last synced") that opens a System Diagnostics window.
+    - Tabs: Queue & Review, Ride Scheduling, Partner Portal, Assistant & Triage.
+    - The KPI cards are one-click filters.
+    - Everything loads on sign-in and refreshes every 60 seconds. The "Load …" buttons are gone.
+  - **Queue:**
+    - The first record opens automatically; ↑/↓ move through the queue.
+    - Each card shows "Submitted 2d ago • Trip: Oct 28, 2026" and a "⚠ Possible duplicate of …" badge (same phone, email or name within 7 days). Duplicates are worked out on the server, so the list still carries no contact details, only the other application codes.
+    - **[Owner decision 2026-10-23]** `ride_date` moves from detail-only to the list, so cards can show the trip date.
+  - **Dates:** US format in Nashville time: "Oct 23, 2026 • 8:21 AM".
+  - **Ride Scheduling tab:** approved and scheduled requests by trip date. Read-only; booking stays off.
+  - **Assistant & Triage:** a table with time, category, the redacted question and Add to FAQ / Dismiss / Reopen, plus an open-count badge on the tab. Each action is audited.
+  - **Partner Portal:**
+    - A visual global switch with a warning that turning it off suspends every partner sign-in, and a switch per partner.
+    - "+ Add Partner (Inactive)", or "(Active)" when "Activate immediately" is ticked, which needs the agreement reference.
+    - Contact email, "Copy invite" (portal link and sign-in steps; the system never emails), and a partner access history table.
+  - **Grant export:** a dialog with date range, status and program, presets (last quarter approved, this quarter, year to date) and the required reason. The date filters are recorded in the audit log.
+  - **Migration `20261023020000_htaf_admin_inbox_partner_contact.sql` (not applied):** adds `htaf_assistant_questions.status`/`resolved_by`/`resolved_at` and `htaf_partners.contact_email`. Until it is applied, the inbox shows every question as open (Dismiss and FAQ say the update is needed), and partners can be added without an email.
+- **Tests [Verified 2026-10-23, local]:**
+  - 7 new server tests;
+  - 4 new Chromium tests (including no sideways scroll at phone width);
+  - library tests for export dates, duplicates and Nashville midnight;
+  - a database test for the new migration;
+  - the 2 earlier browser tests updated for the new labels;
+  - full suite: 3,386 passed, 0 failed (55 skipped, as before), including the database suites.
+- **[Unresolved]** Owner approvals needed: merge; apply migration `20261023020000`.
+
+**Handoff:**
+- **Done:** tip check verified; redesign built and tested.
+- **Remaining:** merge and migration approvals; partner details and switch-ons (owner); test applications identified (owner).
+- **Next authorized action:** open this PR. Merging and the migration need the owner's approval.
