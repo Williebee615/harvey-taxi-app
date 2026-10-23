@@ -3425,3 +3425,16 @@ Three admin pages kept the admin token in browser storage:
 - **Done:** partner tables live and empty; access off.
 - **Remaining:** the approvals above; this PR's merge approval; the first scheduled tip-check result.
 - **Next authorized action:** none beyond pushing this record. Merging this PR needs the owner's approval.
+
+## 93. Update 2026-10-23 (UTC): partner sign-in secret set; tip check timer note
+
+- **[Owner decision 2026-10-23, owner-reported]** "HTAF_PARTNER_SESSION_SECRET is set." It is stored in the Render environment (name only, never recorded). Partner sign-in can work once partners and coordinators exist and both switches are on. The master switch is still off (§92).
+- **[Verified 2026-10-23 13:55 UTC]** `/api/health` reports healthy on `0751816` after the setting change.
+- **[Unresolved]** The secret's presence can't be checked from outside while the master switch is off; partner routes return 503 either way. In the HTAF admin, "Load partner access" no longer shows the "sign-in is not configured" note when the secret and Twilio Verify are both set.
+- **[Verified 2026-10-23, code]** The daily tip check runs from an hourly timer that starts at server start, and every deploy or Render setting change restarts the server. Restarts today: about 13:13, 13:43 and 13:55 UTC, so no scheduled run has happened yet. If there are no more restarts, the first run is expected about 14:55 UTC.
+  - **[Recommendation]** A small fix: also run the check a few minutes after start-up. The existing 20-hour guard prevents duplicates. This needs owner approval.
+
+**Handoff:**
+- **Done:** recorded the secret (name and location only).
+- **Remaining:** add partners and coordinators, and the switch-ons (owner approval each); the first tip-check result, with a check-in at 15:10 UTC; this PR's merge approval.
+- **Next authorized action:** none beyond pushing this record.
