@@ -3290,3 +3290,36 @@ Three admin pages kept the admin token in browser storage:
   - switching on the daily check;
   - the owner items in §80, §85 and §86.
 - **Next authorized action:** open this PR. Merging needs the owner's approval.
+
+## 88. Update 2026-10-23 (UTC): #330 live and the daily tip check switched on; HTAF admin readiness review (PR `claude/htaf-admin-readiness`, docs only)
+
+- **[Verified 2026-10-23]** #330 merged as `81938ea` under the owner's approval ("Merge #330 once tests pass and switch on daily check"), after CI passed.
+  - `/api/health` reports `81938ea`.
+  - `POST /api/admin/tips/reconcile` returns 401 without an admin session.
+- **[Verified 2026-10-23, production database]** `tips_reconciliation_enabled = true` was set at 12:53 UTC, with audit row 1670 (approved by the owner; read-only check).
+  - The current tip records are 2 simulated $2 tips, and both match the drivers' earnings ($27.31 + $2 = $29.31; $27.37 + $2 = $29.37).
+  - **[Unresolved]** The first scheduled run's result. A check-in is set for 14:09 UTC, and the result goes in the next status entry.
+- **[Owner decision 2026-10-23]** "I don't think HTAF admin is ready for live production" → "Readiness review first (Recommended)". Nothing was changed.
+- **This PR:** `docs/htaf-admin-readiness-review.md`.
+  - **Verdict:** not ready for routine staff use. It is safe for owner-only viewing (one `super_admin` in production, HTAF role gating, audit records, export blocked if its audit fails, ride creation off).
+  - **P0 items:**
+    - applicants are never told of decisions, and the "Request Additional Documents" button says it sends but doesn't;
+    - technical wording ("Phase 11", "Server J");
+    - the switched-off "Schedule Transportation" action is still shown;
+    - no MFA;
+    - test and real applications are mixed;
+    - no retention period;
+    - no denial process.
+  - **P1:** search autofill, assignment and age indicators, export scope, separation from the LLC's infrastructure, and a staff guide.
+  - **P2:** the owner's partner/broker architecture, mapped to what already exists.
+  - **HIPAA:** today's Supabase, Render, SendGrid and Twilio setup is not HIPAA-ready. Each upgrade is paid and needs approval: Supabase Team plus the HIPAA add-on; Render Scale or Enterprise with an irreversible +20% fee; SendGrid not eligible; Twilio needs a HIPAA edition. Sources are cited in the review.
+- **[Verified 2026-10-23, production counts only]** 6 HTAF applications: 5 submitted with no decision (waiting 65–109 days), 1 denied. **[Unresolved]** The owner confirms which are tests.
+
+**Handoff:**
+- **Done:** #330 live; daily tip check on; HTAF admin reviewed.
+- **Remaining:**
+  - merge approval for this PR;
+  - the owner picks the first fixes (the review recommends a quick-fixes PR) and identifies the test applications;
+  - board decisions on retention and denials;
+  - the first tip-check result.
+- **Next authorized action:** open this PR. Merging needs the owner's approval. Until then, owner-only use of the HTAF admin, with no caseworker accounts.
