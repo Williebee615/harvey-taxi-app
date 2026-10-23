@@ -3409,3 +3409,19 @@ Three admin pages kept the admin token in browser storage:
 - **Done:** #333 live, switched off.
 - **Remaining:** this PR's merge approval; the approvals above; the first scheduled tip-check result.
 - **Next authorized action:** push this merge of main. Merging this PR needs the owner's approval.
+
+## 92. Update 2026-10-23 (UTC): partner-access database change applied to production
+
+- **[Owner decision 2026-10-23]** "Apply the database change." Scope: migration `20261023010000_htaf_partners.sql` only. No switch, Render variable or partner record is included.
+- **[Verified 2026-10-23 13:48 UTC, production `orgahzncmzptljapqffj`]** The migration was applied exactly as merged in #333. Supabase recorded it as version `20261023134844`, name `htaf_partners`.
+  - `htaf_partners` and `htaf_partner_users` exist with 0 rows.
+  - `htaf_applications` has `partner_id` and `partner_user_id`. All 6 applications have no partner.
+  - RLS is on. `anon` and `authenticated` have no table access and can't run the session-version function.
+  - The master flag `htaf_partner_access_enabled` is still absent (off).
+  - `/api/health` reports healthy on `0751816`. `GET /api/htaf/partner/applications` still returns 503 (off).
+- **[Unresolved]** Each still needs separate owner approval: set `HTAF_PARTNER_SESSION_SECRET` in Render; add partners and coordinators; turn on the master switch; turn on each partner. The §90 recommendation stands.
+
+**Handoff:**
+- **Done:** partner tables live and empty; access off.
+- **Remaining:** the approvals above; this PR's merge approval; the first scheduled tip-check result.
+- **Next authorized action:** none beyond pushing this record. Merging this PR needs the owner's approval.
