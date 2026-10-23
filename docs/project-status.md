@@ -3030,6 +3030,11 @@ Three admin pages kept the admin token in browser storage:
   - the homepage shows the "Transportation Providers" line;
   - `/rider-dashboard.html` on that domain opens harveytaxiservice.com.
 
+**Support address**
+- **[Owner decision 2026-10-23]** The owner reports that the Render environment has been set (`SUPPORT_EMAIL`).
+- **[Verified 2026-10-23, live]** The production server's support fallback (`POST /api/ai/support`, which makes no model call while `legacy_ai_support_enabled` is off) returns `support_email: support@harveytaxiservice.com`.
+- **[Unresolved]** A real email sent to the address and received in the Workspace mailbox; the owner checks.
+
 **HTAF ride funding design**
 - **[Owner decision 2026-10-23]** "Approved, start the HTAF funding option design doc."
 - `docs/htaf-ride-funding-design.md` covers:
@@ -3054,6 +3059,5 @@ Three admin pages kept the admin token in browser storage:
   - the owner's foundation-domain phone check;
   - Google Search Console: resubmit the sitemaps and request reindexing;
   - counsel: provider-line wording, the donation card, §F and the design's open items;
-  - `SUPPORT_EMAIL` on Render;
   - the decisions in the design's section 11.
 - **Next authorized action:** open this PR (docs only). Merging needs the owner's approval.
