@@ -517,6 +517,38 @@ window.HTAF_TRANSLATIONS = {
 "harveytransportationfoundation.com yiwebhusayithi esemthethweni yeHTAF. HTAF yinhlangano yosizo 501(c)(3) ezimeleyo, njalo ayisiyo inhlangano eyodwa ngokomthetho leHarvey Taxi Service LLC, inkampani yokuthutha ehlukileyo edinga inzuzo.",
 "harveytransportationfoundation.com ne HTAF wɛbsaet ankasa. HTAF yɛ mmoa kuo 501(c)(3) a ɛgyina ne ho, na ɛnyɛ kuo baako wɔ mmara mu ne Harvey Taxi Service LLC, akwantuo adwumakuo foforɔ a ɛhwehwɛ mfasoɔ."
 ],
+"Transportation Providers": [
+"Proveedores de transporte",
+"Prestataires de transport",
+"مزودو خدمات النقل",
+"Watoa huduma za usafiri",
+"交通服务提供方",
+"परिवहन सेवा प्रदाता",
+"Prestadores de transporte",
+"Founisè transpò",
+"Àwọn olùpèsè ìrìnnà",
+"Masu Samar da Sufuri",
+"Ndị Na-enye Njem",
+"Vapi Vekufambisa",
+"Abahlinzeki Bokuthutha",
+"Akwantuo Adwumayɛfoɔ"
+],
+"Rides are arranged with licensed transportation providers. Harvey Taxi Service LLC is a separate company.": [
+"Los viajes se coordinan con proveedores de transporte autorizados. Harvey Taxi Service LLC es una empresa independiente.",
+"Les trajets sont organisés avec des prestataires de transport agréés. Harvey Taxi Service LLC est une entreprise distincte.",
+"تُرتَّب الرحلات مع مزودي نقل مرخَّصين. ‏Harvey Taxi Service LLC شركة منفصلة.",
+"Safari hupangwa na watoa huduma za usafiri wenye leseni. Harvey Taxi Service LLC ni kampuni tofauti.",
+"行程由持牌交通服务提供方安排。Harvey Taxi Service LLC 是一家独立的公司。",
+"यात्राएँ लाइसेंस प्राप्त परिवहन सेवा प्रदाताओं के साथ व्यवस्थित की जाती हैं। Harvey Taxi Service LLC एक अलग कंपनी है।",
+"As viagens são organizadas com prestadores de transporte licenciados. A Harvey Taxi Service LLC é uma empresa separada.",
+"Nou òganize vwayaj yo ak founisè transpò ki gen lisans. Harvey Taxi Service LLC se yon lòt konpayi.",
+"A ń ṣètò ìrìn-àjò pẹ̀lú àwọn olùpèsè ìrìnnà tó ní ìwé-àṣẹ. Harvey Taxi Service LLC jẹ́ ilé-iṣẹ́ mìíràn tó dá dúró.",
+"Ana shirya tafiye-tafiye tare da masu samar da sufuri masu lasisi. Harvey Taxi Service LLC kamfani ne daban.",
+"A na-ahazi njem site n'aka ndị na-enye njem nwere ikikere. Harvey Taxi Service LLC bụ ụlọ ọrụ dị iche.",
+"Rwendo runorongwa nevapi vekufambisa vane marezinesi. Harvey Taxi Service LLC ikambani yakasiyana.",
+"Uhambo luhlelwa labahlinzeki bokuthutha abalelayisensi. I-Harvey Taxi Service LLC yinkampani ehlukileyo.",
+"Yɛne akwantuo adwumayɛfoɔ a wɔwɔ tumi krataa na ɛhyehyɛ akwantuo. Harvey Taxi Service LLC yɛ adwumakuo foforɔ a ɛda ne ho."
+],
 "Address": [
 "Dirección",
 "Adresse",

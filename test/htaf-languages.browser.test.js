@@ -4,7 +4,7 @@
 // language of its list; text without a translation stays English. Consent
 // and legal statements always stay English, with a translated summary.
 // Checked here, as the owner asked before review:
-//   - all 242 HTAF entries are translated into every listed language, and
+//   - all 244 HTAF entries are translated into every listed language, and
 //     only the five intended strings are left in English;
 //   - the change-watcher cannot loop;
 //   - switching repeatedly works, back to English exactly;
@@ -78,8 +78,8 @@ describe("language list and translation table", () => {
     expect([pt.name, pt.html]).toEqual(["Português (Brasil)", "pt-BR"]);
   });
 
-  test("all 242 entries are translated into every listed language", () => {
-    expect(Object.keys(TABLE.t)).toHaveLength(242);
+  test("all 244 entries are translated into every listed language", () => {
+    expect(Object.keys(TABLE.t)).toHaveLength(244);
     expect(["en", ...TABLE.langs].sort()).toEqual([...LANGS].sort());
     const gaps = Object.entries(TABLE.t).filter(([, v]) => v.length !== TABLE.langs.length || v.some((x) => !x || !x.trim()));
     expect(gaps).toEqual([]);
