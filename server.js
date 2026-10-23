@@ -294,7 +294,7 @@ const ENABLE_HTAF_APPLICATIONS = envBool("ENABLE_HTAF_APPLICATIONS", true);
 // provider) are resolved after the AI client is created, below: each needs
 // its feature flag AND a complete approval record (lib/htafActivation.js,
 // docs/htaf-activation-checklist.md). The flag alone does nothing.
-const { resolveHtafActivation } = require("./lib/htafActivation");
+const { resolveHtafActivation, resolveHtafFunding } = require("./lib/htafActivation");
 // HTAF application records are only reachable by an admin whose role
 // carries the route's HTAF capability (#134). On by default; setting it
 // to false reverts to log-only (the decision is still recorded) and is
@@ -889,6 +889,8 @@ function buildSitemapXml(host, urlPaths) {
 }
 
 const HTAF_ACTIVATION = resolveHtafActivation(process.env);
+// HTAF ride assistance switches: off, and nothing behind them yet.
+const HTAF_FUNDING = resolveHtafFunding(process.env);
 
 app.get("/sitemap.xml", (req, res) => {
   const isFoundation = req.hostname && FOUNDATION_HOSTS.has(req.hostname);
@@ -27453,6 +27455,19 @@ app.get(
           reason: HTAF_ACTIVATION.rideCreation.reason,
           missing_approvals: HTAF_ACTIVATION.rideCreation.missing,
           approvals: HTAF_ACTIVATION.rideCreation.approvals
+        },
+
+        ride_assistance: {
+          enabled: HTAF_FUNDING.funding.enabled,
+          reason: HTAF_FUNDING.funding.reason,
+          missing_approvals: HTAF_FUNDING.funding.missing,
+          approvals: HTAF_FUNDING.funding.approvals
+        },
+
+        ride_assistance_invoicing: {
+          enabled: HTAF_FUNDING.invoicing.enabled,
+          reason: HTAF_FUNDING.invoicing.reason,
+          charges_htaf: HTAF_FUNDING.invoicing.chargesHtaf
         }
 
       },
@@ -31341,7 +31356,9 @@ async function startServer() {
       );
 
       for (const [label, state] of [
-        ["🚐 HTAF ride creation", HTAF_ACTIVATION.rideCreation]
+        ["🚐 HTAF ride creation", HTAF_ACTIVATION.rideCreation],
+        ["🎟️ HTAF ride assistance", HTAF_FUNDING.funding],
+        ["🧾 HTAF ride assistance invoicing", HTAF_FUNDING.invoicing]
       ]) {
         // A flag set without its approval record is an operator error worth
         // shouting about; a flag that is simply off is the normal state.

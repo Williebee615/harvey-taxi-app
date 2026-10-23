@@ -88,6 +88,29 @@ integration is a separate reviewed project.
 
 ---
 
+## 2a. HTAF ride assistance switches (built off, 2026-10-23)
+
+Design: `docs/htaf-ride-funding-design.md`. Code: `resolveHtafFunding()` in
+`lib/htafActivation.js`. **There is no ride-assistance feature behind these
+switches yet.** Even a complete approval record leaves both off until the PR
+that builds the feature (after counsel and the HTAF board answer brief §F)
+changes `FUNDING_FEATURE_BUILT`.
+
+| Variable | Value |
+|---|---|
+| `HTAF_PROVIDER_AGREEMENT_REF` | Shared with section 1 |
+| `HTAF_CONFLICT_REVIEW_REF` | Shared with section 1 |
+| `HTAF_RATE_CARD_APPROVAL_REF` | Board minutes approving the rate card |
+| `HTAF_FUNDING_APPROVED_BY` | Approving person or body |
+| `HTAF_FUNDING_APPROVED_AT` | Approval date, `YYYY-MM-DD`, not in the future |
+| `HTAF_FUNDING_ENABLED` | `true`, set **last** |
+| `HTAF_INVOICING_ENABLED` | Later and separate; needs ride assistance on; never charges or sends by itself |
+
+`GET /api/health` (admin) reports both under `htaf_activation.ride_assistance`
+and `htaf_activation.ride_assistance_invoicing`, with the reason each is off.
+
+---
+
 ## 3. Validation after the change is deployed
 
 1. Render logs at start-up show, for the action being enabled:
