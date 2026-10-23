@@ -3016,3 +3016,48 @@ Three admin pages kept the admin token in browser storage:
 - **Done:** web separation built and tested.
 - **Remaining:** merge approval; post-deploy checks; Search Console; counsel items; `SUPPORT_EMAIL`; PR #321 (stars and §78) awaiting merge approval.
 - **Next authorized action:** open this PR. Merging needs the owner's approval.
+
+## 80. Update 2026-10-23 (UTC): #322 live; HTAF ride funding design (PR `claude/htaf-funding-design`, docs only)
+
+**#322 (web separation)**
+- **[Verified 2026-10-23]** Merged as `dcce674` under the owner's approval ("Merge all once test successfully pass") after every CI check passed. `/api/health` reports `dcce674`.
+- **[Verified 2026-10-23, live curl on harveytaxiservice.com]**
+  - `/foundation.html`, `/htaf-application.html?lang=es`, `/leadership.html` and `/contact.html` return 301 to the foundation domain, with the query string kept.
+  - The homepage has no HTAF page links and 2 external links to harveytransportationfoundation.com.
+  - The sitemap lists no HTAF pages.
+  - `/rider-dashboard.html` and `/htaf-manifest.json` return 200.
+- **[Unresolved]** The foundation domain itself was not checked live. This environment's network blocks it, so the owner checks on a phone:
+  - the homepage shows the "Transportation Providers" line;
+  - `/rider-dashboard.html` on that domain opens harveytaxiservice.com.
+
+**Support address**
+- **[Owner decision 2026-10-23]** The owner reports that the Render environment has been set (`SUPPORT_EMAIL`).
+- **[Verified 2026-10-23, live]** The production server's support fallback (`POST /api/ai/support`, which makes no model call while `legacy_ai_support_enabled` is off) returns `support_email: support@harveytaxiservice.com`.
+- **[Unresolved]** A real email sent to the address and received in the Workspace mailbox; the owner checks.
+
+**HTAF ride funding design**
+- **[Owner decision 2026-10-23]** "Approved, start the HTAF funding option design doc."
+- `docs/htaf-ride-funding-design.md` covers:
+  - how a participant uses it: HTAF approves, issues an authorization with limits, and the rider links it with consent and books;
+  - the rules that need decisions;
+  - billing: a board-approved rate card, monthly draft invoices reviewed by both sides, HTAF paying through its own process, and drivers paid normally;
+  - the alternatives counsel may prefer;
+  - the proposed tables (not created);
+  - privacy: no medical details to Harvey Taxi;
+  - switches and an approval record following `lib/htafActivation.js`;
+  - risks;
+  - a phased plan;
+  - the decisions needed from the owner, board, counsel and insurer.
+- **Nothing is built.** The owner's 2026-10-22 rule stands: nothing that moves money until counsel and the HTAF board answer brief §F.
+
+**Handoff:**
+- **Done:**
+  - #321 and #322 live;
+  - live checks on the taxi domain;
+  - the design document.
+- **Remaining:**
+  - the owner's foundation-domain phone check;
+  - Google Search Console: resubmit the sitemaps and request reindexing;
+  - counsel: provider-line wording, the donation card, §F and the design's open items;
+  - the decisions in the design's section 11.
+- **Next authorized action:** open this PR (docs only). Merging needs the owner's approval.
