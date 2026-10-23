@@ -867,13 +867,16 @@ app.use((req, res, next) => {
 
 ========================================================= */
 
+const nashvilleDestinations = require("./lib/nashvilleDestinations");
+
 const TAXI_SITEMAP_PATHS = [
   "/",
   "/driver-signup.html",
   "/rider-signup.html",
   "/support.html",
   "/privacy.html",
-  "/terms.html"
+  "/terms.html",
+  ...nashvilleDestinations.SITEMAP_PATHS
 ];
 
 const FOUNDATION_SITEMAP_PATHS = [
@@ -900,6 +903,111 @@ function buildSitemapXml(host, urlPaths) {
 const HTAF_ACTIVATION = resolveHtafActivation(process.env);
 // HTAF ride assistance switches: off, and nothing behind them yet.
 const HTAF_FUNDING = resolveHtafFunding(process.env);
+
+/* =========================================================
+
+   NASHVILLE DESTINATION PAGES (lib/nashvilleDestinations.js)
+
+   Server-rendered so search engines get full HTML at a real URL. Taxi
+   domain only. Travel times are typical (no-traffic) Mapbox drives from
+   three neighbourhoods, cached for a day; a lookup that fails or takes
+   too long leaves the table out and the page still renders.
+
+========================================================= */
+
+// The Render-assigned hostname serves the same pages as the real domains;
+// keep its copies out of search results so they never compete with
+// harveytaxiservice.com (ENABLE_CANONICAL_REDIRECT stays the owner's
+// switch for redirecting it outright). Registered here, before the page
+// routes below and express.static, so every response carries it.
+app.use((req, res, next) => {
+  if (req.hostname && req.hostname.endsWith(".onrender.com")) res.setHeader("X-Robots-Tag", "noindex, nofollow");
+  next();
+});
+
+const DESTINATION_TRAVEL_TTL_MS = 24 * 60 * 60 * 1000;
+const DESTINATION_TRAVEL_FAIL_TTL_MS = 60 * 60 * 1000;
+const DESTINATION_TRAVEL_WAIT_MS = 2500;
+const destinationTravelCache = new Map();
+const destinationPointCache = new Map();
+
+async function destinationPoint(address) {
+  const cached = destinationPointCache.get(address);
+  if (cached) return cached;
+  const out = await geoClient.resolve(address);
+  if (!out.ok) return null;
+  destinationPointCache.set(address, out.place);
+  return out.place;
+}
+
+async function computeDestinationTravelTimes(destination) {
+  const to = await destinationPoint(destination.address);
+  if (!to) return null;
+  const rows = [];
+  for (const origin of nashvilleDestinations.ORIGINS) {
+    const from = await destinationPoint(origin.address);
+    if (!from) continue;
+    const route = await geoClient.route(from, to, { traffic: false });
+    if (route.ok) rows.push({ originId: origin.id, minutes: route.duration_minutes, miles: route.distance_miles });
+  }
+  return rows.length ? rows : null;
+}
+
+async function destinationTravelTimes(destination) {
+  if (!GEO_CONFIG.configured) return null;
+  const now = Date.now();
+  const hit = destinationTravelCache.get(destination.slug);
+  if (hit && hit.expires > now) return hit.value;
+  if (!hit || !hit.pending) {
+    const pending = computeDestinationTravelTimes(destination)
+      .catch(() => null)
+      .then((value) => {
+        destinationTravelCache.set(destination.slug, {
+          value,
+          expires: Date.now() + (value ? DESTINATION_TRAVEL_TTL_MS : DESTINATION_TRAVEL_FAIL_TTL_MS)
+        });
+        return value;
+      });
+    destinationTravelCache.set(destination.slug, { value: hit?.value ?? null, expires: 0, pending });
+  }
+  const entry = destinationTravelCache.get(destination.slug);
+  let timer;
+  const timeout = new Promise((resolve) => { timer = setTimeout(() => resolve(entry.value ?? null), DESTINATION_TRAVEL_WAIT_MS); });
+  try {
+    return await Promise.race([entry.pending || Promise.resolve(entry.value), timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function destinationsOffTaxiHost(req, res) {
+  if (req.hostname && FOUNDATION_HOSTS.has(req.hostname)) {
+    res.redirect(301, `https://${CANONICAL_HOST}${req.originalUrl}`);
+    return true;
+  }
+  return false;
+}
+
+// Express matches "/x" and "/x/" alike, so each handler checks the exact
+// path: the canonical URLs end in "/", and the bare forms redirect there.
+app.get(["/nashville-destinations", "/destinations"], (req, res) => {
+  if (destinationsOffTaxiHost(req, res)) return;
+  if (req.path === nashvilleDestinations.HUB_PATH) {
+    return res.set("Cache-Control", "public, max-age=3600").type("html").send(nashvilleDestinations.renderHubPage());
+  }
+  res.redirect(301, `${nashvilleDestinations.HUB_PATH}${queryOf(req)}`);
+});
+
+app.get("/destinations/:slug", asyncRoute(async (req, res, next) => {
+  if (destinationsOffTaxiHost(req, res)) return;
+  const destination = nashvilleDestinations.DESTINATIONS.find((d) => d.slug === req.params.slug);
+  if (!destination) return next();
+  if (!req.path.endsWith("/")) return res.redirect(301, `${nashvilleDestinations.pagePath(destination.slug)}${queryOf(req)}`);
+  const travelTimes = await destinationTravelTimes(destination);
+  res.set("Cache-Control", "public, max-age=3600")
+    .type("html")
+    .send(nashvilleDestinations.renderDestinationPage(destination.slug, { travelTimes }));
+}));
 
 // Harvey Taxi's root touch icon (the foundation domain gets HTAF's
 // through FOUNDATION_STATIC_OVERRIDES above, which runs first).

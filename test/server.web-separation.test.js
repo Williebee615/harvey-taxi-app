@@ -145,6 +145,56 @@ describe("admin split (owner decision 2026-10-23)", () => {
   });
 });
 
+describe("Nashville destination pages on the taxi domain", () => {
+  test("the hub and a destination page are served as HTML", async () => {
+    const hub = await get("/nashville-destinations/", TAXI);
+    expect(hub.status).toBe(200);
+    expect(hub.text).toContain("<h1>Rides to popular Nashville destinations</h1>");
+    const page = await get("/destinations/nissan-stadium/", TAXI);
+    expect(page.status).toBe(200);
+    expect(page.text).toContain("<h1>Rides to Nissan Stadium</h1>");
+  });
+
+  test.each([
+    ["/nashville-destinations", "/nashville-destinations/"],
+    ["/destinations", "/nashville-destinations/"],
+    ["/destinations/ryman-auditorium?utm_source=x", "/destinations/ryman-auditorium/?utm_source=x"]
+  ])("%s redirects to %s", async (path, location) => {
+    const res = await get(path, TAXI);
+    expect(res.status).toBe(301);
+    expect(res.headers.location).toBe(location);
+  });
+
+  test("an unknown destination is a 404", async () => {
+    expect((await get("/destinations/bna-airport/", TAXI)).status).toBe(404);
+  });
+
+  test("the foundation domain sends destination pages to the taxi domain", async () => {
+    const res = await get("/destinations/nashville-zoo/", HTAF);
+    expect(res.status).toBe(301);
+    expect(res.headers.location).toBe(`https://${TAXI}/destinations/nashville-zoo/`);
+  });
+
+  test("the taxi sitemap lists the hub and every destination; the foundation sitemap lists none", async () => {
+    const taxi = await get("/sitemap.xml", TAXI);
+    expect(taxi.text).toContain("<loc>https://harveytaxiservice.com/nashville-destinations/</loc>");
+    expect(taxi.text).toContain("<loc>https://harveytaxiservice.com/destinations/belmont-university/</loc>");
+    expect((await get("/sitemap.xml", HTAF)).text).not.toContain("destinations");
+  });
+
+  test("the homepage links to the destination pages", async () => {
+    const res = await get("/", TAXI);
+    expect(res.text).toContain('href="/destinations/grand-ole-opry/"');
+    expect(res.text).toContain('href="/nashville-destinations/"');
+  });
+
+  test("the Render hostname is kept out of search results", async () => {
+    const res = await request(app).get("/destinations/ryman-auditorium/").set("Host", "harvey-taxi-app-2.onrender.com");
+    expect(res.headers["x-robots-tag"]).toBe("noindex, nofollow");
+    expect((await get("/destinations/ryman-auditorium/", TAXI)).headers["x-robots-tag"]).toBeUndefined();
+  });
+});
+
 describe("each domain's icon (owner report 2026-10-23: HTS icon beside HTAF's Google result)", () => {
   const fs = require("fs");
   const path = require("path");
