@@ -242,3 +242,30 @@ describe("with a flag set and a complete approval record", () => {
     expect(res.body.htaf_activation.ride_creation).toMatchObject({ enabled: true, approvals: RIDE_APPROVALS });
   });
 });
+
+describe("HTAF ride assistance switches (design only, nothing built)", () => {
+  const FUNDING_RECORD = {
+    HTAF_PROVIDER_AGREEMENT_REF: "AGR-2026-001",
+    HTAF_CONFLICT_REVIEW_REF: "Board minutes 2026-09-30 item 4",
+    HTAF_RATE_CARD_APPROVAL_REF: "Board minutes 2026-09-30 item 5",
+    HTAF_FUNDING_APPROVED_BY: "Board of Directors",
+    HTAF_FUNDING_APPROVED_AT: "2026-09-30"
+  };
+
+  test("the admin health detail reports both off by default", async () => {
+    mockClient = createFakeSupabase(seed());
+    const app = loadApp({});
+    const res = await request(app).get("/api/health").set("x-admin-token", process.env.ADMIN_API_TOKEN);
+    expect(res.body.htaf_activation.ride_assistance).toMatchObject({ enabled: false, reason: "HTAF_FUNDING_ENABLED is off" });
+    expect(res.body.htaf_activation.ride_assistance_invoicing).toMatchObject({ enabled: false, charges_htaf: false });
+  });
+
+  test("both flags and a complete record still leave them off while nothing is built", async () => {
+    mockClient = createFakeSupabase(seed());
+    const app = loadApp({ HTAF_FUNDING_ENABLED: "true", HTAF_INVOICING_ENABLED: "true", ...FUNDING_RECORD });
+    const res = await request(app).get("/api/health").set("x-admin-token", process.env.ADMIN_API_TOKEN);
+    expect(res.body.htaf_activation.ride_assistance).toMatchObject({ enabled: false, missing_approvals: [] });
+    expect(res.body.htaf_activation.ride_assistance.reason).toMatch(/design only/);
+    expect(res.body.htaf_activation.ride_assistance_invoicing).toMatchObject({ enabled: false, charges_htaf: false });
+  });
+});

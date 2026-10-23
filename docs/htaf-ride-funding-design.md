@@ -161,6 +161,8 @@ Everything is off by default. The proposed environment record follows `lib/htafA
 
 These values are references (document ids, minute numbers, dates), not secrets.
 
+**[Verified 2026-10-23, local tests]** Built switched off (owner decision 2026-10-23: "Switches only, off"). See `resolveHtafFunding()` in `lib/htafActivation.js` and `docs/htaf-activation-checklist.md` §2a. No feature sits behind them yet, so a complete record still leaves both off.
+
 ## 9. Risks and how the design handles them
 
 | Risk | Handling |
