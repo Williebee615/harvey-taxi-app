@@ -115,3 +115,32 @@ describe("taxi domain sends HTAF pages to the foundation domain", () => {
     expect(res.status).toBe(200);
   });
 });
+
+describe("admin split (owner decision 2026-10-23)", () => {
+  test.each(["/admin-dashboard.html", "/admin-home.html", "/admin-login.html"])(
+    "Harvey Taxi staff page %s on the foundation domain goes to the taxi domain",
+    async (path) => {
+      const res = await get(path, HTAF);
+      expect(res.status).toBe(301);
+      expect(res.headers.location).toBe(`https://${TAXI}${path}`);
+    }
+  );
+
+  test("the HTAF admin on the taxi domain goes to the foundation domain", async () => {
+    const res = await get("/admin-htaf.html", TAXI);
+    expect(res.status).toBe(301);
+    expect(res.headers.location).toBe(`https://${HTAF}/admin-htaf.html`);
+  });
+
+  test("the HTAF admin links only to HTAF pages", async () => {
+    const res = await get("/admin-htaf.html", HTAF);
+    expect(res.status).toBe(200);
+    expect(res.text).not.toMatch(/admin-home\.html|drivers\.html|rides\.html|analytics\.html|support\.html/);
+  });
+
+  test("the Harvey Taxi admin dashboard loads and shows no HTAF applications", async () => {
+    const res = await get("/admin-dashboard.html", TAXI);
+    expect(res.status).toBe(200);
+    expect(res.text).not.toMatch(/foundation\/applications|admin-htaf|HTAF Applications/);
+  });
+});

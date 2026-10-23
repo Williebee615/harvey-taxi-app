@@ -101,20 +101,19 @@
       <div class="logo hts-logo-mark" role="img" aria-label="Harvey Taxi Service logo"><img src="/hts-logo-192.png" alt="" width="48" height="48" decoding="async" /></div>
       <div>
         <div class="brand">Harvey <span>Taxi</span> Admin Dashboard</div>
-        <div class="sub">Riders • Drivers • Rides • HTAF • Payments • AI Operations</div>
+        <div class="sub">Riders • Drivers • Rides • Payments • AI Operations</div>
       </div>
     </div>
     <div class="top-actions">
       <a class="top-btn" href="/">Home</a>
       <a class="top-btn" href="/rider-dashboard.html">Request Ride</a>
-      <a class="top-btn" href="/admin-htaf.html">HTAF</a>
       <button class="top-btn" id="refreshBtn">Refresh</button>
     </div>
   </header>
 
   <section class="hero">
     <h1>AI Operations Command Center</h1>
-    <p>Manage approvals, rides, HTAF applications, dispatch status, revenue, driver readiness, and system health from one production admin screen.</p>
+    <p>Manage approvals, rides, dispatch status, revenue, driver readiness, and system health from one production admin screen.</p>
     <div class="hero-actions">
       <button class="primary" id="manualRefreshBtn">Refresh Dashboard</button>
       <button class="neutral" id="toggleAutoRefreshBtn">Auto Refresh: On</button>
@@ -130,7 +129,6 @@
     <div class="stat"><div class="k">Pending Riders</div><div class="v" id="pendingRidersCount">0</div></div>
     <div class="stat"><div class="k">Pending Drivers</div><div class="v" id="pendingDriversCount">0</div></div>
     <div class="stat"><div class="k">Total Rides</div><div class="v" id="ridesCount">0</div></div>
-    <div class="stat"><div class="k">HTAF Apps</div><div class="v" id="htafCount">0</div></div>
     <div class="stat"><div class="k">Online Drivers</div><div class="v" id="onlineDriversCount">0</div></div>
     <div class="stat"><div class="k">Completed Rides</div><div class="v" id="completedRidesCount">0</div></div>
     <div class="stat"><div class="k">All-Time Revenue</div><div class="v" id="revenueCount">$0.00</div></div>
@@ -141,7 +139,7 @@
     <div class="card-head">
       <div>
         <div class="title">Operations Overview</div>
-        <div class="sub">Live snapshot across taxi, food, grocery, and HTAF services.</div>
+        <div class="sub">Live snapshot across taxi, food and grocery services.</div>
       </div>
       <span class="item-sub" id="opsGeneratedAt">—</span>
     </div>
@@ -160,7 +158,6 @@
       <div class="box"><div class="k">Taxi</div><div class="v" id="opsTaxiActive">0</div></div>
       <div class="box"><div class="k">Food Delivery</div><div class="v" id="opsFoodActive">0</div></div>
       <div class="box"><div class="k">Grocery Delivery</div><div class="v" id="opsGroceryActive">0</div></div>
-      <div class="box"><div class="k">HTAF Rides</div><div class="v" id="opsHtafActive">0</div></div>
     </div>
 
     <div class="card-head" style="margin-top:4px;margin-bottom:8px;">
@@ -290,11 +287,6 @@
           <button class="tab" data-filter="failed">Failed</button>
         </div>
         <div class="list" id="ridesList"><div class="empty">Loading rides...</div></div>
-      </section>
-
-      <section class="card">
-        <div class="card-head"><div><div class="title">HTAF Applications</div><div class="sub">Foundation transportation assistance submissions.</div></div></div>
-        <div class="list" id="htafList"><div class="empty">Loading HTAF applications...</div></div>
       </section>
 
       <section class="card" id="fleetsCard">
@@ -910,12 +902,12 @@ document.getElementById("merchantsList").addEventListener("click", async (event)
 </script>
 <script>
 const API_BASE = window.HARVEY_API_BASE || window.location.origin;
-const state = { auto:true, timer:null, filter:"all", riders:[], drivers:[], rides:[], htaf:[], signedIn:false };
+const state = { auto:true, timer:null, filter:"all", riders:[], drivers:[], rides:[], signedIn:false };
 
 const $ = id => document.getElementById(id);
 const els = {
   result:$("resultBox"), error:$("errorBox"), riders:$("pendingRidersList"),
-  drivers:$("pendingDriversList"), rides:$("ridesList"), htaf:$("htafList"),
+  drivers:$("pendingDriversList"), rides:$("ridesList"),
   financial:$("financialList"),
   activeRiders:$("activeRidersList"), activeDrivers:$("activeDriversList")
 };
@@ -1041,12 +1033,11 @@ async function checkHealth(){
 
 async function loadDashboard(){
   try{
-    const [overview, riders, drivers, rides, htaf, opsOverview] = await Promise.all([
+    const [overview, riders, drivers, rides, opsOverview] = await Promise.all([
       safeApi("/api/admin/overview",{overview:{}}),
       safeApi("/api/admin/riders",{riders:[]}),
       safeApi("/api/admin/drivers",{drivers:[]}),
       safeApi("/api/admin/rides",{rides:[]}),
-      safeApi("/api/admin/foundation/applications",{applications:[]}),
       safeApi("/api/admin/operations-overview",{overview:null})
     ]);
 
@@ -1055,7 +1046,6 @@ async function loadDashboard(){
     state.riders = riders.riders || [];
     state.drivers = drivers.drivers || [];
     state.rides = rides.rides || [];
-    state.htaf = htaf.applications || [];
 
     const riderIsActive = r=>["active","approved"].includes(String(r.status||r.approval_status).toLowerCase());
     // Active means approved AND every readiness check passes (server's
@@ -1075,7 +1065,6 @@ async function loadDashboard(){
     $("activeRidersCount").textContent = activeRiders.length;
     $("activeDriversCount").textContent = activeDrivers.length;
     $("ridesCount").textContent = state.rides.length;
-    $("htafCount").textContent = state.htaf.length;
     $("onlineDriversCount").textContent = online.length;
     $("completedRidesCount").textContent = completed.length;
     $("revenueCount").textContent = money(revenue);
@@ -1086,7 +1075,6 @@ async function loadDashboard(){
     renderActiveRiders(activeRiders);
     renderActiveDrivers(activeDrivers);
     renderRides();
-    renderHTAF(state.htaf);
 
     // Load the new admin panels (non-blocking).
     refreshSystemStatus();
@@ -1120,7 +1108,6 @@ function renderOpsOverview(overview){
   $("opsTaxiActive").textContent = rip.taxi ?? 0;
   $("opsFoodActive").textContent = rip.food ?? 0;
   $("opsGroceryActive").textContent = rip.grocery ?? 0;
-  $("opsHtafActive").textContent = rip.htaf ?? 0;
 
   const health = overview.integration_health || {};
   const labels = { supabase:"Supabase", stripe:"Stripe", sendgrid:"SendGrid", twilio:"Twilio" };
@@ -1278,17 +1265,6 @@ function renderRides(){
         <button class="danger" onclick="setRideStatus('${esc(r.id)}','cancelled')">Cancel</button>
       </div>
     </div>`).join("") : `<div class="empty">No rides found.</div>`;
-}
-
-function renderHTAF(items){
-  els.htaf.innerHTML = items.length ? items.slice(0,20).map(a=>`
-    <div class="item">
-      <div class="item-top">
-        <div><div class="item-title">${esc(a.first_name)} ${esc(a.last_name)}</div><div class="item-sub">${esc(a.application_code || a.id)} • ${esc(a.program_type)} • ${esc(a.destination)}</div></div>
-        <span class="badge ${statusClass(a.status)}">${esc(a.status || "submitted")}</span>
-      </div>
-      <div class="item-sub">${esc(a.transportation_need || "")}</div>
-    </div>`).join("") : `<div class="empty">No HTAF applications found yet.</div>`;
 }
 
 // Staff suspension (owner decision 2026-10-18, with automatic approval on

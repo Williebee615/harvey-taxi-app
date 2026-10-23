@@ -733,7 +733,10 @@ const HTAF_PAGES = new Map([
   ["/foundation.html", "/"],
   ["/htaf-application.html", "/htaf-application.html"],
   ["/leadership.html", "/leadership.html"],
-  ["/contact.html", "/contact.html"]
+  ["/contact.html", "/contact.html"],
+  // HTAF staff tool (owner decision 2026-10-23: full admin split). The
+  // admin session cookie is host-only, so staff sign in on this domain.
+  ["/admin-htaf.html", "/admin-htaf.html"]
 ]);
 const TAXI_HOSTS = new Set([CANONICAL_HOST, `www.${CANONICAL_HOST}`]);
 const FOUNDATION_PAGE_PATHS = new Set(["/", ...HTAF_PAGES.values(), "/privacy.html", "/terms.html", "/service-providers.html"]);
@@ -824,9 +827,9 @@ app.use((req, res, next) => {
       return res.redirect(301, `${htafHome}${queryOf(req)}`);
     }
 
-    // HTAF staff tools stay reachable; every other Harvey Taxi page goes
-    // to the taxi domain, so a foundation URL never shows ride booking.
-    if (isPagePath(req.path) && !FOUNDATION_PAGE_PATHS.has(req.path) && !req.path.startsWith("/admin")) {
+    // Every Harvey Taxi page, its admin pages included, goes to the taxi
+    // domain, so a foundation URL never shows ride booking or taxi staff tools.
+    if (isPagePath(req.path) && !FOUNDATION_PAGE_PATHS.has(req.path)) {
       return res.redirect(301, `https://${CANONICAL_HOST}${req.path}${queryOf(req)}`);
     }
 
