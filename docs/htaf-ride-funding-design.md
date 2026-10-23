@@ -327,3 +327,7 @@ What this means for the design:
 - **Choosing a provider for a ride stays with a person or a fixed rule** (for example one provider per partner, reviewed periodically). It is never an automatic live price comparison between Uber and other companies, because Uber's API terms prohibit that (12.4).
 - **The fair-treatment rule is written down so it can be shown to the IRS and grantors.** Providers are chosen on cost, availability, accessibility and service to clients, recorded per partner.
 
+
+### 12.11 Partner access built, switched off (2026-10-23)
+
+**[Owner decision 2026-10-23]** Partner organizations' limited access is optional and in the owner's hands: a master switch plus a switch per partner, both off by default. A partner coordinator can view their own clients' applications and submit new ones. Ride booking by partners (§12.3 guardrails, phase D) is **not** part of it. Implementation and approvals: `docs/project-status.md` §90.

@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>HTAF Partner Portal</title>
+  <link rel="icon" href="/htaf-favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/htaf-icon-192.png" />
+  <link rel="apple-touch-icon" href="/htaf-apple-touch-icon.png" />
+  <style>
+    :root {
+      --bg: #071426;
+      --panel: #0b1f3a;
+      --line: rgba(126, 166, 255, .22);
+      --text: #eef3ff;
+      --muted: #a9b8d6;
+      --gold: #f5c451;
+      --ok: #3ccf91;
+      --err: #ff7a7a;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    header, main, footer { max-width: 960px; margin: 0 auto; padding: 16px; }
+    header { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+    header a { color: var(--text); text-decoration: none; font-weight: 700; }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px; margin-bottom: 16px; }
+    h1 { font-size: 1.5rem; margin: 0 0 8px; }
+    h2 { font-size: 1.15rem; margin: 0 0 12px; }
+    p { color: var(--muted); margin: 0 0 12px; }
+    label { display: block; font-weight: 600; margin: 10px 0 4px; }
+    input, select, textarea { width: 100%; min-height: 44px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: #06101f; color: var(--text); font: inherit; }
+    textarea { min-height: 90px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .btn { min-height: 44px; padding: 10px 18px; border-radius: 10px; border: 0; font: inherit; font-weight: 700; cursor: pointer; background: var(--gold); color: #1b1300; }
+    .btn.secondary { background: transparent; color: var(--text); border: 1px solid var(--line); }
+    .check { display: flex; gap: 10px; align-items: flex-start; margin: 14px 0; }
+    .check input { width: 20px; min-height: 20px; margin-top: 3px; }
+    .banner { display: none; padding: 10px 12px; border-radius: 10px; margin-bottom: 12px; }
+    .banner.show { display: block; }
+    .banner.ok { background: rgba(60, 207, 145, .15); color: var(--ok); }
+    .banner.err { background: rgba(255, 122, 122, .15); color: var(--err); }
+    .banner.info { background: rgba(126, 166, 255, .12); color: var(--muted); }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--line); font-size: .95rem; }
+    .hidden { display: none; }
+    .note { font-size: .9rem; }
+    @media (max-width: 640px) { .row { grid-template-columns: 1fr; } th:nth-child(4), td:nth-child(4) { display: none; } }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="/">Harvey Transportation Assistance Foundation</a>
+    <button id="signOutButton" class="btn secondary hidden" type="button">Sign out</button>
+  </header>
+  <main>
+    <section class="card">
+      <h1>Partner Portal</h1>
+      <p>For referral organizations that have a signed partnership with HTAF. You can follow your own clients' applications and send new ones. HTAF reviews and decides every application.</p>
+    </section>
+
+    <section id="signInCard" class="card">
+      <h2>Sign in</h2>
+      <div id="signInBanner" class="banner"></div>
+      <form id="phoneForm">
+        <label for="phone">Your mobile phone number</label>
+        <input id="phone" type="tel" autocomplete="tel" inputmode="tel" placeholder="(615) 555-0100" required />
+        <p class="note">If your organization's access is on, we text you a one-time code.</p>
+        <button class="btn" type="submit">Text me a code</button>
+      </form>
+      <form id="codeForm" class="hidden">
+        <label for="code">Code</label>
+        <input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="10" required />
+        <button class="btn" type="submit">Sign in</button>
+      </form>
+    </section>
+
+    <section id="portal" class="hidden">
+      <div class="card">
+        <h2 id="partnerName">Your organization</h2>
+        <div id="listBanner" class="banner"></div>
+        <table>
+          <thead><tr><th>Application</th><th>Client</th><th>Status</th><th>Ride date</th></tr></thead>
+          <tbody id="applicationRows"></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>Send an application for a client</h2>
+        <p>Do not include medical details (diagnosis, treatment or clinic specialty). A destination address is enough.</p>
+        <div id="applyBanner" class="banner"></div>
+        <form id="applyForm">
+          <div class="row">
+            <div><label for="first_name">Client first name</label><input id="first_name" required maxlength="120" /></div>
+            <div><label for="last_name">Client last name</label><input id="last_name" required maxlength="120" /></div>
+          </div>
+          <div class="row">
+            <div><label for="email">Client email</label><input id="email" type="email" required maxlength="200" /></div>
+            <div><label for="client_phone">Client phone</label><input id="client_phone" type="tel" required maxlength="32" /></div>
+          </div>
+          <div class="row">
+            <div><label for="county">County</label><input id="county" required maxlength="120" /></div>
+            <div><label for="city">City</label><input id="city" required maxlength="120" /></div>
+          </div>
+          <div class="row">
+            <div><label for="pickup_city">Pickup city</label><input id="pickup_city" required maxlength="120" /></div>
+            <div><label for="ride_date">Ride date</label><input id="ride_date" type="date" required /></div>
+          </div>
+          <label for="destination">Destination address</label>
+          <input id="destination" required maxlength="300" />
+          <label for="program_type">Program</label>
+          <select id="program_type">
+            <option value="medical">Medical appointments</option>
+            <option value="employment">Employment</option>
+            <option value="education">Education</option>
+            <option value="community">Community</option>
+            <option value="senior">Senior</option>
+            <option value="disability">Disability</option>
+            <option value="veteran">Veteran</option>
+            <option value="general">General</option>
+          </select>
+          <label for="transportation_need">Transportation need (no medical details)</label>
+          <textarea id="transportation_need" required maxlength="2000"></textarea>
+          <div class="check">
+            <input id="client_consent" type="checkbox" />
+            <label for="client_consent" id="consentText" style="margin:0;font-weight:400">The client agreed to this application being sent to HTAF, and to HTAF contacting them about it.</label>
+          </div>
+          <button class="btn" type="submit">Send to HTAF</button>
+        </form>
+      </div>
+    </section>
+  </main>
+  <footer><p class="note">© 2026 Harvey Transportation Assistance Foundation</p></footer>
+
+  <script>
+    const HEADERS = { "Content-Type": "application/json", "X-Requested-With": "htaf-partner-portal" };
+    const $ = (id) => document.getElementById(id);
+    const STATUS_TEXT = {
+      submitted: "Received", under_review: "Under review", pending_documents: "Waiting for documents",
+      approved: "Approved", denied: "Not approved", scheduled: "Scheduled", completed: "Completed", cancelled: "Cancelled"
+    };
+    function banner(id, text, kind) { const el = $(id); el.textContent = text; el.className = `banner show ${kind}`; }
+    function clearBanner(id) { $(id).className = "banner"; }
+    async function api(path, options = {}) {
+      const res = await fetch(path, { credentials: "same-origin", ...options, headers: { ...HEADERS, ...(options.headers || {}) } });
+      let body = {};
+      try { body = await res.json(); } catch {}
+      if (!res.ok) { const err = new Error(body.message || body.error || "Please try again."); err.status = res.status; throw err; }
+      return body;
+    }
+    function row(app) {
+      const tr = document.createElement("tr");
+      [app.application_code, app.client, STATUS_TEXT[app.status] || app.status || "", app.ride_date || ""].forEach((v) => {
+        const td = document.createElement("td"); td.textContent = v || ""; tr.appendChild(td);
+      });
+      return tr;
+    }
+    function showSignIn() { $("signInCard").classList.remove("hidden"); $("portal").classList.add("hidden"); $("signOutButton").classList.add("hidden"); }
+    async function loadPortal() {
+      try {
+        const data = await api("/api/htaf/partner/applications");
+        $("partnerName").textContent = `${data.partner.name}: your clients' applications`;
+        if (data.consent_statement) $("consentText").textContent = data.consent_statement;
+        const tbody = $("applicationRows"); tbody.textContent = "";
+        if (!data.applications.length) {
+          const tr = document.createElement("tr"); const td = document.createElement("td"); td.colSpan = 4; td.textContent = "No applications yet."; tr.appendChild(td); tbody.appendChild(tr);
+        } else data.applications.forEach((a) => tbody.appendChild(row(a)));
+        $("signInCard").classList.add("hidden"); $("portal").classList.remove("hidden"); $("signOutButton").classList.remove("hidden");
+      } catch (err) {
+        showSignIn();
+        if (err.status === 503 || err.status === 403) banner("signInBanner", err.message, "err");
+      }
+    }
+    $("phoneForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      try {
+        await api("/api/htaf/partner/session/start", { method: "POST", body: JSON.stringify({ phone: $("phone").value }) });
+        banner("signInBanner", "If this number has access, a code is on its way.", "info");
+        $("codeForm").classList.remove("hidden"); $("code").focus();
+      } catch (err) { banner("signInBanner", err.message, "err"); }
+    });
+    $("codeForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      try {
+        await api("/api/htaf/partner/session/verify", { method: "POST", body: JSON.stringify({ phone: $("phone").value, code: $("code").value }) });
+        clearBanner("signInBanner"); await loadPortal();
+      } catch (err) { banner("signInBanner", err.message, "err"); }
+    });
+    $("signOutButton").addEventListener("click", async () => {
+      try { await api("/api/htaf/partner/session/logout", { method: "POST", body: "{}" }); } catch {}
+      showSignIn();
+    });
+    $("applyForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (!$("client_consent").checked) { banner("applyBanner", "Confirm that the client agreed before sending.", "err"); return; }
+      const v = (id) => $(id).value.trim();
+      const body = {
+        first_name: v("first_name"), last_name: v("last_name"), email: v("email"), phone: v("client_phone"),
+        county: v("county"), city: v("city"), pickup_city: v("pickup_city"), destination: v("destination"),
+        ride_date: v("ride_date"), program_type: v("program_type"), transportation_need: v("transportation_need"),
+        client_consent: true
+      };
+      try {
+        const res = await api("/api/htaf/partner/applications", { method: "POST", body: JSON.stringify(body) });
+        banner("applyBanner", `Sent. Application ${res.application.application_code} is waiting for HTAF's review.`, "ok");
+        $("applyForm").reset(); await loadPortal();
+      } catch (err) { banner("applyBanner", err.message, "err"); }
+    });
+    loadPortal();
+  </script>
+</body>
+</html>
