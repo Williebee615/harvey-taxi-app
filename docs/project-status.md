@@ -3061,3 +3061,40 @@ Three admin pages kept the admin token in browser storage:
   - counsel: provider-line wording, the donation card, §F and the design's open items;
   - the decisions in the design's section 11.
 - **Next authorized action:** open this PR (docs only). Merging needs the owner's approval.
+
+## 82. Update 2026-10-23 (UTC): admin tools split by domain; board roster approved (PR `claude/htaf-admin-split`)
+
+- **[Owner decision 2026-10-23]** "Full admin split", made after the owner's screenshots showed:
+  - HTAF applicants listed in the Harvey Taxi admin dashboard;
+  - the HTAF admin running on harveytaxiservice.com, with tabs for Drivers, Rides and Reports.
+- **[Owner decision 2026-10-23]** "Approve board members": the owner approves the four directors and titles shown on `leadership.html`, as live on the foundation domain in the owner's screenshot. Board bios are not written yet.
+- **[Verified 2026-10-23, owner screenshot]** harveytransportationfoundation.com/leadership.html loads on the foundation domain.
+
+**This PR**
+- **Routing:**
+  - `/admin-htaf.html` is served only on the foundation domain; on the taxi domain it returns a 301 there.
+  - Every other admin page (`/admin-dashboard.html`, `/admin-home.html`, `/admin-login.html` and the rest) returns a 301 from the foundation domain to the taxi domain.
+  - The admin session cookie is host-only, so HTAF staff sign in on the foundation domain. Access rules (admin sign-in plus the HTAF role) are unchanged.
+- **Harvey Taxi admin dashboard** no longer has:
+  - the HTAF button;
+  - the HTAF Apps count;
+  - the HTAF Applications list (applicant names);
+  - the HTAF Rides box;
+  - the HTAF wording in its header.
+
+  It no longer calls `/api/admin/foundation/applications`.
+- **HTAF admin:** the Harvey Taxi links are removed (Admin Home, the Drivers, Rides and Reports tabs, Support, Analytics). It now links to HTAF Home and Contact.
+- **Leadership page:** the "Board bios pending confirmation" label is removed.
+- **Tests [Verified 2026-10-23, local]:**
+  - 6 new routing and page tests;
+  - full suite: 3,286 passed, 0 failed (this branch does not include #324's tests).
+
+**[Unresolved]**
+- **After deploy, the owner signs in at harveytransportationfoundation.com/admin-htaf.html** and confirms the queue loads. I cannot reach the foundation domain from here.
+- **[Recommendation]** The shared `/api/admin/foundation/*` routes still answer on both hosts. They are protected by admin sign-in and the HTAF role. Limiting them to the foundation host can be a follow-up.
+- **Counsel and the board:** under the HTAF funding design, related-party approvals need directors without a conflict. Counsel should confirm which directors count as independent for that purpose, including whether any director's family relationship to the interested director matters (IRC § 4958 treats some family members as disqualified persons). I have not assumed any relationship.
+
+**Handoff:**
+- **Done:** the admin split and the board label, built and tested.
+- **Remaining:** merge approval (#324 and this PR; the status sections will need a merge when the second one lands); the owner's sign-in check; the items in §80.
+- **Next authorized action:** open this PR. Merging needs the owner's approval.
