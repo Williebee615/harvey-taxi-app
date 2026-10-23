@@ -3251,3 +3251,42 @@ Three admin pages kept the admin token in browser storage:
   - Search Console;
   - the first pilot provider.
 - **Next authorized action:** open this PR. Merging needs the owner's approval.
+
+## 87. Update 2026-10-23 (UTC): #329 merged; tip reconciliation, read-only (PR `claude/tips-reconciliation`)
+
+- **[Verified 2026-10-23]** #329 merged as `fe76aa1` under the owner's approval ("Merge #329 once tests pass"), after CI passed on `81444fe` (which includes the orders-test fix). It is docs and a test change only, so app behaviour is unchanged.
+- **[Owner decision 2026-10-23]** "Approved, build the tips reconciliation."
+
+**This PR**
+- **`lib/tipReconciliation.js` (pure, read-only).** It compares Stripe tip PaymentIntents (`metadata.kind = ride_tip`) with `ride_tips` rows and drivers' `driver_earnings` rows, and reports fixed codes with identifiers and amounts only:
+  - `tip_paid_untracked`: Stripe took a tip with no row.
+  - `tip_paid_not_recorded`: Stripe took a tip but the row is pending or cancelled, so the driver was not credited.
+  - `tip_recorded_not_paid` and `tip_intent_missing`: the row says paid but Stripe disagrees.
+  - `tip_amount_mismatch`, `tip_metadata_mismatch`, `tip_refunded` and `tip_mode_mismatch`.
+  - `earning_tip_mismatch`: an earning's tip is not the booking tip plus paid and simulated tips.
+  - `earning_total_mismatch`: the total is not base plus tip.
+- **Server:**
+  - Checks both Stripe accounts: live (ride key) and test (orders key). Window: the last 35 days, with the charge expanded so refunds show.
+  - Every run is written to the audit log with counts and up to 50 findings.
+  - **Never refunds, cancels, charges or edits anything.** Tests fail if any Stripe call other than `list` is made.
+  - **On demand:** `POST /api/admin/tips/reconcile`, which needs the finance permission and is rate-limited. The path `/api/admin/payments/tips/…` was avoided because the existing per-ride route `/api/admin/payments/:rideId/reconcile` would capture it.
+  - **Daily:** off unless the system flag `tips_reconciliation_enabled` is "true". At most once per 20 hours, which holds across restarts because the audit log is checked. A run with findings, or one that couldn't read an account, sends a payment alert email to the admin address saying nothing was changed.
+- **Admin dashboard:** a "Tip Reconciliation" card with a "Run check" button showing paid and recorded totals per account and each finding in plain words.
+- **Tests [Verified 2026-10-23, local]:**
+  - 7 unit and 6 server tests;
+  - full suite: 3,333 passed, 0 failed, including the database suites.
+
+**[Unresolved]**
+- **Owner approval:**
+  - merge;
+  - switching on the daily check (`tips_reconciliation_enabled = true`).
+- **[Recommendation]** After deploy, run the check once from the admin dashboard to set a baseline. The owner's simulated $2 tip (App Review ride) is not a Stripe charge, so it is covered only by the earnings check.
+- Fixing any finding stays a person's decision. A staff "re-confirm a paid tip" action, for stuck pending tips, could be a later step with separate approval.
+
+**Handoff:**
+- **Done:** #329 merged; tip reconciliation built and tested.
+- **Remaining:**
+  - merge approval;
+  - switching on the daily check;
+  - the owner items in §80, §85 and §86.
+- **Next authorized action:** open this PR. Merging needs the owner's approval.
