@@ -114,6 +114,17 @@ describeWithBrowser("HTAF admin redesign", () => {
     // Sticky action bar.
     const bar = await page.locator(".action-primary").innerText();
     expect(bar).toMatch(/✓ Approve[\s\S]*\? Request Missing Docs[\s\S]*✕ Deny/);
+    // The three main actions span the panel and their labels fit.
+    const fit = await page.evaluate(() => {
+      const row = document.querySelector(".action-primary");
+      const panel = document.querySelector(".detail-actions");
+      return {
+        spans: row.getBoundingClientRect().width >= panel.getBoundingClientRect().width - 2,
+        clipped: [...row.querySelectorAll(".btn")].filter((b) => b.scrollWidth > b.clientWidth + 1).map((b) => b.textContent.trim())
+      };
+    });
+    expect(fit).toEqual({ spans: true, clipped: [] });
+    if (process.env.PAGE_SCREENSHOTS) await page.locator(".detail-card").screenshot({ path: process.env.PAGE_SCREENSHOTS });
     await context.close();
   });
 

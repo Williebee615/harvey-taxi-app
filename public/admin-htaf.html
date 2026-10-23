@@ -1808,7 +1808,8 @@
     .dup-badge { display:inline-block; margin-top:6px; padding:2px 8px; border-radius:999px; background:rgba(255,217,120,.16); color:var(--gold); font-size:.8rem; font-weight:700; }
     .detail-card { position:relative; }
     .detail-actions.sticky-actions { position:sticky; bottom:0; z-index:2; padding:12px 0 4px; background:linear-gradient(180deg, rgba(7,14,32,0), rgba(7,14,32,.96) 30%); }
-    .action-primary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-bottom:10px; }
+    .action-primary { grid-column:1 / -1; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-bottom:2px; }
+    .action-primary .btn { white-space:normal; line-height:1.15; padding:6px 8px; min-width:0; overflow-wrap:anywhere; }
     .table-wrap { overflow-x:auto; }
     .triage-table { width:100%; border-collapse:collapse; font-size:.92rem; }
     .triage-table th, .triage-table td { text-align:left; padding:10px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
@@ -3975,7 +3976,7 @@
 
             ${detailRow("Destination", app.destination)}
 
-            ${detailRow("Ride Date", app.ride_date)}
+            ${detailRow("Ride Date", app.ride_date ? formatDay(app.ride_date) : "")}
 
             ${detailRow("Submitted", formatDate(app.created_at || app.submitted_at))}
 
