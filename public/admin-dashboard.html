@@ -299,6 +299,12 @@
         <div class="list" id="driverRatingsList"><div class="empty">Loading driver ratings...</div></div>
       </section>
 
+      <section class="card" id="tipReconcileCard">
+        <div class="card-head"><div><div class="title">Tip Reconciliation</div><div class="sub">Compares Stripe tip charges with recorded tips and drivers' earnings (last 35 days). Read-only: it changes, refunds and charges nothing. Needs the finance permission.</div></div><span class="item-sub" id="tipReconcileCount"></span></div>
+        <div class="actions"><button class="neutral" type="button" id="tipReconcileRun">Run check</button><span class="item-sub" id="tipReconcileSummary"></span></div>
+        <div class="list" id="tipReconcileList"><div class="empty">Not run yet.</div></div>
+      </section>
+
       <section class="card" id="merchantsCard">
         <div class="card-head"><div><div class="title">Merchant Applications</div><div class="sub">Delivery pilot stores. Approve, or reject or suspend with a reason. Delivery booking stays paused.</div></div><span class="item-sub" id="merchantsCount">0</span></div>
         <div class="list" id="merchantsList"><div class="empty">Loading merchant applications...</div></div>
@@ -523,6 +529,39 @@ async function loadDriverRatings(){
       ${(d.recent_low || []).map(r => `<div class="item-sub">${"★".repeat(r.stars)} ${esc((r.tags || []).join(", "))}${r.comment ? ` — “${esc(r.comment)}”` : ""} • ride ${esc(r.ride_id)}</div>`).join("")}
     </div>`).join("") : `<div class="empty">No ratings yet.</div>`);
 }
+// Tip reconciliation (owner decision 2026-10-23). Read-only report; staff
+// decide what to do about each finding.
+const TIP_FINDING_TEXT = {
+  tip_paid_untracked: "Stripe took a tip with no tip record",
+  tip_paid_not_recorded: "Stripe took a tip but our record isn't marked paid (driver not credited)",
+  tip_recorded_not_paid: "Recorded as paid, but Stripe shows no successful charge",
+  tip_intent_missing: "Recorded tip's Stripe payment wasn't found",
+  tip_amount_mismatch: "Amount differs between Stripe and our record",
+  tip_metadata_mismatch: "Stripe payment names a different tip or ride",
+  tip_refunded: "Tip was refunded in Stripe",
+  tip_mode_mismatch: "Live/test mode mismatch",
+  earning_tip_mismatch: "Driver earning's tip doesn't match paid tips",
+  earning_total_mismatch: "Driver earning total isn't base + tip"
+};
+async function runTipReconcile(){
+  const list = document.getElementById("tipReconcileList");
+  const summaryEl = document.getElementById("tipReconcileSummary");
+  list.innerHTML = `<div class="empty">Checking…</div>`;
+  let data;
+  try { data = await api("/api/admin/tips/reconcile", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }); }
+  catch (e) { list.innerHTML = `<div class="empty">Check failed: ${esc(e.message)}</div>`; return; }
+  const money = (c) => "$" + (Number(c || 0) / 100).toFixed(2);
+  summaryEl.textContent = (data.reports || []).map(r => r.summary ? `${r.mode}: ${r.summary.tip_intents_succeeded} paid in Stripe (${money(r.summary.stripe_tip_cents)}), ${r.summary.recorded_paid_tips} recorded (${money(r.summary.recorded_tip_cents)})` : `${r.mode}: ${r.error ? "check failed" : "not configured"}`).join(" • ") + (data.scheduled_daily ? " • daily check ON" : " • daily check OFF");
+  document.getElementById("tipReconcileCount").textContent = data.discrepancies ? `${data.discrepancies} to review` : "all match";
+  const findings = (data.reports || []).flatMap(r => r.findings || []);
+  list.innerHTML = findings.length ? findings.map(f => `
+    <div class="item">
+      <div class="item-top"><div><div class="item-title">${esc(TIP_FINDING_TEXT[f.code] || f.code)}</div>
+      <div class="item-sub">${esc(f.mode)}${f.ride_id ? ` • ride ${esc(f.ride_id)}` : ""}${f.payment_intent_id ? ` • ${esc(f.payment_intent_id)}` : ""}${f.stripe_amount_cents != null ? ` • Stripe ${money(f.stripe_amount_cents)}` : ""}${f.record_amount_cents != null ? ` • record ${money(f.record_amount_cents)}` : ""}${f.expected_tip_cents != null ? ` • earning tip ${money(f.earning_tip_cents)}, expected ${money(f.expected_tip_cents)}` : ""}${f.expected_total_cents != null ? ` • total ${money(f.earning_total_cents)}, expected ${money(f.expected_total_cents)}` : ""}${f.refunded_cents ? ` • refunded ${money(f.refunded_cents)}` : ""}</div></div>
+      <span class="badge bad">Review</span></div>
+    </div>`).join("") : `<div class="empty">Everything matches.</div>`;
+}
+document.getElementById("tipReconcileRun").addEventListener("click", runTipReconcile);
 // Fleets (fleet management phase 1, owner decisions 2026-10-22). Staff
 // decide every fleet and vehicle; dates are entered while looking at the
 // document. Owners and drivers act from their own driver dashboard.
