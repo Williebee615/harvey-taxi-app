@@ -3323,3 +3323,22 @@ Three admin pages kept the admin token in browser storage:
   - board decisions on retention and denials;
   - the first tip-check result.
 - **Next authorized action:** open this PR. Merging needs the owner's approval. Until then, owner-only use of the HTAF admin, with no caseworker accounts.
+
+## 89. Update 2026-10-23 (UTC): #331 merged; HTAF admin quick fixes (PR `claude/htaf-admin-quick-fixes`)
+
+- **[Verified 2026-10-23]** #331 (readiness review, docs only) merged as `84031ef` under the owner's approval ("APPROVED — Merge PR #331 (24e76c5)"), after all six checks passed. `/api/health` reports `84031ef`. No configuration was changed: no staff accounts, ride creation still off.
+- **[Owner decision 2026-10-23]** Prepare the HTAF admin quick-fixes PR: remove "Phase 11"/"Server J", hide "Schedule Transportation", correct the document-request button, and add a search Clear button. Keep transportation booking and pilot restrictions in place.
+- **This PR** (`public/admin-htaf.html`, one server field, one test):
+  - **Wording:** "Phase 11", "Server J" and "requireAdmin" removed from the page. The heading is now "HTAF Application Review", and the load error tells staff to check their HTAF sign-in.
+  - **Schedule Ride:** shown only while HTAF ride creation is switched on. The applications list now returns `ride_creation_enabled` (from the existing approval gate; false in production). While off, the page shows "Ride booking: not available yet", and the scheduling window refuses to open. The server-side block on ride creation is unchanged.
+  - **Document request:** renamed "Record Document Request". The window says "This does not contact the applicant" and asks staff to note how they contacted the applicant. Saving records the note and sets Pending Documents, as before; the confirmation says the system did not contact the applicant.
+  - **Search:** a Clear button resets search and filters. The count shows "0 of 6 records (filtered)" when a search hides records. Stronger autofill blocking on the search box.
+  - **Not in this PR:** labelling test applications (waits on the owner identifying them); applicant notifications, MFA, retention and denial process (P0 items 1, 4, 6, 7).
+- **Tests [Verified 2026-10-23, local]:** new Chromium test `test/htaf-admin-quick-fixes.browser.test.js` (no jargon; "TN" search shows the filtered count and Clear restores it; no Schedule Ride while off; document request wording). HTAF and web-separation suites: 298 passed. Full suite: 3,334 passed, 0 failed (55 skipped, as before).
+- **[Verified 2026-10-23, production database]** The two practice tips are `simulated` rows with no Stripe payment record, and both match the drivers' earnings. **[Unresolved]** The first scheduled run: none had run by 13:16 UTC. The deploy of `84031ef` restarted the server at about 13:13 UTC, and the check runs hourly, so the first run is expected about 14:13 UTC.
+- **[Unresolved]** Which of the 6 HTAF applications are tests (codes HTAF-20260706-B35ED3, HTAF-20260706-3843D3, HTAF-20260708-480EB7, HTAF-20260805-5455F7, HTAF-20260819-444928, HTAF-20260819-B52562). All use gmail.com addresses, so the database alone can't tell.
+
+**Handoff:**
+- **Done:** #331 merged and live; quick fixes built and tested.
+- **Remaining:** merge approval for this PR; the first scheduled tip-check result; the owner identifies test applications; the other P0 items.
+- **Next authorized action:** open this PR. Merging needs the owner's approval. Owner-only use of the HTAF admin continues.

@@ -5801,6 +5801,11 @@ app.get(
 
         rows,
 
+      // The page shows "Schedule Ride" only while ride creation is
+      // switched on (it needs recorded approvals; off today).
+      ride_creation_enabled:
+        HTAF_ACTIVATION.rideCreation.enabled,
+
       page: {
 
         limit,

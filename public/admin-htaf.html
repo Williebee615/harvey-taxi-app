@@ -780,7 +780,7 @@
 
       display:grid;
 
-      grid-template-columns:minmax(0,1fr) 170px 150px;
+      grid-template-columns:minmax(0,1fr) auto 170px 150px;
 
       gap:12px;
 
@@ -1911,7 +1911,7 @@
 
           <div class="eyebrow">
 
-            HTAF Phase 11 Operations
+            HTAF Application Review
 
           </div>
 
@@ -1989,7 +1989,7 @@
 
               <p>
 
-                This dashboard connects to Server J HTAF admin endpoints.
+                Connection to the HTAF application records.
 
               </p>
 
@@ -2033,7 +2033,7 @@
 
               <div class="detail-label">Security</div>
 
-              <div class="detail-value">Requires Server J admin authorization</div>
+              <div class="detail-value">HTAF admin sign-in required</div>
 
             </div>
 
@@ -2139,9 +2139,39 @@
 
               placeholder="Search by name, code, county, email, program..."
 
+              name="htaf-queue-search"
+
               autocomplete="off"
 
+              autocorrect="off"
+
+              autocapitalize="off"
+
+              spellcheck="false"
+
+              data-lpignore="true"
+
+              data-1p-ignore
+
+              data-form-type="other"
+
             />
+
+            <button
+
+              id="clearFiltersButton"
+
+              class="btn btn-secondary"
+
+              type="button"
+
+              onclick="clearQueueFilters()"
+
+            >
+
+              Clear
+
+            </button>
 
             <select id="statusFilter" class="select">
 
@@ -2223,7 +2253,7 @@
 
                 Select an application to review applicant information,
 
-                request documents, update status, or prepare scheduling.
+                record document requests, or update status.
 
               </p>
 
@@ -2273,13 +2303,19 @@
 
               <div>
 
-                <h3>Request Additional Documents</h3>
+                <h3>Record a Document Request</h3>
 
                 <p>
 
-                  Send a document request to the applicant and
+                  Records what you are asking the applicant for and
 
-                  move the application into Pending Documents.
+                  moves the application into Pending Documents.
+
+                  <strong>This does not contact the applicant.</strong>
+
+                  Contact them yourself (phone or email) and note how
+
+                  you reached them.
 
                 </p>
 
@@ -2305,7 +2341,7 @@
 
                 <label>
 
-                  Document Request Message
+                  What was requested, and how the applicant was contacted
 
                 </label>
 
@@ -2345,7 +2381,7 @@
 
               >
 
-                Send Request
+                Save Request Record
 
               </button>
 
@@ -2532,7 +2568,7 @@
 
             © 2026 Harvey Transportation Assistance Foundation
 
-            • Phase 11 Operations Dashboard
+            • Application Review
 
           </div>
 
@@ -2868,6 +2904,10 @@
 
       let selectedApplication = null;
 
+      // From the applications list response; false until the server says
+      // HTAF ride creation is switched on (it needs recorded approvals).
+      let rideCreationEnabled = false;
+
       let lastTriage = null;
 
       function showBanner(
@@ -3054,7 +3094,7 @@
 
           "opsStatusBanner",
 
-          "Connecting to Server J HTAF operations route...",
+          "Connecting to HTAF applications...",
 
           "info"
 
@@ -3090,6 +3130,10 @@
 
               : [];
 
+          rideCreationEnabled =
+
+            payload.ride_creation_enabled === true;
+
           showBanner(
 
             "opsStatusBanner",
@@ -3116,7 +3160,7 @@
 
             "opsStatusBanner",
 
-            "Unable to load HTAF applications. Verify admin login, Server J route, and requireAdmin authorization.",
+            "Unable to load HTAF applications. Check that you are signed in with an HTAF admin account, then refresh.",
 
             "err"
 
@@ -3216,6 +3260,34 @@
           .map(normalizeText)
 
           .join(" ");
+
+      }
+
+      // Browsers sometimes autofill the search box (e.g. "TN"), which
+      // silently hides every application; Clear resets search and filters.
+      function clearQueueFilters() {
+
+        const searchInput = document.getElementById("searchInput");
+
+        const statusFilter = document.getElementById("statusFilter");
+
+        const programFilter = document.getElementById("programFilter");
+
+        if (searchInput) searchInput.value = "";
+
+        if (programFilter) programFilter.value = "";
+
+        if (statusFilter && statusFilter.value) {
+
+          statusFilter.value = "";
+
+          refreshApplications();
+
+          return;
+
+        }
+
+        applyFilters();
 
       }
 
@@ -3383,9 +3455,17 @@
 
         if (queueCount) {
 
+          const filtered =
+
+            filteredApplications.length !== applications.length;
+
           queueCount.textContent =
 
-            `${filteredApplications.length} records`;
+            filtered
+
+              ? `${filteredApplications.length} of ${applications.length} records (filtered)`
+
+              : `${filteredApplications.length} records`;
 
         }
 
@@ -3823,11 +3903,11 @@
 
               >
 
-                Request Documents
+                Record Document Request
 
               </button>
 
-              <button
+              ${rideCreationEnabled ? `<button
 
                 class="btn btn-primary"
 
@@ -3839,7 +3919,11 @@
 
                 Schedule Ride
 
-              </button>
+              </button>` : `<span class="pill" title="HTAF ride booking is switched off. Turning it on needs recorded approvals.">
+
+                Ride booking: not available yet
+
+              </span>`}
 
               <button
 
@@ -4238,7 +4322,7 @@
 
           message.value =
 
-            "Please provide additional supporting documentation for your HTAF transportation assistance request.";
+            "Requested: additional supporting documentation. Applicant contacted by: (phone / email / not yet).";
 
         }
 
@@ -4272,7 +4356,7 @@
 
             "detailStatusBanner",
 
-            "Sending document request...",
+            "Saving document request record...",
 
             "info"
 
@@ -4330,7 +4414,7 @@
 
             "detailStatusBanner",
 
-            "Document request recorded and status changed to Pending Documents.",
+            "Document request recorded and status changed to Pending Documents. The applicant has not been contacted by this system.",
 
             "ok"
 
@@ -4361,6 +4445,22 @@
       }
 
       function openScheduleModal() {
+
+        if (!rideCreationEnabled) {
+
+          showBanner(
+
+            "detailStatusBanner",
+
+            "HTAF ride booking is not available yet.",
+
+            "err"
+
+          );
+
+          return;
+
+        }
 
         if (!selectedApplication) {
 
