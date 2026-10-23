@@ -727,7 +727,9 @@ describe("dispatch timing and the substitution alert (owner decision 2026-10-18)
     const milk = itemsOf(id)[0];
     await asStore().post(`/api/merchant/orders/${id}/items/${milk.id}`, { action: "substitute", substitute_name: "2% milk", substitute_price_cents: 429 });
     expect(mockPushes).toEqual([expect.objectContaining({ endpoint: "https://push.example.test/rider", title: "Your store has a question", url: `/store-menu.html?order=${id}` })]);
-    expect(JSON.stringify(mockPushes)).not.toMatch(/milk|4\.29|429/i);
+    // The url carries the random order id, which can itself contain "429";
+    // only the words a rider sees must leave out the item and its price.
+    expect(JSON.stringify(mockPushes.map(({ title, body }) => ({ title, body })))).not.toMatch(/milk|4\.29|429/i);
     // Packing an item sends nothing.
     mockPushes.length = 0;
     const other = await placedOrder();

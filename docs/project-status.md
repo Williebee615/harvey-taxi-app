@@ -3226,3 +3226,28 @@ Three admin pages kept the admin token in browser storage:
   - sending brief §F with the design to counsel;
   - the decisions in §11 and §12.9.
 - **Next authorized action:** open this PR. Merging needs the owner's approval.
+
+## 86. Update 2026-10-23 (UTC): #328 merged; HTAF provider policy (PR `claude/htaf-provider-decision`, docs only)
+
+- **[Verified 2026-10-23]** #328 merged as `dac0426` under the owner's approval ("Merge #328"), after CI passed. It is docs only, so the live site has no behaviour change.
+- **[Owner decision 2026-10-23]** "Harvey Taxi should always remain optional for HTAF. HTAF is a nonprofit organization that wants collaboration with every rideshare company agreed to HTAF partnership."
+- **This PR:** `docs/htaf-ride-funding-design.md` §12.10 records the policy.
+  - HTAF may partner with any provider that accepts its partnership terms, and none is exclusive.
+  - Harvey Taxi is always optional and never favoured. If used, it follows the related-party controls (§5, brief §F).
+  - **[Recommendation]** One set of partnership terms for every provider (counsel drafts).
+  - Provider selection is by a person or a fixed rule, never an automatic Uber price comparison.
+  - The criteria are recorded per partner.
+- **Still open:** which provider to approach first for the pilot, plus the board, counsel and insurer items in §11 and §12.9.
+- **CI fix [Verified 2026-10-23]:** this PR's first CI run failed in `test/server.orders.test.js`.
+  - The test checks that a web-push alert never names the item or its price ("429"), but it also scanned the push link. That link carries a random order id, which happened to contain "429" (`f37d5689-6737-4299-…`).
+  - The test now checks only the title and body. The link is still pinned exactly by the line before it.
+  - The app code is unchanged.
+
+**Handoff:**
+- **Done:** #328 merged; provider policy recorded.
+- **Remaining:**
+  - merge approval for this PR;
+  - send brief §F and the design to counsel;
+  - Search Console;
+  - the first pilot provider.
+- **Next authorized action:** open this PR. Merging needs the owner's approval.
