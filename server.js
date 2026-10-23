@@ -26885,6 +26885,114 @@ async function finalizeTip(tip, intent) {
   return { ok: true };
 }
 
+/* =========================================================
+   TIP RECONCILIATION (lib/tipReconciliation.js; owner decision 2026-10-23)
+   Read-only: compares Stripe tip charges with ride_tips and the drivers'
+   earning rows, and reports mismatches. It never refunds, cancels, charges
+   or edits a tip or an earning; a person decides. Runs on demand for
+   finance (admin) and once a day when tips_reconciliation_enabled is
+   "true"; a run with findings sends a payment alert.
+========================================================= */
+const tipReconciliation = require("./lib/tipReconciliation");
+const TIP_RECONCILE_LOOKBACK_DAYS = 35;
+// Rows newer than the Stripe window's start by this margin are compared,
+// so a row whose intent was created just before the window isn't reported
+// as missing.
+const TIP_RECONCILE_ROW_MARGIN_MS = 60 * 60 * 1000;
+const TIP_RECONCILE_MIN_GAP_MS = 20 * 60 * 60 * 1000;
+
+async function reconcileTipsForMode(mode, { nowMs = Date.now() } = {}) {
+  const cfg = tipStripe(mode);
+  if (!cfg) return { mode, skipped: true, reason: `${mode}_stripe_not_configured` };
+  const startSec = Math.floor(nowMs / 1000) - TIP_RECONCILE_LOOKBACK_DAYS * 86400;
+  const listed = await listStripeAll((params) => cfg.client.paymentIntents.list(params), { created: { gte: startSec }, expand: ["data.latest_charge"] });
+  const rowsFrom = new Date(startSec * 1000 + TIP_RECONCILE_ROW_MARGIN_MS).toISOString();
+  const { data: rows, error } = await supabase
+    .from("ride_tips")
+    .select("id, ride_id, driver_id, amount_cents, status, mode, payment_intent_id, created_at")
+    .gte("created_at", rowsFrom);
+  if (tipsTableMissing(error)) return { mode, skipped: true, reason: "ride_tips_not_migrated" };
+  if (error) throw error;
+  // Tips named by an in-window intent but created before the row margin
+  // are read too, so they aren't reported as untracked.
+  const known = new Set((rows || []).map((r) => r.payment_intent_id).filter(Boolean));
+  const extraIds = listed.items.filter((i) => i.metadata && i.metadata.kind === "ride_tip" && !known.has(i.id)).map((i) => i.id);
+  let extra = [];
+  if (extraIds.length) {
+    const { data, error: xErr } = await supabase.from("ride_tips").select("id, ride_id, driver_id, amount_cents, status, mode, payment_intent_id, created_at").in("payment_intent_id", extraIds);
+    if (xErr) throw xErr;
+    extra = data || [];
+  }
+  const tips = [...(rows || []), ...extra];
+  const rideIds = [...new Set(tips.map((t) => String(t.ride_id)))];
+  let rides = [];
+  let earnings = [];
+  if (rideIds.length) {
+    const [r, e] = await Promise.all([
+      supabase.from("rides").select("id, tip_amount").in("id", rideIds),
+      supabase.from("driver_earnings").select("ride_id, tip_amount, driver_base_earning, total_earning").in("ride_id", rideIds)
+    ]);
+    if (r.error || e.error) throw r.error || e.error;
+    rides = r.data || [];
+    earnings = e.data || [];
+  }
+  const report = tipReconciliation.reconcileTips({ mode, intents: listed.items, tips, rides, earnings });
+  return { mode, ...report, truncated: listed.truncated, window_days: TIP_RECONCILE_LOOKBACK_DAYS };
+}
+
+async function runTipReconciliation({ trigger = "schedule", nowMs = Date.now() } = {}) {
+  const reports = [];
+  for (const mode of ["live", "test"]) {
+    try {
+      reports.push(await reconcileTipsForMode(mode, { nowMs }));
+    } catch (err) {
+      reports.push({ mode, error: logErrorCode(err) || "failed" });
+    }
+  }
+  const findings = reports.flatMap((r) => r.findings || []);
+  const failed = reports.filter((r) => r.error).map((r) => r.mode);
+  // Identifiers, amounts and fixed codes only.
+  await auditLog({
+    actor_type: "system",
+    actor_id: "tips",
+    action: trigger === "schedule" ? "tip_reconciliation_scheduled_run" : "tip_reconciliation_admin_run",
+    entity_type: "payments",
+    metadata: { trigger, discrepancies: findings.length, failed_modes: failed, summaries: reports.map((r) => r.summary || { mode: r.mode, skipped: r.reason || null, error: r.error || null }), findings: findings.slice(0, 50) }
+  }).catch(() => {});
+  if (trigger === "schedule" && (findings.length || failed.length)) {
+    const codes = [...new Set(findings.map((f) => f.code))].join(", ");
+    await paymentOpsAlert("tip_reconciliation_discrepancies", {
+      reason: findings.length ? `${findings.length} tip finding(s): ${codes}` : `could not check: ${failed.join(", ")}`,
+      action_needed: "review the tip reconciliation report in admin; nothing was changed"
+    });
+  }
+  return { reports, discrepancies: findings.length, failed_modes: failed };
+}
+
+// Daily, and only when switched on. The last run is read from the audit
+// log so a restart or deploy doesn't repeat it (or its alert) within 20 h.
+async function runScheduledTipReconciliation({ nowMs = Date.now() } = {}) {
+  if ((await getSystemFlag("tips_reconciliation_enabled", "false")) !== "true") return { skipped: true, reason: "disabled" };
+  const since = new Date(nowMs - TIP_RECONCILE_MIN_GAP_MS).toISOString();
+  const { data: recent, error } = await supabase.from("audit_logs").select("id").eq("action", "tip_reconciliation_scheduled_run").gte("created_at", since).limit(1);
+  if (error) return { skipped: true, reason: "last_run_unknown" };
+  if (recent && recent.length) return { skipped: true, reason: "ran_recently" };
+  return runTipReconciliation({ trigger: "schedule", nowMs });
+}
+
+app.post(
+  "/api/admin/tips/reconcile",
+  requireAdmin,
+  rateLimit({ windowMs: 60_000, max: 5, keyPrefix: "tip_reconcile_report" }),
+  asyncRoute(async (req, res) => {
+    const { role } = await resolveAdminRoleForRequest(req);
+    if (!computeShadowWouldAllow(role, "finance.read")) return fail(res, "Tip reconciliation requires the finance permission.", 403);
+    const result = await runTipReconciliation({ trigger: "admin" });
+    const scheduled = (await getSystemFlag("tips_reconciliation_enabled", "false")) === "true";
+    return ok(res, { read_only: true, scheduled_daily: scheduled, ...result });
+  })
+);
+
 const riderFirstNameOf = (driver) => (driver && (driver.first_name || String(driver.full_name || driver.name || "").split(" ")[0])) || "your driver";
 
 // What the tip and rating page needs for one ride.
@@ -31557,6 +31665,12 @@ async function startServer() {
         runUnusedHoldSweep().catch(() => {});
       }, 10 * 60_000);
 
+      // Tip reconciliation, read-only. Does nothing unless
+      // tips_reconciliation_enabled is "true"; at most once per 20 h.
+      setInterval(() => {
+        runScheduledTipReconciliation().catch((err) => console.error("⚠️ Tip reconciliation failed:", logErrorCode(err)));
+      }, 60 * 60_000).unref();
+
       // Stripe-side reconciliation. Does nothing unless
       // stripe_reconciliation_enabled is "true" (off by default); cancels
       // nothing unless unused_hold_sweep_enabled is also "true" (off).
@@ -31597,4 +31711,4 @@ if (require.main === module) {
 // runOfferExpirySweep is exported only so tests can drive the real
 // Supabase adapters for the offer-expiry sweep; production runs it on the
 // interval set up under require.main === module below.
-module.exports = { app, __assistantPilot: assistantPilotTestHooks, runAuditIpRetention, runReviewDemoTick, runOfferExpirySweep, runUnusedHoldSweep, runAgentCoordinationSweep, reconcileStripeHolds, runScheduledReconciliation, purgeRiderLocations, runDriverHoursSweep };
+module.exports = { app, __assistantPilot: assistantPilotTestHooks, runAuditIpRetention, runTipReconciliation, runScheduledTipReconciliation, runReviewDemoTick, runOfferExpirySweep, runUnusedHoldSweep, runAgentCoordinationSweep, reconcileStripeHolds, runScheduledReconciliation, purgeRiderLocations, runDriverHoursSweep };
