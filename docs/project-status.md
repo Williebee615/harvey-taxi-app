@@ -3530,3 +3530,21 @@ Three admin pages kept the admin token in browser storage:
 - **Done:** #335 live; test-record support built.
 - **Remaining:** the approvals above; contact the two real applicants (owner); partner details and switch-ons (owner).
 - **Next authorized action:** open this PR. Merging, the migration and the marking need the owner's approval.
+
+## 97. Update 2026-10-23 (UTC): global partner portal switched on
+
+- **[Owner decision 2026-10-23]** "Partner switch approved." Scope: the global switch only (`htaf_partner_access_enabled`). No partner organizations exist, so no per-partner switch was involved.
+- **[Verified 2026-10-23 19:17 UTC, production]** The flag was set to `true` (audit 1673, `htaf_partner_access_enabled`, owner-approved).
+  - `GET /api/htaf/partner/applications` now returns 401 "Please sign in" instead of 503 "not available".
+  - `POST /api/htaf/partner/session/start` with an unregistered number returns the same generic "sent" reply as any other number (no account enumeration). No text is sent, because no coordinator is registered.
+- **Effect:** none yet. A partner can sign in only once the owner adds the organization, records its signed agreement, switches that partner on and registers a coordinator phone.
+- **[Recommendation, unchanged]** Before switching any partner on:
+  - counsel drafts the partner agreement and the client-consent wording;
+  - the board approves the first partners;
+  - the HIPAA BAA question is settled for clinics.
+- To suspend all partner sign-ins at once, turn the global switch off in the HTAF admin (Partner Portal tab).
+
+**Handoff:**
+- **Done:** global partner switch on.
+- **Remaining:** partners, agreements and coordinators (owner); the #336 approvals.
+- **Next authorized action:** none beyond recording this.
