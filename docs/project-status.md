@@ -3548,3 +3548,28 @@ Three admin pages kept the admin token in browser storage:
 - **Done:** global partner switch on.
 - **Remaining:** partners, agreements and coordinators (owner); the #336 approvals.
 - **Next authorized action:** none beyond recording this.
+
+## 98. Update 2026-10-23 (UTC): #336 live, migration applied, test records marked; Facebook link for Facebook's charity review (PR `claude/htaf-facebook-link`)
+
+- **[Owner decision 2026-10-23]** "1 merge it 2 apply it database 3 mark all three test applications as well."
+- **[Verified 2026-10-23, production]**
+  - Migration `20261023030000_htaf_applications_test_marker.sql` was applied (Supabase version `20261023191952`).
+  - #336 merged as `a3632f2`; `/api/health` reports it.
+  - HTAF-20260706-B35ED3, HTAF-20260706-3843D3 and HTAF-20260708-480EB7 are marked `is_test` (audits 1674–1676). There are 3 test and 3 real applications; nothing was deleted.
+  - Public statistics now report 3 applications submitted and 3 pending review.
+- **Facebook charitable giving (owner shared Facebook's message of 2026-10-15):** Facebook asked that the HTAF website link to the charity's Facebook page before it continues the fundraising-tools application.
+  - **This PR** adds that link (`https://www.facebook.com/profile.php?id=61588891574758`):
+    - in the footer of the home, contact, leadership and application pages;
+    - as a "Facebook" row on the Contact page;
+    - in the home page's structured data (`sameAs`).
+  - The link opens in a new tab and stays in English in every language (`data-no-translate`).
+  - Screenshots: `docs/screenshots/htaf-facebook/`.
+  - HTAF tests: 493 passed. The SEO test now allows exactly this one owner-confirmed `sameAs` profile. Full suite: 3,392 passed, 0 failed.
+- **[Unresolved]**
+  - Owner approval to merge.
+  - After deploy, the owner replies to Facebook (draft provided) and confirms the Facebook page's About section links to `https://harveytransportationfoundation.com/`. Facebook says that link already works.
+
+**Handoff:**
+- **Done:** #336 steps verified; Facebook link built.
+- **Remaining:** merge approval; the owner's reply to Facebook; contacting the 2 real applicants.
+- **Next authorized action:** open this PR. Merging needs the owner's approval.
