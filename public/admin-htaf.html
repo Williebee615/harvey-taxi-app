@@ -1896,6 +1896,11 @@
 
       />
 
+      <!-- Shown only when the admin authenticator is on (S.A.I., 2026-10-24). -->
+      <div id="loginCodeWrap" class="hidden">
+        <label class="login-label" for="loginCode">Code from your authenticator app (or a recovery code)</label>
+        <input id="loginCode" class="login-input" inputmode="numeric" autocomplete="one-time-code" maxlength="11" placeholder="123456" />
+      </div>
       <button id="loginSubmit" class="btn btn-primary login-submit" type="button">
 
         Sign In
@@ -2797,8 +2802,39 @@
 
       }
 
-      async function adminLogin(email, password) {
+      // With the admin authenticator on, the password earns a short-lived
+      // challenge; the code (or a recovery code) completes the sign-in.
+      let pendingMfaChallenge = "";
 
+      async function verifyAdminCode() {
+        const codeField = document.getElementById("loginCode");
+        const raw = (codeField?.value || "").trim();
+        if (!raw) throw new Error("Enter the code from your authenticator app.");
+        const body = /^\d{6}$/.test(raw)
+          ? { challenge: pendingMfaChallenge, code: raw }
+          : { challenge: pendingMfaChallenge, recovery_code: raw };
+        const response = await fetch(`${HTAF_API}/api/admin/login/verify-code`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        });
+        const payload = await response.json().catch(() => null);
+        if (codeField) codeField.value = "";
+        if (!response.ok || payload?.ok === false) {
+          if (/expired/i.test(payload?.message || "")) {
+            pendingMfaChallenge = "";
+            document.getElementById("loginCodeWrap")?.classList.add("hidden");
+          }
+          throw new Error(payload?.message || payload?.error || "That code didn't work.");
+        }
+        pendingMfaChallenge = "";
+        document.getElementById("loginCodeWrap")?.classList.add("hidden");
+        return payload;
+      }
+
+      async function adminLogin(email, password) {
+        if (pendingMfaChallenge) return verifyAdminCode();
         const response = await fetch(
 
           `${HTAF_API}/api/admin/login`,
@@ -2834,19 +2870,18 @@
         }
 
         if (!response.ok || payload?.ok === false) {
-
           throw new Error(
-
             payload?.error ||
-
             payload?.message ||
-
             `Login failed with status ${response.status}`
-
           );
-
         }
-
+        if (payload?.mfa_required) {
+          pendingMfaChallenge = payload.challenge;
+          document.getElementById("loginCodeWrap")?.classList.remove("hidden");
+          document.getElementById("loginCode")?.focus();
+          throw new Error("Enter the code from your authenticator app, then press Sign In.");
+        }
         return payload;
 
       }
@@ -3007,7 +3042,7 @@
 
         submit?.addEventListener("click", handleLogin);
 
-        [emailField, passwordField].forEach(field => {
+        [emailField, passwordField, document.getElementById("loginCode")].forEach(field => {
 
           field?.addEventListener("keydown", (event) => {
 

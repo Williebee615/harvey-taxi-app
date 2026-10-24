@@ -194,6 +194,17 @@
         <button type="submit" class="btn">Login to Admin Dashboard</button>
         <div id="statusMessage" class="status"></div>
       </form>
+
+      <!-- Second step, shown only when the admin authenticator is on. -->
+      <form id="codeForm" hidden>
+        <div class="field">
+          <label for="code" id="codeLabel">6-digit code from your authenticator app</label>
+          <input id="code" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456" required />
+        </div>
+        <button type="submit" class="btn">Verify and sign in</button>
+        <p style="margin-top:12px"><button type="button" id="useRecovery" style="background:none;border:0;color:var(--cyan);font:inherit;cursor:pointer;text-decoration:underline">Lost your phone? Use a recovery code</button></p>
+        <div id="codeStatus" class="status"></div>
+      </form>
     </section>
   </main>
 
@@ -246,6 +257,12 @@
         });
         const data = await res.json().catch(() => ({}));
 
+        if (res.ok && data.ok && data.mfa_required) {
+          passwordInput.value = "";
+          startCodeStep(data.challenge);
+          return;
+        }
+
         if (res.ok && data.ok) {
           passwordInput.value = "";
           showStatus("success", "Signed in. Opening the admin page...");
@@ -257,6 +274,70 @@
         showStatus("error", data.message || "Sign-in failed. Please try again.");
       } catch (error) {
         showStatus("error", "Unable to sign in right now. Please try again.");
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    // Second step (authenticator code or a one-time recovery code).
+    const codeForm = document.getElementById("codeForm");
+    const codeInput = document.getElementById("code");
+    const codeStatus = document.getElementById("codeStatus");
+    let challenge = "";
+    let useRecovery = false;
+
+    function startCodeStep(token) {
+      challenge = token;
+      adminForm.hidden = true;
+      codeForm.hidden = false;
+      codeInput.focus();
+    }
+
+    document.getElementById("useRecovery").addEventListener("click", () => {
+      useRecovery = !useRecovery;
+      document.getElementById("codeLabel").textContent = useRecovery ? "Recovery code (each works once)" : "6-digit code from your authenticator app";
+      codeInput.maxLength = useRecovery ? 11 : 6;
+      codeInput.inputMode = useRecovery ? "text" : "numeric";
+      codeInput.placeholder = useRecovery ? "ABCDE-FGHJK" : "123456";
+      document.getElementById("useRecovery").textContent = useRecovery ? "Use the authenticator code instead" : "Lost your phone? Use a recovery code";
+      codeInput.value = "";
+      codeInput.focus();
+    });
+
+    codeForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const button = codeForm.querySelector("button[type=submit]");
+      button.disabled = true;
+      try {
+        const body = useRecovery ? { challenge, recovery_code: codeInput.value.trim() } : { challenge, code: codeInput.value.trim() };
+        const res = await fetch("/api/admin/login/verify-code", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          cache: "no-store",
+          body: JSON.stringify(body)
+        });
+        const data = await res.json().catch(() => ({}));
+        codeInput.value = "";
+        if (res.ok && data.ok) {
+          codeStatus.className = "status show success";
+          codeStatus.textContent = typeof data.recovery_codes_left === "number"
+            ? `Signed in with a recovery code. ${data.recovery_codes_left} left; set up the authenticator again soon.`
+            : "Signed in. Opening the admin page...";
+          setTimeout(() => window.location.replace(nextPage()), typeof data.recovery_codes_left === "number" ? 2500 : 0);
+          return;
+        }
+        if (res.status === 401 && /expired/i.test(data.message || "")) {
+          codeForm.hidden = true;
+          adminForm.hidden = false;
+          showStatus("error", data.message);
+          return;
+        }
+        codeStatus.className = "status show error";
+        codeStatus.textContent = data.message || "That code didn't work.";
+      } catch (error) {
+        codeStatus.className = "status show error";
+        codeStatus.textContent = "Unable to sign in right now. Please try again.";
       } finally {
         button.disabled = false;
       }

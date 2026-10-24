@@ -40,7 +40,14 @@ beforeAll(() => {
 
 // Sign-in, sign-out and the "am I signed in?" check have to work without
 // a session; they are checked separately below.
-const PUBLIC_ADMIN_AUTH_ROUTES = new Set(["post /api/admin/login", "post /api/admin/logout", "get /api/admin/session"]);
+// The authenticator step (verify-code) needs a signed challenge from a
+// correct password instead; test/server.security-intel.test.js covers it.
+const PUBLIC_ADMIN_AUTH_ROUTES = new Set(["post /api/admin/login", "post /api/admin/login/verify-code", "post /api/admin/logout", "get /api/admin/session"]);
+
+// Each request comes from its own address, so the general per-address
+// API rate limit (120 a minute) never answers before the auth check does.
+let callerIp = 0;
+const nextIp = () => { callerIp += 1; return `10.20.${Math.floor(callerIp / 250)}.${(callerIp % 250) + 1}`; };
 
 function adminRoutes() {
   const routes = [];
@@ -69,7 +76,7 @@ describe("admin API routes require admin authentication", () => {
     const before = JSON.stringify(fake._state);
     const allowed = [];
     for (const { method, path } of routes()) {
-      const res = await request(app)[method](path).send({ status: "approved", driver_id: "DRV-1", value: "true" });
+      const res = await request(app)[method](path).set("CF-Connecting-IP", nextIp()).send({ status: "approved", driver_id: "DRV-1", value: "true" });
       if (![401, 403].includes(res.status)) allowed.push(`${method.toUpperCase()} ${path} -> ${res.status}`);
     }
     expect(allowed).toEqual([]);
@@ -82,19 +89,19 @@ describe("admin API routes require admin authentication", () => {
   });
 
   test("the session check reports signed out without a session", async () => {
-    const res = await request(app).get("/api/admin/session");
+    const res = await request(app).get("/api/admin/session").set("CF-Connecting-IP", nextIp());
     expect(res.status).toBe(200);
     expect(res.body.authenticated).toBe(false);
   });
 
   test("sign-in with wrong details does not sign in", async () => {
-    const res = await request(app).post("/api/admin/login").send({ email: "x@example.test", password: "wrong" });
+    const res = await request(app).post("/api/admin/login").set("CF-Connecting-IP", nextIp()).send({ email: "x@example.test", password: "wrong" });
     expect(res.status).not.toBe(200);
     expect(res.headers["set-cookie"] || []).toEqual([]);
   });
 
   test("a wrong admin token is refused too", async () => {
-    const res = await request(app).get("/api/admin/drivers").set("x-admin-token", "not-the-token");
+    const res = await request(app).get("/api/admin/drivers").set("CF-Connecting-IP", nextIp()).set("x-admin-token", "not-the-token");
     expect([401, 403]).toContain(res.status);
   });
 });

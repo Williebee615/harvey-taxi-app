@@ -246,6 +246,7 @@
         <div class="actions">
           <button class="ai" id="openAssistantBtn" type="button">Open Harvey Assistant</button>
           <a class="neutral" href="admin-agent.html" style="display:inline-flex;align-items:center;justify-content:center;text-decoration:none;">Agent Command Center</a>
+          <a class="neutral" href="admin-security.html" style="display:inline-flex;align-items:center;justify-content:center;text-decoration:none;">Cyber Defense</a>
         </div>
         <div class="item-sub" style="margin-top:12px;">Knowledge articles, specialists, escalations and AI settings are managed in the Agent Command Center.</div>
       </section>
@@ -998,6 +999,8 @@ async function adminLogin(){
     });
     const data = await res.json().catch(()=>({}));
     if(!res.ok || data.ok === false) throw new Error(data.error || data.message || `Login failed ${res.status}`);
+    // With the admin authenticator on, the code step lives on the login page.
+    if(data.mfa_required){ $("adminPassword").value = ""; window.location.href = "/admin-login.html?next=/admin-dashboard.html"; return; }
     // Session cookie is set; we don't need to store the password anymore.
     localStorage.setItem("harvey_admin_email", email);
     localStorage.removeItem("harvey_admin_password");

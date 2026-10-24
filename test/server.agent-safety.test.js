@@ -94,7 +94,9 @@ beforeAll(() => {
 
 describe("admin access", () => {
   test("every /api/admin route has admin middleware (except sign-in itself)", () => {
-    const PUBLIC_BY_DESIGN = new Set(["/api/admin/login", "/api/admin/logout", "/api/admin/session"]);
+    // The authenticator step of sign-in needs a signed challenge instead
+    // (test/server.security-intel.test.js).
+    const PUBLIC_BY_DESIGN = new Set(["/api/admin/login", "/api/admin/login/verify-code", "/api/admin/logout", "/api/admin/session"]);
     const stack = (app._router || app.router).stack;
     const unprotected = [];
     let count = 0;
@@ -102,7 +104,9 @@ describe("admin access", () => {
       if (!layer.route || typeof layer.route.path !== "string" || !layer.route.path.startsWith("/api/admin")) continue;
       count += 1;
       const names = layer.route.stack.map((s) => s.name);
-      if (!names.some((n) => n === "requireAdmin" || n === "requireElevatedAdmin") && !PUBLIC_BY_DESIGN.has(layer.route.path)) {
+      // requireAdminSessionLogin is stricter than requireAdmin: a signed-in
+      // session only (it manages the admin authenticator).
+      if (!names.some((n) => n === "requireAdmin" || n === "requireElevatedAdmin" || n === "requireAdminSessionLogin") && !PUBLIC_BY_DESIGN.has(layer.route.path)) {
         unprotected.push(`${Object.keys(layer.route.methods)} ${layer.route.path}`);
       }
     }
