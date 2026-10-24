@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Harvey Taxi | Cyber Defense</title>
+  <style>
+    :root{
+      --bg:#060b1a; --panel:#0d1630; --line:rgba(122,162,255,.18);
+      --text:#f4f7ff; --muted:#aab8de; --blue:#5ea0ff; --green:#6dffb3; --gold:#ffd76a;
+      --danger:#ff7e97; --radius:16px;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Inter,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.45;padding:16px}
+    main{max-width:1100px;margin:0 auto;display:grid;gap:16px}
+    h1{font-size:1.5rem} h2{font-size:1.05rem;margin-bottom:10px} h3{font-size:.98rem;margin:2px 0}
+    a{color:var(--blue)}
+    .muted{color:var(--muted);font-size:.88rem}
+    .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;min-width:0}
+    .notice{border-radius:12px;padding:12px 14px;border:1px solid var(--line);background:#101a36}
+    .notice.bad{border-color:rgba(255,126,151,.4);background:#2e1019}
+    .notice.good{border-color:rgba(109,255,179,.35);background:#0f2a22}
+    .badge{display:inline-block;border-radius:999px;padding:2px 10px;font-size:.78rem;font-weight:700;border:1px solid var(--line);white-space:nowrap}
+    .sev-critical{background:#4a1222;color:var(--danger);border-color:rgba(255,126,151,.5)}
+    .sev-warning{background:#3a3212;color:var(--gold)}
+    .sev-info{background:#1b2440;color:var(--muted)}
+    .on{background:#123a2c;color:var(--green)} .off{background:#1b2440;color:var(--muted)}
+    button,input,select{font:inherit;color:inherit}
+    button{cursor:pointer;border-radius:10px;border:1px solid var(--line);background:#16244a;padding:8px 12px;min-height:40px}
+    button:hover{border-color:var(--blue)}
+    button.primary{background:#1d4ed8;border-color:#1d4ed8}
+    button.danger{background:#5a1426;border-color:rgba(255,126,151,.5)}
+    button:disabled{opacity:.6;cursor:wait}
+    input,select{background:#0a1228;border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:0;min-height:40px}
+    .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+    .status-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+    .stat{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:grid;gap:4px}
+    .alert{border-top:1px solid var(--line);padding:12px 0;display:grid;gap:6px}
+    .alert:first-child{border-top:0}
+    .empty{color:var(--muted);font-size:.9rem;padding:6px 0}
+    .table-wrap{overflow-x:auto}
+    table{width:100%;border-collapse:collapse;font-size:.88rem}
+    th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+    th{color:var(--muted);font-weight:600}
+    code.key{display:block;font-size:1.05rem;letter-spacing:.06em;word-break:break-all;background:#0a1228;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:8px 0}
+    ol.codes{columns:2;padding-left:22px;font-family:ui-monospace,Menlo,monospace;font-size:1rem}
+    #toast{position:fixed;bottom:16px;left:16px;right:16px;max-width:520px;margin:0 auto;padding:12px 14px;border-radius:12px;background:#1d2b55;border:1px solid var(--line);display:none;z-index:10}
+    [hidden]{display:none !important}
+  </style>
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+  <link rel="apple-touch-icon" href="/icon-192.png" />
+</head>
+<body>
+<main>
+  <header>
+    <h1>Cyber Defense <span class="muted">(S.A.I.)</span></h1>
+    <p class="muted">Security alerts for Harvey Taxi, in plain English. Nothing is blocked automatically except the rate limits that already slow down repeated requests. Every block and sign-out here happens only when you click. <a href="/admin-dashboard.html">Admin dashboard</a></p>
+  </header>
+
+  <div id="authNotice" class="notice bad" hidden>
+    Admin sign-in required. <a href="/admin-login.html?next=/admin-security.html">Sign in</a>, then return to this page.
+  </div>
+  <div id="setupNotice" class="notice bad" hidden>
+    The security database update hasn't been applied yet, so nothing can be recorded or blocked. It needs the owner's approval.
+  </div>
+
+  <section class="panel">
+    <div class="row" style="justify-content:space-between">
+      <h2>Status</h2>
+      <div class="row"><span class="muted" id="updatedAt"></span><button type="button" id="refreshBtn">Refresh</button></div>
+    </div>
+    <div class="status-grid" id="statusGrid"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Alerts</h2>
+    <div id="alerts"><div class="empty">Loading…</div></div>
+  </section>
+
+  <section class="panel">
+    <h2>Blocked addresses</h2>
+    <p class="muted">Each block ends on its own (at most 7 days). Shared addresses, such as an office or a mobile carrier, can carry real riders too.</p>
+    <div id="blocks"><div class="empty">Loading…</div></div>
+  </section>
+
+  <section class="panel" id="mfaPanel">
+    <h2>Admin sign-in: authenticator code</h2>
+    <div id="mfaBody"><div class="empty">Loading…</div></div>
+  </section>
+
+  <section class="panel">
+    <h2>Recent security events (24 hours)</h2>
+    <p class="muted">Addresses are shown masked; full addresses and phone numbers are never stored.</p>
+    <div class="table-wrap"><table><thead><tr><th>Time</th><th>Event</th><th>Where</th><th>Address</th><th>Count</th></tr></thead><tbody id="events"></tbody></table></div>
+  </section>
+</main>
+<div id="toast" role="status"></div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const esc = (v) => String(v == null ? "" : v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const KIND_LABEL = {
+    rate_limited: "Throttled by rate limit",
+    admin_login_failed: "Failed admin sign-in",
+    admin_mfa_failed: "Wrong authenticator code",
+    access_denied: "Refused (not signed in / not allowed)",
+    sms_code_sent: "Sign-in code texted",
+    blocked_request: "Request from a blocked address",
+    buffer_overflow: "Too many events to itemise"
+  };
+  const fmt = (iso) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    return d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  };
+  let lastData = null;
+  // True while the setup key or the one-time recovery codes are on screen,
+  // so the auto-refresh never wipes them.
+  let mfaBusy = false;
+
+  function toast(text) {
+    const t = $("toast");
+    t.textContent = text;
+    t.style.display = "block";
+    clearTimeout(toast.timer);
+    toast.timer = setTimeout(() => { t.style.display = "none"; }, 5000);
+  }
+
+  async function api(path, options = {}) {
+    const res = await fetch(path, { credentials: "include", cache: "no-store", ...options, headers: { "Content-Type": "application/json", ...(options.headers || {}) } });
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 401) { $("authNotice").hidden = false; throw new Error(data.error || "Admin sign-in required."); }
+    if (!res.ok || data.ok === false) throw new Error(data.error || data.message || `Request failed (${res.status})`);
+    return data;
+  }
+
+  function stat(label, value, cls, note) {
+    return `<div class="stat"><span class="muted">${esc(label)}</span><span><span class="badge ${cls}">${esc(value)}</span></span>${note ? `<span class="muted">${esc(note)}</span>` : ""}</div>`;
+  }
+
+  function renderStatus(d) {
+    const pc = d.password_check;
+    $("statusGrid").innerHTML = [
+      stat("Monitoring", d.monitoring_enabled ? "On" : "Off", d.monitoring_enabled ? "on" : "off", d.monitoring_enabled ? "Recording events and checking for alerts." : "Switched on with the security_intel_enabled setting (owner approval)."),
+      stat("Alert email", d.alert_email_enabled ? "On" : "Off", d.alert_email_enabled ? "on" : "off", "Critical alerts only, at most once an hour each."),
+      stat("Admin authenticator", d.mfa_active ? "On" : "Off", d.mfa_active ? "on" : "off", d.mfa_active ? "Password + code from your phone." : "Password only. Set it up below."),
+      stat("Admin password breach check", pc ? (pc.breached ? "Found in breach list" : "Not found") : "Not checked yet", pc ? (pc.breached ? "sev-critical" : "on") : "off", pc ? `Checked ${fmt(pc.checked_at)}` : "Runs daily while monitoring is on.")
+    ].join("");
+    $("setupNotice").hidden = !d.setup_needed;
+    $("updatedAt").textContent = `Updated ${fmt(new Date().toISOString())}`;
+  }
+
+  function renderAlerts(d) {
+    if (!d.alerts.length) {
+      $("alerts").innerHTML = `<div class="empty">${d.monitoring_enabled ? "No active alerts." : "No alerts. Monitoring is off, so new activity isn't being checked."}</div>`;
+      return;
+    }
+    $("alerts").innerHTML = d.alerts.map((a, i) => {
+      const actions = (a.actions || []).map((act) => {
+        if (act.type === "block_ip") {
+          if (a.blocked) return `<span class="badge on">Blocked</span>`;
+          if (act.ip_hash === d.your_ip_hash) return `<span class="muted">This is your current address.</span>`;
+          return `<select data-hours="${i}" aria-label="Block for"><option value="1">1 hour</option><option value="24" selected>1 day</option><option value="168">7 days</option></select><button class="danger" data-block="${i}">Block ${esc(act.ip_masked)}</button>`;
+        }
+        if (act.type === "revoke_rider_sessions") return `<button data-revoke="${esc(act.rider_id)}">Sign this rider out everywhere</button>`;
+        return "";
+      }).join("");
+      return `<div class="alert">
+        <div class="row"><span class="badge sev-${esc(a.severity)}">${esc(a.severity)}</span><h3>${esc(a.title)}</h3></div>
+        <div>${esc(a.summary)}</div>
+        <div class="muted"><strong>Recommended:</strong> ${esc(a.recommendation)}</div>
+        ${a.last_at ? `<div class="muted">Last seen ${esc(fmt(a.last_at))}</div>` : ""}
+        ${actions ? `<div class="row">${actions}</div>` : ""}
+      </div>`;
+    }).join("");
+  }
+
+  function renderBlocks(d) {
+    if (!d.blocks.length) { $("blocks").innerHTML = `<div class="empty">No addresses are blocked.</div>`; return; }
+    $("blocks").innerHTML = `<div class="table-wrap"><table><thead><tr><th>Address</th><th>Reason</th><th>By</th><th>Ends</th><th></th></tr></thead><tbody>${d.blocks.map((b) => `<tr><td>${esc(b.ip_masked || "masked")}</td><td>${esc(b.reason)}</td><td>${esc(b.created_by)}</td><td>${esc(fmt(b.expires_at))}</td><td><button data-lift="${esc(b.id)}">Lift</button></td></tr>`).join("")}</tbody></table></div>`;
+  }
+
+  function renderEvents(d) {
+    $("events").innerHTML = d.recent.length
+      ? d.recent.map((e) => `<tr><td>${esc(fmt(e.created_at))}</td><td>${esc(KIND_LABEL[e.kind] || e.kind)}</td><td>${esc(e.route || "")}</td><td>${esc(e.ip_masked || "")}</td><td>${esc(e.count)}</td></tr>`).join("")
+      : `<tr><td colspan="5" class="empty">No events recorded in the last 24 hours.</td></tr>`;
+  }
+
+  async function load() {
+    try {
+      const d = await api("/api/admin/security/overview");
+      lastData = d;
+      $("authNotice").hidden = true;
+      renderStatus(d);
+      renderAlerts(d);
+      renderBlocks(d);
+      renderEvents(d);
+    } catch (err) {
+      if ($("authNotice").hidden) toast(err.message);
+    }
+    if (!mfaBusy) loadMfa();
+  }
+
+  // ---- Authenticator ----
+  async function loadMfa() {
+    try {
+      const m = await api("/api/admin/mfa");
+      if (!m.available) { $("mfaBody").innerHTML = `<div class="empty">Not available: the server needs ADMIN_SESSION_SECRET.</div>`; return; }
+      if (m.status === "active") {
+        $("mfaBody").innerHTML = `
+          <div class="notice good">On. Signing in needs your password and a code from your authenticator app. Recovery codes left: ${esc(m.recovery_codes_left)}.</div>
+          <p class="muted" style="margin-top:10px">To turn it off (for example, to move to a new phone), enter a current code.</p>
+          <div class="row" style="margin-top:6px"><input id="disableCode" inputmode="numeric" maxlength="11" placeholder="Code or recovery code" autocomplete="one-time-code" /><button class="danger" id="disableBtn">Turn off</button></div>`;
+        $("disableBtn").onclick = disableMfa;
+        return;
+      }
+      $("mfaBody").innerHTML = `
+        <p>Add a second step to the admin sign-in: after your password, a 6-digit code from an authenticator app on your phone (Google Authenticator, Microsoft Authenticator or 1Password).</p>
+        <p class="muted" style="margin-top:6px">Once it's on, signing in with the email and password alone stops working everywhere, including the old dashboard fields.</p>
+        <div class="row" style="margin-top:10px"><button class="primary" id="setupBtn">Set up authenticator</button></div>
+        <div id="setupStep" hidden></div>`;
+      $("setupBtn").onclick = startSetup;
+    } catch (err) {
+      $("mfaBody").innerHTML = `<div class="empty">${esc(err.message)}</div>`;
+    }
+  }
+
+  async function startSetup() {
+    try {
+      const s = await api("/api/admin/mfa/setup", { method: "POST", body: "{}" });
+      mfaBusy = true;
+      const grouped = s.secret.replace(/(.{4})/g, "$1 ").trim();
+      const step = $("setupStep");
+      step.hidden = false;
+      step.innerHTML = `
+        <ol style="padding-left:20px;margin-top:12px;display:grid;gap:6px">
+          <li>In your authenticator app, choose <strong>Add account</strong> → <strong>Enter a setup key</strong>, then type this key (time-based):<code class="key">${esc(grouped)}</code>On this phone? <a href="${esc(s.otpauth_uri)}">Open it in the authenticator app</a>.</li>
+          <li>Enter the 6-digit code the app shows:</li>
+        </ol>
+        <div class="row"><input id="confirmCode" inputmode="numeric" maxlength="6" placeholder="123456" autocomplete="one-time-code" /><button class="primary" id="confirmBtn">Turn on</button></div>`;
+      $("confirmBtn").onclick = confirmSetup;
+      $("setupBtn").hidden = true;
+    } catch (err) {
+      toast(err.message);
+    }
+  }
+
+  async function confirmSetup() {
+    try {
+      const r = await api("/api/admin/mfa/confirm", { method: "POST", body: JSON.stringify({ code: $("confirmCode").value.trim() }) });
+      $("mfaBody").innerHTML = `
+        <div class="notice good">The authenticator is on.</div>
+        <h3 style="margin-top:12px">Save these recovery codes now</h3>
+        <p class="muted">Each one signs you in once if you lose your phone. They won't be shown again. Keep them somewhere safe, offline (not in email or chat).</p>
+        <ol class="codes" style="margin:10px 0">${r.recovery_codes.map((c) => `<li>${esc(c)}</li>`).join("")}</ol>
+        <button id="savedBtn" class="primary">I've saved them</button>`;
+      $("savedBtn").onclick = () => { mfaBusy = false; load(); };
+    } catch (err) {
+      toast(err.message);
+    }
+  }
+
+  async function disableMfa() {
+    const v = $("disableCode").value.trim();
+    if (!confirm("Turn off the authenticator? The admin sign-in will need the password only.")) return;
+    try {
+      const body = /^\d{6}$/.test(v) ? { code: v } : { recovery_code: v };
+      await api("/api/admin/mfa/disable", { method: "POST", body: JSON.stringify(body) });
+      toast("Authenticator turned off.");
+      load();
+    } catch (err) {
+      toast(err.message);
+    }
+  }
+
+  // ---- Actions (owner clicks only) ----
+  document.addEventListener("click", async (e) => {
+    const t = e.target;
+    if (!(t instanceof HTMLElement)) return;
+    if (t.dataset.block !== undefined) {
+      const a = lastData.alerts[Number(t.dataset.block)];
+      const act = a.actions.find((x) => x.type === "block_ip");
+      const hours = Number(document.querySelector(`select[data-hours="${t.dataset.block}"]`).value);
+      const reason = prompt(`Block ${act.ip_masked} for ${hours === 1 ? "1 hour" : hours === 24 ? "1 day" : "7 days"}? Add a short reason:`, a.title);
+      if (!reason) return;
+      t.disabled = true;
+      try {
+        await api("/api/admin/security/blocks", { method: "POST", body: JSON.stringify({ ip_hash: act.ip_hash, ip_masked: act.ip_masked, hours, reason }) });
+        toast(`Blocked ${act.ip_masked}.`);
+        load();
+      } catch (err) { toast(err.message); t.disabled = false; }
+    } else if (t.dataset.lift) {
+      if (!confirm("Lift this block now?")) return;
+      try { await api(`/api/admin/security/blocks/${encodeURIComponent(t.dataset.lift)}/lift`, { method: "POST", body: "{}" }); toast("Block lifted."); load(); }
+      catch (err) { toast(err.message); }
+    } else if (t.dataset.revoke) {
+      if (!confirm("Sign this rider out on every device? They can sign in again with a new code.")) return;
+      try { await api(`/api/admin/security/riders/${encodeURIComponent(t.dataset.revoke)}/revoke-sessions`, { method: "POST", body: "{}" }); toast("Rider signed out everywhere."); }
+      catch (err) { toast(err.message); }
+    }
+  });
+
+  $("refreshBtn").addEventListener("click", load);
+  load();
+  setInterval(() => { if (!document.hidden) load(); }, 60_000);
+</script>
+</body>
+</html>

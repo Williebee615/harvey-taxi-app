@@ -85,7 +85,8 @@ const EXPECTED_ORDER = [
   "20261022040000_ride_tips_and_driver_ratings.sql",
   "20261023010000_htaf_partners.sql",
   "20261023020000_htaf_admin_inbox_partner_contact.sql",
-  "20261023030000_htaf_applications_test_marker.sql"
+  "20261023030000_htaf_applications_test_marker.sql",
+  "20261024010000_security_intel.sql"
 ];
 
 // Synthetic pre-existing row (no production data), inserted after the

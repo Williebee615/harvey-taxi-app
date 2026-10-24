@@ -3634,3 +3634,69 @@ Three admin pages kept the admin token in browser storage:
 - **Done:** #339 live and verified; IndexNow confirmed; batch 3 built and tested.
 - **Remaining:** merge approval; Search Console verification and sitemap submission.
 - **Next authorized action:** open this PR. Merging needs the owner's approval.
+
+## 102. Update 2026-10-24 (UTC): #340 live; Search Console verified; S.A.I. Cyber Defense PR 1 (PR `claude/sai-cyber-defense`)
+
+- **[Verified 2026-10-24]** #340 merged as `6c2c02a` under the owner's approval ("merge 340"). `/api/health` reported `6c2c02a` at 00:40 UTC.
+  - The homepage serves the `google-site-verification` tag. All 9 batch-3 pages returned 200. The hub shows 6 corridors. The sitemap has 35 URLs (28 destinations, the hub, 6 site pages).
+  - The IndexNow ping for `6c2c02a` was accepted: `indexnow_last_version` was recorded at 00:41:59 UTC.
+  - #341 (the tag on its own) was closed as superseded, with a comment.
+- **[Owner report 2026-10-24]** Search Console is verified; `sitemap.xml` is submitted with 35 discovered pages; 8 pages are queued for indexing. The owner will redo the Google Business Profile video verification in daylight on 2026-10-25. **[Recommendation]** Also request indexing for the 9 batch-3 URLs.
+- **[Verified 2026-10-24, code review] Security controls already in place:**
+  - Per-IP and per-destination rate limits on sign-in and SMS routes, plus the general API limit. Counters are in memory and reset on deploy; Redis is deferred.
+  - Twilio Verify for every sign-in code.
+  - Sign-in checks for admins, riders and drivers, with RBAC decision logging.
+  - Rider session revocation (`session_version`) and driver `access_revoked`.
+  - Security headers including HSTS. CF-Connecting-IP keying (forgery refused by Cloudflare, verified 2026-10-17).
+  - Failed admin sign-ins are audited.
+- **[Verified 2026-10-24] Gaps found:**
+  - The admin sign-in is a single env email + password with no second factor.
+  - `requireAdmin` also accepts `x-admin-email`/`x-admin-password` on every request.
+  - Rate-limit hits and 401/403 responses went only to console logs.
+  - No security panel.
+  - **[Unresolved]** Whether the `*.onrender.com` origin passes a client-supplied CF-Connecting-IP. The agent network can't reach that host.
+  - **[Unresolved]** Twilio Verify Fraud Guard and allowed countries. The agent's read-only Twilio check returned 401.
+- **[Owner decision 2026-10-24]** S.A.I. PR 1 scope:
+  - Alerts in the admin panel plus email.
+  - Admin second step by authenticator app (TOTP).
+  - Nothing new runs automatically beyond today's throttles; every block or revoke is the owner's click.
+  - Free Pwned Passwords check only (no paid HIBP email lookups).
+- **This PR:**
+  - **Migration `20261024010000_security_intel.sql` (unapplied; needs approval):**
+    - `security_events`: append-only. Updates and truncate are refused; deletes only after 90 days. Hashed and masked identifiers only.
+    - `security_ip_blocks`: every block expires within 7 days and records who placed it and why.
+    - `admin_mfa`: secret stored encrypted; recovery codes stored as hashes.
+    - RLS on, no anon/authenticated access.
+  - **Recording (flag `security_intel_enabled`, off):**
+    - rate-limit hits, failed admin sign-ins and codes, 401/403 on admin, driver, partner, store and fleet routes, sign-in texts (hashed number and country prefix), and requests from blocked addresses;
+    - aggregated in memory and saved every 30 s, bounded.
+  - **Alerts (plain English, each with a recommendation):** admin brute force; SMS pumping (one address, ≥5 numbers per hour); hourly SMS volume (≥40); texts outside the US; throttle spikes; refused-access spikes; cancel bursts from one rider (≥5 in 10 min); breached admin password; authenticator off.
+  - **Panel `/admin-security.html`** (linked from the admin dashboard):
+    - Block address (1 h, 1 day or 7 days, with a reason) and Lift; Sign this rider out everywhere (the audited `increment_rider_session_version` RPC).
+    - Refuses to block the owner's own address. A blocked address never stops the admin sign-in or a signed-in admin session.
+  - **Admin authenticator (opt-in by the owner, from the panel):**
+    - After setup, the password returns only a 5-minute challenge; `/api/admin/login/verify-code` takes a 6-digit code (single-use) or one of 8 recovery codes (each single-use).
+    - The `x-admin-email`/`x-admin-password` header path closes.
+    - All three admin sign-in boxes support the code: `/admin-login.html` (code step), the HTAF admin's own sign-in on the foundation domain (code field), and the admin dashboard's box (sends you to `/admin-login.html`).
+    - Only requests carrying a valid challenge count toward the 30-per-15-minutes total for code attempts, so a stranger can't use it up.
+    - The shared `ADMIN_API_TOKEN` path is unchanged.
+    - The encryption key is derived from `ADMIN_SESSION_SECRET`; rotating that secret means setting up the authenticator again.
+    - **Lost phone and no recovery codes:** delete the `admin_mfa` row in Supabase.
+  - **Alert email** (flag `security_alert_email_enabled`, off): critical alerts only, at most once an hour each, to `ADMIN_EMAIL`. Each email says nothing was blocked automatically.
+  - **Breached-password check:** daily, production only, while monitoring is on. It sends 5 hex characters of the SHA-1 to api.pwnedpasswords.com and stores only yes/no.
+- **Tests [Verified 2026-10-24, local, with the database tests]:** full suite 275 suites passed (2 skipped); 3,444 tests passed, 55 skipped, 0 failed.
+  - New suites: `lib/totp` (10, including the RFC 6238 vectors), `lib/securityIntel` (12), `test/server.security-intel` (10), `test/admin-security.browser` (3), `test/db/securityIntel.db` (5).
+  - Adjusted guard tests: `server.agent-safety` accepts the stricter `requireAdminSessionLogin`, and treats the code step as a sign-in route. `server.admin-protection` sends each probe from its own address, because the 7 new routes pushed one address past the general 120-per-minute limit before the auth check could answer.
+- **[Recommendation]** Activation order, each step needing its own approval:
+  1. Merge.
+  2. Apply the migration.
+  3. Owner sets up the authenticator and stores the recovery codes offline.
+  4. Switch on `security_intel_enabled`.
+  5. After a quiet day, switch on `security_alert_email_enabled`.
+  6. In the Twilio console, confirm Verify Fraud Guard is on and limit Verify's allowed countries to the US.
+  7. Later PRs: Redis-backed rate limits (survive deploys), driver session revocation, admin session revocation.
+
+**Handoff:**
+- **Done:** #340 live and verified; Search Console confirmed by the owner; S.A.I. PR 1 built and tested, all off.
+- **Remaining:** merge approval; migration approval; owner's authenticator setup; flag activation; Twilio console checks; Google Business Profile verification (owner, 2026-10-25).
+- **Next authorized action:** open this PR. Merging, the migration and every flag need the owner's approval.

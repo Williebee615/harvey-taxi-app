@@ -1465,6 +1465,122 @@ const { registerDriverAppRoutes, createDriverRealtime } = require("./lib/driverA
 const { locationPolicy: driverAppLocationPolicy, pushKindForTitle: driverAppPushKind, offerPushTitle } = require("./lib/driverApp");
 
 
+/* =========================================================
+
+   S.A.I. CYBER DEFENSE INTELLIGENCE (owner decision 2026-10-24)
+
+   Detect, record, summarise, recommend. The only automatic protection
+   stays today's rate limits; every block or session revoke is the
+   owner's click in the Cyber Defense panel (admin-security.html).
+   Monitoring (recording, alerts, the alert email and the breached-
+   password check) runs only while the security_intel_enabled flag is
+   "true". Owner-placed IP blocks and the admin authenticator apply
+   whenever they exist. See lib/securityIntel.js and lib/totp.js.
+
+========================================================= */
+
+const securityIntel = require("./lib/securityIntel");
+const totp = require("./lib/totp");
+
+// Keys derived from the admin session secret: one for hashing IPs and
+// phone numbers in the security log, one for encrypting the stored
+// authenticator secret, one for the short-lived sign-in challenge.
+const SECURITY_HASH_KEY = ADMIN_SESSION_SECRET ? totp.deriveKey(ADMIN_SESSION_SECRET, "security-intel-v1") : null;
+const ADMIN_MFA_KEY = ADMIN_SESSION_SECRET ? totp.deriveKey(ADMIN_SESSION_SECRET, "admin-mfa-v1") : null;
+const ADMIN_MFA_CHALLENGE_KEY = ADMIN_SESSION_SECRET ? totp.deriveKey(ADMIN_SESSION_SECRET, "admin-mfa-challenge-v1") : null;
+
+const securityEventBuffer = securityIntel.createEventBuffer();
+
+// Refreshed from the database every minute (refreshSecurityState). Kept
+// in memory because requireAdmin and the block check run on every
+// request. mfaActive only changes on a successful read, so a database
+// hiccup can't quietly reopen the password-only path.
+const securityState = { enabled: false, blocked: new Map(), mfaActive: false, loadedAt: 0 };
+
+const securityIpHash = (req) => securityIntel.keyedHash(SECURITY_HASH_KEY, getClientIp(req));
+
+// "/api/admin/rides/1b2c…/assign" → "/api/admin/rides/:id/assign".
+function securityRouteLabel(req) {
+  const p = String((req && (req.originalUrl || req.url)) || "").split("?")[0];
+  return p.replace(/\/[0-9a-f-]{8,}(?=\/|$)/gi, "/:id").replace(/\/\d+(?=\/|$)/g, "/:id").slice(0, 200) || null;
+}
+
+function securityRecord(req, kind, { severity = "info", route, subject, detail } = {}) {
+  if (!securityState.enabled || !SECURITY_HASH_KEY || !req) return;
+  const ip = getClientIp(req);
+  securityEventBuffer.add({
+    kind,
+    severity,
+    route: route || securityRouteLabel(req),
+    ipHash: securityIntel.keyedHash(SECURITY_HASH_KEY, ip),
+    ipMasked: securityIntel.maskIp(ip),
+    subjectHash: subject ? securityIntel.keyedHash(SECURITY_HASH_KEY, subject) : null,
+    detail
+  });
+}
+
+// A sign-in code was texted: hashed number plus its country prefix only.
+function securityRecordSmsSent(req, e164) {
+  securityRecord(req, "sms_code_sent", { subject: e164, detail: { country: securityIntel.countryPrefix(e164) } });
+}
+
+let securityTableMissingLogged = false;
+async function flushSecurityEvents() {
+  const rows = securityEventBuffer.drain();
+  if (!rows.length) return 0;
+  const { error } = await supabase.from("security_events").insert(rows);
+  if (error) {
+    if (!securityTableMissingLogged || error.code !== "42P01") console.error("⚠️ Security events not saved:", error.code || "error");
+    if (error.code === "42P01") securityTableMissingLogged = true;
+    return 0;
+  }
+  return rows.length;
+}
+
+async function refreshSecurityState() {
+  securityState.enabled = (await getSystemFlag("security_intel_enabled", "false")) === "true";
+  const nowIsoText = new Date().toISOString();
+  const blocks = await supabase.from("security_ip_blocks").select("ip_hash, expires_at, lifted_at").is("lifted_at", null).gt("expires_at", nowIsoText);
+  if (!blocks.error) {
+    securityState.blocked = new Map((blocks.data || []).map((b) => [b.ip_hash, Date.parse(b.expires_at)]));
+  }
+  const mfa = await supabase.from("admin_mfa").select("status").eq("email", cleanEmail(ADMIN_EMAIL)).maybeSingle();
+  if (!mfa.error) securityState.mfaActive = mfa.data?.status === "active";
+  else if (mfa.error.code === "42P01") securityState.mfaActive = false;
+  securityState.loadedAt = Date.now();
+}
+
+// Owner-placed blocks. Never applied to the admin sign-in itself or to a
+// request carrying a valid admin session, so the owner can't lock
+// themselves out; the panel also refuses to block the owner's own address.
+app.use("/api/", (req, res, next) => {
+  if (!securityState.blocked.size || !SECURITY_HASH_KEY) return next();
+  const until = securityState.blocked.get(securityIpHash(req));
+  if (!until || until < Date.now()) return next();
+  if (req.path === "/health" || req.path.startsWith("/admin/login") || readAdminSessionCookie(req)) return next();
+  securityRecord(req, "blocked_request");
+  return res.status(403).json({
+    ok: false,
+    error: "Access from this network is paused for now. If you think this is a mistake, email support@harveytaxiservice.com."
+  });
+});
+
+// Refused requests (401/403) on staff, driver, partner and store routes.
+// The admin session check and the sign-in routes are left out: a
+// signed-out admin page polls the session check, and failed sign-ins
+// have their own event.
+const SECURITY_WATCHED_ROUTES = /^\/api\/(admin|driver|drivers|htaf\/admin|htaf\/partner|merchant|fleet)(\/|$)/;
+app.use((req, res, next) => {
+  if (!securityState.enabled || !SECURITY_WATCHED_ROUTES.test(req.path)) return next();
+  if (req.path === "/api/admin/session" || req.path.startsWith("/api/admin/login")) return next();
+  res.on("finish", () => {
+    if (res.statusCode === 401 || res.statusCode === 403) {
+      securityRecord(req, "access_denied", { detail: { status: res.statusCode } });
+    }
+  });
+  return next();
+});
+
 // Emits the exact sanitized event a rejected request produces (see
 // buildRateLimitExceededLogEvent, lib/rateLimit.js) and sets both the
 // standard Retry-After header and a retry_after_seconds JSON field on
@@ -1479,6 +1595,7 @@ function sendRateLimitExceeded(res, { keyPrefix, message, retryAfterSeconds }) {
   console.log(
     JSON.stringify(buildRateLimitExceededLogEvent({ keyPrefix, retryAfterSeconds }))
   );
+  securityRecord(res.req, "rate_limited", { route: keyPrefix });
 
   if (Number.isFinite(retryAfterSeconds)) {
     res.set("Retry-After", String(retryAfterSeconds));
@@ -2565,17 +2682,15 @@ function requireAdmin(req, res, next) {
   }
 
   const email =
-
     cleanEmail(req.headers["x-admin-email"]);
-
   const password =
-
     String(req.headers["x-admin-password"] || "");
-
+  // Email + password sent with each request is password-only access, so
+  // it closes once the admin authenticator is set up (S.A.I., owner
+  // decision 2026-10-24); the signed-in session cookie still works.
   if (
-
+    !securityState.mfaActive &&
     ADMIN_PASSWORD &&
-
     email === cleanEmail(ADMIN_EMAIL) &&
 
     timingSafeEqualString(
@@ -5678,15 +5793,11 @@ app.post(
       timingSafeEqualString(password, ADMIN_PASSWORD);
 
     if (!emailOk || !passwordOk) {
-
+      securityRecord(req, "admin_login_failed", { severity: "warning" });
       await auditLog({
-
         actor_type: "admin",
-
         actor_id: email || "unknown",
-
         action: "admin_login_failed"
-
       });
 
       return fail(
@@ -5701,18 +5812,22 @@ app.post(
 
     }
 
+    // Second step: with the authenticator on, the password alone earns
+    // only a 5-minute challenge for /api/admin/login/verify-code.
+    const mfa = await loadAdminMfa();
+    if (mfa.error) {
+      return fail(res, "Sign-in is temporarily unavailable. Please try again in a minute.", 503);
+    }
+    if (mfa.row && mfa.row.status === "active") {
+      return ok(res, { mfa_required: true, challenge: signAdminMfaChallenge(email) });
+    }
+
     const token = signAdminSession(email);
-
     setAdminSessionCookie(res, token);
-
     await auditLog({
-
       actor_type: "admin",
-
       actor_id: email,
-
       action: "admin_login_success"
-
     });
 
     return ok(res, {
@@ -5784,6 +5899,438 @@ app.get(
   })
 
 );
+
+/* =========================================================
+
+   ADMIN AUTHENTICATOR (S.A.I., owner decision 2026-10-24)
+
+   Optional until the owner sets it up; from then on the admin sign-in
+   needs the password AND a 6-digit code from an authenticator app (or a
+   one-time recovery code). Lost phone with no recovery codes: delete the
+   admin_mfa row in Supabase, which switches the second step off.
+
+========================================================= */
+
+async function loadAdminMfa() {
+  const { data, error } = await supabase
+    .from("admin_mfa")
+    .select("email, secret_enc, status, last_step, recovery_hashes")
+    .eq("email", cleanEmail(ADMIN_EMAIL))
+    .maybeSingle();
+  // Before the migration is applied there is no table, so no second step.
+  if (error && error.code !== "42P01") return { error };
+  return { row: error ? null : data || null };
+}
+
+function signAdminMfaChallenge(email) {
+  const payload = base64UrlEncode(JSON.stringify({ sub: "admin-mfa-challenge", email: cleanEmail(email), exp: Date.now() + 5 * 60_000 }));
+  const sig = crypto.createHmac("sha256", ADMIN_MFA_CHALLENGE_KEY).update(payload).digest("hex");
+  return `${payload}.${sig}`;
+}
+
+function verifyAdminMfaChallenge(token) {
+  if (!ADMIN_MFA_CHALLENGE_KEY) return null;
+  const [payload, sig] = String(token || "").split(".");
+  if (!payload || !sig) return null;
+  const expected = crypto.createHmac("sha256", ADMIN_MFA_CHALLENGE_KEY).update(payload).digest("hex");
+  if (!timingSafeEqualString(sig, expected)) return null;
+  try {
+    const data = JSON.parse(base64UrlDecode(payload));
+    if (data.sub !== "admin-mfa-challenge" || !(data.exp > Date.now())) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+// Checks a 6-digit code (or a recovery code) against the stored row and
+// records its use, so the same code can't be used twice. Returns
+// { ok, method } or { ok: false }.
+async function consumeAdminMfaCode(row, { code, recoveryCode }) {
+  if (recoveryCode) {
+    const hash = totp.hashRecoveryCode(recoveryCode);
+    const hashes = Array.isArray(row.recovery_hashes) ? row.recovery_hashes : [];
+    if (!hashes.includes(hash)) return { ok: false };
+    const { data, error } = await supabase
+      .from("admin_mfa")
+      .update({ recovery_hashes: hashes.filter((h) => h !== hash), updated_at: nowIso() })
+      .eq("email", row.email)
+      .eq("last_step", row.last_step)
+      .select("email");
+    if (error || !data || !data.length) return { ok: false };
+    return { ok: true, method: "recovery_code", recoveryLeft: hashes.length - 1 };
+  }
+  let secret;
+  try {
+    secret = totp.decryptSecret(row.secret_enc, ADMIN_MFA_KEY);
+  } catch {
+    return { ok: false };
+  }
+  const step = totp.verifyCode(secret, code, { lastStep: Number(row.last_step) });
+  if (step === null) return { ok: false };
+  const { data, error } = await supabase
+    .from("admin_mfa")
+    .update({ last_step: step, updated_at: nowIso() })
+    .eq("email", row.email)
+    .eq("last_step", row.last_step)
+    .select("email");
+  if (error || !data || !data.length) return { ok: false };
+  return { ok: true, method: "authenticator", step };
+}
+
+// Limits: 10 tries per address per 15 minutes, then 30 in total. The
+// total counts only requests carrying a valid challenge (which needs the
+// password), so a stranger can't use it up and lock the owner out.
+app.post(
+  "/api/admin/login/verify-code",
+  rateLimit({ windowMs: 15 * 60_000, max: 10, keyPrefix: "admin_mfa" }),
+  (req, res, next) => {
+    const challenge = verifyAdminMfaChallenge(req.body?.challenge);
+    if (!challenge || challenge.email !== cleanEmail(ADMIN_EMAIL)) {
+      return fail(res, "That sign-in has expired. Enter your password again.", 401);
+    }
+    req.adminMfaChallenge = challenge;
+    return next();
+  },
+  rateLimit({ windowMs: 15 * 60_000, max: 30, keyPrefix: "admin_mfa_all", keyFn: () => "all" }),
+  asyncRoute(async (req, res) => {
+    const challenge = req.adminMfaChallenge;
+    const mfa = await loadAdminMfa();
+    if (mfa.error) return fail(res, "Sign-in is temporarily unavailable. Please try again in a minute.", 503);
+    if (!mfa.row || mfa.row.status !== "active") {
+      return fail(res, "That sign-in has expired. Enter your password again.", 401);
+    }
+    const result = await consumeAdminMfaCode(mfa.row, {
+      code: cleanString(req.body?.code, 12),
+      recoveryCode: cleanString(req.body?.recovery_code, 20)
+    });
+    if (!result.ok) {
+      securityRecord(req, "admin_mfa_failed", { severity: "warning" });
+      await auditLog({ actor_type: "admin", actor_id: challenge.email, action: "admin_mfa_failed", req });
+      return fail(res, "That code didn't work. Check the time on your phone and try the newest code.", 401);
+    }
+    setAdminSessionCookie(res, signAdminSession(challenge.email));
+    await auditLog({ actor_type: "admin", actor_id: challenge.email, action: "admin_login_success", metadata: { second_step: result.method }, req });
+    return ok(res, {
+      admin: { email: challenge.email, expiresInHours: ADMIN_SESSION_TTL_HOURS },
+      ...(result.method === "recovery_code" ? { recovery_codes_left: result.recoveryLeft } : {})
+    });
+  })
+);
+
+// Only a signed-in session manages the authenticator (not the
+// email/password headers, and not the shared admin token).
+function requireAdminSessionLogin(req, res, next) {
+  const session = readAdminSessionCookie(req);
+  if (!session) return fail(res, "Sign in on the admin login page first.", 401);
+  req.admin = { id: "session-admin", email: session.email || ADMIN_EMAIL, method: "admin_session" };
+  return next();
+}
+
+app.get(
+  "/api/admin/mfa",
+  requireAdminSessionLogin,
+  asyncRoute(async (req, res) => {
+    const mfa = await loadAdminMfa();
+    if (mfa.error) return fail(res, "Couldn't read the authenticator setting.", 503);
+    return ok(res, {
+      available: Boolean(ADMIN_MFA_KEY),
+      status: mfa.row ? mfa.row.status : "off",
+      recovery_codes_left: mfa.row && mfa.row.status === "active" ? (mfa.row.recovery_hashes || []).length : null
+    });
+  })
+);
+
+app.post(
+  "/api/admin/mfa/setup",
+  requireAdminSessionLogin,
+  rateLimit({ windowMs: 15 * 60_000, max: 10, keyPrefix: "admin_mfa_setup" }),
+  asyncRoute(async (req, res) => {
+    if (!ADMIN_MFA_KEY) return fail(res, "The authenticator needs ADMIN_SESSION_SECRET on the server.", 503);
+    const mfa = await loadAdminMfa();
+    if (mfa.error) return fail(res, "Couldn't read the authenticator setting.", 503);
+    if (mfa.row && mfa.row.status === "active") {
+      return fail(res, "The authenticator is already on. Turn it off first to set up a new phone.", 409);
+    }
+    const secret = totp.generateSecret();
+    const email = cleanEmail(ADMIN_EMAIL);
+    const { error } = await supabase.from("admin_mfa").upsert({
+      email,
+      secret_enc: totp.encryptSecret(secret, ADMIN_MFA_KEY),
+      status: "pending",
+      last_step: -1,
+      recovery_hashes: [],
+      activated_at: null,
+      updated_at: nowIso()
+    }, { onConflict: "email" });
+    if (error) {
+      return fail(res, error.code === "42P01" ? "The security database update hasn't been applied yet." : "Couldn't start setup.", 503);
+    }
+    // The secret is shown once, for this setup screen only.
+    return ok(res, { secret, otpauth_uri: totp.otpauthUri({ secret, account: email }) });
+  })
+);
+
+app.post(
+  "/api/admin/mfa/confirm",
+  requireAdminSessionLogin,
+  rateLimit({ windowMs: 15 * 60_000, max: 10, keyPrefix: "admin_mfa_confirm" }),
+  asyncRoute(async (req, res) => {
+    const mfa = await loadAdminMfa();
+    if (mfa.error) return fail(res, "Couldn't read the authenticator setting.", 503);
+    if (!mfa.row || mfa.row.status !== "pending") return fail(res, "Start setup first.", 409);
+    let secret;
+    try {
+      secret = totp.decryptSecret(mfa.row.secret_enc, ADMIN_MFA_KEY);
+    } catch {
+      return fail(res, "Setup can't be read; start setup again.", 409);
+    }
+    const step = totp.verifyCode(secret, cleanString(req.body?.code, 12), { lastStep: Number(mfa.row.last_step) });
+    if (step === null) return fail(res, "That code didn't match. Check the time on your phone and try the newest code.", 400);
+    const recoveryCodes = totp.generateRecoveryCodes();
+    const { data, error } = await supabase
+      .from("admin_mfa")
+      .update({ status: "active", activated_at: nowIso(), last_step: step, recovery_hashes: recoveryCodes.map(totp.hashRecoveryCode), updated_at: nowIso() })
+      .eq("email", mfa.row.email)
+      .eq("status", "pending")
+      .select("email");
+    if (error || !data || !data.length) return fail(res, "Couldn't switch the authenticator on. Try again.", 503);
+    securityState.mfaActive = true;
+    await auditLog({ actor_type: "admin", actor_id: req.admin.email, action: "admin_mfa_enabled", req });
+    // Shown once; only hashes are stored.
+    return ok(res, { status: "active", recovery_codes: recoveryCodes });
+  })
+);
+
+app.post(
+  "/api/admin/mfa/disable",
+  requireAdminSessionLogin,
+  rateLimit({ windowMs: 15 * 60_000, max: 10, keyPrefix: "admin_mfa_disable" }),
+  asyncRoute(async (req, res) => {
+    const mfa = await loadAdminMfa();
+    if (mfa.error) return fail(res, "Couldn't read the authenticator setting.", 503);
+    if (!mfa.row) return ok(res, { status: "off" });
+    if (mfa.row.status === "active") {
+      const result = await consumeAdminMfaCode(mfa.row, {
+        code: cleanString(req.body?.code, 12),
+        recoveryCode: cleanString(req.body?.recovery_code, 20)
+      });
+      if (!result.ok) {
+        securityRecord(req, "admin_mfa_failed", { severity: "warning" });
+        return fail(res, "Enter a current code from your authenticator (or a recovery code) to turn it off.", 401);
+      }
+    }
+    const { error } = await supabase.from("admin_mfa").delete().eq("email", mfa.row.email);
+    if (error) return fail(res, "Couldn't turn the authenticator off.", 503);
+    securityState.mfaActive = false;
+    await auditLog({ actor_type: "admin", actor_id: req.admin.email, action: "admin_mfa_disabled", req });
+    return ok(res, { status: "off" });
+  })
+);
+
+/* =========================================================
+
+   CYBER DEFENSE PANEL API (S.A.I., owner decision 2026-10-24)
+
+   Read: alerts, recent events, active blocks. Act: only when the owner
+   clicks: block an address for 1 hour, 1 day or 7 days; lift a block;
+   sign a rider out everywhere. Nothing here runs on its own.
+
+========================================================= */
+
+const SECURITY_BLOCK_HOURS = new Set([1, 24, 168]);
+
+async function loadSecurityPicture() {
+  const nowMs = Date.now();
+  const since = new Date(nowMs - 24 * 60 * 60_000).toISOString();
+  const [events, blocks, cancels, check, mfa] = await Promise.all([
+    supabase.from("security_events").select("id, created_at, kind, severity, route, ip_hash, ip_masked, subject_hash, count, detail").gte("created_at", since).order("created_at", { ascending: false }).limit(2000),
+    supabase.from("security_ip_blocks").select("id, ip_hash, ip_masked, reason, created_by, created_at, expires_at, lifted_at").is("lifted_at", null).gt("expires_at", new Date(nowMs).toISOString()).order("created_at", { ascending: false }).limit(200),
+    supabase.from("rides").select("rider_id, cancelled_at").gte("cancelled_at", new Date(nowMs - 15 * 60_000).toISOString()).limit(1000),
+    getSystemFlag("security_admin_password_check", ""),
+    loadAdminMfa()
+  ]);
+  let passwordCheck = null;
+  try {
+    passwordCheck = check ? JSON.parse(check) : null;
+  } catch {
+    passwordCheck = null;
+  }
+  const setupNeeded = [events, blocks].some((r) => r.error && r.error.code === "42P01");
+  const eventRows = events.error ? [] : events.data || [];
+  const blockRows = blocks.error ? [] : blocks.data || [];
+  const mfaActive = Boolean(!mfa.error && mfa.row && mfa.row.status === "active");
+  const alerts = securityIntel.buildAlerts({
+    events: eventRows,
+    cancellations: cancels.error ? [] : cancels.data || [],
+    passwordCheck,
+    mfaActive,
+    blockedHashes: new Set(blockRows.map((b) => b.ip_hash)),
+    nowMs
+  });
+  return { nowMs, eventRows, blockRows, alerts, passwordCheck, mfaActive, setupNeeded };
+}
+
+app.get(
+  "/api/admin/security/overview",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    // Save what's buffered first so the panel is current.
+    if (securityState.enabled) await flushSecurityEvents().catch(() => 0);
+    const picture = await loadSecurityPicture();
+    const totals = {};
+    for (const r of picture.eventRows) totals[r.kind] = (totals[r.kind] || 0) + (Number(r.count) || 1);
+    return ok(res, {
+      monitoring_enabled: securityState.enabled,
+      alert_email_enabled: (await getSystemFlag("security_alert_email_enabled", "false")) === "true",
+      setup_needed: picture.setupNeeded,
+      mfa_active: picture.mfaActive,
+      password_check: picture.passwordCheck,
+      your_ip_hash: securityIpHash(req),
+      alerts: picture.alerts,
+      totals_24h: totals,
+      // Masked and hashed only; no raw addresses or numbers exist to show.
+      recent: picture.eventRows.slice(0, 50).map((r) => ({ created_at: r.created_at, kind: r.kind, severity: r.severity, route: r.route, ip_masked: r.ip_masked, ip_hash: r.ip_hash, count: r.count })),
+      blocks: picture.blockRows
+    });
+  })
+);
+
+app.post(
+  "/api/admin/security/blocks",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const ipHash = String(req.body?.ip_hash || "");
+    const hours = Number(req.body?.hours);
+    const reason = cleanString(req.body?.reason, 300);
+    if (!/^[0-9a-f]{32}$/.test(ipHash)) return fail(res, "Pick an address from an alert.", 400);
+    if (!SECURITY_BLOCK_HOURS.has(hours)) return fail(res, "Choose 1 hour, 1 day or 7 days.", 400);
+    if (!reason || reason.length < 2) return fail(res, "Add a short reason.", 400);
+    if (ipHash === securityIpHash(req)) return fail(res, "That's the address you're using now, so it can't be blocked from here.", 400);
+    const ipMasked = cleanString(req.body?.ip_masked, 64) || null;
+    const expiresAt = new Date(Date.now() + hours * 60 * 60_000).toISOString();
+    const { data, error } = await supabase
+      .from("security_ip_blocks")
+      .insert({ ip_hash: ipHash, ip_masked: ipMasked, reason, created_by: req.admin.email, expires_at: expiresAt })
+      .select("id, ip_hash, ip_masked, reason, created_at, expires_at");
+    if (error) return fail(res, error.code === "42P01" ? "The security database update hasn't been applied yet." : "Couldn't save the block.", 503);
+    securityState.blocked.set(ipHash, Date.parse(expiresAt));
+    await auditLog({ actor_type: "admin", actor_id: req.admin.email, action: "security_ip_blocked", entity_type: "security_ip_block", entity_id: String(data?.[0]?.id || ""), metadata: { ip_masked: ipMasked, hours, reason }, req });
+    return ok(res, { block: data?.[0] || null });
+  })
+);
+
+app.post(
+  "/api/admin/security/blocks/:id/lift",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id < 1) return fail(res, "Unknown block.", 400);
+    const { data, error } = await supabase
+      .from("security_ip_blocks")
+      .update({ lifted_at: nowIso(), lifted_by: req.admin.email })
+      .eq("id", id)
+      .is("lifted_at", null)
+      .select("id, ip_hash, ip_masked");
+    if (error) return fail(res, "Couldn't lift the block.", 503);
+    if (!data || !data.length) return fail(res, "That block was already lifted or has expired.", 404);
+    securityState.blocked.delete(data[0].ip_hash);
+    await auditLog({ actor_type: "admin", actor_id: req.admin.email, action: "security_ip_block_lifted", entity_type: "security_ip_block", entity_id: String(id), metadata: { ip_masked: data[0].ip_masked }, req });
+    return ok(res, { lifted: true });
+  })
+);
+
+// Signs one rider out on every device (the same server-side revocation
+// rider sign-out uses). Reversible: the rider just signs in again.
+app.post(
+  "/api/admin/security/riders/:id/revoke-sessions",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const riderId = cleanString(req.params.id, 64);
+    if (!riderId) return fail(res, "Unknown rider.", 400);
+    const result = await applyRiderSessionVersionIncrement({
+      callRpc: (name, params) => supabase.rpc(name, params),
+      riderId,
+      actorType: "admin",
+      actorId: req.admin.email,
+      action: "rider_sessions_revoked_by_admin",
+      metadata: { source: "cyber_defense" },
+      ipAddress: getClientIp(req),
+      userAgent: req.headers["user-agent"] || null
+    });
+    if (!result.ok) return fail(res, "Couldn't sign the rider out. Try again.", 503);
+    return ok(res, { revoked: true });
+  })
+);
+
+// Background work, all gated on security_intel_enabled: save buffered
+// events, email the owner about new critical alerts (at most once an hour
+// per alert, only while security_alert_email_enabled is "true"), purge
+// events older than 90 days once a day.
+async function runSecuritySweep({ nowMs = Date.now() } = {}) {
+  if (!securityState.enabled) return { skipped: true };
+  await flushSecurityEvents();
+  const picture = await loadSecurityPicture();
+  let emailed = [];
+  if ((await getSystemFlag("security_alert_email_enabled", "false")) === "true") {
+    let log = {};
+    try {
+      log = JSON.parse(await getSystemFlag("security_alert_email_log", "{}")) || {};
+    } catch {
+      log = {};
+    }
+    const due = picture.alerts.filter((a) => a.severity === "critical" && a.notify !== false && !(Date.parse(log[a.key] || 0) > nowMs - 60 * 60_000));
+    if (due.length) {
+      const lines = due.map((a) => `• ${a.title}\n  ${a.summary}\n  Recommended: ${a.recommendation}`).join("\n\n");
+      const sent = await sendEmail({
+        to: ADMIN_EMAIL,
+        subject: `Harvey Taxi security alert: ${due[0].title}${due.length > 1 ? ` (+${due.length - 1} more)` : ""}`,
+        text: `S.A.I. Cyber Defense found ${due.length} critical alert${due.length > 1 ? "s" : ""}. Nothing has been blocked automatically.\n\n${lines}\n\nReview and act: https://${CANONICAL_HOST}/admin-security.html`
+      }).catch(() => null);
+      if (sent && sent.sent === true) {
+        const nowText = new Date(nowMs).toISOString();
+        for (const a of due) log[a.key] = nowText;
+        // Keep the log small: only entries from the last day.
+        for (const k of Object.keys(log)) if (Date.parse(log[k]) < nowMs - 24 * 60 * 60_000) delete log[k];
+        await supabase.from("system_flags").upsert({ key: "security_alert_email_log", value: JSON.stringify(log), updated_at: nowText });
+        emailed = due.map((a) => a.key);
+      }
+    }
+  }
+  const lastPurge = await getSystemFlag("security_events_last_purge", "");
+  if (!(Date.parse(lastPurge) > nowMs - 24 * 60 * 60_000)) {
+    const cutoff = new Date(nowMs - 90 * 24 * 60 * 60_000).toISOString();
+    const { error } = await supabase.from("security_events").delete().lt("created_at", cutoff);
+    if (!error) await supabase.from("system_flags").upsert({ key: "security_events_last_purge", value: new Date(nowMs).toISOString(), updated_at: nowIso() });
+  }
+  return { alerts: picture.alerts.length, emailed };
+}
+
+// Free Pwned Passwords check of ADMIN_PASSWORD, at most once a day, in
+// production, while monitoring is on. Only the first 5 characters of the
+// password's SHA-1 leave the server (k-anonymity); only the yes/no result
+// is kept.
+async function runAdminPasswordCheck({ fetchImpl = typeof fetch === "function" ? fetch : null, force = false, nowMs = Date.now() } = {}) {
+  if (!force && (!IS_PRODUCTION || !securityState.enabled)) return { skipped: true, reason: "not_enabled" };
+  if (!ADMIN_PASSWORD || !fetchImpl) return { skipped: true, reason: "not_configured" };
+  let previous = null;
+  try {
+    previous = JSON.parse(await getSystemFlag("security_admin_password_check", "")) || null;
+  } catch {
+    previous = null;
+  }
+  if (!force && previous && Date.parse(previous.checked_at) > nowMs - 24 * 60 * 60_000) return { skipped: true, reason: "checked_recently" };
+  const { prefix, suffix } = securityIntel.pwnedPrefixAndSuffix(ADMIN_PASSWORD);
+  const response = await fetchImpl(`https://api.pwnedpasswords.com/range/${prefix}`, {
+    headers: { "Add-Padding": "true", "User-Agent": "HarveyTaxi-SAI" },
+    signal: AbortSignal.timeout(10_000)
+  });
+  if (!response.ok) return { skipped: true, reason: `http_${response.status}` };
+  const breached = securityIntel.pwnedCountFromRange(await response.text(), suffix) > 0;
+  const result = { checked_at: new Date(nowMs).toISOString(), breached };
+  await supabase.from("system_flags").upsert({ key: "security_admin_password_check", value: JSON.stringify(result), updated_at: nowIso() });
+  return result;
+}
 
 /* =========================================================
 
@@ -7366,6 +7913,7 @@ app.post(
             await twilioClient.verify
               .services(TWILIO_VERIFY_SERVICE_SID)
               .verifications.create({ to: e164, channel: "sms" });
+            securityRecordSmsSent(req, e164);
           } catch (err) {
             console.error("❌ Rider session start: Twilio Verify send failed:", describeTwilioError(err));
           }
@@ -7774,6 +8322,7 @@ app.post(
       await twilioClient.verify
         .services(TWILIO_VERIFY_SERVICE_SID)
         .verifications.create({ to: e164, channel: "sms" });
+      securityRecordSmsSent(req, e164);
     } catch (err) {
       console.error("❌ Rider quick start: Twilio Verify send failed:", describeTwilioError(err));
     }
@@ -8045,6 +8594,8 @@ app.post(
             to: verifyTo,
             channel: "sms"
           });
+      securityRecordSmsSent(req, verifyTo);
+
 
     } catch (err) {
 
@@ -22559,6 +23110,7 @@ app.post(
     if (found) {
       try {
         await twilioClient.verify.services(TWILIO_VERIFY_SERVICE_SID).verifications.create({ to: found.e164, channel: "sms" });
+        securityRecordSmsSent(req, found.e164);
       } catch (err) {
         console.error("❌ HTAF partner sign-in: Twilio Verify send failed:", describeTwilioError(err));
       }
@@ -22921,6 +23473,7 @@ app.post(
     if (found) {
       try {
         await twilioClient.verify.services(TWILIO_VERIFY_SERVICE_SID).verifications.create({ to: found.e164, channel: "sms" });
+        securityRecordSmsSent(req, found.e164);
       } catch (err) {
         console.error("❌ Merchant sign-in: Twilio Verify send failed:", describeTwilioError(err));
       }
@@ -27140,12 +27693,11 @@ app.post(
         .verifications
 
         .create({
-
           to: phone,
-
           channel: "sms"
-
         });
+    securityRecordSmsSent(req, phone);
+
 
     auditLog({
 
@@ -31088,6 +31640,11 @@ app.get(
   (req, res) => sendStaticPage(res, "admin-knowledge.html")
 );
 
+app.get(
+  "/admin-security",
+  (req, res) => sendStaticPage(res, "admin-security.html")
+);
+
 
 /* =========================================================
    PAYMENT RECORDS AND UNUSED CARD HOLDS
@@ -31694,6 +32251,7 @@ app.post(
   getSystemFlag,
   getTwilioClient: () => twilioClient,
   twilioVerifyServiceSid: TWILIO_VERIFY_SERVICE_SID,
+  onSmsCodeSent: securityRecordSmsSent,
   toE164,
   signDriverSession,
   driverSessionTtlHours: DRIVER_SESSION_TTL_HOURS,
@@ -32201,6 +32759,25 @@ async function startServer() {
       setTimeout(tipReconcileTick, 5 * 60_000).unref();
       setInterval(tipReconcileTick, 60 * 60_000).unref();
 
+      // S.A.I. Cyber Defense: load flags, owner blocks and the admin
+      // authenticator state now and every minute; save buffered events
+      // every 30 s; sweep (alert email, 90-day purge) every 5 minutes;
+      // breached-password check 3 minutes after start and every 6 hours
+      // (at most once a day). All monitoring is off unless
+      // security_intel_enabled is "true".
+      const securityRefreshTick = () => refreshSecurityState().catch((err) => console.error("⚠️ Security state refresh failed:", logErrorCode(err)));
+      securityRefreshTick();
+      setInterval(securityRefreshTick, 60_000).unref();
+      setInterval(() => {
+        if (securityState.enabled) flushSecurityEvents().catch(() => {});
+      }, 30_000).unref();
+      setInterval(() => {
+        runSecuritySweep().catch((err) => console.error("⚠️ Security sweep failed:", logErrorCode(err)));
+      }, 5 * 60_000).unref();
+      const passwordCheckTick = () => runAdminPasswordCheck().catch((err) => console.error("⚠️ Admin password check failed:", logErrorCode(err)));
+      setTimeout(passwordCheckTick, 3 * 60_000).unref();
+      setInterval(passwordCheckTick, 6 * 60 * 60_000).unref();
+
       // IndexNow: tell Bing and other IndexNow engines about the site's
       // pages once per deployed version, 2 minutes after start.
       setTimeout(() => {
@@ -32247,4 +32824,4 @@ if (require.main === module) {
 // runOfferExpirySweep is exported only so tests can drive the real
 // Supabase adapters for the offer-expiry sweep; production runs it on the
 // interval set up under require.main === module below.
-module.exports = { app, __assistantPilot: assistantPilotTestHooks, runAuditIpRetention, runTipReconciliation, runScheduledTipReconciliation, runIndexNowPing, runReviewDemoTick, runOfferExpirySweep, runUnusedHoldSweep, runAgentCoordinationSweep, reconcileStripeHolds, runScheduledReconciliation, purgeRiderLocations, runDriverHoursSweep };
+module.exports = { app, __assistantPilot: assistantPilotTestHooks, runAuditIpRetention, runTipReconciliation, runScheduledTipReconciliation, runIndexNowPing, refreshSecurityState, flushSecurityEvents, runSecuritySweep, runAdminPasswordCheck, securityState, runReviewDemoTick, runOfferExpirySweep, runUnusedHoldSweep, runAgentCoordinationSweep, reconcileStripeHolds, runScheduledReconciliation, purgeRiderLocations, runDriverHoursSweep };
