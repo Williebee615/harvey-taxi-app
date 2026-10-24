@@ -3615,6 +3615,26 @@ Three admin pages kept the admin token in browser storage:
 - **Remaining:** merge approval; next PR with neighborhoods and universities + transit; owner's Search Console and Business Profile steps.
 - **Next authorized action:** open this PR. Merging needs the owner's approval.
 
+## 101. Update 2026-10-24 (UTC): #339 live, IndexNow confirmed; destinations batch 3 and Search Console tag (PR `claude/destinations-batch3`)
+
+- **[Verified 2026-10-24]** #339 merged as `d7c3bd4` under the owner's approval ("Approved"). `/api/health` reported `d7c3bd4` at 00:16 UTC.
+  - Live checks at 00:17 UTC: the hub and all 8 new pages returned 200 (the Country Music Hall of Fame page returned one 404 mid-rollout, then 200 on three retries); the sitemap lists all 19 destination paths; the key file loads; FAQ structured data present on the GEODIS Park page.
+  - **[Verified 2026-10-24]** The first IndexNow ping was accepted: `system_flags.indexnow_last_version` = `d7c3bd4`, recorded 00:18:12 UTC. The endpoint is not expected to report which engines indexed what.
+- **[Owner decision 2026-10-24]** The owner supplied a Google Search Console HTML-tag token for `https://harveytaxiservice.com` and confirmed the HTML-tag method for the taxi site. The token is in `public/index.html` as a `google-site-verification` meta tag. It proves ownership only and grants no access, so it is public by design; it is deliberately absent from every foundation page (separate property, arm's-length separation).
+- **This PR (batch 3, 9 pages):**
+  - Neighborhoods: The Gulch, 12 South, East Nashville (Five Points), Germantown & the Farmers' Market, Midtown & Music Row.
+  - Campuses and transit: Tennessee State University, Fisk University, Lipscomb University, WeGo Central.
+  - Two new corridors: East Nashville, and North Nashville & Germantown. 28 destinations in total.
+  - Each page cites official sources (Visit Music City, Metro NDOT and Traffic & Parking Commission, Nashville Farmers' Market, each university, WeGo). Where no current official page exists (Fisk visitor parking, Lipscomb garage numbering, the Gulch rideshare zones, the WeGo elevator notice, the proposed 12 South time limits), the page says so instead of guessing.
+  - Pages now carry their own "checked" date, so batch 3's 2026-10-24 research is not recorded under batch 1 and 2's 2026-10-23 date.
+  - The homepage footer links the 5 neighborhood pages.
+- **[Unresolved / owner actions]:** click Verify in Search Console once this is live; then submit the sitemap and request indexing. Google Business Profile posts remain the owner's.
+
+**Handoff:**
+- **Done:** #339 live and verified; IndexNow confirmed; batch 3 built and tested.
+- **Remaining:** merge approval; Search Console verification and sitemap submission.
+- **Next authorized action:** open this PR. Merging needs the owner's approval.
+
 ## 102. Update 2026-10-24 (UTC): #340 live; Search Console verified; S.A.I. Cyber Defense PR 1 (PR `claude/sai-cyber-defense`)
 
 - **[Verified 2026-10-24]** #340 merged as `6c2c02a` under the owner's approval ("merge 340"). `/api/health` reported `6c2c02a` at 00:40 UTC.
