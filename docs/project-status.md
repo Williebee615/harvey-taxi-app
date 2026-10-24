@@ -3589,3 +3589,28 @@ Three admin pages kept the admin token in browser storage:
 - **Done:** #337 live; layout fix built.
 - **Remaining:** merge approval; the owner sends the Facebook reply after checking the links.
 - **Next authorized action:** open this PR. Merging needs the owner's approval.
+
+## 100. Update 2026-10-23 (UTC): #338 live; Nashville destinations batch 2, rider FAQs, corridor clusters and IndexNow (PR `claude/destinations-batch2`)
+
+- **[Verified 2026-10-23]** #338 merged as `f2c1022` under the owner's approval ("Approved"). `/api/health` reported `f2c1022` at 20:58 UTC.
+- **[Owner decision 2026-10-23]** Scope of this PR:
+  - 8 new pages: GEODIS Park, Music City Center, Country Music Hall of Fame and Museum, The Parthenon & Centennial Park; Ascension Saint Thomas Midtown, Ascension Saint Thomas West, Monroe Carell Jr. Children's Hospital at Vanderbilt, Nashville VA Medical Center.
+  - Neighborhoods (5) and universities + transit (4) wait for the next PR.
+  - No links from HTAF pages to Harvey Taxi pages ("No cross-links").
+  - No "no surge pricing" claim ("Don't claim it").
+  - IndexNow and corridor clusters ("Yes, both").
+- **This PR:**
+  - The 8 pages use each venue's or hospital's own website as the source (checked 2026-10-23), with drop-off, accessibility and parking notes and Mapbox travel times.
+  - All 19 destinations sit in 4 corridors: Downtown & East Bank, Midtown & West End, Opryland, South Nashville. The hub is grouped by corridor, and each page links the rest of its corridor.
+  - Every page has 3 rider questions with FAQPage structured data. A test blocks surge, "guarantee" and "cheapest" wording.
+  - Hospital pages keep "a ride service, not medical transport" and "Not for emergencies: call 911".
+  - Event venues (Broadway, Ryman, Bridgestone, Nissan, Grand Ole Opry, GEODIS, Music City Center) show a "Leaving after an event" note.
+  - The homepage footer links the 4 new tourist pages.
+  - IndexNow: a public key file (`/1cd8a8f3c1398f593f48c5344b0f716c.txt`; the key is public by design) and a one-time ping of the sitemap pages 2 minutes after each new production version starts. It records the version in `system_flags.indexnow_last_version`. Setting `system_flags.indexnow_enabled` to `false` turns it off. It doesn't run outside production.
+- **Tests [Verified 2026-10-23, local, with the database tests]:** full suite 270 suites passed (2 skipped); 3,402 tests passed, 55 skipped, 0 failed.
+- **[Unresolved / owner actions]:** Google Search Console (verify, submit the sitemap, request indexing) and Google Business Profile posts are the owner's to do.
+
+**Handoff:**
+- **Done:** #338 live; batch 2 built and tested.
+- **Remaining:** merge approval; next PR with neighborhoods and universities + transit; owner's Search Console and Business Profile steps.
+- **Next authorized action:** open this PR. Merging needs the owner's approval.
